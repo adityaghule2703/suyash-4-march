@@ -83,7 +83,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const fetchVendors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/vendors`, {
+      const response = await axios.get(`${BASE_URL}/api/quotations/vendors`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

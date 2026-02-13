@@ -319,11 +319,7 @@ const HeaderTwo = () => {
                       ))}
 
                       {/* 🔥 Leave Management Section */}
-                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 mt-2">
-                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          Leave Management
-                        </h3>
-                      </div>
+                   
 
                       {leaveManagementItems.map((item) => (
                         <NavLink

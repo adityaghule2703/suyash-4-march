@@ -2,12 +2,12 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
-import Users from './pages/Users'
-import Quotation from './pages/Quotation/Quotation'
-// import CustomerMaster from './pages/Master/CustomerMaster/CustomerMaster'
-import ItemMaster from './pages/Master/ItemMaster/ItemMaster'
-import MaterialMaster from './pages/Master/MaterialMaster/MaterialMaster'
-import CompanyMaster from './pages/Master/CompanyMaster/CompanyMaster'
+import Users from './pages/users/Users'
+import Quotation from './pages/quotation/Quotation'
+// import CustomerMaster from './pages/master/customermaster/CustomerMaster'
+import ItemMaster from './pages/master/itemmaster/ItemMaster'
+import MaterialMaster from './pages/master/materialmaster/MaterialMaster'  // Fixed: lowercase 'master'
+import CompanyMaster from './pages/master/companymaster/CompanyMaster'    // Fixed: lowercase 'master'
 import CostingMaster from './pages/master/costingmaster/CostingMaster'
 import DimentionMaster from './pages/master/dimentionmaster/DimentionMaster'
 import OperationMaster from './pages/master/operationmaster/OperationMaster'
@@ -27,7 +27,7 @@ import VendorMaster from './pages/master/vendormaster/VendorMaster'
 
 import ApplyLeave from './pages/hrmaster/employeeleavemaster/EmployeeLeaveMaster'
 import MyLeaves from './pages/hrmaster/employeeleavemaster/MyLeaves'
-import LeaveApproval from './pages/hrmaster/employeeleavemaster/LEaveApproval'
+import LeaveApproval from './pages/hrmaster/employeeleavemaster/LeaveApproval'
 import EmployeeLeaveMaster from './pages/hrmaster/employeeleavemaster/EmployeeLeaveMaster'
 import AdminLeaveApproval from './pages/hrmaster/adminleavemaster/AdminLeaveApproval'
 
@@ -81,7 +81,6 @@ const App = () => {
 
           <Route path='hrmaster/employeeleavemaster' element={<EmployeeLeaveMaster/>} />
           <Route path='hrmaster/adminleavemaster' element={<AdminLeaveApproval/>} />
-
 
         </Route>
 

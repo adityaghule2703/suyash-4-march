@@ -126,12 +126,12 @@ const Login = () => {
           <h2 className="text-2xl font-semibold mb-2">
             Login to Account
           </h2>
-          <p className="text-sm text-gray-600 mb-6">
+          {/* <p className="text-sm text-gray-600 mb-6">
             Don't have an account?{" "}
             <Link to="/registration" className="text-orange-600 cursor-pointer font-medium hover:underline">
               Create Account
             </Link>
-          </p>
+          </p> */}
 
           {/* Google Sign In Button (Optional) */}
           <button
