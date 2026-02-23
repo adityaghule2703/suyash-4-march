@@ -490,24 +490,11 @@ const StatCard = ({ icon, label, value, color }) => (
           <Button onClick={backStep}>Back</Button>
         )}
 
-        {activeStep < 2 ? (
+        {activeStep < 2 && (
           <Button variant="contained" onClick={nextStep}>
             Next
           </Button>
-        ) : (
-          requisition && requisition.status === 'draft' && (
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => {
-                onClose();
-                if (onEdit) onEdit(requisition);
-              }}
-            >
-              Edit Requisition
-            </Button>
-          )
-        )}
+        ) }
       </DialogActions>
     </Dialog>
   );

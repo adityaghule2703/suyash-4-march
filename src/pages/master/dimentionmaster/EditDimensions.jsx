@@ -8,7 +8,6 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Typography,
   Box,
   FormControl,
@@ -114,23 +113,23 @@ const EditDimensions = ({ open, onClose, dimension, onUpdate }) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.PartNo.trim()) {
+    if (!formData.PartNo) {
       setError('Part No is required');
       return;
     }
-    if (!formData.Thickness || formData.Thickness <= 0) {
+    if (!formData.Thickness || parseFloat(formData.Thickness) <= 0) {
       setError('Thickness must be greater than 0');
       return;
     }
-    if (!formData.Width || formData.Width <= 0) {
+    if (!formData.Width || parseFloat(formData.Width) <= 0) {
       setError('Width must be greater than 0');
       return;
     }
-    if (!formData.Length || formData.Length <= 0) {
+    if (!formData.Length || parseFloat(formData.Length) <= 0) {
       setError('Length must be greater than 0');
       return;
     }
-    if (!formData.Density || formData.Density <= 0) {
+    if (!formData.Density || parseFloat(formData.Density) <= 0) {
       setError('Density must be greater than 0');
       return;
     }
@@ -170,256 +169,176 @@ const EditDimensions = ({ open, onClose, dimension, onUpdate }) => {
   const weight = calculateWeight();
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Edit Dimension Weight
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
-        {/* Show error at the top if exists */}
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Add extra margin top container */}
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={3}>
-            {/* Part No Dropdown */}
-            <FormControl fullWidth size="medium" disabled={fetchingItems || loading}>
-              <InputLabel id="partno-select-label">Part No *</InputLabel>
-              <Select
-                labelId="partno-select-label"
-                id="partno-select"
-                name="PartNo"
-                value={formData.PartNo}
-                label="Part No *"
-                onChange={handleSelectChange}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                  }
-                }}
-              >
-                <MenuItem value="">
-                  <em>Select a Part No</em>
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Part No Dropdown */}
+          <FormControl fullWidth>
+            <InputLabel>Part No *</InputLabel>
+            <Select
+              name="PartNo"
+              value={formData.PartNo}
+              onChange={handleSelectChange}
+              label="Part No *"
+              required
+              disabled={fetchingItems || loading}
+            >
+              <MenuItem value="">
+                <em>Select a Part No</em>
+              </MenuItem>
+              {items.map((item) => (
+                <MenuItem key={item._id} value={item.PartNo}>
+                  <Box>
+                    <Typography variant="body1">{item.PartNo}</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {item.PartName}
+                    </Typography>
+                  </Box>
                 </MenuItem>
-                {items.map((item) => (
-                  <MenuItem key={item._id} value={item.PartNo}>
-                    <Box>
-                      <Typography variant="body1">{item.PartNo}</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {item.PartName}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              ))}
+            </Select>
+          </FormControl>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Thickness (mm) *"
-                  name="Thickness"
-                  type="number"
-                  value={formData.Thickness}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>mm</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Width (mm) *"
-                  name="Width"
-                  type="number"
-                  value={formData.Width}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>mm</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Length (mm) *"
-                  name="Length"
-                  type="number"
-                  value={formData.Length}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>mm</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Density (g/cm³) *"
-                  name="Density"
-                  type="number"
-                  value={formData.Density}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>g/cm³</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            {weight > 0 && (
-              <Box sx={{ 
-                p: 3, 
-                bgcolor: '#E8F5E9', 
-                borderRadius: 1,
-                border: '1px solid #C8E6C9'
-              }}>
-                <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
-                  Weight Calculation Preview
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Current Weight:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right">
-                      {dimension?.WeightInKG || 0} kg
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">New Calculated Weight:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body1" fontWeight={700} color="success.main" align="right">
-                      {weight} kg
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
+          {/* Thickness and Width */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Thickness (mm) *"
+              name="Thickness"
+              type="number"
+              value={formData.Thickness}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>mm</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Width (mm) *"
+              name="Width"
+              type="number"
+              value={formData.Width}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>mm</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
           </Stack>
-        </Box>
+
+          {/* Length and Density */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Length (mm) *"
+              name="Length"
+              type="number"
+              value={formData.Length}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>mm</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Density (g/cm³) *"
+              name="Density"
+              type="number"
+              value={formData.Density}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>g/cm³</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+          </Stack>
+
+          {/* Weight Preview */}
+          {weight > 0 && (
+            <Box sx={{ 
+              p: 2.5, 
+              bgcolor: '#E8F5E9', 
+              borderRadius: 1,
+              border: '1px solid #C8E6C9'
+            }}>
+              <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
+                Weight Calculation Preview
+              </Typography>
+              <Stack spacing={1}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Current Weight:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {dimension?.WeightInKG || 0} kg
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">New Calculated Weight:</Typography>
+                  <Typography variant="body1" fontWeight={700} color="success.main">
+                    {weight} kg
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          )}
+        </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={onClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading || fetchingItems}
-          startIcon={loading ? null : <EditIcon />}
+          startIcon={!loading && <EditIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            },
-            minWidth: '140px'
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Updating...' : 'Update Dimension'}

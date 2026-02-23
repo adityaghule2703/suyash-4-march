@@ -8,9 +8,6 @@ import {
   TextField,
   Stack,
   Alert,
-  FormControlLabel,
-  Checkbox,
-  Grid,
   Box,
   MenuItem,
   Select,
@@ -115,350 +112,168 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Edit Item
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
-        {/* Show error at the top if exists */}
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Add extra margin top container */}
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={3}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Part Number *"
-                  name="PartNo"
-                  value={formData.PartNo}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Part number')}
-                  helperText={error && error.includes('Part number') ? error : ''}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Part Name *"
-                  name="PartName"
-                  value={formData.PartName}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Part name')}
-                  helperText={error && error.includes('Part name') ? error : ''}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* First Row - Part Number and Part Name */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Part Number *"
+              name="PartNo"
+              value={formData.PartNo}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              error={!!error && error.includes('Part number')}
+            />
 
             <TextField
               fullWidth
-              label="Description"
-              name="Description"
-              value={formData.Description}
+              label="Part Name *"
+              name="PartName"
+              value={formData.PartName}
               onChange={handleChange}
-              multiline
-              rows={3}
+              required
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
+              error={!!error && error.includes('Part name')}
+            />
+          </Stack>
+
+          {/* Description - Full Width */}
+          <TextField
+            fullWidth
+            label="Description"
+            name="Description"
+            value={formData.Description}
+            onChange={handleChange}
+            multiline
+            rows={3}
+            disabled={loading}
+          />
+
+          {/* Second Row - Drawing Number and Revision Number */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Drawing Number"
+              name="DrawingNo"
+              value={formData.DrawingNo}
+              onChange={handleChange}
+              disabled={loading}
             />
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Drawing Number"
-                  name="DrawingNo"
-                  value={formData.DrawingNo}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Revision Number"
-                  name="RevisionNo"
-                  value={formData.RevisionNo}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+            <TextField
+              fullWidth
+              label="Revision Number"
+              name="RevisionNo"
+              value={formData.RevisionNo}
+              onChange={handleChange}
+              disabled={loading}
+            />
+          </Stack>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth error={!!error && error.includes('Unit')}>
-                  <InputLabel 
-                    id="unit-label"
-                    sx={{
-                      backgroundColor: '#FFF',
-                      px: 1,
-                      transform: 'translate(14px, -6px) scale(0.75)',
-                      '&.Mui-focused': {
-                        transform: 'translate(14px, -6px) scale(0.75)',
-                        color: '#1976D2'
-                      },
-                      '&.MuiFormLabel-filled': {
-                        transform: 'translate(14px, -6px) scale(0.75)'
-                      }
-                    }}
-                  >
-                    Unit *
-                  </InputLabel>
-                  <Select
-                    labelId="unit-label"
-                    name="Unit"
-                    value={formData.Unit}
-                    onChange={handleSelectChange}
-                    disabled={loading}
-                    size="medium"
-                    displayEmpty
-                    sx={{
-                      borderRadius: 1,
-                      '& .MuiSelect-select': {
-                        paddingTop: '16px',
-                        paddingBottom: '16px',
-                        height: 'auto'
-                      }
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          borderRadius: 1,
-                          mt: 0.5
-                        }
-                      }
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select Unit</em>
-                    </MenuItem>
-                    {unitOptions.map((unit) => (
-                      <MenuItem key={unit} value={unit}>
-                        {unit}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {error && error.includes('Unit') && (
-                    <Alert 
-                      severity="error" 
-                      sx={{ 
-                        mt: 1,
-                        py: 0.5,
-                        borderRadius: 1,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      {error}
-                    </Alert>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="HSN Code"
-                  name="HSNCode"
-                  value={formData.HSNCode}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            <FormControl fullWidth>
-              <InputLabel 
-                id="material-label"
-                sx={{
-                  backgroundColor: '#FFF',
-                  px: 1,
-                  transform: 'translate(14px, -6px) scale(0.75)',
-                  '&.Mui-focused': {
-                    transform: 'translate(14px, -6px) scale(0.75)',
-                    color: '#1976D2'
-                  },
-                  '&.MuiFormLabel-filled': {
-                    transform: 'translate(14px, -6px) scale(0.75)'
-                  }
-                }}
-              >
-                Material
-              </InputLabel>
+          {/* Third Row - Unit and HSN Code */}
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth error={!!error && error.includes('Unit')}>
+              <InputLabel>Unit *</InputLabel>
               <Select
-                labelId="material-label"
-                name="MaterialID"
-                value={formData.MaterialID}
+                name="Unit"
+                value={formData.Unit}
                 onChange={handleSelectChange}
+                label="Unit *"
+                required
                 disabled={loading}
-                size="medium"
-                displayEmpty
-                sx={{
-                  borderRadius: 1,
-                  '& .MuiSelect-select': {
-                    paddingTop: '16px',
-                    paddingBottom: '16px',
-                    height: 'auto'
-                  }
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      borderRadius: 1,
-                      mt: 0.5
-                    }
-                  }
-                }}
               >
                 <MenuItem value="">
-                  <em>Select Material</em>
+                  <em>Select Unit</em>
                 </MenuItem>
-                {materials.map((material) => (
-                  <MenuItem key={material._id} value={material._id}>
-                    {material.MaterialCode} - {material.MaterialName}
+                {unitOptions.map((unit) => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name="IsActive"
-                  checked={formData.IsActive}
-                  onChange={handleChange}
-                  color="primary"
-                  disabled={loading}
-                />
-              }
-              label="Active Item"
-              sx={{ mt: 1 }}
+            <TextField
+              fullWidth
+              label="HSN Code"
+              name="HSNCode"
+              value={formData.HSNCode}
+              onChange={handleChange}
+              disabled={loading}
             />
           </Stack>
-        </Box>
+
+          {/* Fourth Row - Material (Full Width) */}
+          <FormControl fullWidth>
+            <InputLabel>Material</InputLabel>
+            <Select
+              name="MaterialID"
+              value={formData.MaterialID}
+              onChange={handleSelectChange}
+              label="Material"
+              disabled={loading}
+            >
+              <MenuItem value="">
+                <em>Select Material</em>
+              </MenuItem>
+              {materials.map((material) => (
+                <MenuItem key={material._id} value={material._id}>
+                  {material.MaterialCode} - {material.MaterialName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={onClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          startIcon={!loading && <EditIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Updating...' : 'Update Item'}

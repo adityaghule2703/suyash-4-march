@@ -8,7 +8,6 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Typography,
   Box,
   Paper,
@@ -114,41 +113,39 @@ const EditTermsAndConditions = ({ open, onClose, term, onUpdate }) => {
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-        },
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
       {/* ================= Header ================= */}
       <DialogTitle
         sx={{
           borderBottom: "1px solid #E0E0E0",
           backgroundColor: "#F8FAFC",
-          pt: 3,
-          px: 3,
         }}
       >
-        <Typography variant="h6" fontWeight={600}>
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
+        }}>
           Edit Terms & Conditions
-        </Typography>
+        </div>
         <Typography variant="body2" color="text.secondary">
           Update term information
         </Typography>
       </DialogTitle>
 
       {/* ================= Content ================= */}
-      <DialogContent sx={{ pt: 4, px: 3, pb: 2 }}>
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        <Stack spacing={4}>
-          
-          <Paper sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: 2 }}>
-            <Typography variant="caption" color="text.secondary">
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Current Term Summary */}
+          <Paper sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block">
               Current Term
             </Typography>
             <Typography variant="body1" fontWeight={600}>
@@ -159,60 +156,55 @@ const EditTermsAndConditions = ({ open, onClose, term, onUpdate }) => {
             </Typography>
           </Paper>
 
-      
+          {/* Update Form */}
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               Update Details
             </Typography>
 
-            <Grid container spacing={3}>
-              {/* Title */}
-              <Grid item xs={12} md={4}>
+            <Stack spacing={2}>
+              {/* Title and Sequence in one row */}
+              <Stack direction="row" spacing={2}>
                 <TextField
                   fullWidth
-                  size="medium"
                   label="Title *"
                   name="Title"
                   value={formData.Title}
                   onChange={handleChange}
                   disabled={loading}
+                  sx={{ flex: 3 }}
                 />
-              </Grid>
 
-            
-              <Grid item xs={12} md={2}>
                 <TextField
                   fullWidth
-                  size="medium"
                   label="Sequence *"
                   name="Sequence"
                   type="number"
                   value={formData.Sequence}
                   onChange={handleChange}
                   disabled={loading}
+                  inputProps={{ min: 1 }}
+                  sx={{ flex: 1 }}
                 />
-              </Grid>
+              </Stack>
 
-          
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  size="medium"
-                  label="Description *"
-                  name="Description"
-                  multiline
-                  rows={3}
-                  value={formData.Description}
-                  onChange={handleChange}
-                  disabled={loading}
-                  sx={{
-                    "& textarea": {
-                      resize: "none",
-                    },
-                  }}
-                />
-              </Grid>
-            </Grid>
+              {/* Description - Full Width */}
+              <TextField
+                fullWidth
+                label="Description *"
+                name="Description"
+                multiline
+                rows={4}
+                value={formData.Description}
+                onChange={handleChange}
+                disabled={loading}
+                sx={{
+                  "& textarea": {
+                    resize: "none",
+                  },
+                }}
+              />
+            </Stack>
           </Box>
         </Stack>
       </DialogContent>
@@ -221,8 +213,7 @@ const EditTermsAndConditions = ({ open, onClose, term, onUpdate }) => {
       <DialogActions
         sx={{
           px: 3,
-          pb: 3,
-          pt: 2,
+          py: 2,
           borderTop: "1px solid #E0E0E0",
           backgroundColor: "#F8FAFC",
         }}
@@ -231,16 +222,16 @@ const EditTermsAndConditions = ({ open, onClose, term, onUpdate }) => {
           Cancel
         </Button>
 
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          startIcon={!loading && <EditIcon />}
           sx={{
-            textTransform: "none",
-            borderRadius: 2,
-            px: 4,
-            background: "linear-gradient(90deg,#0f766e,#0ea5e9)",
+            backgroundColor: '#1976D2',
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? "Updating..." : "Update Term"}

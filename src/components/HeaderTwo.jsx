@@ -47,7 +47,7 @@ const HeaderTwo = () => {
     { name: 'Employee Master', path: '/hrmaster/employeemaster', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }, // Employee/Person icon
     { name: 'Leave Type Master', path: '/hrmaster/leavetypemaster', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }, // Calendar/Leave icon
     { name: 'Shift Master', path: '/hrmaster/shiftmaster', icon: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' }, // Clock/Shift icon
-    { name: 'Medical Record Master', path: '/hrmaster/medicalmaster', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' }, // Heart/Medical icon
+    //{ name: 'Medical Record Master', path: '/hrmaster/medicalmaster', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' }, // Heart/Medical icon
     { name: 'Accident Master', path: '/hrmaster/accidentmaster', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' }, // Warning/Accident icon
     { name: 'Requisition Master', path: '/hrmaster/requisitionmaster', icon: 'M15 5v2m-6 0V5m6 0a2 2 0 012 2m-8-2a2 2 0 00-2 2m0 0v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2m-6 7h6m-6 4h6m-6-8h6' }, // Clipboard/Requisition icon
     { name: 'Job Opening Master', path: '/hrmaster/jobopeningmaster', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }, // Briefcase/Job icon
@@ -58,13 +58,17 @@ const HeaderTwo = () => {
     { name: 'Regularization Master', path: '/hrmaster/regularizationmaster', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' }, // Refresh/Regularization icon
     { name: 'Employee Leave Master', path: '/hrmaster/employeeleavemaster', icon: 'M16 4v1h4v16H4V5h4V4a2 2 0 014 0M8 8h8M8 12h6m-6 4h4' }, // Employee Calendar icon
     { name: 'Admin Leave Master', path: '/hrmaster/adminleavemaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8' }, // Admin/Shield with calendar icon
+    { name: 'Production Master', path: '/hrmaster/productionmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15'},
+    { name: 'Termination Master', path: '/hrmaster/terminationmaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
+    { name: 'Employee Behavior Master', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
+
   ];
 
   // Leave Management items with unique icons
   const role = localStorage.getItem("role");
   const leaveManagementItems = [
-    { name: 'Apply Leave', path: '/leave/apply', icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6' }, // Plus/Apply icon
-    { name: 'My Leaves', path: '/leave/my', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z M12 11v5m0 0v5m0-5h5m-5 0H7' }, // Calendar view icon
+    //{ name: 'Apply Leave', path: '/leave/apply', icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6' }, // Plus/Apply icon
+    //{ name: 'My Leaves', path: '/leave/my', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z M12 11v5m0 0v5m0-5h5m-5 0H7' }, // Calendar view icon
     ...(role === "HR" || role === "Admin"
       ? [{ name: 'Leave Approval', path: '/leave/approval', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }] // Checkmark/Approval icon
       : [])

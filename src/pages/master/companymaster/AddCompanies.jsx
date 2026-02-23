@@ -8,7 +8,6 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Typography,
   Stepper,
   Step,
@@ -162,7 +161,7 @@ const AddCompanies = ({ open, onClose, onAdd }) => {
     switch (step) {
       case 0:
         return (
-          <Stack spacing={2.5}>
+          <Stack spacing={3} sx={{ mt: 2 }}>
             {/* Company Name - Full Width */}
             <TextField
               fullWidth
@@ -172,13 +171,6 @@ const AddCompanies = ({ open, onClose, onAdd }) => {
               onChange={handleChange}
               required
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
             />
             
             {/* Address - Full Width */}
@@ -192,142 +184,81 @@ const AddCompanies = ({ open, onClose, onAdd }) => {
               multiline
               rows={3}
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
             />
             
             {/* GSTIN and PAN - Two fields in one row */}
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="GSTIN *"
-                  name="GSTIN"
-                  value={formData.GSTIN}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="PAN *"
-                  name="PAN"
-                  value={formData.PAN}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                fullWidth
+                label="GSTIN *"
+                name="GSTIN"
+                value={formData.GSTIN}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="PAN *"
+                name="PAN"
+                value={formData.PAN}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+            </Stack>
             
             {/* State and State Code - Two fields in one row */}
-            <Grid container spacing={2}>
-              <Grid item xs={8}>
-                <TextField
-                  fullWidth
-                  label="State *"
-                  name="State"
-                  value={formData.State}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="State Code *"
-                  name="StateCode"
-                  value={formData.StateCode}
-                  onChange={handleChange}
-                  required
-                  type="number"
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                fullWidth
+                label="State *"
+                name="State"
+                value={formData.State}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="State Code *"
+                name="StateCode"
+                value={formData.StateCode}
+                onChange={handleChange}
+                required
+                type="number"
+                disabled={loading}
+              />
+            </Stack>
           </Stack>
         );
       
       case 1:
         return (
-          <Stack spacing={2.5}>
+          <Stack spacing={3} sx={{ mt: 2 }}>
             {/* Email and Phone - Two fields in one row */}
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Email *"
-                  name="Email"
-                  type="email"
-                  value={formData.Email}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Phone"
-                  name="Phone"
-                  value={formData.Phone}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                fullWidth
+                label="Email *"
+                name="Email"
+                type="email"
+                value={formData.Email}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="Phone"
+                name="Phone"
+                value={formData.Phone}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </Stack>
             
-            <Typography variant="subtitle1" fontWeight={600} color="#101010" sx={{ pt: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
               Bank Details (Optional)
             </Typography>
             
@@ -339,52 +270,27 @@ const AddCompanies = ({ open, onClose, onAdd }) => {
               value={formData.BankName}
               onChange={handleChange}
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
             />
             
             {/* Account Number and IFSC - Two fields in one row */}
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Account Number"
-                  name="AccountNo"
-                  value={formData.AccountNo}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="IFSC Code"
-                  name="IFSC"
-                  value={formData.IFSC}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                fullWidth
+                label="Account Number"
+                name="AccountNo"
+                value={formData.AccountNo}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="IFSC Code"
+                name="IFSC"
+                value={formData.IFSC}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </Stack>
           </Stack>
         );
       
@@ -394,176 +300,87 @@ const AddCompanies = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          minHeight: '520px'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        paddingBottom: '16px'
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
           paddingTop: '8px'
         }}>
           Add New Company
         </div>
       </DialogTitle>
-      
-      {/* Error Alert at the top */}
-      {error && (
-        <Box sx={{ px: 3, py: 2 }}>
-          <Alert 
-            severity="error"
-            sx={{ 
-              borderRadius: 1,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-            onClose={() => setError('')}
-          >
-            {error}
-          </Alert>
-        </Box>
-      )}
-      
-      {/* Stepper with proper spacing */}
-      <Box sx={{ 
-        px: 3, 
-        py: 2,
-        borderBottom: '1px solid #F0F0F0'
-      }}>
-        <Stepper 
-          activeStep={activeStep} 
-          sx={{
-            '& .MuiStepLabel-root': {
-              padding: '0 8px'
-            }
-          }}
-        >
+
+      <DialogContent sx={{ pt: 3 }}>
+        <Stepper activeStep={activeStep} sx={{ mb: 4, mt: 1 }}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
             </Step>
           ))}
         </Stepper>
-      </Box>
-      
-      <DialogContent sx={{ 
-        pt: 3,
-        px: 3,
-        pb: 3,
-      }}>
-        {/* Step Content with bottom spacing */}
-        <Box sx={{ 
-          minHeight: '320px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
-          <Box sx={{ mb: 2 }}>
-            {renderStepContent(activeStep)}
-          </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Box>
+          {renderStepContent(activeStep)}
         </Box>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Stack direction="row" spacing={2} width="100%" justifyContent="space-between">
-          <Box>
-            <Button 
-              onClick={handleBack}
-              disabled={activeStep === 0 || loading}
-              sx={{
-                borderRadius: 1,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                fontWeight: 500,
-                minWidth: '100px'
-              }}
-            >
-              Back
-            </Button>
-          </Box>
-          
-          <Stack direction="row" spacing={2}>
-            <Button 
-              onClick={handleClose} 
-              disabled={loading}
-              sx={{
-                borderRadius: 1,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                fontWeight: 500,
-                minWidth: '100px'
-              }}
-            >
-              Cancel
-            </Button>
-            
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading}
-                startIcon={loading ? null : <AddIcon />}
-                sx={{
-                  borderRadius: 1,
-                  px: 3,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  backgroundColor: '#1976D2',
-                  '&:hover': {
-                    backgroundColor: '#1565C0'
-                  },
-                  minWidth: '140px'
-                }}
-              >
-                {loading ? 'Adding...' : 'Add Company'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                sx={{
-                  borderRadius: 1,
-                  px: 3,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  backgroundColor: '#1976D2',
-                  '&:hover': {
-                    backgroundColor: '#1565C0'
-                  },
-                  minWidth: '100px'
-                }}
-              >
-                Next
-              </Button>
-            )}
-          </Stack>
-        </Stack>
+        <Button onClick={handleClose} disabled={loading}>
+          Cancel
+        </Button>
+
+        <Box sx={{ flex: 1 }} />
+
+        <Button
+          disabled={activeStep === 0 || loading}
+          onClick={handleBack}
+        >
+          Back
+        </Button>
+
+        {activeStep === steps.length - 1 ? (
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+            startIcon={!loading && <AddIcon />}
+            sx={{
+              backgroundColor: '#1976D2',
+              '&:hover': { backgroundColor: '#1565C0' }
+            }}
+          >
+            {loading ? 'Adding...' : 'Add Company'}
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={loading}
+          >
+            Next
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

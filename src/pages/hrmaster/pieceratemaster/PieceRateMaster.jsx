@@ -798,11 +798,15 @@ const PieceRateMaster = () => {
         </MenuItem>
 
         <MenuItem
-          onClick={() => {
-            setOpenEdit(true);
-            handleMenuClose();
-          }}
-        >
+  onClick={() => {
+    setOpenEdit(false);          // reset first (important)
+    setTimeout(() => {
+      setOpenEdit(true);         // reopen after state update
+    }, 0);
+    handleMenuClose();
+  }}
+>
+
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>

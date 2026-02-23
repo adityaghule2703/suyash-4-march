@@ -628,7 +628,7 @@ const ViewAccident = ({ open, onClose, accident, onEdit }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2 } }}
     >

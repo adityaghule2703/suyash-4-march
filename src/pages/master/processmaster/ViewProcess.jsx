@@ -11,9 +11,7 @@ import {
   Divider,
   Box,
   Avatar,
-  Grid,
-  Card,
-  CardContent
+  Grid
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -24,7 +22,8 @@ import {
   CalendarToday,
   CheckCircle,
   Cancel,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Category
 } from '@mui/icons-material';
 
 const ViewProcess = ({ open, onClose, process, onEdit }) => {
@@ -60,33 +59,6 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
     }).format(amount);
   };
 
-  // Get rate type chip color
-  const getRateTypeChip = (rateType) => {
-    const colors = {
-      'Per Nos': { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' },
-      'Per Kg': { bg: '#DCFCE7', color: '#059669', border: '#86EFAC' },
-      'Per Hour': { bg: '#F0F9FF', color: '#0C4A6E', border: '#BAE6FD' },
-      'Fixed': { bg: '#FEF3C7', color: '#92400E', border: '#FCD34D' }
-    };
-    
-    const color = colors[rateType] || { bg: '#F5F5F5', color: '#616161', border: '#E0E0E0' };
-    
-    return (
-      <Chip
-        label={rateType}
-        sx={{
-          bgcolor: color.bg,
-          color: color.color,
-          border: '1px solid',
-          borderColor: color.border,
-          fontWeight: 600,
-          fontSize: '0.875rem',
-          height: 32
-        }}
-      />
-    );
-  };
-
   return (
     <Dialog 
       open={open} 
@@ -94,171 +66,195 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
       maxWidth="md" 
       fullWidth
       PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
+        sx: { borderRadius: 2 }
       }}
     >
       <DialogTitle sx={{ 
         borderBottom: '1px solid #E0E0E0', 
         pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+        backgroundColor: '#F8FAFC'
       }}>
         <div style={{ 
           fontSize: '20px', 
           fontWeight: '600', 
-          color: '#101010'
+          color: '#101010',
+          paddingTop: '8px'
         }}>
           Process Details
         </div>
       </DialogTitle>
       
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
+      <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
-          {/* Header Section */}
-          <Stack direction="row" spacing={3} alignItems="center">
-            <Avatar sx={{ 
-              width: 80, 
-              height: 80, 
-              bgcolor: '#4F46E5',
-              fontSize: '1.5rem'
-            }}>
-              {getProcessInitials(process.ProcessName)}
-            </Avatar>
-            <Box>
-              <Typography variant="h5" fontWeight={600} color="#101010">
-                {process.ProcessName}
-              </Typography>
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                <Chip
-                  label={process.IsActive ? 'Active' : 'Inactive'}
-                  color={process.IsActive ? 'success' : 'default'}
-                  icon={process.IsActive ? <CheckCircle /> : <Cancel />}
-                  sx={{ 
-                    fontWeight: 500,
-                    '&.MuiChip-colorSuccess': {
-                      bgcolor: '#E8F5E9',
-                      color: '#2E7D32'
-                    },
-                    '&.MuiChip-colorDefault': {
-                      bgcolor: '#F5F5F5',
-                      color: '#616161'
-                    }
-                  }}
-                />
-                <Chip
-                  label={process.VendorOrInhouse}
-                  icon={process.VendorOrInhouse === 'Vendor' ? <BusinessIcon /> : <FactoryIcon />}
-                  sx={{ 
-                    fontWeight: 500,
-                    bgcolor: process.VendorOrInhouse === 'Vendor' ? '#FEF3C7' : '#DBEAFE',
-                    color: process.VendorOrInhouse === 'Vendor' ? '#92400E' : '#1E40AF',
-                    border: '1px solid',
-                    borderColor: process.VendorOrInhouse === 'Vendor' ? '#FCD34D' : '#93C5FD'
-                  }}
-                />
-              </Stack>
-            </Box>
-          </Stack>
+          {/* Add padding from top for the first field */}
+          <div style={{ marginTop: '16px' }}>
+            <Stack direction="row" spacing={3} alignItems="center">
+              <Avatar sx={{ 
+                width: 80, 
+                height: 80, 
+                bgcolor: '#4F46E5',
+                fontSize: '1.5rem'
+              }}>
+                {getProcessInitials(process.ProcessName)}
+              </Avatar>
+              <Box>
+                <Typography variant="h5" fontWeight={600} color="#101010">
+                  {process.ProcessName}
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                  {process.IsActive ? (
+                    <Chip
+                      icon={<CheckCircle />}
+                      label="Active"
+                      size="small"
+                      sx={{
+                        bgcolor: '#E8F5E9',
+                        color: '#2E7D32',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#2E7D32',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<Cancel />}
+                      label="Inactive"
+                      size="small"
+                      sx={{
+                        bgcolor: '#FEE2E2',
+                        color: '#991B1B',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#991B1B',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  )}
+                  <Chip
+                    label={process.VendorOrInhouse}
+                    icon={process.VendorOrInhouse === 'Vendor' ? <BusinessIcon /> : <FactoryIcon />}
+                    size="small"
+                    sx={{ 
+                      fontWeight: 500,
+                      bgcolor: process.VendorOrInhouse === 'Vendor' ? '#FEF3C7' : '#DBEAFE',
+                      color: process.VendorOrInhouse === 'Vendor' ? '#92400E' : '#1E40AF',
+                      border: 'none',
+                      '& .MuiChip-icon': {
+                        color: process.VendorOrInhouse === 'Vendor' ? '#92400E' : '#1E40AF',
+                        fontSize: 16
+                      }
+                    }}
+                  />
+                </Stack>
+              </Box>
+            </Stack>
+          </div>
           
           <Divider />
           
-          {/* Rate Information Card */}
-          <Card sx={{ 
-            bgcolor: '#1E40AF',
-            color: 'white',
-            borderRadius: 2,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }}>
-            <CardContent>
-              <Typography variant="caption" color="rgba(255, 255, 255, 0.8)" gutterBottom>
-                PROCESS RATE
-              </Typography>
-              <Typography variant="h2" fontWeight={800} sx={{ mb: 1 }}>
-                {formatCurrency(process.Rate)}
-              </Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <ScheduleIcon sx={{ color: 'rgba(255, 255, 255, 0.8)' }} />
-                <Typography variant="body1" color="rgba(255, 255, 255, 0.9)">
-                  Per {process.RateType.toLowerCase().replace('per ', '')}
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-          
-          {/* Details Grid */}
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle2" fontWeight={600} color="#101010" gutterBottom>
-                    <MoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                    Rate Information
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Rate Type
-                      </Typography>
-                      <Box sx={{ mt: 1 }}>
-                        {getRateTypeChip(process.RateType)}
-                      </Box>
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Calculated As
-                      </Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {formatCurrency(process.Rate)} for each {process.RateType.toLowerCase().replace('per ', '')}
-                      </Typography>
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Process Type
-                      </Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {process.VendorOrInhouse === 'Vendor' ? 'External Vendor Process' : 'In-house Manufacturing'}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1" fontWeight={600} color="#101010">
+                  <MoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Rate Information
+                </Typography>
+                
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Rate Type
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
+                      {process.RateType}
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Process Rate
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} color="#1976D2" sx={{ mt: 0.5 }}>
+                      {formatCurrency(process.Rate)}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+                      per {process.RateType.toLowerCase().replace('per ', '')}
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Process Type
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
+                      {process.VendorOrInhouse === 'Vendor' ? 'External Vendor Process' : 'In-house Manufacturing'}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Stack>
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle2" fontWeight={600} color="#101010" gutterBottom>
-                    <DescriptionIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                    Description
+              <Stack spacing={2}>
+                <Typography variant="subtitle1" fontWeight={600} color="#101010">
+                  <DescriptionIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Description
+                </Typography>
+                
+                <Box sx={{ 
+                  backgroundColor: '#F8FAFC',
+                  p: 2,
+                  borderRadius: 1,
+                  minHeight: '120px'
+                }}>
+                  <Typography variant="body2" color="textPrimary">
+                    {process.Description || 'No description available for this process.'}
                   </Typography>
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: '#F9FAFB', 
-                    borderRadius: 1,
-                    minHeight: '120px'
-                  }}>
-                    <Typography variant="body2" color="textPrimary">
-                      {process.Description || 'No description available for this process.'}
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Card>
+                </Box>
+              </Stack>
             </Grid>
           </Grid>
           
           <Divider />
           
-          {/* System Information */}
+          <Stack spacing={2}>
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
+              <Category sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Additional Information
+            </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Process ID
+                  </Typography>
+                  <Typography variant="body2">
+                    {process._id || 'Not available'}
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Last Modified By
+                  </Typography>
+                  <Typography variant="body2">
+                    {process.UpdatedBy || 'System'}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Stack>
+          
+          <Divider />
+          
           <Stack spacing={2}>
             <Typography variant="subtitle1" fontWeight={600} color="#101010">
               <CalendarToday sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -266,30 +262,26 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
             </Typography>
             
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="caption" color="textSecondary">
-                      Created At
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate(process.CreatedAt)}
-                    </Typography>
-                  </CardContent>
-                </Card>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Created At
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(process.CreatedAt)}
+                  </Typography>
+                </Box>
               </Grid>
               
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="caption" color="textSecondary">
-                      Last Updated
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate(process.UpdatedAt)}
-                    </Typography>
-                  </CardContent>
-                </Card>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Last Updated
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(process.UpdatedAt)}
+                  </Typography>
+                </Box>
               </Grid>
             </Grid>
           </Stack>
@@ -299,8 +291,8 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
       <DialogActions sx={{ 
         px: 3, 
         pb: 3, 
+        borderTop: '1px solid #E0E0E0', 
         pt: 2,
-        borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
         <Button 
@@ -315,7 +307,7 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -335,7 +327,7 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
           }}
         >
           Edit Process
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

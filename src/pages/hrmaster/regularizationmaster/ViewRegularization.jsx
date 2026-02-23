@@ -11,6 +11,7 @@ import {
   Divider,
   Grid
 } from "@mui/material";
+import { CloseSharp } from "@mui/icons-material";
 
 const formatDate = (date) => {
   if (!date) return "-";
@@ -31,7 +32,7 @@ const ViewRegularization = ({ open, onClose, record }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="md"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2 } }}
     >
@@ -39,13 +40,15 @@ const ViewRegularization = ({ open, onClose, record }) => {
         sx={{
           borderBottom: "1px solid #E0E0E0",
           backgroundColor: "#F8FAFC",
-          fontWeight: 600
+          fontWeight: 600,
+          background: "linear-gradient(135deg, #164e63, #00B4D8)",
+          color: "#fff"
         }}
       >
         Regularization Request Details
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
+      <DialogContent sx={{ pt: 3, margin:2 }}>
         <Stack spacing={3}>
 
           {/* STATUS */}
@@ -181,18 +184,27 @@ const ViewRegularization = ({ open, onClose, record }) => {
         </Stack>
       </DialogContent>
 
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 3,
-          borderTop: "1px solid #E0E0E0",
-          backgroundColor: "#F8FAFC"
-        }}
-      >
-        <Button onClick={onClose} variant="contained">
-          Close
-        </Button>
-      </DialogActions>
+      <DialogActions sx={{ px: 4, pb: 3 }}>
+                                <Button
+                variant="contained"
+                onClick={onClose}
+                startIcon={<CloseSharp />}
+                sx={{
+                  borderRadius: 1,
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  backgroundColor: '#1972d2',
+                  '&:hover': {
+                    backgroundColor: '#1565C0'
+                  }
+                }}
+              >
+                Close
+              </Button>                                                                                                        
+       
+            </DialogActions>
     </Dialog>
   );
 };

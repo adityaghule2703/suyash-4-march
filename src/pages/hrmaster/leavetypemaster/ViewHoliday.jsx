@@ -195,7 +195,7 @@ const ViewHoliday = ({ open, onClose, holiday, onEdit }) => {
       >
         <Button onClick={onClose}>Close</Button>
 
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -204,7 +204,7 @@ const ViewHoliday = ({ open, onClose, holiday, onEdit }) => {
           startIcon={<EditIcon />}
         >
           Edit Holiday
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

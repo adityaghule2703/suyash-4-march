@@ -339,6 +339,7 @@ const TaxMaster = () => {
       severity
     });
   };
+
   
   // Format date
   const formatDate = (dateString) => {
@@ -631,14 +632,14 @@ const TaxMaster = () => {
                 }}>
                   IGST %
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -768,9 +769,9 @@ const TaxMaster = () => {
                           {taxValues.igst}%
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         {getStatusChip(tax.IsActive)}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <Tooltip title={formatDate(tax.CreatedAt)}>
                           <Stack direction="row" alignItems="center" spacing={0.5}>

@@ -929,7 +929,7 @@ const RequisitionMaster = () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={
                 <Badge badgeContent={getActiveFilterCount()} color="primary">
@@ -953,7 +953,7 @@ const RequisitionMaster = () => {
               disabled={loading}
             >
               Filters
-            </Button>
+            </Button> */}
 
             {selected.length > 0 && (
               <Button
@@ -974,7 +974,7 @@ const RequisitionMaster = () => {
               </Button>
             )}
             
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -993,7 +993,7 @@ const RequisitionMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             
             <Button
               variant="contained"

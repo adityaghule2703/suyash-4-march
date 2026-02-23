@@ -535,7 +535,7 @@ const CostingMaster = () => {
       </Box>
 
       {/* Statistics Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {/* <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             borderRadius: 2,
@@ -640,7 +640,7 @@ const CostingMaster = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* Action Bar */}
       <Paper sx={{ 
@@ -685,7 +685,7 @@ const CostingMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -724,7 +724,7 @@ const CostingMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -836,7 +836,7 @@ const CostingMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Part Details
+                    Part No.
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
@@ -846,7 +846,7 @@ const CostingMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Cost Components
+                  Part Name
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -854,16 +854,56 @@ const CostingMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Calculations
+                  RM Cost
                 </TableCell>
                 <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Process Cost
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Sub Total
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Overhead %
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Margin %
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Final Rate
+                </TableCell>
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -878,7 +918,7 @@ const CostingMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading costings...
                     </Typography>
@@ -886,7 +926,7 @@ const CostingMaster = () => {
                 </TableRow>
               ) : paginatedCostings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No costings found' : 'No costings available'}
@@ -937,107 +977,88 @@ const CostingMaster = () => {
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 32, 
+                            height: 32, 
                             bgcolor: '#4F46E5',
-                            fontSize: '0.875rem',
+                            fontSize: '0.75rem',
                             fontWeight: 500
                           }}>
                             {getPartInitials(costing.PartNo)}
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                              {costing.PartNo}
-                            </Typography>
-                            {costing.ItemID ? (
-                              <>
-                                <Typography variant="caption" color="#64748B" display="block">
-                                  {costing.ItemID.PartName}
-                                </Typography>
-                                <Typography variant="caption" color="#64748B" display="block">
-                                  Unit: {costing.ItemID.Unit || 'N/A'}
-                                </Typography>
-                              </>
-                            ) : (
-                              <Typography variant="caption" color="#64748B" display="block">
-                                No associated item
-                              </Typography>
-                            )}
-                          </Box>
+                          <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            {costing.PartNo}
+                          </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <InventoryIcon fontSize="small" sx={{ color: '#EF4444' }} />
-                            <Typography variant="body2" color="#475569">
-                              RM: <strong>{formatCurrency(costing.RMRate)}</strong>
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <TrendingUpIcon fontSize="small" sx={{ color: '#D97706' }} />
-                            <Typography variant="body2" color="#475569">
-                              Process: <strong>{formatCurrency(costing.ProcessCost)}</strong>
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <MoneyIcon fontSize="small" sx={{ color: '#059669' }} />
-                            <Typography variant="body2" color="#475569">
-                              Sub Total: <strong>{formatCurrency(costing.SubCost)}</strong>
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <PercentIcon fontSize="small" sx={{ color: '#7C3AED' }} />
-                            <Typography variant="body2" color="#475569">
-                              Overhead: <strong>{costing.OverheadPercentage}%</strong>
-                            </Typography>
-                            <Chip
-                              label={formatCurrency(costing.OverheadCost)}
-                              size="small"
-                              sx={{
-                                bgcolor: '#F3E8FF',
-                                color: '#7C3AED',
-                                border: '1px solid #D8B4FE',
-                                fontWeight: 500,
-                                fontSize: '0.625rem'
-                              }}
-                            />
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <PercentIcon fontSize="small" sx={{ color: '#059669' }} />
-                            <Typography variant="body2" color="#475569">
-                              Margin: <strong>{costing.MarginPercentage}%</strong>
-                            </Typography>
-                            <Chip
-                              label={formatCurrency(costing.MarginCost)}
-                              size="small"
-                              sx={{
-                                bgcolor: '#DCFCE7',
-                                color: '#059669',
-                                border: '1px solid #86EFAC',
-                                fontWeight: 500,
-                                fontSize: '0.625rem'
-                              }}
-                            />
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <MoneyIcon fontSize="small" sx={{ color: '#101010' }} />
-                            <Typography variant="body2" fontWeight={600} color="#101010">
-                              Final Rate: <strong>{formatCurrency(costing.FinalRate)}</strong>
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusChip(costing.IsActive)}
-                        <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 0.5 }}>
-                          Created: {formatDate(costing.CreatedAt)}
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                          {costing.ItemID?.PartName || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          Unit: {costing.ItemID?.Unit || 'N/A'}
                         </Typography>
                       </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500} color="#EF4444">
+                          {formatCurrency(costing.RMRate)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500} color="#D97706">
+                          {formatCurrency(costing.ProcessCost)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500} color="#475569">
+                          {formatCurrency(costing.SubCost)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Typography variant="body2" fontWeight={500} color="#7C3AED">
+                            {costing.OverheadPercentage}%
+                          </Typography>
+                          <Chip
+                            label={formatCurrency(costing.OverheadCost)}
+                            size="small"
+                            sx={{
+                              bgcolor: '#F3E8FF',
+                              color: '#7C3AED',
+                              border: '1px solid #D8B4FE',
+                              fontWeight: 500,
+                              fontSize: '0.625rem',
+                              height: 20
+                            }}
+                          />
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Typography variant="body2" fontWeight={500} color="#059669">
+                            {costing.MarginPercentage}%
+                          </Typography>
+                          <Chip
+                            label={formatCurrency(costing.MarginCost)}
+                            size="small"
+                            sx={{
+                              bgcolor: '#DCFCE7',
+                              color: '#059669',
+                              border: '1px solid #86EFAC',
+                              fontWeight: 500,
+                              fontSize: '0.625rem',
+                              height: 20
+                            }}
+                          />
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={700} color="#101010">
+                          {formatCurrency(costing.FinalRate)}
+                        </Typography>
+                      </TableCell>
+                      {/* <TableCell>
+                        {getStatusChip(costing.IsActive)}
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           costing={costing}

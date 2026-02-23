@@ -36,8 +36,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
       WeeklyThreshold: '',
       RateMultiplier: ''
     },
-    ApplicableDepartments: [],
-    IsActive: true
+    ApplicableDepartments: []
   });
 
   // Department dropdown state
@@ -138,8 +137,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
             WeeklyThreshold: shift.OvertimeRules?.WeeklyThreshold?.toString() || '',
             RateMultiplier: shift.OvertimeRules?.RateMultiplier?.toString() || ''
           },
-          ApplicableDepartments: [],
-          IsActive: shift.IsActive ?? true
+          ApplicableDepartments: []
         });
 
         // If there are department IDs, fetch department details
@@ -250,8 +248,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
           WeeklyThreshold: Number(formData.OvertimeRules.WeeklyThreshold || 0),
           RateMultiplier: Number(formData.OvertimeRules.RateMultiplier || 1)
         },
-        ApplicableDepartments: departmentIds,
-        IsActive: formData.IsActive
+        ApplicableDepartments: departmentIds
       };
 
       const response = await axios.put(
@@ -562,7 +559,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
                 />
 
                 {/* Sixth Row - Active Checkbox */}
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox
                       checked={formData.IsActive}
@@ -580,13 +577,13 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
                         },
                       }}
                     />
-                  }
-                  label={
+                  } */}
+                  {/* label={
                     <Typography variant="body2" sx={{ color: '#333' }}>
                       Active (Shift is currently in use)
                     </Typography>
-                  }
-                />
+                  } */}
+              
               </Stack>
             </Paper>
           </Stack>

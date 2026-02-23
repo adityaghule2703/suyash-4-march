@@ -9,10 +9,20 @@ import {
   Typography,
   Chip,
   Divider,
-  Grid,
-  Box
+  Box,
+  Avatar,
+  Grid
 } from '@mui/material';
-import { Edit as EditIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon, 
+  CheckCircle as CheckCircleIcon, 
+  Cancel as CancelIcon,
+  Inventory,
+  Description,
+  Category,
+  Receipt,
+  AccountBalanceWallet
+} from '@mui/icons-material';
 
 const ViewItem = ({ open, onClose, item, onEdit }) => {
   if (!item) return null;
@@ -25,6 +35,17 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getItemInitials = (partName) => {
+    if (!partName) return 'I';
+    
+    const words = partName.split(' ');
+    if (words.length >= 2) {
+      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+    }
+    
+    return partName.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -40,246 +61,254 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
       <DialogTitle sx={{ 
         borderBottom: '1px solid #E0E0E0', 
         pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+        backgroundColor: '#F8FAFC'
       }}>
         <div style={{ 
           fontSize: '20px', 
           fontWeight: '600', 
-          color: '#101010'
+          color: '#101010',
+          paddingTop: '8px'
         }}>
           Item Details
         </div>
       </DialogTitle>
       
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
+      <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
+          {/* Add padding from top for the first field */}
+          <div style={{ marginTop: '16px' }}>
+            <Stack direction="row" spacing={3} alignItems="center">
+              <Avatar sx={{ 
+                width: 80, 
+                height: 80, 
+                bgcolor: '#1976D2',
+                fontSize: '1.5rem'
+              }}>
+                {getItemInitials(item.PartName)}
+              </Avatar>
+              <Box>
+                <Typography variant="h5" fontWeight={600} color="#101010">
+                  {item.PartName}
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                  {item.IsActive ? (
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label="Active"
+                      size="small"
+                      sx={{
+                        bgcolor: '#E8F5E9',
+                        color: '#2E7D32',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#2E7D32',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<CancelIcon />}
+                      label="Inactive"
+                      size="small"
+                      sx={{
+                        bgcolor: '#FEE2E2',
+                        color: '#991B1B',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#991B1B',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  )}
+                  <Typography variant="body2" color="textSecondary">
+                    Part No: {item.PartNo}
+                  </Typography>
+                </Stack>
+              </Box>
+            </Stack>
+          </div>
+          
+          <Divider />
+          
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
-              <Stack spacing={1}>
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                  Part Number
+            <Grid item xs={12} md={6}>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1" fontWeight={600} color="#101010">
+                  <Inventory sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Item Information
                 </Typography>
-                <Typography variant="body1" fontWeight={600} sx={{ fontSize: '1rem' }}>
-                  {item.PartNo}
-                </Typography>
+                
+                <Stack spacing={1}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Description
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      backgroundColor: '#F8FAFC',
+                      p: 2,
+                      borderRadius: 1,
+                      mt: 0.5
+                    }}>
+                      {item.Description || 'No description provided'}
+                    </Typography>
+                  </Box>
+                  
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Unit
+                    </Typography>
+                    <Typography variant="body2">
+                      {item.Unit || 'Not specified'}
+                    </Typography>
+                  </Box>
+                </Stack>
               </Stack>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Stack spacing={1}>
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                  Status
+            
+            <Grid item xs={12} md={6}>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1" fontWeight={600} color="#101010">
+                  <Receipt sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Tax Information
                 </Typography>
-                {item.IsActive ? (
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label="Active"
-                    size="small"
-                    sx={{
-                      bgcolor: '#dcfce7',
-                      color: '#166534',
-                      border: '1px solid #86efac',
-                      fontWeight: 500,
-                      width: 'fit-content',
-                      '& .MuiChip-icon': {
-                        color: '#166534',
-                        fontSize: 14
-                      }
-                    }}
-                  />
-                ) : (
-                  <Chip
-                    icon={<CancelIcon />}
-                    label="Inactive"
-                    size="small"
-                    sx={{
-                      bgcolor: '#fee2e2',
-                      color: '#991b1b',
-                      border: '1px solid #fca5a5',
-                      fontWeight: 500,
-                      width: 'fit-content',
-                      '& .MuiChip-icon': {
-                        color: '#991b1b',
-                        fontSize: 14
-                      }
-                    }}
-                  />
-                )}
+                
+                <Stack spacing={1}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      HSN Code
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {item.HSNCode || 'Not specified'}
+                    </Typography>
+                  </Box>
+                </Stack>
               </Stack>
             </Grid>
           </Grid>
-
+          
           <Divider />
-
+          
           <Stack spacing={2}>
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Part Name
-              </Typography>
-              <Typography variant="body1" fontWeight={500} sx={{ fontSize: '1rem' }}>
-                {item.PartName}
-              </Typography>
-            </Stack>
-
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Description
-              </Typography>
-              <Typography variant="body1" color="textPrimary" sx={{ 
-                fontSize: '0.875rem',
-                backgroundColor: '#F8FAFC',
-                p: 2,
-                borderRadius: 1,
-                minHeight: '80px'
-              }}>
-                {item.Description || 'No description provided'}
-              </Typography>
-            </Stack>
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={2}>
-            <Typography variant="subtitle2" fontWeight={600} color="textPrimary">
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
+              <Description sx={{ mr: 1, verticalAlign: 'middle' }} />
               Drawing Information
             </Typography>
             
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
                     Drawing Number
                   </Typography>
-                  <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
+                  <Typography variant="body2">
                     {item.DrawingNo || 'Not specified'}
                   </Typography>
-                </Stack>
+                </Box>
               </Grid>
+              
               <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
                     Revision Number
                   </Typography>
-                  <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
+                  <Typography variant="body2">
                     {item.RevisionNo || 'N/A'}
                   </Typography>
-                </Stack>
+                </Box>
               </Grid>
             </Grid>
           </Stack>
-
+          
           <Divider />
-
+          
           <Stack spacing={2}>
-            <Typography variant="subtitle2" fontWeight={600} color="textPrimary">
-              Specifications
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                    Unit
-                  </Typography>
-                  <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                    {item.Unit || 'Not specified'}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                    HSN Code
-                  </Typography>
-                  <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                    {item.HSNCode || 'Not specified'}
-                  </Typography>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={2}>
-            <Typography variant="subtitle2" fontWeight={600} color="textPrimary">
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
+              <Category sx={{ mr: 1, verticalAlign: 'middle' }} />
               Material Information
             </Typography>
             
             {item.MaterialID ? (
-              <Grid container spacing={3}>
+              <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Stack spacing={1}>
-                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
                       Material Code
                     </Typography>
-                    <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
+                    <Typography variant="body2">
                       {item.MaterialID.MaterialCode}
                     </Typography>
-                  </Stack>
+                  </Box>
                 </Grid>
+                
                 <Grid item xs={12} sm={6}>
-                  <Stack spacing={1}>
-                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
                       Material Name
                     </Typography>
-                    <Typography variant="body1" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
+                    <Typography variant="body2">
                       {item.MaterialID.MaterialName}
                     </Typography>
-                  </Stack>
+                  </Box>
                 </Grid>
+                
                 <Grid item xs={12}>
-                  <Stack spacing={1}>
-                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
                       Material Description
                     </Typography>
-                    <Typography variant="body2" color="textPrimary" sx={{ 
-                      fontSize: '0.875rem',
+                    <Typography variant="body2" sx={{ 
                       backgroundColor: '#F8FAFC',
                       p: 2,
-                      borderRadius: 1
+                      borderRadius: 1,
+                      mt: 0.5
                     }}>
                       {item.MaterialID.Description || 'No description'}
                     </Typography>
-                  </Stack>
+                  </Box>
                 </Grid>
               </Grid>
             ) : (
-              <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem' }}>
+              <Typography variant="body2" color="textSecondary">
                 No material assigned
               </Typography>
             )}
           </Stack>
-
+          
           <Divider />
-
+          
           <Stack spacing={2}>
-            <Typography variant="subtitle2" fontWeight={600} color="textPrimary">
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
+              <AccountBalanceWallet sx={{ mr: 1, verticalAlign: 'middle' }} />
               System Information
             </Typography>
             
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Created At
-              </Typography>
-              <Typography variant="body2" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                {formatDate(item.createdAt)}
-              </Typography>
-            </Stack>
-            
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Last Updated
-              </Typography>
-              <Typography variant="body2" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                {formatDate(item.updatedAt)}
-              </Typography>
-            </Stack>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Created At
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(item.createdAt)}
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary">
+                    Last Updated
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(item.updatedAt)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
           </Stack>
         </Stack>
       </DialogContent>
@@ -287,8 +316,8 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
       <DialogActions sx={{ 
         px: 3, 
         pb: 3, 
+        borderTop: '1px solid #E0E0E0', 
         pt: 2,
-        borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
         <Button 
@@ -303,7 +332,7 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -323,7 +352,7 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
           }}
         >
           Edit Item
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

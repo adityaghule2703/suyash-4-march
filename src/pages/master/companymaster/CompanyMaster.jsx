@@ -429,7 +429,7 @@ const CompanyMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -468,7 +468,7 @@ const CompanyMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
         
@@ -616,7 +616,7 @@ const CompanyMaster = () => {
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
@@ -626,7 +626,7 @@ const CompanyMaster = () => {
                     Status
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -763,7 +763,7 @@ const CompanyMaster = () => {
                           IFSC: {company.IFSC || '-'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <Chip
                           label={company.IsActive ? 'Active' : 'Inactive'}
                           size="small"
@@ -777,7 +777,7 @@ const CompanyMaster = () => {
                         <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 0.5 }}>
                           Created: {formatDate(company.CreatedAt)}
                         </Typography>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           company={company}

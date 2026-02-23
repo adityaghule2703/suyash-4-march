@@ -13,6 +13,7 @@ import {
   Paper,
   Box,
 } from "@mui/material";
+import { CloseSharp } from "@mui/icons-material";
 
 const ViewPieceRate = ({ open, onClose, pieceRate }) => {
   if (!pieceRate) return null;
@@ -130,7 +131,25 @@ const ViewPieceRate = ({ open, onClose, pieceRate }) => {
       </DialogContent>
 
       <DialogActions sx={{ px: 4, pb: 3 }}>
-        <Button onClick={onClose}>Close</Button>
+                          <Button
+          variant="contained"
+          onClick={onClose}
+          startIcon={<CloseSharp />}
+          sx={{
+            borderRadius: 1,
+            px: 3,
+            py: 1,
+            textTransform: 'none',
+            fontWeight: 500,
+            backgroundColor: '#1976D2',
+            '&:hover': {
+              backgroundColor: '#1565C0'
+            }
+          }}
+        >
+          Close
+        </Button>                                                                                                        
+ 
       </DialogActions>
     </Dialog>
   );

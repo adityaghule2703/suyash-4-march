@@ -477,7 +477,7 @@ const ItemMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -496,8 +496,8 @@ const ItemMaster = () => {
               disabled={loading}
             >
               Filter
-            </Button>
-            <Button
+            </Button> */}
+            {/* <Button
               variant="outlined"
               startIcon={<SortIcon />}
               sx={{ 
@@ -516,7 +516,7 @@ const ItemMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -656,14 +656,14 @@ const ItemMaster = () => {
                 }}>
                   Drawing No
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -771,9 +771,9 @@ const ItemMaster = () => {
                           {item.DrawingNo || 'N/A'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         {getStatusChip(item.IsActive)}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           item={item}

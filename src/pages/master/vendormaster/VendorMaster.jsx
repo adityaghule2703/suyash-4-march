@@ -301,7 +301,7 @@ const VendorMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -320,8 +320,8 @@ const VendorMaster = () => {
               disabled={loading}
             >
               Filter
-            </Button>
-            <Button
+            </Button> */}
+            {/* <Button
               variant="outlined"
               startIcon={<SortIcon />}
               sx={{ 
@@ -340,7 +340,7 @@ const VendorMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -466,14 +466,14 @@ const VendorMaster = () => {
                 }}>
                   GSTIN
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -561,10 +561,10 @@ const VendorMaster = () => {
                           {vendor.GSTIN || 'N/A'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        {/* Since your API response doesn't have IsActive field, we'll default to Active */}
+                      {/* <TableCell>
+                     
                         {getStatusChip(true)}
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   );
                 })

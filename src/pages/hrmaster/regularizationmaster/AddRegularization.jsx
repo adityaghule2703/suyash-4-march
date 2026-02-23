@@ -10,7 +10,7 @@ import {
   Alert,
   MenuItem,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import axios from "axios";
@@ -24,10 +24,11 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
     requestedIn: "",
     requestedOut: "",
     reason: "",
-    supportingDocument: ""
+    supportingDocument: "",
   });
 
   const [employees, setEmployees] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,7 +36,9 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
      FETCH EMPLOYEES
   ============================== */
   useEffect(() => {
-    if (open) fetchEmployees();
+    if (open) {
+      fetchEmployees();
+    }
   }, [open]);
 
   const fetchEmployees = async () => {
@@ -43,7 +46,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(`${BASE_URL}/api/employees`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.data.success) {
@@ -62,7 +65,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -72,7 +75,6 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
   const validate = () => {
     if (!formData.employeeId) return "Employee is required";
     if (!formData.date) return "Date is required";
-    if (!formData.requestType) return "Request type is required";
     if (!formData.reason.trim()) return "Reason is required";
     return null;
   };
@@ -104,7 +106,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
           ? new Date(formData.requestedOut).toISOString()
           : null,
         reason: formData.reason,
-        supportingDocument: formData.supportingDocument || ""
+        supportingDocument: formData.supportingDocument || "",
       };
 
       const response = await axios.post(
@@ -113,15 +115,14 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        }
+            "Content-Type": "application/json",
+          },
+        },
       );
 
       if (response.data.success) {
         onAdd(response.data.data);
-        resetForm();
-        onClose();
+        handleClose();
       } else {
         setError(response.data.message || "Failed to submit request");
       }
@@ -129,7 +130,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       console.error(err.response?.data);
       setError(
         err.response?.data?.message ||
-          "Failed to submit regularization request"
+          "Failed to submit regularization request",
       );
     } finally {
       setLoading(false);
@@ -147,8 +148,9 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       requestedIn: "",
       requestedOut: "",
       reason: "",
-      supportingDocument: ""
+      supportingDocument: "",
     });
+    setSelectedEmployee(null);
     setError("");
   };
 
@@ -161,120 +163,107 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
      UI
   ============================== */
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 2 } }}
-    >
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle
         sx={{
-          borderBottom: "1px solid #E0E0E0",
-          backgroundColor: "#F8FAFC"
+          background: "linear-gradient(135deg, #164e63, #00B4D8)",
+          color: "#fff",
+          fontWeight: 600,
         }}
       >
-        <div style={{ fontSize: "20px", fontWeight: 600 }}>
-          Create Regularization Request
-        </div>
+        Create Regularization Request
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
+      <DialogContent sx={{ pt: 3, margin: 1 }}>
         <Stack spacing={3}>
           {error && <Alert severity="error">{error}</Alert>}
 
-          {/* Employee */}
+          {/* Employee Dropdown */}
           <Autocomplete
             options={employees}
-            getOptionLabel={(option) => option.FullName || ""}
-            onChange={(e, value) =>
+            value={selectedEmployee}
+            onChange={(event, newValue) => {
+              setSelectedEmployee(newValue);
               setFormData((prev) => ({
                 ...prev,
-                employeeId: value?._id || ""
-              }))
-            }
+                employeeId: newValue?._id || "",
+              }));
+            }}
+            getOptionLabel={(option) => {
+              if (!option) return "";
+              return `${option.FirstName || ""} ${option.LastName || ""} (${option.EmployeeID || ""})`;
+            }}
+            isOptionEqualToValue={(option, value) => option._id === value?._id}
             renderInput={(params) => (
-              <TextField {...params} label="Employee *" />
+              <TextField {...params} label="Employee *" required />
             )}
           />
 
-          {/* Date */}
           <TextField
-            fullWidth
             type="date"
             label="Date *"
             name="date"
             value={formData.date}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
+            fullWidth
           />
 
-          {/* Request Type */}
           <TextField
             select
-            fullWidth
-            label="Request Type *"
+            label="Request Type"
             name="requestType"
             value={formData.requestType}
             onChange={handleChange}
+            fullWidth
           >
             <MenuItem value="missed-punch">Missed Punch</MenuItem>
-            <MenuItem value="late-entry">Late Entry</MenuItem>
-            <MenuItem value="early-exit">Early Exit</MenuItem>
+            <MenuItem value="correct-time">Correct Time</MenuItem>
+            <MenuItem value="work-from-home">Work From Home</MenuItem>
+            <MenuItem value="on-duty">On Duty</MenuItem>
           </TextField>
 
-          {/* Requested In */}
           <TextField
-            fullWidth
             type="datetime-local"
             label="Requested In"
             name="requestedIn"
             value={formData.requestedIn}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
+            fullWidth
           />
 
-          {/* Requested Out */}
           <TextField
-            fullWidth
             type="datetime-local"
             label="Requested Out"
             name="requestedOut"
             value={formData.requestedOut}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
+            fullWidth
           />
 
-          {/* Reason */}
           <TextField
-            fullWidth
             multiline
             rows={3}
             label="Reason *"
             name="reason"
             value={formData.reason}
             onChange={handleChange}
+            fullWidth
           />
 
-          {/* Supporting Document */}
           <TextField
-            fullWidth
             label="Supporting Document URL"
             name="supportingDocument"
             value={formData.supportingDocument}
             onChange={handleChange}
+            fullWidth
           />
         </Stack>
       </DialogContent>
 
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 3,
-          borderTop: "1px solid #E0E0E0",
-          backgroundColor: "#F8FAFC"
-        }}
-      >
+      <DialogActions sx={{ p: 3 }}>
         <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
@@ -285,8 +274,8 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
           disabled={loading}
           startIcon={!loading && <AddIcon />}
           sx={{
-            backgroundColor: "#1976D2",
-            "&:hover": { backgroundColor: "#1565C0" }
+            background: "linear-gradient(135deg, #164e63, #00B4D8)",
+            px: 4,
           }}
         >
           {loading ? <CircularProgress size={20} /> : "Submit Request"}

@@ -8,15 +8,12 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Typography,
   Box,
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  FormControlLabel,
-  Switch
+  MenuItem
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -82,13 +79,6 @@ const AddCosting = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const handleSwitchChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      IsActive: e.target.checked
-    }));
-  };
-
   // Calculate costing based on inputs
   const calculateCosting = () => {
     const {
@@ -107,23 +97,13 @@ const AddCosting = ({ open, onClose, onAdd }) => {
     const overheadPercentage = parseFloat(OverheadPercentage) || 0;
     const marginPercentage = parseFloat(MarginPercentage) || 0;
 
-    // Calculate sub cost (sum of all direct costs)
     const subCost = rmRate + processCost + finishingCost + packingCost;
-    
-    // Calculate overhead cost (percentage of sub cost)
     const overheadCost = (subCost * overheadPercentage) / 100;
-    
-    // Calculate total cost before margin
     const totalCostBeforeMargin = subCost + overheadCost;
-    
-    // Calculate margin cost (percentage of total cost before margin)
     const marginCost = (totalCostBeforeMargin * marginPercentage) / 100;
-    
-    // Calculate final rate
     const finalRate = totalCostBeforeMargin + marginCost;
 
     return {
-      RMCost: rmRate,
       SubCost: subCost,
       OverheadCost: overheadCost,
       MarginCost: marginCost,
@@ -132,32 +112,31 @@ const AddCosting = ({ open, onClose, onAdd }) => {
   };
 
   const handleSubmit = async () => {
-    // Validate required fields
-    if (!formData.PartNo.trim()) {
+    if (!formData.PartNo) {
       setError('Part No is required');
       return;
     }
-    if (!formData.RMRate || formData.RMRate < 0) {
+    if (!formData.RMRate || parseFloat(formData.RMRate) < 0) {
       setError('RM Rate must be 0 or greater');
       return;
     }
-    if (!formData.ProcessCost || formData.ProcessCost < 0) {
+    if (!formData.ProcessCost || parseFloat(formData.ProcessCost) < 0) {
       setError('Process Cost must be 0 or greater');
       return;
     }
-    if (!formData.FinishingCost || formData.FinishingCost < 0) {
+    if (!formData.FinishingCost || parseFloat(formData.FinishingCost) < 0) {
       setError('Finishing Cost must be 0 or greater');
       return;
     }
-    if (!formData.PackingCost || formData.PackingCost < 0) {
+    if (!formData.PackingCost || parseFloat(formData.PackingCost) < 0) {
       setError('Packing Cost must be 0 or greater');
       return;
     }
-    if (!formData.OverheadPercentage || formData.OverheadPercentage < 0) {
+    if (!formData.OverheadPercentage || parseFloat(formData.OverheadPercentage) < 0) {
       setError('Overhead Percentage must be 0 or greater');
       return;
     }
-    if (!formData.MarginPercentage || formData.MarginPercentage < 0) {
+    if (!formData.MarginPercentage || parseFloat(formData.MarginPercentage) < 0) {
       setError('Margin Percentage must be 0 or greater');
       return;
     }
@@ -227,357 +206,239 @@ const AddCosting = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Add New Costing
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
-        {/* Show error at the top if exists */}
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Add extra margin top container */}
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={3}>
-            {/* Part No Dropdown */}
-            <FormControl fullWidth size="medium" disabled={fetchingItems || loading}>
-              <InputLabel id="partno-select-label">Part No *</InputLabel>
-              <Select
-                labelId="partno-select-label"
-                id="partno-select"
-                name="PartNo"
-                value={formData.PartNo}
-                label="Part No *"
-                onChange={handleSelectChange}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                  }
-                }}
-              >
-                <MenuItem value="">
-                  <em>Select a Part No</em>
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Part No Dropdown */}
+          <FormControl fullWidth>
+            <InputLabel>Part No *</InputLabel>
+            <Select
+              name="PartNo"
+              value={formData.PartNo}
+              onChange={handleSelectChange}
+              label="Part No *"
+              required
+              disabled={fetchingItems || loading}
+            >
+              <MenuItem value="">
+                <em>Select a Part No</em>
+              </MenuItem>
+              {items.map((item) => (
+                <MenuItem key={item._id} value={item.PartNo}>
+                  <Box>
+                    <Typography variant="body1">{item.PartNo}</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {item.PartName}
+                    </Typography>
+                  </Box>
                 </MenuItem>
-                {items.map((item) => (
-                  <MenuItem key={item._id} value={item.PartNo}>
-                    <Box>
-                      <Typography variant="body1">{item.PartNo}</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {item.PartName}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              ))}
+            </Select>
+          </FormControl>
 
-            {/* Cost Components */}
-            <Typography variant="subtitle1" fontWeight={600} color="#101010">
-              Cost Components
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="RM Rate *"
-                  name="RMRate"
-                  type="number"
-                  value={formData.RMRate}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Process Cost *"
-                  name="ProcessCost"
-                  type="number"
-                  value={formData.ProcessCost}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Finishing Cost *"
-                  name="FinishingCost"
-                  type="number"
-                  value={formData.FinishingCost}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Packing Cost *"
-                  name="PackingCost"
-                  type="number"
-                  value={formData.PackingCost}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            {/* Percentages */}
-            <Typography variant="subtitle1" fontWeight={600} color="#101010" sx={{ mt: 2 }}>
-              Percentages
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Overhead Percentage *"
-                  name="OverheadPercentage"
-                  type="number"
-                  value={formData.OverheadPercentage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Margin Percentage *"
-                  name="MarginPercentage"
-                  type="number"
-                  value={formData.MarginPercentage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            {/* Status */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.IsActive}
-                  onChange={handleSwitchChange}
-                  color="primary"
-                />
-              }
-              label={formData.IsActive ? 'Active Costing' : 'Inactive Costing'}
-              sx={{ mt: 1 }}
+          {/* Cost Components */}
+          <Typography variant="subtitle1" fontWeight={600} color="#101010">
+            Cost Components
+          </Typography>
+          
+          {/* RM Rate and Process Cost */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="RM Rate *"
+              name="RMRate"
+              type="number"
+              value={formData.RMRate}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
             />
-
-            {/* Calculation Preview */}
-            {(formData.RMRate || formData.ProcessCost || formData.FinishingCost || formData.PackingCost) && (
-              <Box sx={{ 
-                p: 3, 
-                bgcolor: '#E8F5E9', 
-                borderRadius: 1,
-                border: '1px solid #C8E6C9'
-              }}>
-                <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
-                  Cost Calculation Preview
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Sub Total:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right">
-                      {formatCurrency(calculations.SubCost)}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">
-                      Overhead ({formData.OverheadPercentage || 0}%):
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + {formatCurrency(calculations.OverheadCost)}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">
-                      Margin ({formData.MarginPercentage || 0}%):
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + {formatCurrency(calculations.MarginCost)}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <Box sx={{ borderTop: '1px dashed #BDBDBD', pt: 1, mt: 1 }}>
-                      <Grid container>
-                        <Grid item xs={6}>
-                          <Typography variant="body1" fontWeight={600} color="textPrimary">
-                            Final Rate:
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="body1" fontWeight={700} color="success.main" align="right">
-                            {formatCurrency(calculations.FinalRate)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
+            <TextField
+              fullWidth
+              label="Process Cost *"
+              name="ProcessCost"
+              type="number"
+              value={formData.ProcessCost}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
           </Stack>
-        </Box>
+
+          {/* Finishing Cost and Packing Cost */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Finishing Cost *"
+              name="FinishingCost"
+              type="number"
+              value={formData.FinishingCost}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Packing Cost *"
+              name="PackingCost"
+              type="number"
+              value={formData.PackingCost}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+          </Stack>
+
+          {/* Percentages */}
+          <Typography variant="subtitle1" fontWeight={600} color="#101010">
+            Percentages
+          </Typography>
+          
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Overhead Percentage *"
+              name="OverheadPercentage"
+              type="number"
+              value={formData.OverheadPercentage}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>%</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Margin Percentage *"
+              name="MarginPercentage"
+              type="number"
+              value={formData.MarginPercentage}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              InputProps={{
+                endAdornment: <Typography>%</Typography>,
+                inputProps: { min: 0, step: 0.01 }
+              }}
+            />
+          </Stack>
+
+          {/* Calculation Preview */}
+          {(formData.RMRate || formData.ProcessCost || formData.FinishingCost || formData.PackingCost) && (
+            <Box sx={{ 
+              p: 2.5, 
+              bgcolor: '#E8F5E9', 
+              borderRadius: 1,
+              border: '1px solid #C8E6C9'
+            }}>
+              <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
+                Cost Calculation Preview
+              </Typography>
+              <Stack spacing={1}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Sub Total:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formatCurrency(calculations.SubCost)}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">
+                    Overhead ({formData.OverheadPercentage || 0}%):
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500} color="warning.main">
+                    + {formatCurrency(calculations.OverheadCost)}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">
+                    Margin ({formData.MarginPercentage || 0}%):
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500} color="warning.main">
+                    + {formatCurrency(calculations.MarginCost)}
+                  </Typography>
+                </Stack>
+                
+                <Box sx={{ borderTop: '1px dashed #BDBDBD', pt: 1, mt: 1 }}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body1" fontWeight={600}>
+                      Final Rate:
+                    </Typography>
+                    <Typography variant="body1" fontWeight={700} color="success.main">
+                      {formatCurrency(calculations.FinalRate)}
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Stack>
+            </Box>
+          )}
+        </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={handleClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
-        
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading || fetchingItems}
-          startIcon={loading ? null : <AddIcon />}
+          startIcon={!loading && <AddIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            },
-            minWidth: '140px'
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Adding...' : 'Add Costing'}

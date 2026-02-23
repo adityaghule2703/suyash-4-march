@@ -450,7 +450,7 @@ const QuotationMaster = () => {
       </Box>
 
       {/* Statistics Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ 
             borderRadius: 2,
@@ -571,7 +571,7 @@ const QuotationMaster = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* Action Bar */}
       <Paper sx={{ 

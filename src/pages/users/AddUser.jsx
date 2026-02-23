@@ -24,21 +24,17 @@ const AddUser = ({ open, onClose, onAdd }) => {
     Username: '',
     Email: '',
     Password: '',
-    RoleID: '',
-    EmployeeID: ''
+    RoleID: ''
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [roles, setRoles] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  // Fetch roles and employees on mount
+  // Fetch roles on mount
   useEffect(() => {
     fetchRoles();
-    fetchEmployees();
   }, []);
 
   const fetchRoles = async () => {
@@ -60,28 +56,6 @@ const AddUser = ({ open, onClose, onAdd }) => {
       setError('Failed to load roles. Please refresh the page.');
     } finally {
       setLoadingRoles(false);
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      setLoadingEmployees(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/employees`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
-        setEmployees(response.data.data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching employees:', err);
-      setError('Failed to load employees. Please refresh the page.');
-    } finally {
-      setLoadingEmployees(false);
     }
   };
 
@@ -140,11 +114,6 @@ const AddUser = ({ open, onClose, onAdd }) => {
       return false;
     }
 
-    if (!formData.EmployeeID) {
-      setError('Please select an employee');
-      return false;
-    }
-
     return true;
   };
 
@@ -165,7 +134,6 @@ const AddUser = ({ open, onClose, onAdd }) => {
           Email: formData.Email.trim(),
           Password: formData.Password,
           RoleID: formData.RoleID,
-          EmployeeID: formData.EmployeeID,
           Status: 'active'
         },
         {
@@ -202,8 +170,7 @@ const AddUser = ({ open, onClose, onAdd }) => {
       Username: '',
       Email: '',
       Password: '',
-      RoleID: '',
-      EmployeeID: ''
+      RoleID: ''
     });
     setConfirmPassword('');
     setError('');
@@ -212,11 +179,6 @@ const AddUser = ({ open, onClose, onAdd }) => {
   const handleClose = () => {
     resetForm();
     onClose();
-  };
-
-  // Get employee full name
-  const getEmployeeName = (employee) => {
-    return `${employee.FirstName || ''} ${employee.LastName || ''}`.trim() || 'Unknown';
   };
 
   return (
@@ -349,37 +311,6 @@ const AddUser = ({ open, onClose, onAdd }) => {
                   </Typography>
                 )}
               </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Employee *</InputLabel>
-                <Select
-                  name="EmployeeID"
-                  value={formData.EmployeeID}
-                  onChange={handleChange}
-                  label="Employee *"
-                  disabled={loading || loadingEmployees || employees.length === 0}
-                  sx={{
-                    borderRadius: 1,
-                  }}
-                >
-                  {employees.map((employee) => (
-                    <MenuItem key={employee._id} value={employee._id}>
-                      {getEmployeeName(employee)} - {employee.EmployeeID || 'No ID'} 
-                      {employee.Email && ` (${employee.Email})`}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {loadingEmployees && (
-                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CircularProgress size={12} /> Loading employees...
-                  </Typography>
-                )}
-                {!loadingEmployees && employees.length === 0 && (
-                  <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                    No employees available. Please add employees first.
-                  </Typography>
-                )}
-              </FormControl>
             </Stack>
           </div>
           
@@ -422,7 +353,7 @@ const AddUser = ({ open, onClose, onAdd }) => {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || loadingRoles || loadingEmployees || !formData.RoleID || !formData.EmployeeID}
+          disabled={loading || loadingRoles || !formData.RoleID}
           startIcon={loading ? null : <AddIcon />}
           sx={{
             borderRadius: 1,

@@ -188,7 +188,7 @@ const ViewLeaveTypes = ({ open, onClose, leaveType, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -208,7 +208,7 @@ const ViewLeaveTypes = ({ open, onClose, leaveType, onEdit }) => {
           }}
         >
           Edit Leave Type
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

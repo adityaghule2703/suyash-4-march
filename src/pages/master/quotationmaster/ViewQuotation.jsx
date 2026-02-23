@@ -496,7 +496,7 @@ const ViewQuotation = ({ open, onClose, quotation, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -516,7 +516,7 @@ const ViewQuotation = ({ open, onClose, quotation, onEdit }) => {
           }}
         >
           Edit Quotation
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

@@ -230,7 +230,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
           Close
         </Button>
 
-        <Button
+        {/* <Button
           variant="contained"
           startIcon={<EditIcon />}
           onClick={() => {
@@ -245,7 +245,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
           }}
         >
           Edit Term
-        </Button>
+        </Button> */}
       </DialogActions>
 
     </Dialog>

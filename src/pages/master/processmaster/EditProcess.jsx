@@ -8,15 +8,12 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Typography,
   Box,
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  FormControlLabel,
-  Switch
+  MenuItem
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -69,13 +66,6 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
     }));
   };
 
-  const handleSwitchChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      IsActive: e.target.checked
-    }));
-  };
-
   const handleSubmit = async () => {
     // Validation
     if (!formData.ProcessName.trim()) {
@@ -83,17 +73,17 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
       return;
     }
 
-    if (!formData.RateType.trim()) {
+    if (!formData.RateType) {
       setError('Rate Type is required');
       return;
     }
 
-    if (!formData.Rate || formData.Rate <= 0) {
+    if (!formData.Rate || parseFloat(formData.Rate) <= 0) {
       setError('Rate must be greater than 0');
       return;
     }
 
-    if (!formData.VendorOrInhouse.trim()) {
+    if (!formData.VendorOrInhouse) {
       setError('Vendor/Inhouse selection is required');
       return;
     }
@@ -137,152 +127,58 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Edit Process
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
-        {/* Show error at the top if exists */}
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Add extra margin top container */}
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={3}>
-            {/* Process Name */}
-            <TextField
-              fullWidth
-              label="Process Name *"
-              name="ProcessName"
-              value={formData.ProcessName}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-              error={!!error && error.includes('Process Name')}
-              helperText={error && error.includes('Process Name') ? error : 'Enter the name of the manufacturing process'}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
-            />
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Process Name */}
+          <TextField
+            fullWidth
+            label="Process Name *"
+            name="ProcessName"
+            value={formData.ProcessName}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                {/* Rate Type Dropdown */}
-                <FormControl fullWidth size="medium" disabled={loading}>
-                  <InputLabel id="rate-type-label">Rate Type *</InputLabel>
-                  <Select
-                    labelId="rate-type-label"
-                    id="rate-type-select"
-                    name="RateType"
-                    value={formData.RateType}
-                    label="Rate Type *"
-                    onChange={handleSelectChange}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                      }
-                    }}
-                  >
-                    {rateTypeOptions.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                {/* Rate */}
-                <TextField
-                  fullWidth
-                  label={`Rate (${formData.RateType}) *`}
-                  name="Rate"
-                  type="number"
-                  value={formData.Rate}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Rate')}
-                  helperText={error && error.includes('Rate') ? error : `Enter rate per ${formData.RateType.toLowerCase().replace('per ', '')}`}
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                    inputProps: {
-                      step: "0.01",
-                      min: "0"
-                    }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            {/* Vendor/Inhouse Dropdown */}
-            <FormControl fullWidth size="medium" disabled={loading}>
-              <InputLabel id="vendor-inhouse-label">Vendor/Inhouse *</InputLabel>
+          {/* Rate Type and Rate - Two fields in one row */}
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Rate Type *</InputLabel>
               <Select
-                labelId="vendor-inhouse-label"
-                id="vendor-inhouse-select"
-                name="VendorOrInhouse"
-                value={formData.VendorOrInhouse}
-                label="Vendor/Inhouse *"
+                name="RateType"
+                value={formData.RateType}
                 onChange={handleSelectChange}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                  }
-                }}
+                label="Rate Type *"
+                required
+                disabled={loading}
               >
-                {vendorInhouseOptions.map((option) => (
+                {rateTypeOptions.map((option) => (
                   <MenuItem key={option} value={option}>
                     {option}
                   </MenuItem>
@@ -290,130 +186,124 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
               </Select>
             </FormControl>
 
-            {/* Description */}
             <TextField
               fullWidth
-              label="Description"
-              name="Description"
-              value={formData.Description}
+              label={`Rate (${formData.RateType}) *`}
+              name="Rate"
+              type="number"
+              value={formData.Rate}
               onChange={handleChange}
-              multiline
-              rows={3}
+              required
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              placeholder="Describe the process, equipment used, special requirements, etc."
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                inputProps: {
+                  step: "0.01",
+                  min: "0"
                 }
               }}
             />
-
-            {/* Status */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.IsActive}
-                  onChange={handleSwitchChange}
-                  color="primary"
-                />
-              }
-              label={formData.IsActive ? 'Active Process' : 'Inactive Process'}
-              sx={{ mt: 1 }}
-            />
-
-            {/* Rate Preview */}
-            {formData.Rate && (
-              <Box sx={{ 
-                p: 3, 
-                bgcolor: '#E8F5E9', 
-                borderRadius: 1,
-                border: '1px solid #C8E6C9'
-              }}>
-                <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
-                  Rate Information
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Current Rate:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right">
-                      {process ? `${formatCurrency(process.Rate)} / ${process.RateType.toLowerCase().replace('per ', '')}` : 'N/A'}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">New Rate Type:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right">
-                      {formData.RateType}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">New Rate:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body1" fontWeight={700} color="success.main" align="right">
-                      {formatCurrency(formData.Rate)} / {formData.RateType.toLowerCase().replace('per ', '')}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Type:</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" fontWeight={500} align="right">
-                      {formData.VendorOrInhouse === 'Vendor' ? 'External Vendor' : 'In-house'}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
           </Stack>
-        </Box>
+
+          {/* Vendor/Inhouse Dropdown */}
+          <FormControl fullWidth>
+            <InputLabel>Vendor/Inhouse *</InputLabel>
+            <Select
+              name="VendorOrInhouse"
+              value={formData.VendorOrInhouse}
+              onChange={handleSelectChange}
+              label="Vendor/Inhouse *"
+              required
+              disabled={loading}
+            >
+              {vendorInhouseOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Description */}
+          <TextField
+            fullWidth
+            label="Description"
+            name="Description"
+            value={formData.Description}
+            onChange={handleChange}
+            multiline
+            rows={3}
+            disabled={loading}
+            placeholder="Describe the process, equipment used, special requirements, etc."
+          />
+
+          {/* Rate Preview */}
+          {formData.Rate && (
+            <Box sx={{ 
+              p: 2.5, 
+              bgcolor: '#E8F5E9', 
+              borderRadius: 1,
+              border: '1px solid #C8E6C9'
+            }}>
+              <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
+                Rate Information
+              </Typography>
+              <Stack spacing={1}>
+                {process && (
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="textSecondary">Current Rate:</Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {formatCurrency(process.Rate)} / {process.RateType.toLowerCase().replace('per ', '')}
+                    </Typography>
+                  </Stack>
+                )}
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">New Rate Type:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.RateType}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">New Rate:</Typography>
+                  <Typography variant="body1" fontWeight={700} color="success.main">
+                    {formatCurrency(formData.Rate)} / {formData.RateType.toLowerCase().replace('per ', '')}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Type:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.VendorOrInhouse === 'Vendor' ? 'External Vendor' : 'In-house'}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          )}
+        </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={onClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          startIcon={!loading && <EditIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            },
-            minWidth: '140px'
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Updating...' : 'Update Process'}

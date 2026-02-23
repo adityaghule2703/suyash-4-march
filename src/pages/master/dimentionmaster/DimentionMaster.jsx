@@ -432,46 +432,6 @@ const DimensionMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button>
           </Stack>
 
           {/* Action Buttons */}
@@ -583,7 +543,7 @@ const DimensionMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Part & Item Details
+                    Part No.
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
@@ -593,7 +553,7 @@ const DimensionMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Dimensions
+                  Part Name
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -601,7 +561,7 @@ const DimensionMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Material & Weight
+                  Drawing No.
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -609,7 +569,47 @@ const DimensionMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Created
+                  Thickness (mm)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Width (mm)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Length (mm)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Density (g/cm³)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Material
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Weight (kg)
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -625,7 +625,7 @@ const DimensionMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading dimension weights...
                     </Typography>
@@ -633,7 +633,7 @@ const DimensionMaster = () => {
                 </TableRow>
               ) : paginatedDimensions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No dimension weights found' : 'No dimension weights available'}
@@ -684,96 +684,84 @@ const DimensionMaster = () => {
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 32, 
+                            height: 32, 
                             bgcolor: '#4F46E5',
-                            fontSize: '0.875rem',
+                            fontSize: '0.75rem',
                             fontWeight: 500
                           }}>
                             {getPartInitials(dimension.PartNo)}
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                              {dimension.PartNo}
-                            </Typography>
-                            {dimension.Item ? (
-                              <>
-                                <Typography variant="caption" color="#64748B" display="block">
-                                  {dimension.Item.PartName}
-                                </Typography>
-                                <Typography variant="caption" color="#64748B" display="block">
-                                  Drawing: {dimension.Item.DrawingNo} Rev: {dimension.Item.RevisionNo}
-                                </Typography>
-                              </>
-                            ) : (
-                              <Typography variant="caption" color="#64748B" display="block">
-                                No associated item
-                              </Typography>
-                            )}
-                          </Box>
+                          <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            {dimension.PartNo}
+                          </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <HeightIcon fontSize="small" sx={{ color: '#4F46E5' }} />
-                            <Typography variant="body2" color="#475569">
-                              Thickness: <strong>{dimension.Thickness} mm</strong>
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <WidthIcon fontSize="small" sx={{ color: '#10B981' }} />
-                            <Typography variant="body2" color="#475569">
-                              Width: <strong>{dimension.Width} mm</strong>
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <StraightenIcon fontSize="small" sx={{ color: '#F59E0B' }} />
-                            <Typography variant="body2" color="#475569">
-                              Length: <strong>{dimension.Length} mm</strong>
-                            </Typography>
-                          </Stack>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                          {dimension.Item?.PartName || 'N/A'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="#475569">
+                          {dimension.Item?.DrawingNo || 'N/A'}
+                        </Typography>
+                        {dimension.Item?.RevisionNo && (
+                          <Typography variant="caption" color="#64748B" display="block">
+                            Rev: {dimension.Item.RevisionNo}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <HeightIcon fontSize="small" sx={{ color: '#4F46E5' }} />
+                          <Typography variant="body2" fontWeight={500} color="#4F46E5">
+                            {dimension.Thickness}
+                          </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <ScaleIcon fontSize="small" sx={{ color: '#EF4444' }} />
-                            <Typography variant="body2" color="#475569">
-                              Density: <strong>{dimension.Density} g/cm³</strong>
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <ScaleIcon fontSize="small" sx={{ color: '#059669' }} />
-                            <Typography variant="body2" fontWeight={600} color="#059669">
-                              {dimension.WeightInKG} kg
-                            </Typography>
-                            <Chip
-                              label={`Weight`}
-                              size="small"
-                              sx={{
-                                bgcolor: '#f0fdf4',
-                                color: '#059669',
-                                border: '1px solid #86efac',
-                                fontWeight: 500,
-                                fontSize: '0.625rem'
-                              }}
-                            />
-                          </Stack>
-                          {dimension.Item?.MaterialID && (
-                            <Typography variant="caption" color="#64748B">
-                              Material: {dimension.Item.MaterialID.MaterialName}
-                            </Typography>
-                          )}
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <WidthIcon fontSize="small" sx={{ color: '#10B981' }} />
+                          <Typography variant="body2" fontWeight={500} color="#10B981">
+                            {dimension.Width}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <StraightenIcon fontSize="small" sx={{ color: '#F59E0B' }} />
+                          <Typography variant="body2" fontWeight={500} color="#F59E0B">
+                            {dimension.Length}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <ScaleIcon fontSize="small" sx={{ color: '#EF4444' }} />
+                          <Typography variant="body2" fontWeight={500} color="#EF4444">
+                            {dimension.Density}
+                          </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="#475569">
-                          {formatDate(dimension.CreatedAt)}
+                          {dimension.Item?.MaterialID?.MaterialName || 'N/A'}
                         </Typography>
-                        <Typography variant="caption" color="#64748B" display="block">
-                          Updated: {formatDate(dimension.UpdatedAt)}
-                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`${dimension.WeightInKG} kg`}
+                          size="small"
+                          sx={{
+                            bgcolor: '#f0fdf4',
+                            color: '#059669',
+                            border: '1px solid #86efac',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            minWidth: 70
+                          }}
+                        />
                       </TableCell>
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 

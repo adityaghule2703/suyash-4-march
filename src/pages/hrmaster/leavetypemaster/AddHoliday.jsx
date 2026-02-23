@@ -224,7 +224,7 @@ const AddHoliday = ({ open, onClose, onAdd }) => {
                             label="Recurring Every Year"
                         />
 
-                        <FormControlLabel
+                        {/* <FormControlLabel
                             control={
                                 <Switch
                                     checked={formData.IsActive}
@@ -234,7 +234,7 @@ const AddHoliday = ({ open, onClose, onAdd }) => {
                                 />
                             }
                             label="Active"
-                        />
+                        /> */}
                     </Box>
 
                     {error && <Alert severity="error">{error}</Alert>}

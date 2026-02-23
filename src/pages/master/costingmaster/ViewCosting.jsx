@@ -11,20 +11,17 @@ import {
   Divider,
   Box,
   Avatar,
-  Grid,
-  Card,
-  CardContent,
-  LinearProgress
+  Grid
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
   AttachMoney as MoneyIcon,
-  TrendingUp as TrendingUpIcon,
   Percent as PercentIcon,
   Inventory as InventoryIcon,
   CalendarToday,
   CheckCircle,
-  Cancel
+  Cancel,
+  Receipt
 } from '@mui/icons-material';
 
 const ViewCosting = ({ open, onClose, costing, onEdit }) => {
@@ -76,102 +73,108 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
       maxWidth="lg" 
       fullWidth
       PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
+        sx: { borderRadius: 2 }
       }}
     >
       <DialogTitle sx={{ 
         borderBottom: '1px solid #E0E0E0', 
         pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+        backgroundColor: '#F8FAFC'
       }}>
         <div style={{ 
           fontSize: '20px', 
           fontWeight: '600', 
-          color: '#101010'
+          color: '#101010',
+          paddingTop: '8px'
         }}>
           Costing Details
         </div>
       </DialogTitle>
       
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
+      <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
-          {/* Header Section */}
-          <Stack direction="row" spacing={3} alignItems="center">
-            <Avatar sx={{ 
-              width: 80, 
-              height: 80, 
-              bgcolor: '#4F46E5',
-              fontSize: '1.5rem'
-            }}>
-              {getPartInitials(costing.PartNo)}
-            </Avatar>
-            <Box>
-              <Typography variant="h5" fontWeight={600} color="#101010">
-                {costing.PartNo}
-              </Typography>
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                {costing.ItemID && (
-                  <Chip
-                    label={costing.ItemID.PartName}
-                    size="small"
-                    sx={{ 
-                      fontWeight: 500,
-                      bgcolor: '#E3F2FD',
-                      color: '#1976D2'
-                    }}
-                  />
-                )}
-                <Chip
-                  label={costing.IsActive ? 'Active' : 'Inactive'}
-                  size="small"
-                  color={costing.IsActive ? 'success' : 'default'}
-                  icon={costing.IsActive ? <CheckCircle /> : <Cancel />}
-                  sx={{ 
-                    fontWeight: 500,
-                    '&.MuiChip-colorSuccess': {
-                      bgcolor: '#E8F5E9',
-                      color: '#2E7D32'
-                    },
-                    '&.MuiChip-colorDefault': {
-                      bgcolor: '#F5F5F5',
-                      color: '#616161'
-                    }
-                  }}
-                />
-              </Stack>
-            </Box>
-          </Stack>
+          {/* Add padding from top for the first field */}
+          <div style={{ marginTop: '16px' }}>
+            <Stack direction="row" spacing={3} alignItems="center">
+              <Avatar sx={{ 
+                width: 80, 
+                height: 80, 
+                bgcolor: '#4F46E5',
+                fontSize: '1.5rem'
+              }}>
+                {getPartInitials(costing.PartNo)}
+              </Avatar>
+              <Box>
+                <Typography variant="h5" fontWeight={600} color="#101010">
+                  {costing.PartNo}
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                  {costing.ItemID && (
+                    <Chip
+                      label={costing.ItemID.PartName}
+                      size="small"
+                      sx={{ 
+                        fontWeight: 500,
+                        bgcolor: '#E3F2FD',
+                        color: '#1976D2',
+                        border: 'none'
+                      }}
+                    />
+                  )}
+                  {costing.IsActive ? (
+                    <Chip
+                      icon={<CheckCircle />}
+                      label="Active"
+                      size="small"
+                      sx={{
+                        bgcolor: '#E8F5E9',
+                        color: '#2E7D32',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#2E7D32',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<Cancel />}
+                      label="Inactive"
+                      size="small"
+                      sx={{
+                        bgcolor: '#FEE2E2',
+                        color: '#991B1B',
+                        border: 'none',
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: '#991B1B',
+                          fontSize: 16
+                        }
+                      }}
+                    />
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </div>
           
           <Divider />
           
-          {/* Final Rate Card */}
-          <Card sx={{ 
-            bgcolor: '#1E40AF',
-            color: 'white',
-            borderRadius: 2,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }}>
-            <CardContent>
-              <Typography variant="caption" color="rgba(255, 255, 255, 0.8)" gutterBottom>
-                FINAL RATE
-              </Typography>
-              <Typography variant="h2" fontWeight={800} sx={{ mb: 1 }}>
-                {formatCurrency(costing.FinalRate)}
-              </Typography>
-              <Typography variant="caption" color="rgba(255, 255, 255, 0.8)">
-                Selling Price per {costing.ItemID?.Unit || 'Unit'}
-              </Typography>
-            </CardContent>
-          </Card>
+          {/* Final Rate - Simplified like other components */}
+          <Box>
+            <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+              FINAL RATE
+            </Typography>
+            <Typography variant="h3" fontWeight={700} color="#059669" sx={{ mt: 0.5 }}>
+              {formatCurrency(costing.FinalRate)}
+            </Typography>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+              Selling Price per {costing.ItemID?.Unit || 'Unit'}
+            </Typography>
+          </Box>
+          
+          <Divider />
           
           {/* Cost Breakdown */}
           <Grid container spacing={3}>
@@ -182,107 +185,114 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
                   Cost Components
                 </Typography>
                 
-                <Card variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Raw Material Cost
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatCurrency(costing.RMCost)} ({breakdown.rmPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.rmPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#FEE2E2',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#EF4444'
-                            }
-                          }}
-                        />
+                <Box sx={{ 
+                  border: '1px solid #E0E0E0',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: '#F8FAFC'
+                }}>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Raw Material Cost
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(costing.RMCost)} ({breakdown.rmPercentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ 
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#FEE2E2',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{ 
+                          width: `${breakdown.rmPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#EF4444',
+                          borderRadius: 3
+                        }} />
                       </Box>
-                      
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Process Cost
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatCurrency(costing.ProcessCost)} ({breakdown.processPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.processPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#FEF3C7',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#D97706'
-                            }
-                          }}
-                        />
+                    </Box>
+                    
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Process Cost
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(costing.ProcessCost)} ({breakdown.processPercentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ 
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#FEF3C7',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{ 
+                          width: `${breakdown.processPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#D97706',
+                          borderRadius: 3
+                        }} />
                       </Box>
-                      
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Finishing Cost
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatCurrency(costing.FinishingCost)} ({breakdown.finishingPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.finishingPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#DBEAFE',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#3B82F6'
-                            }
-                          }}
-                        />
+                    </Box>
+                    
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Finishing Cost
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(costing.FinishingCost)} ({breakdown.finishingPercentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ 
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#DBEAFE',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{ 
+                          width: `${breakdown.finishingPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#3B82F6',
+                          borderRadius: 3
+                        }} />
                       </Box>
-                      
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Packing Cost
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatCurrency(costing.PackingCost)} ({breakdown.packingPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.packingPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#E0E7FF',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#8B5CF6'
-                            }
-                          }}
-                        />
+                    </Box>
+                    
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Packing Cost
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(costing.PackingCost)} ({breakdown.packingPercentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ 
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#E0E7FF',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{ 
+                          width: `${breakdown.packingPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#8B5CF6',
+                          borderRadius: 3
+                        }} />
                       </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                    </Box>
+                  </Stack>
+                </Box>
               </Stack>
             </Grid>
             
@@ -293,85 +303,90 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
                   Margin & Overhead
                 </Typography>
                 
-                <Card variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Sub Total (Direct Costs)
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatCurrency(costing.SubCost)}
-                          </Typography>
-                        </Stack>
-                      </Box>
-                      
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Overhead ({costing.OverheadPercentage}%)
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600} color="#7C3AED">
-                            + {formatCurrency(costing.OverheadCost)} ({breakdown.overheadPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.overheadPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#F3E8FF',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#7C3AED'
-                            }
-                          }}
-                        />
-                      </Box>
-                      
-                      <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="textSecondary">
-                            Margin ({costing.MarginPercentage}%)
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600} color="#059669">
-                            + {formatCurrency(costing.MarginCost)} ({breakdown.marginPercentage}%)
-                          </Typography>
-                        </Stack>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(breakdown.marginPercentage)} 
-                          sx={{ 
-                            mt: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: '#DCFCE7',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: '#059669'
-                            }
-                          }}
-                        />
-                      </Box>
-                      
+                <Box sx={{ 
+                  border: '1px solid #E0E0E0',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: '#F8FAFC'
+                }}>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="body2" color="textSecondary">
+                          Sub Total (Direct Costs)
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(costing.SubCost)}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                    
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Overhead ({costing.OverheadPercentage}%)
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600} color="#7C3AED">
+                          + {formatCurrency(costing.OverheadCost)} ({breakdown.overheadPercentage}%)
+                        </Typography>
+                      </Stack>
                       <Box sx={{ 
-                        pt: 2, 
-                        borderTop: '2px solid #E5E7EB',
-                        mt: 1
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#F3E8FF',
+                        position: 'relative',
+                        overflow: 'hidden'
                       }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body1" fontWeight={700} color="#101010">
-                            Final Rate
-                          </Typography>
-                          <Typography variant="h5" fontWeight={800} color="#059669">
-                            {formatCurrency(costing.FinalRate)}
-                          </Typography>
-                        </Stack>
+                        <Box sx={{ 
+                          width: `${breakdown.overheadPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#7C3AED',
+                          borderRadius: 3
+                        }} />
                       </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                    </Box>
+                    
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Margin ({costing.MarginPercentage}%)
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600} color="#059669">
+                          + {formatCurrency(costing.MarginCost)} ({breakdown.marginPercentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ 
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: '#DCFCE7',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{ 
+                          width: `${breakdown.marginPercentage}%`,
+                          height: '100%',
+                          backgroundColor: '#059669',
+                          borderRadius: 3
+                        }} />
+                      </Box>
+                    </Box>
+                    
+                    <Box sx={{ 
+                      pt: 2, 
+                      borderTop: '2px solid #E5E7EB',
+                      mt: 1
+                    }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="body1" fontWeight={700} color="#101010">
+                          Final Rate
+                        </Typography>
+                        <Typography variant="h5" fontWeight={800} color="#059669">
+                          {formatCurrency(costing.FinalRate)}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Box>
               </Stack>
             </Grid>
           </Grid>
@@ -387,44 +402,74 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
                   Item Information
                 </Typography>
                 
-                <Grid container spacing={2}>
+                <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography variant="caption" color="textSecondary">
-                          Part Details
-                        </Typography>
-                        <Typography variant="body1" fontWeight={500}>
-                          {costing.ItemID.PartName}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Unit: {costing.ItemID.Unit}
-                        </Typography>
-                      </CardContent>
-                    </Card>
+                    <Box>
+                      <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        Part Details
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
+                        {costing.ItemID.PartName}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+                        Unit: {costing.ItemID.Unit}
+                      </Typography>
+                    </Box>
                   </Grid>
                   
                   {costing.ItemID.MaterialID && (
                     <Grid item xs={12} md={6}>
-                      <Card variant="outlined">
-                        <CardContent>
-                          <Typography variant="caption" color="textSecondary">
-                            Material Information
-                          </Typography>
-                          <Typography variant="body1" fontWeight={500}>
-                            {costing.ItemID.MaterialID.MaterialName}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            Code: {costing.ItemID.MaterialID.MaterialCode} • Density: {costing.ItemID.MaterialID.Density} g/cm³
-                          </Typography>
-                        </CardContent>
-                      </Card>
+                      <Box>
+                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          Material Information
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
+                          {costing.ItemID.MaterialID.MaterialName}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+                          Code: {costing.ItemID.MaterialID.MaterialCode} • Density: {costing.ItemID.MaterialID.Density} g/cm³
+                        </Typography>
+                      </Box>
                     </Grid>
                   )}
                 </Grid>
               </Stack>
             </>
           )}
+          
+          <Divider />
+          
+          {/* Additional Information */}
+          <Stack spacing={2}>
+            <Typography variant="subtitle1" fontWeight={600} color="#101010">
+              <Receipt sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Additional Information
+            </Typography>
+            
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                    Costing ID
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {costing._id || 'Not available'}
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                    Version
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {costing.Version || '1.0'}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Stack>
           
           <Divider />
           
@@ -435,31 +480,27 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
               System Information
             </Typography>
             
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="caption" color="textSecondary">
-                      Created At
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate(costing.CreatedAt)}
-                    </Typography>
-                  </CardContent>
-                </Card>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                    Created At
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {formatDate(costing.CreatedAt)}
+                  </Typography>
+                </Box>
               </Grid>
               
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="caption" color="textSecondary">
-                      Last Updated
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate(costing.UpdatedAt)}
-                    </Typography>
-                  </CardContent>
-                </Card>
+              <Grid item xs={12} sm={6}>
+                <Box>
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                    Last Updated
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {formatDate(costing.UpdatedAt)}
+                  </Typography>
+                </Box>
               </Grid>
             </Grid>
           </Stack>
@@ -469,8 +510,8 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
       <DialogActions sx={{ 
         px: 3, 
         pb: 3, 
+        borderTop: '1px solid #E0E0E0', 
         pt: 2,
-        borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
         <Button 
@@ -485,7 +526,7 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -505,7 +546,7 @@ const ViewCosting = ({ open, onClose, costing, onEdit }) => {
           }}
         >
           Edit Costing
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

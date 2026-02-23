@@ -265,7 +265,7 @@ const ViewMaterial = ({ open, onClose, material, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -285,7 +285,7 @@ const ViewMaterial = ({ open, onClose, material, onEdit }) => {
           }}
         >
           Edit Material
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

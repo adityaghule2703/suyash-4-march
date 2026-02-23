@@ -10,7 +10,6 @@ import {
   Alert,
   FormControlLabel,
   Checkbox,
-  Grid,
   Box
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
@@ -43,7 +42,7 @@ const EditMaterial = ({ open, onClose, material, onUpdate }) => {
         Standard: material.Standard || '',
         Grade: material.Grade || '',
         Color: material.Color || '',
-        IsActive: material.IsActive || true
+        IsActive: material.IsActive !== undefined ? material.IsActive : true
       });
     }
   }, [material]);
@@ -103,270 +102,167 @@ const EditMaterial = ({ open, onClose, material, onUpdate }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'visible'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Edit Material
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2
-      }}>
-        {/* Show error at the top if exists */}
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Add extra margin top container */}
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={3}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Material Code *"
-                  name="MaterialCode"
-                  value={formData.MaterialCode}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Material code')}
-                  helperText={error && error.includes('Material code') ? error : ''}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Material Name *"
-                  name="MaterialName"
-                  value={formData.MaterialName}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Material name')}
-                  helperText={error && error.includes('Material name') ? error : ''}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
+        <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* First Row - Material Code and Material Name */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Material Code *"
+              name="MaterialCode"
+              value={formData.MaterialCode}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              error={!!error && error.includes('Material code')}
+            />
 
             <TextField
               fullWidth
-              label="Description"
-              name="Description"
-              value={formData.Description}
+              label="Material Name *"
+              name="MaterialName"
+              value={formData.MaterialName}
               onChange={handleChange}
-              multiline
-              rows={3}
+              required
               disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
-            />
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Density"
-                  name="Density"
-                  value={formData.Density}
-                  onChange={handleChange}
-                  type="number"
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  error={!!error && error.includes('Density')}
-                  helperText={error && error.includes('Density') ? error : ''}
-                  InputProps={{
-                    inputProps: {
-                      step: "0.01",
-                      min: "0"
-                    }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Unit"
-                  name="Unit"
-                  value={formData.Unit}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Standard"
-                  name="Standard"
-                  value={formData.Standard}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Grade"
-                  name="Grade"
-                  value={formData.Grade}
-                  onChange={handleChange}
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
-                />
-              </Grid>
-            </Grid>
-
-            <TextField
-              fullWidth
-              label="Color"
-              name="Color"
-              value={formData.Color}
-              onChange={handleChange}
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name="IsActive"
-                  checked={formData.IsActive}
-                  onChange={handleChange}
-                  color="primary"
-                  disabled={loading}
-                />
-              }
-              label="Active Material"
-              sx={{ mt: 1 }}
+              error={!!error && error.includes('Material name')}
             />
           </Stack>
-        </Box>
+
+          {/* Description - Full Width */}
+          <TextField
+            fullWidth
+            label="Description"
+            name="Description"
+            value={formData.Description}
+            onChange={handleChange}
+            multiline
+            rows={3}
+            disabled={loading}
+          />
+
+          {/* Second Row - Density and Unit */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Density"
+              name="Density"
+              value={formData.Density}
+              onChange={handleChange}
+              type="number"
+              disabled={loading}
+              error={!!error && error.includes('Density')}
+              InputProps={{
+                inputProps: {
+                  step: "0.01",
+                  min: "0"
+                }
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Unit"
+              name="Unit"
+              value={formData.Unit}
+              onChange={handleChange}
+              disabled={loading}
+            />
+          </Stack>
+
+          {/* Third Row - Standard and Grade */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              fullWidth
+              label="Standard"
+              name="Standard"
+              value={formData.Standard}
+              onChange={handleChange}
+              disabled={loading}
+            />
+
+            <TextField
+              fullWidth
+              label="Grade"
+              name="Grade"
+              value={formData.Grade}
+              onChange={handleChange}
+              disabled={loading}
+            />
+          </Stack>
+
+          {/* Color - Full Width */}
+          <TextField
+            fullWidth
+            label="Color"
+            name="Color"
+            value={formData.Color}
+            onChange={handleChange}
+            disabled={loading}
+          />
+
+          {/* Status */}
+          {/* <FormControlLabel
+            control={
+              <Checkbox
+                name="IsActive"
+                checked={formData.IsActive}
+                onChange={handleChange}
+                color="primary"
+                disabled={loading}
+              />
+            }
+            label="Active Material"
+          /> */}
+        </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={onClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          startIcon={!loading && <EditIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Updating...' : 'Update Material'}

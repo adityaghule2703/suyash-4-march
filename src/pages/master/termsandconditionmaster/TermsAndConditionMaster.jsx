@@ -298,9 +298,9 @@ const TermsAndConditionMaster = () => {
                       Sequence
                     </TableCell>
 
-                    <TableCell sx={{ color: "white", fontWeight: 600 }}>
+                    {/* <TableCell sx={{ color: "white", fontWeight: 600 }}>
                       Status
-                    </TableCell>
+                    </TableCell> */}
 
                     <TableCell
                       align="center"
@@ -331,7 +331,7 @@ const TermsAndConditionMaster = () => {
 
                         <TableCell>#{term.Sequence}</TableCell>
 
-                        <TableCell>
+                        {/* <TableCell>
                           <Chip
                             label="Active"
                             size="small"
@@ -341,7 +341,7 @@ const TermsAndConditionMaster = () => {
                               fontWeight: 500,
                             }}
                           />
-                        </TableCell>
+                        </TableCell> */}
 
                         <TableCell align="center">
                           <IconButton onClick={(e) => handleMenuOpen(e, term)}>

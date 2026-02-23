@@ -293,7 +293,7 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -313,7 +313,7 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
           }}
         >
           Edit Company
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

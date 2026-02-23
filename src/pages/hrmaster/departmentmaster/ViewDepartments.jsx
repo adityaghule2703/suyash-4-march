@@ -123,7 +123,7 @@ const ViewDepartments = ({ open, onClose, department, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -143,7 +143,7 @@ const ViewDepartments = ({ open, onClose, department, onEdit }) => {
           }}
         >
           Edit Department
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

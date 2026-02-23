@@ -656,14 +656,14 @@ const MaterialMaster = () => {
                 }}>
                   Density
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -760,9 +760,9 @@ const MaterialMaster = () => {
                           {material.Density} {material.Unit || ''}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         {getStatusChip(material.IsActive)}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           material={material}

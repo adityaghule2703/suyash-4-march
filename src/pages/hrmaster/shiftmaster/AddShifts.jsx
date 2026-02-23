@@ -45,8 +45,8 @@ const AddShifts = ({ open, onClose, onAdd }) => {
       WeeklyThreshold: '',
       RateMultiplier: ''
     },
-    ApplicableDepartments: [],
-    IsActive: true
+    ApplicableDepartments: []
+    // IsActive: true
   });
 
   // Department dropdown state
@@ -224,8 +224,8 @@ const AddShifts = ({ open, onClose, onAdd }) => {
           WeeklyThreshold: Number(formData.OvertimeRules.WeeklyThreshold || 0),
           RateMultiplier: Number(formData.OvertimeRules.RateMultiplier || 1)
         },
-        ApplicableDepartments: departmentIds,
-        IsActive: formData.IsActive
+        ApplicableDepartments: departmentIds
+        //IsActive: formData.IsActive
       };
 
       const response = await axios.post(
@@ -275,8 +275,8 @@ const AddShifts = ({ open, onClose, onAdd }) => {
         WeeklyThreshold: '',
         RateMultiplier: ''
       },
-      ApplicableDepartments: [],
-      IsActive: true
+      ApplicableDepartments: []
+      //IsActive: true
     });
     setError('');
     setFieldErrors({});
@@ -569,7 +569,7 @@ const AddShifts = ({ open, onClose, onAdd }) => {
                 />
 
                 {/* Sixth Row - Active Checkbox */}
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox
                       checked={formData.IsActive}
@@ -593,7 +593,7 @@ const AddShifts = ({ open, onClose, onAdd }) => {
                       Active (Shift is currently in use)
                     </Typography>
                   }
-                />
+                /> */}
               </Stack>
             </Paper>
           </Stack>

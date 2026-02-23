@@ -293,7 +293,7 @@ const MedicalRecordMaster = () => {
                 )
               }}
             />
-            <Button startIcon={<FilterList />} variant="outlined">
+            {/* <Button startIcon={<FilterList />} variant="outlined">
               Filter
             </Button>
             <Button startIcon={<Sort />} variant="outlined">
@@ -305,7 +305,7 @@ const MedicalRecordMaster = () => {
               onClick={handleRefresh}
             >
               Refresh
-            </Button>
+            </Button> */}
           </Stack>
 
           <Button

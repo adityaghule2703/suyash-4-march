@@ -203,7 +203,7 @@ const EditLeaveTypes = ({ open, onClose, leaveType, onUpdate }) => {
             }}
           />
           
-          <FormControlLabel
+          {/* <FormControlLabel
             control={
               <Switch
                 checked={formData.IsActive}
@@ -215,7 +215,7 @@ const EditLeaveTypes = ({ open, onClose, leaveType, onUpdate }) => {
             }
             label="Active"
             sx={{ mt: 1 }}
-          />
+          /> */}
           
           {error && !error.includes('Leave type name') && !error.includes('name must be') && !error.includes('Maximum days') && (
             <Alert 

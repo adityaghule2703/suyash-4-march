@@ -754,16 +754,16 @@ const CandidateMaster = () => {
               disabled={loading}
             />
 
-            <FilterBar
+            {/* <FilterBar
               filters={filters}
               onFilterChange={handleFilterChange}
               onApplyFilters={handleApplyFilters}
               onClearFilters={handleClearFilters}
               statuses={statuses}
               sources={sources}
-            />
+            /> */}
 
-            <Tooltip title="Refresh">
+            {/* <Tooltip title="Refresh">
               <span>
                 <IconButton
                   onClick={fetchCandidates}
@@ -780,7 +780,7 @@ const CandidateMaster = () => {
                   <RefreshIcon />
                 </IconButton>
               </span>
-            </Tooltip>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -825,7 +825,7 @@ const CandidateMaster = () => {
               Export
             </Button>
 
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<CloudUploadIcon />}
               onClick={() => setOpenUploadModal(true)}
@@ -845,7 +845,7 @@ const CandidateMaster = () => {
               disabled={loading}
             >
               Upload
-            </Button>
+            </Button> */}
 
             <Button
               variant="contained"

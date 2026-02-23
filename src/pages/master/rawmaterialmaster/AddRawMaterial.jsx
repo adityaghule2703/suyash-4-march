@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -15,7 +15,9 @@ import {
   StepLabel,
   Box,
   FormControlLabel,
-  Switch
+  Switch,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -31,11 +33,41 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     RatePerKG: '',
     ScrapPercentage: '',
     TransportLossPercentage: '',
-    DateEffective: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+    DateEffective: new Date().toISOString().split('T')[0],
     IsActive: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // New state for materials dropdown
+  const [materials, setMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+
+  // Fetch materials for dropdown
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
+
+  const fetchMaterials = async () => {
+    try {
+      setLoadingMaterials(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/materials`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setMaterials(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching materials:', err);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -43,6 +75,25 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleMaterialChange = (event, newValue) => {
+    setSelectedMaterial(newValue);
+    if (newValue) {
+      // Auto-fill MaterialName and Grade based on selected material
+      setFormData(prev => ({
+        ...prev,
+        MaterialName: newValue.MaterialName,
+        Grade: newValue.Grade || ''
+      }));
+    } else {
+      // Clear fields if no material selected
+      setFormData(prev => ({
+        ...prev,
+        MaterialName: '',
+        Grade: ''
+      }));
+    }
   };
 
   const handleSwitchChange = (e) => {
@@ -114,7 +165,8 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
         ...formData,
         RatePerKG: parseFloat(formData.RatePerKG),
         ScrapPercentage: parseFloat(formData.ScrapPercentage),
-        TransportLossPercentage: parseFloat(formData.TransportLossPercentage)
+        TransportLossPercentage: parseFloat(formData.TransportLossPercentage),
+        MaterialId: selectedMaterial?._id || null // Optional: store reference to original material
       }, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -147,6 +199,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       DateEffective: new Date().toISOString().split('T')[0],
       IsActive: true
     });
+    setSelectedMaterial(null);
     setActiveStep(0);
     setError('');
   };
@@ -161,7 +214,57 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       case 0:
         return (
           <Stack spacing={2.5}>
-            {/* Material Name - Full Width */}
+            {/* Material Selection Dropdown */}
+            <Autocomplete
+              fullWidth
+              options={materials}
+              loading={loadingMaterials}
+              value={selectedMaterial}
+              onChange={handleMaterialChange}
+              getOptionLabel={(option) => 
+                `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
+              }
+              isOptionEqualToValue={(option, value) => option._id === value._id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Material *"
+                  required
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingMaterials ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                    }
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>
+                      {option.MaterialName}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
+              sx={{ mb: 1 }}
+            />
+            
+            {/* Material Name - Auto-filled */}
             <TextField
               fullWidth
               label="Material Name *"
@@ -172,6 +275,10 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               disabled={loading}
               size="medium"
               variant="outlined"
+              InputProps={{
+                readOnly: true, // Make it read-only since it's auto-filled
+                sx: { bgcolor: '#f5f5f5' } // Light gray background to indicate read-only
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1,
@@ -179,7 +286,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               }}
             />
             
-            {/* Grade - Full Width */}
+            {/* Grade - Auto-filled */}
             <TextField
               fullWidth
               label="Grade *"
@@ -190,23 +297,15 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               disabled={loading}
               size="medium"
               variant="outlined"
+              InputProps={{
+                readOnly: true, // Make it read-only since it's auto-filled
+                sx: { bgcolor: '#f5f5f5' } // Light gray background to indicate read-only
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1,
                 }
               }}
-            />
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.IsActive}
-                  onChange={handleSwitchChange}
-                  color="primary"
-                />
-              }
-              label={formData.IsActive ? 'Active' : 'Inactive'}
-              sx={{ mt: 1 }}
             />
           </Stack>
         );
@@ -336,7 +435,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.ScrapPercentage / 100).toLocaleString('en-IN')}
+                      + ₹{(formData.RatePerKG * formData.ScrapPercentage / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
@@ -345,7 +444,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.TransportLossPercentage / 100).toLocaleString('en-IN')}
+                      + ₹{(formData.RatePerKG * formData.TransportLossPercentage / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
@@ -363,12 +462,46 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                               parseFloat(formData.RatePerKG) + 
                               (formData.RatePerKG * formData.ScrapPercentage / 100) + 
                               (formData.RatePerKG * formData.TransportLossPercentage / 100)
-                            ).toLocaleString('en-IN')}
+                            ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                           </Typography>
                         </Grid>
                       </Grid>
                     </Box>
                   </Grid>
+                </Grid>
+              </Box>
+            )}
+            
+            {/* Material Info Summary */}
+            {selectedMaterial && (
+              <Box sx={{ 
+                p: 1.5, 
+                bgcolor: '#E3F2FD', 
+                borderRadius: 1,
+                border: '1px solid #90CAF9'
+              }}>
+                <Typography variant="caption" color="#1976D2" fontWeight={600}>
+                  Material Details
+                </Typography>
+                <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" color="textSecondary">Code:</Typography>
+                  </Grid>
+                  <Grid item xs={8}>
+                    <Typography variant="caption" fontWeight={500}>{selectedMaterial.MaterialCode}</Typography>
+                  </Grid>
+                  {selectedMaterial.Density && (
+                    <>
+                      <Grid item xs={4}>
+                        <Typography variant="caption" color="textSecondary">Density:</Typography>
+                      </Grid>
+                      <Grid item xs={8}>
+                        <Typography variant="caption" fontWeight={500}>
+                          {selectedMaterial.Density} {selectedMaterial.Unit || ''}
+                        </Typography>
+                      </Grid>
+                    </>
+                  )}
                 </Grid>
               </Box>
             )}
@@ -389,7 +522,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       PaperProps={{
         sx: { 
           borderRadius: 2,
-          minHeight: '520px'
+          minHeight: '580px' // Increased height to accommodate dropdown
         }
       }}
     >
@@ -456,7 +589,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       }}>
         {/* Step Content with bottom spacing */}
         <Box sx={{ 
-          minHeight: '320px',
+          minHeight: '360px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'

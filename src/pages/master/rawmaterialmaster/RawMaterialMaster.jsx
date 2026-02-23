@@ -41,7 +41,9 @@ import {
   Sort as SortIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  Percent as PercentIcon,
+  DateRange as DateIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -646,7 +648,7 @@ const RawMaterialMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Material Details
+                    Material Name
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
@@ -656,7 +658,7 @@ const RawMaterialMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Rate Information
+                  Grade
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -664,16 +666,48 @@ const RawMaterialMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Cost Factors
+                  Base Rate (/kg)
                 </TableCell>
                 <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Scrap %
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Transport Loss %
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Effective Rate (/kg)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Effective Date
+                </TableCell>
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -688,7 +722,7 @@ const RawMaterialMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading raw materials...
                     </Typography>
@@ -696,7 +730,7 @@ const RawMaterialMaster = () => {
                 </TableRow>
               ) : paginatedMaterials.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No materials found' : 'No raw materials available'}
@@ -752,111 +786,72 @@ const RawMaterialMaster = () => {
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 32, 
+                            height: 32, 
                             bgcolor: '#388E3C',
-                            fontSize: '0.875rem',
+                            fontSize: '0.75rem',
                             fontWeight: 500
                           }}>
                             {getMaterialInitials(material.MaterialName)}
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                              {material.MaterialName}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B" display="block">
-                              Grade: {material.Grade}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B" display="block">
-                              Effective Date: {formatDate(material.DateEffective)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <MoneyIcon fontSize="small" sx={{ color: '#059669' }} />
-                            <Typography variant="body2" fontWeight={600} color="#059669">
-                              {formatCurrency(material.RatePerKG)}/kg
-                            </Typography>
-                            <Chip
-                              label={`Base Rate`}
-                              size="small"
-                              sx={{
-                                bgcolor: '#f0fdf4',
-                                color: '#059669',
-                                border: '1px solid #86efac',
-                                fontWeight: 500,
-                                fontSize: '0.625rem'
-                              }}
-                            />
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <MoneyIcon fontSize="small" sx={{ color: '#d97706' }} />
-                            <Typography variant="body2" fontWeight={600} color="#d97706">
-                              {formatCurrency(effectiveRate)}/kg
-                            </Typography>
-                            <Chip
-                              label={`Effective Rate`}
-                              size="small"
-                              sx={{
-                                bgcolor: '#fffbeb',
-                                color: '#d97706',
-                                border: '1px solid #fcd34d',
-                                fontWeight: 500,
-                                fontSize: '0.625rem'
-                              }}
-                            />
-                          </Stack>
-                          <Typography variant="caption" color="#64748B">
-                            Difference: {formatCurrency(effectiveRate - material.RatePerKG)}/kg
+                          <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            {material.MaterialName}
                           </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="body2" color="#475569">
-                              Scrap:
-                            </Typography>
-                            <Chip
-                              label={`${material.ScrapPercentage}%`}
-                              size="small"
-                              sx={{
-                                bgcolor: '#fef3c7',
-                                color: '#92400e',
-                                border: '1px solid #fcd34d',
-                                fontWeight: 500
-                              }}
-                            />
-                          </Stack>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="body2" color="#475569">
-                              Transport Loss:
-                            </Typography>
-                            <Chip
-                              label={`${material.TransportLossPercentage}%`}
-                              size="small"
-                              sx={{
-                                bgcolor: '#fef3c7',
-                                color: '#92400e',
-                                border: '1px solid #fcd34d',
-                                fontWeight: 500
-                              }}
-                            />
-                          </Stack>
-                          <Typography variant="caption" color="#64748B">
-                            Total Additional: {(material.ScrapPercentage + material.TransportLossPercentage).toFixed(1)}%
-                          </Typography>
-                        </Stack>
+                        <Chip
+                          label={material.Grade}
+                          size="small"
+                          sx={{
+                            bgcolor: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #7dd3fc',
+                            fontWeight: 500,
+                            fontSize: '0.75rem'
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
-                        {getStatusChip(material.IsActive)}
-                        <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 0.5 }}>
-                          Created: {formatDate(material.CreatedAt)}
+                        <Typography variant="body2" fontWeight={600} color="#059669">
+                          {formatCurrency(material.RatePerKG)}
                         </Typography>
                       </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PercentIcon fontSize="small" sx={{ color: '#92400e' }} />
+                          <Typography variant="body2" fontWeight={500} color="#92400e">
+                            {material.ScrapPercentage}%
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PercentIcon fontSize="small" sx={{ color: '#92400e' }} />
+                          <Typography variant="body2" fontWeight={500} color="#92400e">
+                            {material.TransportLossPercentage}%
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={700} color="#d97706">
+                          {formatCurrency(effectiveRate)}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          (+{(material.ScrapPercentage + material.TransportLossPercentage).toFixed(1)}%)
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <DateIcon fontSize="small" sx={{ color: '#64748B' }} />
+                          <Typography variant="body2" color="#475569">
+                            {formatDate(material.DateEffective)}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      {/* <TableCell>
+                        {getStatusChip(material.IsActive)}
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           material={material}

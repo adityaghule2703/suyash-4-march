@@ -336,22 +336,35 @@ const EmployeeMaster = () => {
     });
   };
   
-  // Get status color
+  // Updated status handling based on schema
   const getStatusColor = (status) => {
-    if (status === 'active') return 'success';
-    if (status === 'inactive') return 'default';
-    if (status === 'on_leave') return 'warning';
-    if (status === 'terminated') return 'error';
-    return 'default';
+    switch(status) {
+      case 'active': return 'success';
+      case 'resigned': return 'default';
+      case 'terminated': return 'error';
+      case 'retired': return 'warning';
+      default: return 'default';
+    }
   };
   
-  // Get status text
   const getStatusText = (status) => {
-    if (status === 'active') return 'Active';
-    if (status === 'inactive') return 'Inactive';
-    if (status === 'on_leave') return 'On Leave';
-    if (status === 'terminated') return 'Terminated';
-    return status;
+    switch(status) {
+      case 'active': return 'Active';
+      case 'resigned': return 'Resigned';
+      case 'terminated': return 'Terminated';
+      case 'retired': return 'Retired';
+      default: return status;
+    }
+  };
+  
+  // Get employment type text
+  const getEmploymentTypeText = (type) => {
+    switch(type) {
+      case 'Monthly': return 'Monthly';
+      case 'Hourly': return 'Hourly';
+      case 'PieceRate': return 'Piece Rate';
+      default: return type;
+    }
   };
   
   // Get gender icon
@@ -469,7 +482,7 @@ const EmployeeMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -488,8 +501,8 @@ const EmployeeMaster = () => {
               disabled={loading}
             >
               Filter
-            </Button>
-            <Button
+            </Button> */}
+            {/* <Button
               variant="outlined"
               startIcon={<SortIcon />}
               sx={{ 
@@ -508,7 +521,7 @@ const EmployeeMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -531,7 +544,7 @@ const EmployeeMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -550,7 +563,7 @@ const EmployeeMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -675,10 +688,21 @@ const EmployeeMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Status
+                    Employment Type
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
+                {/* <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    Status
+                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                  </Stack>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -693,7 +717,7 @@ const EmployeeMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading employees...
                     </Typography>
@@ -701,7 +725,7 @@ const EmployeeMaster = () => {
                 </TableRow>
               ) : paginatedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No employees found' : 'No employees available'}
@@ -818,6 +842,18 @@ const EmployeeMaster = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
+                          label={getEmploymentTypeText(employee.EmploymentType)}
+                          size="small"
+                          sx={{ 
+                            fontWeight: 500,
+                            backgroundColor: '#dbeafe',
+                            color: '#1e40af',
+                            border: '1px solid #bfdbfe'
+                          }}
+                        />
+                      </TableCell>
+                      {/* <TableCell>
+                        <Chip
                           label={getStatusText(employee.EmploymentStatus)}
                           size="small"
                           sx={{ 
@@ -835,7 +871,7 @@ const EmployeeMaster = () => {
                             }`
                           }}
                         />
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           employee={employee}

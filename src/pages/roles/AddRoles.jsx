@@ -152,7 +152,7 @@ const AddRoles = ({ open, onClose, onAdd }) => {
             }}
           />
           
-          <FormControlLabel
+          {/* <FormControlLabel
             control={
               <Switch
                 checked={formData.IsActive}
@@ -164,7 +164,7 @@ const AddRoles = ({ open, onClose, onAdd }) => {
             }
             label="Active"
             sx={{ mt: 1 }}
-          />
+          /> */}
           
           {error && !error.includes('Role name') && !error.includes('name must be') && (
             <Alert 

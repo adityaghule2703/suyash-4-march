@@ -44,7 +44,10 @@ import {
   AttachMoney as MoneyIcon,
   Factory as FactoryIcon,
   Schedule as ScheduleIcon,
-  Business as BusinessIcon
+  Business as BusinessIcon,
+  Description as DescriptionIcon,
+  CalendarToday as CalendarIcon,
+  Update as UpdateIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -413,7 +416,7 @@ const ProcessMaster = () => {
     );
   };
   
-  // Get vendor/inhouse chip color
+  // Get vendor/inhouse chip
   const getVendorInhouseChip = (type) => {
     const isVendor = type === 'Vendor';
     return (
@@ -436,7 +439,7 @@ const ProcessMaster = () => {
     );
   };
   
-  // Get rate type chip color
+  // Get rate type chip
   const getRateTypeChip = (rateType) => {
     const colors = {
       'Per Nos': { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' },
@@ -536,7 +539,7 @@ const ProcessMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -575,7 +578,7 @@ const ProcessMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -687,7 +690,7 @@ const ProcessMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Process Details
+                    Process Name
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
@@ -697,7 +700,7 @@ const ProcessMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Rate Information
+                  Description
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -705,15 +708,47 @@ const ProcessMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Vendor/Inhouse
+                  Rate (₹)
                 </TableCell>
                 <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Rate Type
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Type
+                </TableCell>
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
                   Status
+                </TableCell> */}
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Created Date
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }}>
+                  Last Updated
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -729,7 +764,7 @@ const ProcessMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading processes...
                     </Typography>
@@ -737,7 +772,7 @@ const ProcessMaster = () => {
                 </TableRow>
               ) : paginatedProcesses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No processes found' : 'No processes available'}
@@ -788,55 +823,53 @@ const ProcessMaster = () => {
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 32, 
+                            height: 32, 
                             bgcolor: '#4F46E5',
-                            fontSize: '0.875rem',
+                            fontSize: '0.75rem',
                             fontWeight: 500
                           }}>
                             {getProcessInitials(process.ProcessName)}
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                              {process.ProcessName}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B" display="block">
-                              {process.Description || 'No description available'}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B" display="block">
-                              Created: {formatDate(process.CreatedAt)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <MoneyIcon fontSize="small" sx={{ color: '#059669' }} />
-                            <Typography variant="body2" fontWeight={600} color="#059669">
-                              {formatCurrency(process.Rate)}
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <ScheduleIcon fontSize="small" sx={{ color: '#3B82F6' }} />
-                            {getRateTypeChip(process.RateType)}
-                          </Stack>
-                          <Typography variant="caption" color="#64748B">
-                            Rate applied per {process.RateType.toLowerCase().replace('per ', '')}
+                          <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            {process.ProcessName}
                           </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        {getVendorInhouseChip(process.VendorOrInhouse)}
-                        <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 0.5 }}>
-                          {process.VendorOrInhouse === 'Vendor' ? 'External vendor process' : 'In-house manufacturing'}
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                          {process.Description || '—'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        {getStatusChip(process.IsActive)}
-                        <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 0.5 }}>
-                          Updated: {formatDate(process.UpdatedAt)}
+                        <Typography variant="body2" fontWeight={600} color="#059669">
+                          {formatCurrency(process.Rate)}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {getRateTypeChip(process.RateType)}
+                      </TableCell>
+                      <TableCell>
+                        {getVendorInhouseChip(process.VendorOrInhouse)}
+                      </TableCell>
+                      {/* <TableCell>
+                        {getStatusChip(process.IsActive)}
+                      </TableCell> */}
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <CalendarIcon sx={{ fontSize: 14, color: '#64748B' }} />
+                          <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                            {formatDate(process.CreatedAt)}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <UpdateIcon sx={{ fontSize: 14, color: '#64748B' }} />
+                          <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                            {formatDate(process.UpdatedAt)}
+                          </Typography>
+                        </Stack>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 

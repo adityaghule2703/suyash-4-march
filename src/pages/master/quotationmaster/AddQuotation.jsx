@@ -8,7 +8,6 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
   Box,
   MenuItem,
   Select,
@@ -61,18 +60,15 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const [itemInput, setItemInput] = useState({
     PartNo: '',
     Quantity: '',
-    PartName: '' // Store part name for display
+    PartName: ''
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // State for fetched data
   const [vendors, setVendors] = useState([]);
   const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
 
-  // Fetch vendors and items when modal opens
   useEffect(() => {
     if (open) {
       fetchVendors();
@@ -84,15 +80,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/quotations/vendors`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.data.success) {
         setVendors(response.data.data || []);
-      } else {
-        console.error('Failed to fetch vendors:', response.data.message);
       }
     } catch (err) {
       console.error('Error fetching vendors:', err);
@@ -104,17 +96,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/items`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.data.success) {
-        const itemsData = response.data.data || [];
-        setItems(itemsData);
-        setFilteredItems(itemsData);
-      } else {
-        console.error('Failed to fetch items:', response.data.message);
+        setItems(response.data.data || []);
       }
     } catch (err) {
       console.error('Error fetching items:', err);
@@ -152,7 +138,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  // Handle autocomplete selection for Part No
   const handlePartNoChange = (event, value) => {
     if (value) {
       const selectedItem = items.find(item => item.PartNo === value);
@@ -171,12 +156,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   };
 
   const handleAddItem = () => {
-    if (!itemInput.PartNo.trim() || !itemInput.Quantity || parseInt(itemInput.Quantity) <= 0) {
+    if (!itemInput.PartNo || !itemInput.Quantity || parseInt(itemInput.Quantity) <= 0) {
       setError('Please enter valid Part No and Quantity');
       return;
     }
 
-    // Find the item details
     const selectedItem = items.find(item => item.PartNo === itemInput.PartNo);
     if (!selectedItem) {
       setError('Selected Part No not found in items list');
@@ -201,14 +185,12 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   };
 
   const handleRemoveItem = (index) => {
-    const updatedItems = formData.Items.filter((_, i) => i !== index);
     setFormData(prev => ({
       ...prev,
-      Items: updatedItems
+      Items: prev.Items.filter((_, i) => i !== index)
     }));
   };
 
-  // Get today's date in YYYY-MM-DD format for min attribute
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0];
   };
@@ -321,70 +303,43 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     onClose();
   };
 
-  // Get unique part numbers from items
   const partNoOptions = items.map(item => item.PartNo).filter(Boolean);
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          maxHeight: '90vh'
-        }
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010'
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          paddingTop: '8px'
         }}>
           Add New Quotation
         </div>
       </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2,
-        overflow: 'auto'
-      }}>
+
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1,
-              mb: 3,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        <Stack spacing={4}>
+        <Stack spacing={3}>
           {/* Vendor Type Selection */}
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               Vendor Type
             </Typography>
-            <RadioGroup
-              row
-              value={vendorType}
-              onChange={handleVendorTypeChange}
-            >
+            <RadioGroup row value={vendorType} onChange={handleVendorTypeChange}>
               <FormControlLabel value="Existing" control={<Radio />} label="Existing Vendor" />
               <FormControlLabel value="New" control={<Radio />} label="New Vendor" />
             </RadioGroup>
@@ -392,159 +347,139 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
           {/* Vendor Details */}
           {vendorType === 'Existing' ? (
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                Select Vendor
-              </Typography>
-              <FormControl fullWidth>
-                <InputLabel id="vendor-label">Select Vendor *</InputLabel>
-                <Select
-                  labelId="vendor-label"
-                  name="VendorID"
-                  value={formData.VendorID}
-                  onChange={handleFormChange}
-                  disabled={loading || vendors.length === 0}
-                  label="Select Vendor *"
-                >
-                  <MenuItem value="">
-                    <em>Select a vendor</em>
+            <FormControl fullWidth>
+              <InputLabel>Select Vendor *</InputLabel>
+              <Select
+                name="VendorID"
+                value={formData.VendorID}
+                onChange={handleFormChange}
+                disabled={loading || vendors.length === 0}
+                label="Select Vendor *"
+              >
+                <MenuItem value="">
+                  <em>Select a vendor</em>
+                </MenuItem>
+                {vendors.map((vendor) => (
+                  <MenuItem key={vendor._id} value={vendor._id}>
+                    {vendor.VendorName} ({vendor.GSTIN})
                   </MenuItem>
-                  {vendors.map((vendor) => (
-                    <MenuItem key={vendor._id} value={vendor._id}>
-                      {vendor.VendorName} ({vendor.GSTIN})
-                    </MenuItem>
-                  ))}
-                </Select>
-                {vendors.length === 0 && (
-                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
-                    No vendors found. Please add vendors first.
-                  </Typography>
-                )}
-              </FormControl>
-            </Box>
+                ))}
+              </Select>
+              {vendors.length === 0 && (
+                <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
+                  No vendors found. Please add vendors first.
+                </Typography>
+              )}
+            </FormControl>
           ) : (
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Stack spacing={2}>
+              <Typography variant="subtitle1" fontWeight={600}>
                 New Vendor Details
               </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Vendor Name *"
-                    name="VendorName"
-                    value={newVendor.VendorName}
-                    onChange={handleNewVendorChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="GSTIN *"
-                    name="GSTIN"
-                    value={newVendor.GSTIN}
-                    onChange={handleNewVendorChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="State *"
-                    name="State"
-                    value={newVendor.State}
-                    onChange={handleNewVendorChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="State Code"
-                    name="StateCode"
-                    value={newVendor.StateCode}
-                    onChange={handleNewVendorChange}
-                    type="number"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Address *"
-                    name="Address"
-                    value={newVendor.Address}
-                    onChange={handleNewVendorChange}
-                    required
-                    multiline
-                    rows={2}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="City"
-                    name="City"
-                    value={newVendor.City}
-                    onChange={handleNewVendorChange}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Pincode"
-                    name="Pincode"
-                    value={newVendor.Pincode}
-                    onChange={handleNewVendorChange}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Contact Person *"
-                    name="ContactPerson"
-                    value={newVendor.ContactPerson}
-                    onChange={handleNewVendorChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Phone *"
-                    name="Phone"
-                    value={newVendor.Phone}
-                    onChange={handleNewVendorChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Email *"
-                    name="Email"
-                    value={newVendor.Email}
-                    onChange={handleNewVendorChange}
-                    required
-                    type="email"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="PAN"
-                    name="PAN"
-                    value={newVendor.PAN}
-                    onChange={handleNewVendorChange}
-                  />
-                </Grid>
-              </Grid>
-            </Box>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Vendor Name *"
+                  name="VendorName"
+                  value={newVendor.VendorName}
+                  onChange={handleNewVendorChange}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="GSTIN *"
+                  name="GSTIN"
+                  value={newVendor.GSTIN}
+                  onChange={handleNewVendorChange}
+                  required
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  label="State *"
+                  name="State"
+                  value={newVendor.State}
+                  onChange={handleNewVendorChange}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="State Code"
+                  name="StateCode"
+                  value={newVendor.StateCode}
+                  onChange={handleNewVendorChange}
+                  type="number"
+                />
+              </Stack>
+              <TextField
+                fullWidth
+                label="Address *"
+                name="Address"
+                value={newVendor.Address}
+                onChange={handleNewVendorChange}
+                required
+                multiline
+                rows={2}
+              />
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  label="City"
+                  name="City"
+                  value={newVendor.City}
+                  onChange={handleNewVendorChange}
+                />
+                <TextField
+                  fullWidth
+                  label="Pincode"
+                  name="Pincode"
+                  value={newVendor.Pincode}
+                  onChange={handleNewVendorChange}
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Contact Person *"
+                  name="ContactPerson"
+                  value={newVendor.ContactPerson}
+                  onChange={handleNewVendorChange}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Phone *"
+                  name="Phone"
+                  value={newVendor.Phone}
+                  onChange={handleNewVendorChange}
+                  required
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Email *"
+                  name="Email"
+                  value={newVendor.Email}
+                  onChange={handleNewVendorChange}
+                  required
+                  type="email"
+                />
+                <TextField
+                  fullWidth
+                  label="PAN"
+                  name="PAN"
+                  value={newVendor.PAN}
+                  onChange={handleNewVendorChange}
+                />
+              </Stack>
+            </Stack>
           )}
 
           {/* Valid Till Date */}
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               Quotation Validity
             </Typography>
             <TextField
@@ -554,26 +489,23 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               type="date"
               value={formData.ValidTill}
               onChange={handleFormChange}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              inputProps={{
-                min: getTodayDate()
-              }}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ min: getTodayDate() }}
             />
           </Box>
 
           {/* Items Section */}
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               Items
             </Typography>
             
             {/* Add Item Form */}
             <Paper sx={{ p: 2, mb: 2, bgcolor: '#F8FAFC' }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6}>
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={2} alignItems="flex-start">
                   <Autocomplete
+                    sx={{ flex: 2 }}
                     freeSolo
                     options={partNoOptions}
                     value={itemInput.PartNo}
@@ -604,38 +536,31 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                       );
                     }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={4}>
                   <TextField
-                    fullWidth
+                    sx={{ flex: 1 }}
                     label="Quantity *"
                     name="Quantity"
                     value={itemInput.Quantity}
                     onChange={handleItemInputChange}
                     type="number"
-                    placeholder="Enter quantity"
                     inputProps={{ min: 1 }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={2}>
                   <Button
-                    fullWidth
                     variant="contained"
                     onClick={handleAddItem}
                     startIcon={<AddCircleIcon />}
                     disabled={!itemInput.PartNo || !itemInput.Quantity}
+                    sx={{ height: 56 }}
                   >
                     Add
                   </Button>
-                </Grid>
+                </Stack>
                 {itemInput.PartName && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">
-                      Selected: {itemInput.PartName}
-                    </Typography>
-                  </Grid>
+                  <Typography variant="caption" color="textSecondary">
+                    Selected: {itemInput.PartName}
+                  </Typography>
                 )}
-              </Grid>
+              </Stack>
             </Paper>
 
             {/* Items Table */}
@@ -690,74 +615,55 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
           {/* Remarks */}
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               Remarks
             </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Internal Remarks"
-                  name="InternalRemarks"
-                  value={formData.InternalRemarks}
-                  onChange={handleFormChange}
-                  multiline
-                  rows={2}
-                  placeholder="Internal notes or instructions..."
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Vendor Remarks"
-                  name="VendorRemarks"
-                  value={formData.VendorRemarks}
-                  onChange={handleFormChange}
-                  multiline
-                  rows={2}
-                  placeholder="Message for the vendor..."
-                />
-              </Grid>
-            </Grid>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Internal Remarks"
+                name="InternalRemarks"
+                value={formData.InternalRemarks}
+                onChange={handleFormChange}
+                multiline
+                rows={2}
+                placeholder="Internal notes or instructions..."
+              />
+              <TextField
+                fullWidth
+                label="Vendor Remarks"
+                name="VendorRemarks"
+                value={formData.VendorRemarks}
+                onChange={handleFormChange}
+                multiline
+                rows={2}
+                placeholder="Message for the vendor..."
+              />
+            </Stack>
           </Box>
         </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={handleClose} 
-          disabled={loading}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
+        <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
+
+        <Box sx={{ flex: 1 }} />
+
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={loading ? null : <AddIcon />}
+          startIcon={!loading && <AddIcon />}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
             backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
+            '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
           {loading ? 'Creating...' : 'Create Quotation'}

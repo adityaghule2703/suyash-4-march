@@ -260,7 +260,7 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
         >
           Close
         </Button>
-        <Button
+        {/* <Button
           variant="contained"
           onClick={() => {
             onClose();
@@ -280,7 +280,7 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
           }}
         >
           Edit Tax
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

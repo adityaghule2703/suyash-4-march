@@ -31,7 +31,7 @@ import LeaveApproval from './pages/hrmaster/employeeleavemaster/LeaveApproval'
 import EmployeeLeaveMaster from './pages/hrmaster/employeeleavemaster/EmployeeLeaveMaster'
 import AdminLeaveApproval from './pages/hrmaster/adminleavemaster/AdminLeaveApproval'
 import ShiftMaster from './pages/hrmaster/shiftmaster/ShiftMaster'
-import MedicalRecordMaster from './pages/hrmaster/medicalrecordmaster/MedicalRecordMaster'
+//import MedicalRecordMaster from './pages/hrmaster/medicalrecordmaster/MedicalRecordMaster'
 import AccidentMaster from './pages/hrmaster/accidentmaster/AccidentMaster'
 import RequisitionMaster from './pages/hrmaster/requisitionmaster/RequisitionMaster'
 import JobOpeningMaster from './pages/hrmaster/jobopeningmaster/JobOpeningMaster'
@@ -40,7 +40,9 @@ import InterviewMaster from './pages/hrmaster/interviewmaster/InterviewMaster'
 import SalaryMaster from './pages/hrmaster/salarymaster/SalaryMaster'
 import PieceRateMaster from './pages/hrmaster/pieceratemaster/PieceRateMaster'
 import RegularizationMaster from './pages/hrmaster/regularizationmaster/RegularizationMaster'
-
+import ProductionMaster from './pages/hrmaster/productionmaster/ProductionMaster'
+import TerminationMaster from './pages/hrmaster/terminationmaster/TerminationMaster'
+import EmployeeBehaviorMaster from './pages/hrmaster/employeebehaviormaster/EmployeeBehaviorMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -88,7 +90,7 @@ const App = () => {
           <Route path="hrmaster/employeemaster" element={<EmployeeMaster />} />
           <Route path="hrmaster/leavetypemaster" element={<LeaveTypeMaster />} />
            <Route path="hrmaster/shiftmaster" element={<ShiftMaster />} />
-            <Route path="hrmaster/medicalmaster" element={<MedicalRecordMaster />} />
+            {/* <Route path="hrmaster/medicalmaster" element={<MedicalRecordMaster />} /> */}
              <Route path="hrmaster/accidentmaster" element={<AccidentMaster />} />
               <Route path="hrmaster/requisitionmaster" element={<RequisitionMaster />} />
               <Route path="hrmaster/jobopeningmaster" element={<JobOpeningMaster />} />
@@ -96,6 +98,9 @@ const App = () => {
                <Route path="hrmaster/salarymaster" element={<SalaryMaster />} />
                  <Route path="hrmaster/pieceratemaster" element={<PieceRateMaster />} />
                   <Route path="hrmaster/regularizationmaster" element={<RegularizationMaster />} />
+                  <Route path="hrmaster/productionmaster" element={<ProductionMaster />} />
+                  <Route path="hrmaster/terminationmaster" element={<TerminationMaster />} />
+                  <Route path="hrmaster/employeebehaviormaster" element={<EmployeeBehaviorMaster />} />
                <Route path="hrmaster/interviewmaster" element={<InterviewMaster />} />
           <Route path="roles" element={<Roles />} />
 
