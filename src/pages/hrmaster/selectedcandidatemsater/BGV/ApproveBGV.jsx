@@ -7,12 +7,10 @@ import {
   Button,
   Stack,
   Typography,
-  TextField,
   Grid,
   Box,
   Paper,
   Chip,
-  Divider,
   Alert,
   CircularProgress,
   IconButton,
@@ -20,25 +18,9 @@ import {
   Stepper,
   Step,
   StepLabel,
-  FormControl,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  FormLabel,
-  Checkbox,
-  Card,
-  CardContent,
-  Tooltip,
-  LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  TextField,
+  Divider,
+  alpha
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -46,79 +28,118 @@ import {
   Cancel as CancelIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
-  VerifiedUser as VerifiedUserIcon,
   Security as SecurityIcon,
-  Assignment as AssignmentIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
-  Work as WorkIcon,
-  School as SchoolIcon,
-  Home as HomeIcon,
   Fingerprint as FingerprintIcon,
-  Gavel as GavelIcon,
+  Home as HomeIcon,
+  School as SchoolIcon,
   Business as BusinessIcon,
-  Description as DescriptionIcon,
+  Gavel as GavelIcon,
   ThumbUp as ThumbUpIcon,
-  ThumbDown as ThumbDownIcon,
-  AccessTime as AccessTimeIcon,
-  Error as ErrorIcon
+  ThumbDown as ThumbDownIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
 
+// Color constants
+const PRIMARY_BLUE = '#00B4D8';
+const SUCCESS_COLOR = '#2E7D32';
+const ERROR_COLOR = '#D32F2F';
 
-const ApproveBGV = ({ open, onClose, onSubmit, bgvData = null, bgvId = null }) => {
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
+// Check types with icons and colors
+const CHECK_TYPES = [
+  {
+    type: 'identity',
+    label: 'Identity Verification',
+    icon: <FingerprintIcon />,
+    color: '#1976D2'
+  },
+  {
+    type: 'address',
+    label: 'Address Verification',
+    icon: <HomeIcon />,
+    color: '#2E7D32'
+  },
+  {
+    type: 'education',
+    label: 'Education Verification',
+    icon: <SchoolIcon />,
+    color: '#7B1FA2'
+  },
+  {
+    type: 'employment',
+    label: 'Employment Verification',
+    icon: <BusinessIcon />,
+    color: '#F57C00'
+  },
+  {
+    type: 'criminal',
+    label: 'Criminal Record Check',
+    icon: <GavelIcon />,
+    color: '#C62828'
+  }
+];
+
+// Status color mapping
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'cleared':
+    case 'approved':
+    case 'completed':
+      return { bg: '#d1fae5', color: '#065f46', label: 'Cleared' };
+    case 'pending':
+      return { bg: '#fef3c7', color: '#92400e', label: 'Pending' };
+    case 'failed':
+    case 'rejected':
+      return { bg: '#fee2e2', color: '#991b1b', label: 'Failed' };
+    case 'in_progress':
+      return { bg: '#e3f2fd', color: '#1976d2', label: 'In Progress' };
+    default:
+      return { bg: '#f1f5f9', color: '#475569', label: status || 'Unknown' };
+  }
+};
+
+const ApproveBGV = ({ open, onClose, onSubmit, bgvData, bgvId }) => {
+  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [bgvDetails, setBgvDetails] = useState(null);
+  const [fetchingDetails, setFetchingDetails] = useState(false);
+
+  // Data states
+  const [bgvDetails, setBGVDetails] = useState(bgvData || null);
+  const [remarks, setRemarks] = useState('');
+  const [decision, setDecision] = useState('approve'); // 'approve' or 'reject'
+  const [approvedBGV, setApprovedBGV] = useState(null);
+
+  // Error/Success state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeStep, setActiveStep] = useState(0);
-  const [decision, setDecision] = useState(''); // 'approve' or 'reject'
-  const [remarks, setRemarks] = useState('');
-  const [rejectionReasons, setRejectionReasons] = useState([]);
-  const [confirmAction, setConfirmAction] = useState(false);
-  const [expandedCheck, setExpandedCheck] = useState(null);
 
-  const steps = [
-    'Review BGV',
-    'Verify Checks',
-    'Decision'
-  ];
+  const steps = ['Review BGV Details', 'Add Remarks', 'Confirm & Approve'];
 
-  const rejectionOptions = [
-    'Identity mismatch',
-    'Address verification failed',
-    'Educational documents not verified',
-    'Employment history discrepancy',
-    'Criminal record found',
-    'Reference check failed',
-    'Documentation incomplete',
-    'Other'
-  ];
-
+  // Fetch BGV details on open if not provided
   useEffect(() => {
-    if (open && bgvId) {
-      fetchBGVDetails(bgvId);
-    } else if (open && bgvData) {
-      setBgvDetails(bgvData);
+    if (open && !bgvData && bgvId) {
+      fetchBGVDetails();
+    } else if (bgvData) {
+      console.log('BGV Data received:', bgvData); // Debug log
+      setBGVDetails(bgvData);
     }
-  }, [open, bgvId, bgvData]);
+  }, [open, bgvData, bgvId]);
 
-  const fetchBGVDetails = async (id) => {
-    setFetching(true);
+  // Fetch BGV details from API
+  const fetchBGVDetails = async () => {
+    setFetchingDetails(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/bgv/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await axios.get(`${BASE_URL}/api/bgv/${bgvId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
+      console.log('BGV Details Response:', response.data); // Debug log
+
       if (response.data.success) {
-        setBgvDetails(response.data.data);
+        setBGVDetails(response.data.data);
       } else {
         setError('Failed to fetch BGV details');
       }
@@ -126,516 +147,421 @@ const ApproveBGV = ({ open, onClose, onSubmit, bgvData = null, bgvId = null }) =
       console.error('Error fetching BGV details:', err);
       setError(err.response?.data?.message || 'Failed to fetch BGV details');
     } finally {
-      setFetching(false);
+      setFetchingDetails(false);
     }
   };
 
+  // Helper function to get candidate name safely
+  const getCandidateName = () => {
+    if (!bgvDetails) return 'N/A';
+
+    // Try different possible paths for candidate data
+    const candidate = bgvDetails.candidateId || bgvDetails.candidate;
+
+    if (!candidate) return 'N/A';
+
+    if (candidate.fullName) return candidate.fullName;
+    if (candidate.firstName || candidate.lastName) {
+      return `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || 'N/A';
+    }
+    return 'N/A';
+  };
+
+  // Helper function to get candidate email
+  const getCandidateEmail = () => {
+    if (!bgvDetails) return 'N/A';
+    const candidate = bgvDetails.candidateId || bgvDetails.candidate;
+    return candidate?.email || 'N/A';
+  };
+
+  // Helper function to get candidate phone
+  const getCandidatePhone = () => {
+    if (!bgvDetails) return 'N/A';
+    const candidate = bgvDetails.candidateId || bgvDetails.candidate;
+    return candidate?.phone || 'N/A';
+  };
+
+  // Helper function to get candidate ID
+  const getCandidateId = () => {
+    if (!bgvDetails) return 'N/A';
+    const candidate = bgvDetails.candidateId || bgvDetails.candidate;
+    return candidate?.candidateId || candidate?.id || 'N/A';
+  };
+
+  // Helper function to get candidate initials
+  const getCandidateInitials = () => {
+    if (!bgvDetails) return '?';
+    const candidate = bgvDetails.candidateId || bgvDetails.candidate;
+
+    if (candidate?.firstName && candidate?.lastName) {
+      return `${candidate.firstName[0]}${candidate.lastName[0]}`;
+    }
+    if (candidate?.fullName) {
+      const names = candidate.fullName.split(' ');
+      if (names.length >= 2) {
+        return `${names[0][0]}${names[1][0]}`;
+      }
+      return names[0][0] || '?';
+    }
+    return '?';
+  };
+
+  // Handle next step
   const handleNext = () => {
-    if (activeStep === 2 && !decision) {
-      setError('Please select a decision');
+    if (step === 1 && !remarks.trim()) {
+      setError('Please add remarks for the decision');
       return;
     }
     setError('');
-    setActiveStep((prev) => prev + 1);
+    setStep(prev => prev + 1);
   };
 
+  // Handle back step
   const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
+    setStep(prev => prev - 1);
+    setError('');
   };
 
+  // Handle reset
   const handleReset = () => {
-    setActiveStep(0);
-    setDecision('');
+    setStep(0);
     setRemarks('');
-    setRejectionReasons([]);
-    setConfirmAction(false);
-    setExpandedCheck(null);
-  };
-
-  const handleClose = () => {
-    handleReset();
-    setBgvDetails(null);
+    setDecision('approve');
+    setApprovedBGV(null);
     setError('');
     setSuccess('');
+  };
+
+  // Handle close
+  const handleClose = () => {
+    handleReset();
     onClose();
   };
 
-  const handleDecisionChange = (event) => {
-    setDecision(event.target.value);
-    setConfirmAction(false);
-    setError('');
-  };
-
-  const handleRejectionReasonToggle = (reason) => {
-    setRejectionReasons(prev => 
-      prev.includes(reason)
-        ? prev.filter(r => r !== reason)
-        : [...prev, reason]
-    );
-  };
-
-  const handleSubmitDecision = async () => {
-    if (!decision) {
-      setError('Please select a decision');
-      return;
-    }
-
-    if (decision === 'reject' && rejectionReasons.length === 0) {
-      setError('Please select at least one rejection reason');
-      return;
-    }
-
-    if (!confirmAction) {
-      setError('Please confirm your decision');
+  // Handle approve/reject
+  const handleDecision = async () => {
+    if (!remarks.trim()) {
+      setError('Please add remarks for the decision');
       return;
     }
 
     setSubmitting(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `${BASE_URL}/bgv/${bgvDetails._id}/decision`,
+        `${BASE_URL}/api/bgv/${bgvId}/decision`,
         {
-          decision: decision === 'approve' ? 'approve' : 'reject',
-          remarks: remarks || (decision === 'reject' ? rejectionReasons.join(', ') : ''),
-          rejectionReasons: decision === 'reject' ? rejectionReasons : undefined
+          decision: decision,
+          remarks: remarks.trim()
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
+      console.log('Decision Response:', response.data); // Debug log
+
       if (response.data.success) {
+        setApprovedBGV(response.data.data);
         setSuccess(response.data.message || `BGV ${decision}ed successfully!`);
-        
+
         if (onSubmit) {
           onSubmit(response.data.data);
         }
-        
+
         // Auto close after success
         setTimeout(() => {
           handleClose();
         }, 2000);
       }
     } catch (err) {
-      console.error('Error submitting decision:', err);
+      console.error('Error processing BGV decision:', err);
       setError(err.response?.data?.message || `Failed to ${decision} BGV`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Calculate stats with null checks
+  const totalChecks = bgvDetails?.checks?.length || 0;
+  const clearedChecks = bgvDetails?.checks?.filter(c => c.status === 'cleared' || c.status === 'completed').length || 0;
+  const pendingChecks = bgvDetails?.checks?.filter(c => c.status === 'pending').length || 0;
+  const failedChecks = bgvDetails?.checks?.filter(c => c.status === 'failed' || c.status === 'rejected').length || 0;
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return { bg: '#f1f5f9', color: '#475569', icon: <AccessTimeIcon /> };
-      case 'in_progress':
-      case 'in progress':
-        return { bg: '#fef3c7', color: '#92400e', icon: <RefreshIcon /> };
-      case 'completed':
-      case 'cleared':
-        return { bg: '#d1fae5', color: '#065f46', icon: <CheckCircleIcon /> };
-      case 'failed':
-      case 'discrepancy':
-        return { bg: '#fee2e2', color: '#991b1b', icon: <ErrorIcon /> };
-      default:
-        return { bg: '#f1f5f9', color: '#475569', icon: <InfoIcon /> };
-    }
-  };
-
-  const getOverallProgress = () => {
-    if (!bgvDetails?.checks) return 0;
-    const completed = bgvDetails.checks.filter(c => 
-      c.status?.toLowerCase() === 'completed' || 
-      c.status?.toLowerCase() === 'cleared'
-    ).length;
-    return Math.round((completed / bgvDetails.checks.length) * 100);
-  };
-
-  const toggleCheckExpand = (checkId) => {
-    setExpandedCheck(expandedCheck === checkId ? null : checkId);
-  };
-
-  const getStepContent = (step) => {
+  // Render step content
+  const renderStepContent = () => {
     switch (step) {
       case 0:
         return (
           <Stack spacing={3}>
-            {/* BGV Summary Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                📋 BGV Summary
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar sx={{ bgcolor: '#1976D2', width: 56, height: 56 }}>
-                      {bgvDetails?.candidate?.fullName?.charAt(0) || '?'}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6">
-                        {bgvDetails?.candidate?.fullName || 'N/A'}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {bgvDetails?.candidate?.email} • {bgvDetails?.candidate?.phone}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AssignmentIcon fontSize="small" color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        BGV ID
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {bgvDetails?.bgvId || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <WorkIcon fontSize="small" color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Offer ID
-                      </Typography>
-                      <Typography variant="body2">
-                        {bgvDetails?.offer?.offerId || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SecurityIcon fontSize="small" color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Vendor
-                      </Typography>
-                      <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                        {bgvDetails?.vendor || 'AuthBridge'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTimeIcon fontSize="small" color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Initiated On
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatDate(bgvDetails?.createdAt)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Progress Card */}
-            <Paper sx={{ p: 3, bgcolor: '#F8FAFC' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="subtitle2">Verification Progress</Typography>
-                <Chip
-                  label={`${getOverallProgress()}% Complete`}
-                  size="small"
-                  color={getOverallProgress() === 100 ? 'success' : 'primary'}
-                />
+            {fetchingDetails ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={40} />
               </Box>
-              <LinearProgress 
-                variant="determinate" 
-                value={getOverallProgress()} 
-                sx={{ height: 8, borderRadius: 4, mb: 2 }}
-              />
-              <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Total Checks
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {bgvDetails?.checks?.length || 0}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Completed
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600} color="#2E7D32">
-                    {bgvDetails?.checks?.filter(c => 
-                      c.status?.toLowerCase() === 'completed' || 
-                      c.status?.toLowerCase() === 'cleared'
-                    ).length || 0}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Pending
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600} color="#F57C00">
-                    {bgvDetails?.checks?.filter(c => 
-                      c.status?.toLowerCase() === 'pending' || 
-                      c.status?.toLowerCase() === 'in_progress'
-                    ).length || 0}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
+            ) : bgvDetails ? (
+              <>
+                {/* BGV Header and Candidate Info - Side by Side */}
+                <Grid container spacing={4}>
+                  {/* BGV Details Card */}
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ py: 0.5, px: 4 }}>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                        📋 BGV Details
+                      </Typography>
 
-            {/* Current Status Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-                📊 Current Status
-              </Typography>
+                      <Grid container spacing={12}>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="caption" color="textSecondary">BGV ID</Typography>
+                          <Typography variant="body1" fontWeight={600}>
+                            {bgvDetails?.bgvId || 'N/A'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="caption" color="textSecondary">Status</Typography>
+                          <Box>
+                            <Chip
+                              label={bgvDetails?.status || 'N/A'}
+                              size="small"
+                              sx={{
+                                bgcolor: getStatusColor(bgvDetails?.status).bg,
+                                color: getStatusColor(bgvDetails?.status).color,
+                                fontWeight: 500,
+                                mt: 0.5
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
 
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: bgvDetails?.status === 'completed' ? '#E8F5E9' :
-                         bgvDetails?.status === 'in_progress' ? '#FFF3E0' :
-                         bgvDetails?.status === 'pending' ? '#F8FAFC' : '#FFEBEE',
-                borderRadius: 1,
-                border: `1px solid ${
-                  bgvDetails?.status === 'completed' ? '#81C784' :
-                  bgvDetails?.status === 'in_progress' ? '#FFB74D' :
-                  bgvDetails?.status === 'pending' ? '#E0E0E0' : '#E57373'
-                }`
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  {bgvDetails?.status === 'completed' && <CheckCircleIcon sx={{ color: '#388E3C' }} />}
-                  {bgvDetails?.status === 'in_progress' && <RefreshIcon sx={{ color: '#F57C00' }} />}
-                  {bgvDetails?.status === 'pending' && <AccessTimeIcon sx={{ color: '#757575' }} />}
-                  {bgvDetails?.status === 'failed' && <ErrorIcon sx={{ color: '#D32F2F' }} />}
+                  {/* Candidate Information Card */}
+                  <Grid item xs={12} md={6} px={4}>
+                    <Paper sx={{ py: 1.25, px: 4}}>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                        👤 Candidate Information
+                      </Typography>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ width: 30, height: 30, bgcolor: PRIMARY_BLUE }}>
+                          {getCandidateInitials()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body1">
+                            {getCandidateName()}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {getCandidateEmail()} • {getCandidatePhone()}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Grid container spacing={2}>
+                        {bgvDetails?.offerId && (
+                          <Grid item xs={12}>
+                            <Typography variant="caption" color="textSecondary">Offer ID</Typography>
+                            <Typography variant="body2">
+                              {typeof bgvDetails.offerId === 'object'
+                                ? bgvDetails.offerId?.offerId || 'N/A'
+                                : bgvDetails.offerId || 'N/A'}
+                            </Typography>
+                          </Grid>
+                        )}
+                      </Grid>
+                    </Paper>
+                  </Grid>
+                </Grid>
+
+                {/* Vendor Info Card */}
+                {/* <Paper sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                    🏢 Vendor Information
+                  </Typography>
                   
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ 
-                      color: bgvDetails?.status === 'completed' ? '#388E3C' :
-                             bgvDetails?.status === 'in_progress' ? '#F57C00' :
-                             bgvDetails?.status === 'pending' ? '#757575' : '#D32F2F',
-                      textTransform: 'capitalize'
-                    }}>
-                      {bgvDetails?.status} {bgvDetails?.status === 'completed' && '✓'}
-                    </Typography>
-                    {bgvDetails?.completedAt && (
-                      <Typography variant="caption" color="textSecondary">
-                        Completed on: {formatDate(bgvDetails.completedAt)}
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="textSecondary">Vendor</Typography>
+                      <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                        {bgvDetails?.vendor || 'Authbridge'}
                       </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="textSecondary">Initiated On</Typography>
+                      <Typography variant="body2">
+                        {bgvDetails?.createdAt ? new Date(bgvDetails.createdAt).toLocaleString() : 'N/A'}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper> */}
+
+                {/* Checks Summary */}
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                    🔍 Verification Checks
+                  </Typography>
+
+                  {/* Summary Stats */}
+                  {/* <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={4}>
+                      <Paper sx={{ p: 1.5, bgcolor: '#d1fae5', textAlign: 'center' }}>
+                        <Typography variant="h6" color="#065f46">{clearedChecks}</Typography>
+                        <Typography variant="caption" color="#065f46">Cleared</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Paper sx={{ p: 1.5, bgcolor: '#fef3c7', textAlign: 'center' }}>
+                        <Typography variant="h6" color="#92400e">{pendingChecks}</Typography>
+                        <Typography variant="caption" color="#92400e">Pending</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Paper sx={{ p: 1.5, bgcolor: '#fee2e2', textAlign: 'center' }}>
+                        <Typography variant="h6" color="#991b1b">{failedChecks}</Typography>
+                        <Typography variant="caption" color="#991b1b">Failed</Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid> */}
+
+                  {/* Checks List */}
+                  <Stack spacing={2}>
+                    {CHECK_TYPES.map((checkType, index) => {
+                      const check = bgvDetails?.checks?.find(c => c.type === checkType.type);
+                      const status = check?.status || 'pending';
+                      const statusStyle = getStatusColor(status);
+
+                      return (
+                        <Box key={checkType.type}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center'}}>
+                              <Box sx={{ color: checkType.color }}>{checkType.icon}</Box>
+                              <Typography variant="body2" fontWeight={500}>
+                                {checkType.label}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={statusStyle.label}
+                              size="small"
+                              sx={{
+                                bgcolor: statusStyle.bg,
+                                color: statusStyle.color,
+                                height: 10,
+                                fontSize: '11px',
+                                fontWeight: 500
+                              }}
+                            />
+                          </Box>
+                          {check?.completedAt && (
+                            <Typography variant="caption" color="textSecondary" sx={{ ml: 4 }}>
+                              Completed: {new Date(check.completedAt).toLocaleString()}
+                            </Typography>
+                          )}
+                          {index < CHECK_TYPES.length - 1 && <Divider sx={{ mt: 1 }} />}
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Paper>
+
+                {/* Timeline */}
+                {/* <Paper sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                    ⏱️ Timeline
+                  </Typography>
+
+                  <Stack spacing={2}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>Initiated</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {bgvDetails?.createdAt ? new Date(bgvDetails.createdAt).toLocaleString() : 'N/A'}
+                      </Typography>
+                    </Box>
+                    {bgvDetails?.completedAt && (
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>Completed</Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {new Date(bgvDetails.completedAt).toLocaleString()}
+                        </Typography>
+                      </Box>
                     )}
-                  </Box>
-                </Box>
-              </Box>
-            </Paper>
+                  </Stack>
+                </Paper> */}
+              </>
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                No BGV details found. Please select a BGV to review.
+              </Alert>
+            )}
           </Stack>
         );
 
       case 1:
         return (
           <Stack spacing={3}>
-            {/* Verification Checks Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                🔍 Detailed Verification Checks
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+                💬 Add Remarks
               </Typography>
 
-              <TableContainer component={Paper} variant="outlined">
-                <Table>
-                  <TableBody>
-                    {bgvDetails?.checks?.map((check) => {
-                      const statusStyle = getStatusColor(check.status);
-                      const isExpanded = expandedCheck === check._id;
+              <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                Please provide detailed remarks for your decision. This will be recorded in the BGV history.
+              </Alert>
 
-                      return (
-                        <React.Fragment key={check._id}>
-                          <TableRow 
-                            hover 
-                            sx={{ 
-                              cursor: 'pointer',
-                              '&:hover': { bgcolor: '#F5F9FF' }
-                            }}
-                            onClick={() => toggleCheckExpand(check._id)}
-                          >
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                {check.type === 'identity' && <FingerprintIcon color="primary" />}
-                                {check.type === 'address' && <HomeIcon color="primary" />}
-                                {check.type === 'education' && <SchoolIcon color="primary" />}
-                                {check.type === 'employment' && <WorkIcon color="primary" />}
-                                {check.type === 'criminal' && <GavelIcon color="primary" />}
-                                {check.type === 'reference' && <PersonIcon color="primary" />}
-                                {check.type === 'drug' && <WarningIcon color="primary" />}
-                                {check.type === 'credit' && <BusinessIcon color="primary" />}
-                                
-                                <Box>
-                                  <Typography variant="subtitle2" sx={{ textTransform: 'capitalize' }}>
-                                    {check.type} Verification
-                                  </Typography>
-                                  {check.verifiedBy && (
-                                    <Typography variant="caption" color="textSecondary">
-                                      Verified by: {check.verifiedBy}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </Box>
-                            </TableCell>
-                            
-                            <TableCell align="center">
-                              <Chip
-                                size="small"
-                                icon={statusStyle.icon}
-                                label={check.status}
-                                sx={{ 
-                                  bgcolor: statusStyle.bg,
-                                  color: statusStyle.color,
-                                  fontWeight: 500,
-                                  minWidth: 90,
-                                  textTransform: 'capitalize'
-                                }}
-                              />
-                            </TableCell>
-                            
-                            <TableCell align="right">
-                              <Typography variant="caption" color="textSecondary">
-                                {check.completedAt ? formatDate(check.completedAt) : 
-                                 check.startedAt ? 'In Progress' : 'Not Started'}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Remarks"
+                placeholder="Enter your remarks here..."
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                sx={{ mb: 3 }}
+              />
 
-                          {isExpanded && (
-                            <TableRow>
-                              <TableCell colSpan={3} sx={{ bgcolor: '#F8FAFC', py: 2 }}>
-                                <Box sx={{ p: 2 }}>
-                                  <Grid container spacing={2}>
-                                    {/* Check Details */}
-                                    {check.verifiedDetails && (
-                                      <Grid item xs={12}>
-                                        <Typography variant="subtitle2" gutterBottom>
-                                          Verification Details
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {check.verifiedDetails}
-                                        </Typography>
-                                      </Grid>
-                                    )}
-
-                                    {/* Documents */}
-                                    {check.documents && check.documents.length > 0 && (
-                                      <Grid item xs={12}>
-                                        <Typography variant="subtitle2" gutterBottom>
-                                          Supporting Documents
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                          {check.documents.map((doc, idx) => (
-                                            <Chip
-                                              key={idx}
-                                              icon={<DescriptionIcon />}
-                                              label={doc.name || `Document ${idx + 1}`}
-                                              variant="outlined"
-                                              onClick={() => window.open(doc.url, '_blank')}
-                                            />
-                                          ))}
-                                        </Box>
-                                      </Grid>
-                                    )}
-
-                                    {/* Remarks */}
-                                    {check.remarks && (
-                                      <Grid item xs={12}>
-                                        <Typography variant="subtitle2" gutterBottom>
-                                          Remarks
-                                        </Typography>
-                                        <Alert severity="info" icon={<InfoIcon />}>
-                                          {check.remarks}
-                                        </Alert>
-                                      </Grid>
-                                    )}
-
-                                    {/* Timeline */}
-                                    <Grid item xs={12}>
-                                      <Typography variant="subtitle2" gutterBottom>
-                                        Timeline
-                                      </Typography>
-                                      <Box sx={{ display: 'flex', gap: 3 }}>
-                                        {check.startedAt && (
-                                          <Box>
-                                            <Typography variant="caption" color="textSecondary">
-                                              Started
-                                            </Typography>
-                                            <Typography variant="body2">
-                                              {formatDate(check.startedAt)}
-                                            </Typography>
-                                          </Box>
-                                        )}
-                                        {check.completedAt && (
-                                          <Box>
-                                            <Typography variant="caption" color="textSecondary">
-                                              Completed
-                                            </Typography>
-                                            <Typography variant="body2">
-                                              {formatDate(check.completedAt)}
-                                            </Typography>
-                                          </Box>
-                                        )}
-                                      </Box>
-                                    </Grid>
-                                  </Grid>
-                                </Box>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Paper>
-
-            {/* Verification Summary */}
-            <Paper sx={{ p: 3, bgcolor: '#F8FAFC' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Verification Summary
+              <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                Decision
               </Typography>
+
               <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CheckCircleIcon fontSize="small" color="success" />
-                    <Typography variant="body2">
-                      {bgvDetails?.checks?.filter(c => 
-                        c.status?.toLowerCase() === 'completed' || 
-                        c.status?.toLowerCase() === 'cleared'
-                      ).length} checks cleared
-                    </Typography>
-                  </Box>
+                <Grid item xs={6}>
+                  <Button
+                    fullWidth
+                    variant={decision === 'approve' ? 'contained' : 'outlined'}
+                    color="success"
+                    startIcon={<ThumbUpIcon />}
+                    onClick={() => setDecision('approve')}
+                    sx={{
+                      py: 1.5,
+                      bgcolor: decision === 'approve' ? SUCCESS_COLOR : 'transparent',
+                      '&:hover': {
+                        bgcolor: decision === 'approve' ? '#1B5E20' : alpha(SUCCESS_COLOR, 0.04)
+                      }
+                    }}
+                  >
+                    Approve
+                  </Button>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTimeIcon fontSize="small" color="warning" />
-                    <Typography variant="body2">
-                      {bgvDetails?.checks?.filter(c => 
-                        c.status?.toLowerCase() === 'pending'
-                      ).length} checks pending
-                    </Typography>
-                  </Box>
+                <Grid item xs={6}>
+                  <Button
+                    fullWidth
+                    variant={decision === 'reject' ? 'contained' : 'outlined'}
+                    color="error"
+                    startIcon={<ThumbDownIcon />}
+                    onClick={() => setDecision('reject')}
+                    sx={{
+                      py: 1.5,
+                      bgcolor: decision === 'reject' ? ERROR_COLOR : 'transparent',
+                      '&:hover': {
+                        bgcolor: decision === 'reject' ? '#B71C1C' : alpha(ERROR_COLOR, 0.04)
+                      }
+                    }}
+                  >
+                    Reject
+                  </Button>
                 </Grid>
               </Grid>
             </Paper>
@@ -645,315 +571,169 @@ const ApproveBGV = ({ open, onClose, onSubmit, bgvData = null, bgvId = null }) =
       case 2:
         return (
           <Stack spacing={3}>
-            {/* Decision Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                ⚖️ Make Decision
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2" >
+                Confirm Decision
               </Typography>
 
-              <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
-                <FormLabel component="legend" sx={{ mb: 2, fontWeight: 500 }}>
-                  Select Action
-                </FormLabel>
-                <RadioGroup
-                  value={decision}
-                  onChange={handleDecisionChange}
-                >
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          border: decision === 'approve' ? '2px solid #2E7D32' : '1px solid #E0E0E0',
-                          borderRadius: 2,
-                          cursor: 'pointer',
-                          bgcolor: decision === 'approve' ? '#E8F5E9' : '#FFFFFF',
-                          '&:hover': {
-                            borderColor: '#2E7D32',
-                            bgcolor: '#F1F8E9'
-                          }
-                        }}
-                        onClick={() => setDecision('approve')}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Box sx={{ 
-                            p: 1, 
-                            borderRadius: '50%', 
-                            bgcolor: decision === 'approve' ? '#2E7D32' : '#F5F5F5',
-                            color: decision === 'approve' ? '#FFFFFF' : '#757575'
-                          }}>
-                            <ThumbUpIcon />
-                          </Box>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={600}>
-                              Approve BGV
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              All checks cleared, candidate verified
-                            </Typography>
-                          </Box>
-                          <Radio 
-                            value="approve" 
-                            checked={decision === 'approve'}
-                            sx={{ color: '#2E7D32' }}
-                          />
-                        </Box>
-                      </Paper>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          border: decision === 'reject' ? '2px solid #D32F2F' : '1px solid #E0E0E0',
-                          borderRadius: 2,
-                          cursor: 'pointer',
-                          bgcolor: decision === 'reject' ? '#FFEBEE' : '#FFFFFF',
-                          '&:hover': {
-                            borderColor: '#D32F2F',
-                            bgcolor: '#FFEBEE'
-                          }
-                        }}
-                        onClick={() => setDecision('reject')}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Box sx={{ 
-                            p: 1, 
-                            borderRadius: '50%', 
-                            bgcolor: decision === 'reject' ? '#D32F2F' : '#F5F5F5',
-                            color: decision === 'reject' ? '#FFFFFF' : '#757575'
-                          }}>
-                            <ThumbDownIcon />
-                          </Box>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={600}>
-                              Reject BGV
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              Verification failed, discrepancies found
-                            </Typography>
-                          </Box>
-                          <Radio 
-                            value="reject" 
-                            checked={decision === 'reject'}
-                            sx={{ color: '#D32F2F' }}
-                          />
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  </Grid>
-                </RadioGroup>
-              </FormControl>
-
-              {decision === 'reject' && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Rejection Reasons *
-                  </Typography>
-                  <Grid container spacing={1}>
-                    {rejectionOptions.map((reason) => (
-                      <Grid item xs={12} md={6} key={reason}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={rejectionReasons.includes(reason)}
-                              onChange={() => handleRejectionReasonToggle(reason)}
-                              size="small"
-                            />
-                          }
-                          label={
-                            <Typography variant="body2">{reason}</Typography>
-                          }
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                </Box>
-              )}
-
-              <Divider sx={{ my: 3 }} />
-
-              {/* Remarks */}
-              <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
-                {decision === 'approve' ? 'Approval Remarks' : 'Rejection Remarks'}
-              </Typography>
-              
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                placeholder={decision === 'approve' 
-                  ? "Add any approval notes or conditions..." 
-                  : "Provide detailed reason for rejection..."
-                }
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                sx={{ mb: 3 }}
-              />
-
-              {/* Warning Message */}
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: decision === 'approve' ? '#E8F5E9' : '#FFEBEE',
-                borderRadius: 1,
-                border: decision === 'approve' ? '1px solid #81C784' : '1px solid #E57373',
-                mb: 3
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  {decision === 'approve' ? (
-                    <InfoIcon sx={{ color: '#388E3C' }} />
-                  ) : (
-                    <WarningIcon sx={{ color: '#D32F2F' }} />
-                  )}
-                  <Typography variant="subtitle2" sx={{ color: decision === 'approve' ? '#388E3C' : '#D32F2F' }}>
-                    {decision === 'approve' ? 'Approval Confirmation' : 'Rejection Warning'}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="textSecondary">
-                  {decision === 'approve' 
-                    ? 'Once approved, this BGV will be marked as completed and the candidate can proceed with onboarding.'
-                    : 'Rejecting this BGV will flag the candidate as verification failed. This action cannot be undone.'}
+              {/* Summary Card */}
+              <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  Decision Summary
                 </Typography>
-              </Box>
-
-              {/* Confirmation Checkbox */}
-              {decision && (
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={confirmAction}
-                      onChange={(e) => setConfirmAction(e.target.checked)}
-                      color={decision === 'approve' ? 'success' : 'error'}
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      I confirm my decision to {decision} this background verification
+                <Grid container spacing={8}>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary">BGV ID</Typography>
+                    <Typography variant="body2" fontWeight={500}>{bgvDetails?.bgvId || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary">Candidate</Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {getCandidateName()}
                     </Typography>
-                  }
-                />
-              )}
-            </Paper>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary">Decision</Typography>
+                    <Box>
+                      <Chip
+                        icon={decision === 'approve' ? <CheckCircleIcon /> : <CancelIcon />}
+                        label={decision === 'approve' ? 'Approve' : 'Reject'}
+                        color={decision === 'approve' ? 'success' : 'error'}
+                        sx={{ mt: 0.5 }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary">Remarks</Typography>
+                    <Paper sx={{ p: 0.5, bgcolor: '#FFFFFF', mt: 0.5 }}>
+                      <Typography variant="body2">{remarks || 'No remarks provided'}</Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Paper>
 
-            {/* Summary Card */}
-            <Paper sx={{ p: 2, bgcolor: '#F8FAFC' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Decision Summary
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary">
-                    Candidate
+              {/* Checks Status */}
+              {bgvDetails && (
+                <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                    Current Verification Status
                   </Typography>
-                  <Typography variant="body2">
-                    {bgvDetails?.candidate?.fullName}
+                  <Grid container spacing={2} >
+                    {CHECK_TYPES.map((checkType) => {
+                      const check = bgvDetails?.checks?.find(c => c.type === checkType.type);
+                      const status = check?.status || 'pending';
+                      const statusStyle = getStatusColor(status);
+
+                      return (
+                        <Grid item xs={12} sm={6} key={checkType.type}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ color: checkType.color, fontSize: '0.9rem' }}>{checkType.icon}</Box>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" display="block">
+                                {checkType.label}
+                              </Typography>
+                              <Chip
+                                label={statusStyle.label}
+                                size="small"
+                                sx={{
+                                  bgcolor: statusStyle.bg,
+                                  color: statusStyle.color,
+                                  height: 18,
+                                  fontSize: '10px'
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Paper>
+              )}
+
+              {/* Warning Alert */}
+              <Alert
+                severity={decision === 'approve' ? 'warning' : 'error'}
+                icon={decision === 'approve' ? <WarningIcon /> : <CancelIcon />}
+                sx={{ borderRadius: 2 , marginTop: -1}}
+              >
+                <Typography variant="body2">
+                  {decision === 'approve'
+                    ? 'Are you sure you want to approve this BGV? This action cannot be undone.'
+                    : 'Are you sure you want to reject this BGV? This action cannot be undone.'}
+                </Typography>
+              </Alert>
+
+              {/* Success Message */}
+              {approvedBGV && (
+                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mt: 2 }}>
+                  <Typography variant="body2" fontWeight={500}>
+                    BGV {decision}ed Successfully!
                   </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary">
-                    BGV ID
+                  <Typography variant="caption" display="block">
+                    BGV ID: {approvedBGV.bgvId}
                   </Typography>
-                  <Typography variant="body2">
-                    {bgvDetails?.bgvId}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary">
-                    Total Checks
-                  </Typography>
-                  <Typography variant="body2">
-                    {bgvDetails?.checks?.length || 0}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary">
-                    Completed
-                  </Typography>
-                  <Typography variant="body2" color="#2E7D32">
-                    {bgvDetails?.checks?.filter(c => 
-                      c.status?.toLowerCase() === 'completed' || 
-                      c.status?.toLowerCase() === 'cleared'
-                    ).length || 0}
-                  </Typography>
-                </Grid>
-              </Grid>
+                </Alert>
+              )}
             </Paper>
           </Stack>
         );
 
       default:
-        return 'Unknown step';
+        return null;
     }
   };
-
-  if (fetching) {
-    return (
-      <Dialog open={open} maxWidth="md" fullWidth>
-        <DialogContent>
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8, flexDirection: 'column', gap: 2 }}>
-            <CircularProgress />
-            <Typography color="textSecondary">Loading BGV details...</Typography>
-          </Box>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 2, minHeight: '80vh' } }}
+      PaperProps={{
+        sx: { borderRadius: 2, maxHeight: '90vh' }
+      }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        borderBottom: 1,
+        borderColor: '#E0E0E0',
+        bgcolor: '#F8FAFC',
+        px: 3,
+        py: 2,
+        position: 'sticky',
+        top: 0,
+        zIndex: 2
       }}>
-        <Box>
-          <Typography variant="h6" fontWeight={600}>
-            Approve/Reject Background Verification
-          </Typography>
-          {bgvDetails?.bgvId && (
-            <Typography variant="caption" color="textSecondary">
-              BGV ID: {bgvDetails.bgvId} • Candidate: {bgvDetails?.candidate?.fullName}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6" fontWeight={600}>
+              {decision === 'approve' ? 'Approve BGV' : 'Reject BGV'}
             </Typography>
-          )}
+            <Typography variant="caption" color="textSecondary">
+              Review and make decision on background verification
+            </Typography>
+          </Box>
+          <IconButton onClick={handleClose} size="small">
+            <CloseIcon />
+          </IconButton>
         </Box>
-        <IconButton onClick={handleClose} size="small">
-          <CloseIcon />
-        </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
+      <DialogContent sx={{ pt: 3, px: 3, overflowY: 'auto' }}>
         {/* Error/Success Messages */}
         {error && (
-          <Alert 
-            severity="error" 
-            onClose={() => setError('')}
-            sx={{ mb: 3 }}
-          >
+          <Alert severity="error" onClose={() => setError('')} sx={{ mb: 3, borderRadius: 2 }}>
             {error}
           </Alert>
         )}
-        
-        {success && (
-          <Alert 
-            severity="success" 
-            icon={<CheckCircleIcon />}
-            onClose={() => setSuccess('')}
-            sx={{ mb: 3 }}
-          >
+        {success && !approvedBGV && (
+          <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 3, borderRadius: 2 }}>
             {success}
           </Alert>
         )}
 
         {/* Stepper */}
-        <Stepper activeStep={activeStep} sx={{ mb: 4, mt: 1 }}>
+        <Stepper activeStep={step} sx={{ mb: 4, mt: 2 }}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -962,54 +742,56 @@ const ApproveBGV = ({ open, onClose, onSubmit, bgvData = null, bgvId = null }) =
         </Stepper>
 
         {/* Step Content */}
-        <Box sx={{ minHeight: 450 }}>
-          {getStepContent(activeStep)}
+        <Box sx={{ minHeight: 400 }}>
+          {renderStepContent()}
         </Box>
       </DialogContent>
 
       <DialogActions sx={{
         px: 3,
         py: 2,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
+        borderTop: 1,
+        borderColor: '#E0E0E0',
+        bgcolor: '#F8FAFC',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 2
       }}>
         <Button onClick={handleClose}>
           Cancel
         </Button>
-
         <Box>
           <Button
-            disabled={activeStep === 0}
+            disabled={step === 0}
             onClick={handleBack}
             sx={{ mr: 1 }}
           >
             Back
           </Button>
-
-          {activeStep === steps.length - 1 ? (
+          {step === steps.length - 1 ? (
             <Button
               variant="contained"
-              onClick={handleSubmitDecision}
-              disabled={submitting || !decision || (decision === 'reject' && rejectionReasons.length === 0) || !confirmAction}
-              startIcon={submitting ? <CircularProgress size={20} /> : (decision === 'approve' ? <CheckCircleIcon /> : <CancelIcon />)}
-              sx={{
-                backgroundColor: decision === 'approve' ? '#2E7D32' : '#D32F2F',
-                '&:hover': { 
-                  backgroundColor: decision === 'approve' ? '#1B5E20' : '#C62828' 
-                },
-                minWidth: 200
-              }}
+              onClick={handleDecision}
+              disabled={submitting || !remarks.trim() || !bgvDetails}
+              startIcon={submitting ? <CircularProgress size={20} /> : (decision === 'approve' ? <ThumbUpIcon /> : <ThumbDownIcon />)}
+              color={decision === 'approve' ? 'success' : 'error'}
+              sx={{ minWidth: 200 }}
             >
-              {submitting ? 'Processing...' : `${decision === 'approve' ? 'Approve' : 'Reject'} BGV`}
+              {submitting
+                ? 'Processing...'
+                : `${decision === 'approve' ? 'Approve' : 'Reject'} BGV`}
             </Button>
           ) : (
             <Button
               variant="contained"
               onClick={handleNext}
+              disabled={step === 0 && !bgvDetails}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                }
               }}
             >
               Next

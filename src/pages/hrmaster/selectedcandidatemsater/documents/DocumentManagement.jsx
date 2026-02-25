@@ -38,28 +38,26 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Download as DownloadIcon,
-  Add as AddIcon,
   Delete as DeleteIcon,
   ArrowUpward as ArrowUpwardIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
   Refresh as RefreshIcon,
-  Security as SecurityIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
   AccessTime as AccessTimeIcon,
   Error as ErrorIcon,
   VerifiedUser as VerifiedUserIcon,
-  Assignment as AssignmentIcon,
   PictureAsPdf as PdfIcon,
   Image as ImageIcon,
   InsertDriveFile as FileIcon,
   Description as DescriptionIcon,
   CloudUpload as CloudUploadIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Close as CloseIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -67,7 +65,6 @@ import axios from 'axios';
 import UploadDocument from './UploadDocument';
 import VerifyDocument from './VerifyDocument';
 import DownloadDocument from './DownloadDocument';
-import GetAllDocuments from './GetAllDocuments';
 import BASE_URL from '../../../../config/Config';
 
 // Color constants - EXACT SAME as header gradient
@@ -122,8 +119,8 @@ const formatDate = (dateString) => {
   });
 };
 
-// Action Menu Component
-const ActionMenu = ({ 
+// Action Menu Component for Documents
+const DocumentActionMenu = ({ 
   document, 
   onView, 
   onVerify, 
@@ -143,7 +140,7 @@ const ActionMenu = ({
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b', // slate-500
+            color: '#64748b',
             '&:hover': {
               bgcolor: alpha(PRIMARY_BLUE, 0.1)
             }
@@ -167,7 +164,7 @@ const ActionMenu = ({
           }
         }}
       >
-        {/* View Details - Always visible */}
+        {/* View Details */}
         <MenuItem 
           onClick={() => {
             onView(document);
@@ -183,7 +180,7 @@ const ActionMenu = ({
           </ListItemText>
         </MenuItem>
 
-        {/* Download Document - Always visible */}
+        {/* Download Document */}
         <MenuItem 
           onClick={() => {
             onDownload(document);
@@ -261,28 +258,348 @@ const ActionMenu = ({
   );
 };
 
+// Candidate Action Menu Component
+const CandidateActionMenu = ({ 
+  candidate, 
+  onView, 
+  onEdit, 
+  onDelete, 
+  anchorEl, 
+  onClose, 
+  onOpen 
+}) => {
+  return (
+    <>
+      <Tooltip title="Actions">
+        <IconButton
+          size="small"
+          onClick={onOpen}
+          sx={{
+            color: '#64748b',
+            '&:hover': {
+              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+            }
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={onClose}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            borderRadius: 2,
+            border: '1px solid #e2e8f0',
+            maxHeight: 400
+          }
+        }}
+      >
+        {/* View Details */}
+        <MenuItem 
+          onClick={() => {
+            onView(candidate);
+            onClose();
+          }}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+            <VisibilityIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>View Candidate</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {/* Edit Candidate */}
+        <MenuItem 
+          onClick={() => {
+            onEdit(candidate);
+            onClose();
+          }}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Edit</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        <Divider sx={{ my: 0.5 }} />
+
+        {/* Delete Candidate */}
+        <MenuItem 
+          onClick={() => {
+            onDelete(candidate);
+            onClose();
+          }}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} color="#EF4444">
+              Delete
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+      </Menu>
+    </>
+  );
+};
+
+// Document Table Component
+const DocumentTable = ({
+  documents,
+  loading,
+  selected,
+  onSelect,
+  onSelectAll,
+  actionMenuAnchor,
+  selectedDocumentForAction,
+  onActionMenuOpen,
+  onActionMenuClose,
+  onView,
+  onVerify,
+  onDownload,
+  onEdit,
+  onDelete
+}) => {
+  return (
+    <TableContainer>
+      <Table>
+        <TableHead>
+          <TableRow sx={{ 
+            background: HEADER_GRADIENT,
+            '& .MuiTableCell-root': {
+              borderBottom: 'none',
+              color: TEXT_COLOR_HEADER
+            }
+          }}>
+            <TableCell padding="checkbox" sx={{ width: 60 }}>
+              <Checkbox
+                indeterminate={selected.length > 0 && selected.length < documents.length}
+                checked={documents.length > 0 && selected.length === documents.length}
+                onChange={onSelectAll}
+                sx={{
+                  color: TEXT_COLOR_HEADER,
+                  '&.Mui-checked': { color: TEXT_COLOR_HEADER },
+                  '&.MuiCheckbox-indeterminate': { color: TEXT_COLOR_HEADER },
+                  '& .MuiSvgIcon-root': { fontSize: 20 }
+                }}
+                disabled={loading}
+              />
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Document ID
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Candidate
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Type
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Status
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Size
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                Uploaded
+                <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+              </Stack>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 100, color: TEXT_COLOR_HEADER }} align="center">
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  Loading documents...
+                </Typography>
+              </TableCell>
+            </TableRow>
+          ) : documents.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <DescriptionIcon sx={{ fontSize: 48, color: '#94A3B8', mb: 2 }} />
+                  <Typography variant="body1" color="#64748B" fontWeight={500}>
+                    No documents available
+                  </Typography>
+                </Box>
+              </TableCell>
+            </TableRow>
+          ) : (
+            documents.map((doc, index) => {
+              const isSelected = selected.includes(doc._id);
+              const isOddRow = index % 2 === 0;
+              const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                selectedDocumentForAction?._id === doc._id;
+              const statusStyle = getStatusColor(doc.status);
+
+              return (
+                <TableRow
+                  key={doc._id}
+                  hover
+                  selected={isSelected}
+                  sx={{ 
+                    bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                    '&:hover': { bgcolor: HOVER_COLOR },
+                    '&.Mui-selected': {
+                      bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                      '&:hover': { bgcolor: alpha(PRIMARY_BLUE, 0.12) }
+                    }
+                  }}
+                >
+                  <TableCell padding="checkbox" sx={{ width: 60 }}>
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={() => onSelect(doc._id)}
+                      sx={{
+                        color: PRIMARY_BLUE,
+                        '&.Mui-checked': { color: PRIMARY_BLUE }
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      {doc.documentId || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: PRIMARY_BLUE, fontSize: '0.75rem' }}>
+                        {doc.candidateId?.fullName?.charAt(0) || '?'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {doc.candidateId?.fullName || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          {doc.candidateId?.email || ''}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                      {doc.type?.replace('_', ' ') || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      icon={statusStyle.icon}
+                      label={statusStyle.label}
+                      size="small"
+                      sx={{
+                        bgcolor: statusStyle.bg,
+                        color: statusStyle.color,
+                        fontWeight: 500,
+                        minWidth: 80
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {formatFileSize(doc.fileSize)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {formatDate(doc.createdAt)}
+                    </Typography>
+                    {doc.verificationDetails?.verifiedAt && doc.status === 'verified' && (
+                      <Typography variant="caption" color="#2E7D32" display="block">
+                        Verified: {formatDate(doc.verificationDetails.verifiedAt)}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center" sx={{ width: 100 }}>
+                    <DocumentActionMenu 
+                      document={doc}
+                      onView={onView}
+                      onVerify={onVerify}
+                      onDownload={onDownload}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+                      onClose={onActionMenuClose}
+                      onOpen={(e) => onActionMenuOpen(e, doc)}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+
 const DocumentManagement = () => {
-  // State for data
+  // View state - to toggle between candidate view and document view
+  const [viewMode, setViewMode] = useState('candidates'); // 'candidates' or 'documents'
+  
+  // State for documents data
   const [documents, setDocuments] = useState([]);
   const [filteredDocuments, setFilteredDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsSearchTerm, setDocumentsSearchTerm] = useState('');
+  const [documentsTotalCount, setDocumentsTotalCount] = useState(0);
+  
+  // State for candidates data
+  const [candidates, setCandidates] = useState([]);
+  const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Menu states for action buttons
+  const [documentActionMenuAnchor, setDocumentActionMenuAnchor] = useState(null);
+  const [selectedDocumentForAction, setSelectedDocumentForAction] = useState(null);
+  
+  const [candidateActionMenuAnchor, setCandidateActionMenuAnchor] = useState(null);
+  const [selectedCandidateForAction, setSelectedCandidateForAction] = useState(null);
   
   // Filter states
   const [selectedCandidate, setSelectedCandidate] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [candidates, setCandidates] = useState([]);
   
   // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selected, setSelected] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
-  
-  // Menu state for action buttons
-  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-  const [selectedDocumentForAction, setSelectedDocumentForAction] = useState(null);
   
   // Filter menu state
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
@@ -292,11 +609,10 @@ const DocumentManagement = () => {
     status: ''
   });
   
-  // Modal states for all document actions
+  // Modal states
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [showViewAllModal, setShowViewAllModal] = useState(false);
   
   // Selected document
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -335,17 +651,34 @@ const DocumentManagement = () => {
   ];
 
   // Fetch documents from API
-  useEffect(() => {
-    fetchDocuments();
-    fetchCandidates();
-  }, [page, rowsPerPage, selectedCandidate, selectedType, selectedStatus]);
-
   const fetchDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.get(`${BASE_URL}/api/documents`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setDocuments(response.data.data || []);
+        setFilteredDocuments(response.data.data || []);
+        setDocumentsTotalCount(response.data.data?.length || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+      showNotification('Failed to load documents', 'error');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Fetch candidates from API
+  const fetchCandidates = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Build query parameters
       const params = new URLSearchParams();
       params.append('page', page + 1);
       params.append('limit', rowsPerPage);
@@ -353,46 +686,55 @@ const DocumentManagement = () => {
       if (selectedType) params.append('type', selectedType);
       if (selectedStatus) params.append('status', selectedStatus);
       
-      const response = await axios.get(`${BASE_URL}/api/documents?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get(`${BASE_URL}/api/candidates?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        setDocuments(response.data.data || []);
-        setFilteredDocuments(response.data.data || []);
+        setCandidates(response.data.data || []);
+        setFilteredCandidates(response.data.data || []);
         setTotalCount(response.data.pagination?.total || 0);
       } else {
-        showNotification('Failed to load documents', 'error');
+        showNotification('Failed to load candidates', 'error');
       }
     } catch (err) {
-      console.error('Error fetching documents:', err);
-      showNotification('Failed to load documents. Please try again.', 'error');
+      console.error('Error fetching candidates:', err);
+      showNotification('Failed to load candidates. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCandidates = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/candidates`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        setCandidates(response.data.data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching candidates:', err);
+  // Fetch data based on view mode
+  useEffect(() => {
+    if (viewMode === 'candidates') {
+      fetchCandidates();
+    } else {
+      fetchDocuments();
     }
-  };
-  
-  // Handle search
+  }, [viewMode, page, rowsPerPage, selectedCandidate, selectedType, selectedStatus]);
+
+  // Handle search for candidates
   const handleSearch = (event) => {
     const value = event.target.value.toLowerCase();
     setSearchTerm(value);
+    
+    const filtered = candidates.filter(candidate =>
+      candidate.candidateId?.toLowerCase().includes(value) ||
+      candidate.firstName?.toLowerCase().includes(value) ||
+      candidate.lastName?.toLowerCase().includes(value) ||
+      candidate.email?.toLowerCase().includes(value) ||
+      candidate.phone?.toLowerCase().includes(value)
+    );
+    
+    setFilteredCandidates(filtered);
+    setPage(0);
+  };
+
+  // Handle search for documents
+  const handleDocumentsSearch = (event) => {
+    const value = event.target.value.toLowerCase();
+    setDocumentsSearchTerm(value);
     
     const filtered = documents.filter(doc =>
       doc.documentId?.toLowerCase().includes(value) ||
@@ -408,8 +750,9 @@ const DocumentManagement = () => {
   
   // Handle select all
   const handleSelectAll = (event) => {
+    const currentData = viewMode === 'candidates' ? filteredCandidates : filteredDocuments;
     if (event.target.checked) {
-      setSelected(filteredDocuments.map(doc => doc._id));
+      setSelected(currentData.map(item => item._id));
     } else {
       setSelected([]);
     }
@@ -442,7 +785,11 @@ const DocumentManagement = () => {
   
   // Handle refresh
   const handleRefresh = () => {
-    fetchDocuments();
+    if (viewMode === 'candidates') {
+      fetchCandidates();
+    } else {
+      fetchDocuments();
+    }
     showNotification('Data refreshed successfully', 'success');
   };
   
@@ -489,71 +836,112 @@ const DocumentManagement = () => {
     showNotification('Filters cleared', 'success');
   };
   
-  // Action menu handlers
-  const handleActionMenuOpen = (event, document) => {
-    setActionMenuAnchor(event.currentTarget);
+  // Document action menu handlers
+  const handleDocumentActionMenuOpen = (event, document) => {
+    setDocumentActionMenuAnchor(event.currentTarget);
     setSelectedDocumentForAction(document);
   };
 
-  const handleActionMenuClose = () => {
-    setActionMenuAnchor(null);
+  const handleDocumentActionMenuClose = () => {
+    setDocumentActionMenuAnchor(null);
     setSelectedDocumentForAction(null);
+  };
+
+  // Candidate action menu handlers
+  const handleCandidateActionMenuOpen = (event, candidate) => {
+    setCandidateActionMenuAnchor(event.currentTarget);
+    setSelectedCandidateForAction(candidate);
+  };
+
+  const handleCandidateActionMenuClose = () => {
+    setCandidateActionMenuAnchor(null);
+    setSelectedCandidateForAction(null);
   };
 
   // Modal open handlers
   const openUploadModal = () => {
     setShowUploadModal(true);
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
+    handleCandidateActionMenuClose();
   };
   
-  const openViewAllModal = () => {
-    setShowViewAllModal(true);
-    handleActionMenuClose();
+  const openViewAllDocuments = () => {
+    setViewMode('documents');
+    fetchDocuments();
+    setSelected([]);
+    setPage(0);
   };
   
-  const openViewModal = (document) => {
+  const backToCandidates = () => {
+    setViewMode('candidates');
+    setSelected([]);
+    setPage(0);
+  };
+  
+  // Document action handlers
+  const openViewDocumentModal = (document) => {
     setSelectedDocument(document);
-    // For now, just show details in a snackbar
     showNotification(`Viewing document: ${document.documentId}`, 'info');
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
   };
   
-  const openVerifyModal = (document) => {
+  const openVerifyDocumentModal = (document) => {
     setSelectedDocument(document);
     setShowVerifyModal(true);
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
   };
   
-  const openDownloadModal = (document) => {
+  const openDownloadDocumentModal = (document) => {
     setSelectedDocument(document);
     setShowDownloadModal(true);
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
   };
   
-  const openEditModal = (document) => {
+  const openEditDocumentModal = (document) => {
     showNotification('Edit functionality coming soon', 'info');
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
   };
   
-  const openDeleteModal = (document) => {
+  const openDeleteDocumentModal = (document) => {
     showNotification('Delete functionality coming soon', 'info');
-    handleActionMenuClose();
+    handleDocumentActionMenuClose();
+  };
+
+  // Candidate action handlers
+  const openViewCandidateModal = (candidate) => {
+    showNotification(`Viewing candidate: ${candidate.firstName} ${candidate.lastName}`, 'info');
+    handleCandidateActionMenuClose();
+  };
+  
+  const openEditCandidateModal = (candidate) => {
+    showNotification('Edit candidate functionality coming soon', 'info');
+    handleCandidateActionMenuClose();
+  };
+  
+  const openDeleteCandidateModal = (candidate) => {
+    showNotification('Delete candidate functionality coming soon', 'info');
+    handleCandidateActionMenuClose();
   };
   
   // Callback handlers for modals
   const handleDocumentUploaded = (newDocument) => {
-    fetchDocuments();
+    if (viewMode === 'documents') {
+      fetchDocuments();
+    }
     showNotification('Document uploaded successfully!', 'success');
   };
   
   const handleDocumentVerified = (verifiedDocument) => {
-    fetchDocuments();
+    if (viewMode === 'documents') {
+      fetchDocuments();
+    }
     showNotification('Document verified successfully!', 'success');
   };
   
   const handleDocumentDownloaded = () => {
-    // Just refresh, no need for extra message as DownloadDocument already shows one
-    fetchDocuments();
+    if (viewMode === 'documents') {
+      fetchDocuments();
+    }
   };
   
   // Show notification
@@ -565,12 +953,11 @@ const DocumentManagement = () => {
     });
   };
   
-  // Paginated documents list
-  const paginatedDocuments = searchTerm 
-    ? filteredDocuments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-    : filteredDocuments;
+  // Paginated data
+  const currentData = viewMode === 'candidates' ? filteredCandidates : filteredDocuments;
+  const paginatedData = currentData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-  // Check if any documents are selected
+  // Check if any items are selected
   const hasSelected = selected.length > 0;
 
   // Calculate stats for cards
@@ -580,102 +967,119 @@ const DocumentManagement = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          fontWeight="600" 
-          sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
-          }}
-        >
-          Document Management
-        </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Upload, verify, and manage candidate documents
-        </Typography>
+      {/* Header with Back Button when in Documents View */}
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        {viewMode === 'documents' && (
+          <IconButton 
+            onClick={backToCandidates}
+            sx={{ 
+              bgcolor: '#F1F5F9',
+              '&:hover': { bgcolor: '#E2E8F0' }
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+        <Box>
+          <Typography 
+            variant="h5" 
+            component="h1" 
+            fontWeight="600" 
+            sx={{ 
+              color: TEXT_COLOR_MAIN,
+              background: HEADER_GRADIENT,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}
+          >
+            {viewMode === 'candidates' ? 'Document Management' : 'All Documents'}
+          </Typography>
+          <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+            {viewMode === 'candidates' 
+              ? 'Upload, verify, and manage candidate documents'
+              : 'View and manage all candidate documents'}
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E3F2FD' }}>
-                <DescriptionIcon sx={{ color: '#1976D2' }} />
+      {/* Stats Cards - Only show in candidates view */}
+      {viewMode === 'candidates' && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E3F2FD' }}>
+                  <DescriptionIcon sx={{ color: '#1976D2' }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalCount}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    Total Documents
+                  </Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {totalCount}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Total Documents
-                </Typography>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E8F5E9' }}>
+                  <CheckCircleIcon sx={{ color: '#2E7D32' }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalVerified}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    Verified
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          </Paper>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#FFF3E0' }}>
+                  <AccessTimeIcon sx={{ color: '#F57C00' }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalPending}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    Pending
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#FFEBEE' }}>
+                  <ErrorIcon sx={{ color: '#D32F2F' }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalRejected}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    Rejected
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E8F5E9' }}>
-                <CheckCircleIcon sx={{ color: '#2E7D32' }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {totalVerified}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Verified
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#FFF3E0' }}>
-                <AccessTimeIcon sx={{ color: '#F57C00' }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {totalPending}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Pending
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#FFEBEE' }}>
-                <ErrorIcon sx={{ color: '#D32F2F' }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {totalRejected}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Rejected
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+      )}
 
       {/* Action Bar */}
       <Paper sx={{ 
@@ -690,17 +1094,17 @@ const DocumentManagement = () => {
           {/* Search and Filters */}
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by Document ID, Filename, Candidate..."
+              placeholder={viewMode === 'candidates' 
+                ? "Search by Candidate ID, Name, Email, Phone..." 
+                : "Search documents..."}
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
+              value={viewMode === 'candidates' ? searchTerm : documentsSearchTerm}
+              onChange={viewMode === 'candidates' ? handleSearch : handleDocumentsSearch}
               sx={{ 
                 width: { xs: '100%', sm: 400 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
-                  '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
-                  },
+                  '&:hover fieldset': { borderColor: PRIMARY_BLUE }
                 }
               }}
               InputProps={{
@@ -712,13 +1116,10 @@ const DocumentManagement = () => {
                 sx: { 
                   height: 40,
                   bgcolor: '#f8fafc',
-                  '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
-                  }
+                  '& input': { padding: '8px 12px', fontSize: '0.875rem' }
                 }
               }}
-              disabled={loading}
+              disabled={viewMode === 'candidates' ? loading : documentsLoading}
             />
             
             <Button
@@ -738,15 +1139,11 @@ const DocumentManagement = () => {
                   bgcolor: alpha(PRIMARY_BLUE, 0.04)
                 }
               }}
-              disabled={loading}
+              disabled={viewMode === 'candidates' ? loading : documentsLoading}
             >
               Filter
               {(selectedCandidate || selectedType || selectedStatus) && (
-                <Badge
-                  color="primary"
-                  variant="dot"
-                  sx={{ ml: 1 }}
-                />
+                <Badge color="primary" variant="dot" sx={{ ml: 1 }} />
               )}
             </Button>
             
@@ -762,21 +1159,6 @@ const DocumentManagement = () => {
                 }}
               >
                 <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip title="View All">
-              <IconButton 
-                onClick={openViewAllModal}
-                sx={{ 
-                  color: '#64748B',
-                  '&:hover': {
-                    bgcolor: alpha(PRIMARY_BLUE, 0.1),
-                    color: PRIMARY_BLUE
-                  }
-                }}
-              >
-                <VisibilityIcon />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -796,11 +1178,37 @@ const DocumentManagement = () => {
                   fontSize: '0.875rem',
                   fontWeight: 500
                 }}
-                disabled={loading}
+                disabled={viewMode === 'candidates' ? loading : documentsLoading}
               >
                 Delete ({selected.length})
               </Button>
             )}
+            
+            {/* View All Documents Button - Only show in candidates view */}
+            {viewMode === 'candidates' && (
+              <Button
+                variant="outlined"
+                startIcon={<VisibilityIcon />}
+                onClick={openViewAllDocuments}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: PRIMARY_BLUE,
+                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                  }
+                }}
+                disabled={loading}
+              >
+                View All
+              </Button>
+            )}
+            
             <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
@@ -818,10 +1226,11 @@ const DocumentManagement = () => {
                   bgcolor: alpha(PRIMARY_BLUE, 0.04)
                 }
               }}
-              disabled={loading}
+              disabled={viewMode === 'candidates' ? loading : documentsLoading}
             >
               Export
             </Button>
+            
             <Button
               variant="contained"
               startIcon={<CloudUploadIcon />}
@@ -838,7 +1247,7 @@ const DocumentManagement = () => {
                   background: HEADER_GRADIENT,
                 }
               }}
-              disabled={loading}
+              disabled={viewMode === 'candidates' ? loading : documentsLoading}
             >
               Upload Document
             </Button>
@@ -929,7 +1338,7 @@ const DocumentManagement = () => {
         </Stack>
       </Menu>
 
-      {/* Documents Table */}
+      {/* Data Table - Switches based on view mode */}
       <Paper sx={{ 
         width: '100%', 
         borderRadius: 2, 
@@ -937,296 +1346,213 @@ const DocumentManagement = () => {
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: '1px solid #e2e8f0'
       }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ 
-                background: HEADER_GRADIENT,
-                '& .MuiTableCell-root': {
-                  borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
-                }
-              }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredDocuments.length}
-                    checked={filteredDocuments.length > 0 && selected.length === filteredDocuments.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: TEXT_COLOR_HEADER,
-                      '&.Mui-checked': {
+        {viewMode === 'candidates' ? (
+          // Candidate Table (displaying candidate information)
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ 
+                  background: HEADER_GRADIENT,
+                  '& .MuiTableCell-root': {
+                    borderBottom: 'none',
+                    color: TEXT_COLOR_HEADER
+                  }
+                }}>
+                  <TableCell padding="checkbox" sx={{ width: 60 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredCandidates.length}
+                      checked={filteredCandidates.length > 0 && selected.length === filteredCandidates.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: TEXT_COLOR_HEADER,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: 20
-                      }
-                    }}
-                    disabled={loading}
-                  />
-                </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Document
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack> 
-                </TableCell> */}
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Document ID
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Candidate
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Type
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Status
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Size
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Uploaded
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell> */}
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
-                }} align="center">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                      Loading documents...
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : paginatedDocuments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <DescriptionIcon sx={{ fontSize: 48, color: '#94A3B8', mb: 2 }} />
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
-                        {searchTerm || selectedCandidate || selectedType || selectedStatus 
-                          ? 'No documents found' 
-                          : 'No documents available'}
-                      </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
-                        {searchTerm || selectedCandidate || selectedType || selectedStatus 
-                          ? 'Try adjusting your search or filters' 
-                          : 'Click "Upload Document" to upload your first document'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedDocuments.map((doc, index) => {
-                  const isSelected = selected.includes(doc._id);
-                  const isOddRow = index % 2 === 0;
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
-                    selectedDocumentForAction?._id === doc._id;
-                  const statusStyle = getStatusColor(doc.status);
-
-                  return (
-                    <TableRow
-                      key={doc._id}
-                      hover
-                      selected={isSelected}
-                      sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
-                        '&:hover': {
-                          bgcolor: HOVER_COLOR
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
-                          '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
-                          }
-                        }
+                        '&.Mui-checked': { color: TEXT_COLOR_HEADER },
+                        '&.MuiCheckbox-indeterminate': { color: TEXT_COLOR_HEADER },
+                        '& .MuiSvgIcon-root': { fontSize: 20 }
                       }}
-                    >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(doc._id)}
-                          sx={{
-                            color: PRIMARY_BLUE,
-                            '&.Mui-checked': {
+                      disabled={loading}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Candidate ID
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Candidate Name
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Email
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Phone
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Source
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Status
+                      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 100, color: TEXT_COLOR_HEADER }} align="center">
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                      <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                        Loading candidates...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <PersonIcon sx={{ fontSize: 48, color: '#94A3B8', mb: 2 }} />
+                        <Typography variant="body1" color="#64748B" fontWeight={500}>
+                          No candidates found
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedData.map((candidate, index) => {
+                    const isSelected = selected.includes(candidate._id);
+                    const isOddRow = index % 2 === 0;
+                    const isActionMenuOpen = Boolean(candidateActionMenuAnchor) && 
+                      selectedCandidateForAction?._id === candidate._id;
+                    const statusStyle = getStatusColor(candidate.status);
+
+                    return (
+                      <TableRow
+                        key={candidate._id}
+                        hover
+                        selected={isSelected}
+                        sx={{ 
+                          bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                          '&:hover': { bgcolor: HOVER_COLOR },
+                          '&.Mui-selected': {
+                            bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                            '&:hover': { bgcolor: alpha(PRIMARY_BLUE, 0.12) }
+                          }
+                        }}
+                      >
+                        <TableCell padding="checkbox" sx={{ width: 60 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(candidate._id)}
+                            sx={{
                               color: PRIMARY_BLUE,
-                            },
-                          }}
-                        />
-                      </TableCell>
-                      {/* <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Box sx={{ 
-                            p: 1, 
-                            bgcolor: '#F5F5F5', 
-                            borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            {getFileIcon(doc.mimeType)}
-                          </Box>
-                          <Box>
-                            <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
-                              {doc.originalFilename || doc.filename}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B">
-                              v{doc.version || 1}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell> */}
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {doc.documentId || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar 
-                            sx={{ 
-                              width: 28, 
-                              height: 28, 
-                              bgcolor: PRIMARY_BLUE,
-                              fontSize: '0.75rem'
+                              '&.Mui-checked': { color: PRIMARY_BLUE }
                             }}
-                          >
-                            {doc.candidateId?.fullName?.charAt(0) || '?'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={500}>
-                              {doc.candidateId?.fullName || 'N/A'}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B">
-                              {doc.candidateId?.email || ''}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                          {doc.type?.replace(/_/g, ' ') || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={statusStyle.icon}
-                          label={statusStyle.label}
-                          size="small"
-                          sx={{
-                            bgcolor: statusStyle.bg,
-                            color: statusStyle.color,
-                            fontWeight: 500,
-                            minWidth: 80
-                          }}
-                        />
-                      </TableCell>
-                      {/* <TableCell>
-                        <Typography variant="body2">
-                          {formatFileSize(doc.fileSize)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {formatDate(doc.createdAt)}
-                        </Typography>
-                        {doc.verificationDetails?.verifiedAt && doc.status === 'verified' && (
-                          <Typography variant="caption" color="#2E7D32" display="block">
-                            Verified: {formatDate(doc.verificationDetails.verifiedAt)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>
+                            {candidate.candidateId || 'N/A'}
                           </Typography>
-                        )}
-                      </TableCell> */}
-                      <TableCell align="center" sx={{ width: 100 }}>
-                        <ActionMenu 
-                          document={doc}
-                          onView={openViewModal}
-                          onVerify={openVerifyModal}
-                          onDownload={openDownloadModal}
-                          onEdit={openEditModal}
-                          onDelete={openDeleteModal}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, doc)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Avatar sx={{ width: 32, height: 32, bgcolor: PRIMARY_BLUE, fontSize: '0.875rem' }}>
+                              {candidate.firstName?.charAt(0)}{candidate.lastName?.charAt(0)}
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={500}>
+                              {candidate.firstName} {candidate.lastName}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {candidate.email || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {candidate.phone || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                            {candidate.source || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={statusStyle.icon}
+                            label={statusStyle.label}
+                            size="small"
+                            sx={{
+                              bgcolor: statusStyle.bg,
+                              color: statusStyle.color,
+                              fontWeight: 500,
+                              minWidth: 80
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ width: 100 }}>
+                          <CandidateActionMenu 
+                            candidate={candidate}
+                            onView={openViewCandidateModal}
+                            onEdit={openEditCandidateModal}
+                            onDelete={openDeleteCandidateModal}
+                            anchorEl={isActionMenuOpen ? candidateActionMenuAnchor : null}
+                            onClose={handleCandidateActionMenuClose}
+                            onOpen={(e) => handleCandidateActionMenuOpen(e, candidate)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          // Document Table (full view with all columns)
+          <DocumentTable
+            documents={paginatedData}
+            loading={documentsLoading}
+            selected={selected}
+            onSelect={handleSelect}
+            onSelectAll={handleSelectAll}
+            actionMenuAnchor={documentActionMenuAnchor}
+            selectedDocumentForAction={selectedDocumentForAction}
+            onActionMenuOpen={handleDocumentActionMenuOpen}
+            onActionMenuClose={handleDocumentActionMenuClose}
+            onView={openViewDocumentModal}
+            onVerify={openVerifyDocumentModal}
+            onDownload={openDownloadDocumentModal}
+            onEdit={openEditDocumentModal}
+            onDelete={openDeleteDocumentModal}
+          />
+        )}
 
         {/* Pagination */}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={searchTerm ? filteredDocuments.length : totalCount}
+          count={viewMode === 'candidates' 
+            ? (searchTerm ? filteredCandidates.length : totalCount)
+            : (documentsSearchTerm ? filteredDocuments.length : documentsTotalCount)}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -1238,7 +1564,7 @@ const DocumentManagement = () => {
               color: '#64748B'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: PRIMARY_BLUE
             }
           }}
         />
@@ -1247,9 +1573,7 @@ const DocumentManagement = () => {
       {/* Modal Components */}
       <UploadDocument 
         open={showUploadModal}
-        onClose={() => {
-          setShowUploadModal(false);
-        }}
+        onClose={() => setShowUploadModal(false)}
         onSubmit={handleDocumentUploaded}
       />
 
@@ -1274,13 +1598,6 @@ const DocumentManagement = () => {
         documentData={selectedDocument}
         documentId={selectedDocument?._id}
       />
-
-      {/* <GetAllDocuments 
-        open={showViewAllModal}
-        onClose={() => {
-          setShowViewAllModal(false);
-        }}
-      /> */}
 
       {/* Snackbar Notification */}
       <Snackbar

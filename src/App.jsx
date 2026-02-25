@@ -43,6 +43,7 @@ import RegularizationMaster from './pages/hrmaster/regularizationmaster/Regulari
 import ProductionMaster from './pages/hrmaster/productionmaster/ProductionMaster'
 import TerminationMaster from './pages/hrmaster/terminationmaster/TerminationMaster'
 import EmployeeBehaviorMaster from './pages/hrmaster/employeebehaviormaster/EmployeeBehaviorMaster'
+import SelectedCandidatesMaster from './pages/hrmaster/selectedcandidatemsater/SelectedCandidatesMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -95,6 +96,7 @@ const App = () => {
               <Route path="hrmaster/requisitionmaster" element={<RequisitionMaster />} />
               <Route path="hrmaster/jobopeningmaster" element={<JobOpeningMaster />} />
               <Route path="hrmaster/candidatemaster" element={<CandidateMaster />} />
+              <Route path="hrmaster/selectedcandidatesmaster" element={<SelectedCandidatesMaster />} />
                <Route path="hrmaster/salarymaster" element={<SalaryMaster />} />
                  <Route path="hrmaster/pieceratemaster" element={<PieceRateMaster />} />
                   <Route path="hrmaster/regularizationmaster" element={<RegularizationMaster />} />

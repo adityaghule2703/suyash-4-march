@@ -26,9 +26,7 @@ import { Close as CloseIcon, Calculate as CalculateIcon } from '@mui/icons-mater
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
 
-
-
-const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
+const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
   const [loading, setLoading] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [fetchingCandidates, setFetchingCandidates] = useState(false);
@@ -74,36 +72,102 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
     'Leave Travel Allowance'
   ];
 
+  // Get auth token
+  const getAuthToken = () => {
+    return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  };
+
   useEffect(() => {
     if (open) {
+      console.log('Dialog opened, fetching candidates...');
       fetchSelectedCandidates();
     }
   }, [open]);
 
+  // Handle candidate prop and set it as selected
   useEffect(() => {
-    if (candidate) {
-      setSelectedCandidate(candidate);
+    if (candidate && open) {
+      console.log('Candidate received in InitiateOffer:', candidate);
+      
+      // Get the candidate ID
+      const candidateId = candidate.id || candidate._id;
+      
+      // Get application ID from the candidate object
+      let applicationId = null;
+      let application = null;
+      
+      // Check if the candidate has latestApplication from the API
       if (candidate.latestApplication) {
-        setSelectedApplication(candidate.latestApplication);
-        setFormData(prev => ({
-          ...prev,
-          candidateId: candidate._id,
-          applicationId: candidate.latestApplication._id
-        }));
+        applicationId = candidate.latestApplication._id;
+        application = candidate.latestApplication;
       }
+      // Check if the candidate has applicationId directly (from parent component)
+      else if (candidate.applicationId) {
+        applicationId = candidate.applicationId;
+        application = { _id: candidate.applicationId, jobId: { title: candidate.position } };
+      }
+      
+      console.log('Extracted IDs:', { candidateId, applicationId });
+      
+      if (!candidateId) {
+        setError('Candidate ID is missing');
+        return;
+      }
+      
+      if (!applicationId) {
+        setError('This candidate does not have an application. Only candidates with applications can receive offers.');
+        return;
+      }
+      
+      // Create a candidate object for display
+      const displayCandidate = {
+        _id: candidateId,
+        id: candidateId,
+        firstName: candidate.firstName || candidate.name?.split(' ')[0] || 'Unknown',
+        lastName: candidate.lastName || candidate.name?.split(' ')[1] || '',
+        email: candidate.email || '',
+        phone: candidate.phone || '',
+        position: candidate.position || application?.jobId?.title || 'Not Assigned'
+      };
+      
+      setSelectedCandidate(displayCandidate);
+      setSelectedApplication(application);
+      
+      // Update form data with the IDs
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          candidateId: candidateId,
+          applicationId: applicationId
+        };
+        console.log('Updated formData:', newFormData);
+        return newFormData;
+      });
     }
-  }, [candidate]);
+  }, [candidate, open]);
 
   const fetchSelectedCandidates = async () => {
     setFetchingCandidates(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+      console.log('Fetching candidates from:', `${BASE_URL}/api/candidates?status=selected`);
+      
       const response = await axios.get(`${BASE_URL}/api/candidates?status=selected`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: token ? `Bearer ${token}` : '' 
+        }
       });
       
+      console.log('Candidates response:', response.data);
+      
       if (response.data.success) {
-        setCandidates(response.data.data);
+        // Filter candidates that have latestApplication (only they can have offers)
+        const candidatesWithApplication = response.data.data.filter(
+          candidate => candidate.latestApplication !== null
+        );
+        
+        console.log('Candidates with applications:', candidatesWithApplication);
+        setCandidates(candidatesWithApplication);
       }
     } catch (err) {
       console.error('Error fetching candidates:', err);
@@ -115,16 +179,28 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
 
   const handleCandidateChange = (e) => {
     const candidateId = e.target.value;
+    console.log('Selected candidate ID:', candidateId);
+    
     const candidate = candidates.find(c => c._id === candidateId);
+    console.log('Found candidate:', candidate);
+    
     setSelectedCandidate(candidate);
     
     if (candidate?.latestApplication) {
+      console.log('Setting application:', candidate.latestApplication);
       setSelectedApplication(candidate.latestApplication);
-      setFormData(prev => ({
-        ...prev,
-        candidateId: candidate._id,
-        applicationId: candidate.latestApplication._id
-      }));
+      
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          candidateId: candidate._id,
+          applicationId: candidate.latestApplication._id
+        };
+        console.log('Updated formData from dropdown:', newFormData);
+        return newFormData;
+      });
+    } else {
+      setError('Selected candidate has no application. Please select a different candidate.');
     }
   };
 
@@ -155,11 +231,15 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
 
   const handleCTCComponentChange = (e) => {
     const { name, value } = e.target;
+    
+    // Convert empty string to empty string, otherwise keep as number
+    const processedValue = value === '' ? '' : Number(value);
+    
     setFormData(prev => ({
       ...prev,
       ctcComponents: {
         ...prev.ctcComponents,
-        [name]: value
+        [name]: processedValue
       }
     }));
     setCalculatedCTC(null);
@@ -189,38 +269,111 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
   };
 
   const calculateCTC = async () => {
-    if (!formData.candidateId || !formData.applicationId) {
+    console.log('Current formData before submission:', formData);
+    
+    // Validate required fields
+    if (!formData.candidateId) {
       setError('Please select a candidate first');
       return;
     }
 
-    if (!formData.ctcComponents.basic) {
+    if (!formData.applicationId) {
+      setError('Application ID is missing. This candidate does not have a valid application.');
+      return;
+    }
+
+    if (!formData.ctcComponents.basic || formData.ctcComponents.basic === '') {
       setError('Please enter basic salary');
+      return;
+    }
+
+    if (!formData.joiningDate) {
+      setError('Please select joining date');
       return;
     }
 
     setLoading(true);
     setError('');
+    setSuccess('');
     
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+      
+      // Prepare the request body exactly as per API specification
+      const requestBody = {
+        candidateId: formData.candidateId,
+        applicationId: formData.applicationId,
+        joiningDate: formData.joiningDate,
+        ctcComponents: {
+          basic: Number(formData.ctcComponents.basic),
+          hraPercent: Number(formData.ctcComponents.hraPercent),
+          conveyanceAllowance: Number(formData.ctcComponents.conveyanceAllowance),
+          medicalAllowance: Number(formData.ctcComponents.medicalAllowance),
+          specialAllowance: formData.ctcComponents.specialAllowance === '' ? 0 : Number(formData.ctcComponents.specialAllowance),
+          bonusPercent: Number(formData.ctcComponents.bonusPercent),
+          employerPfPercent: Number(formData.ctcComponents.employerPfPercent),
+          employerEsiPercent: Number(formData.ctcComponents.employerEsiPercent),
+          gratuityPercent: Number(formData.ctcComponents.gratuityPercent)
+        },
+        offerDetails: {
+          reportingTo: formData.offerDetails.reportingTo,
+          probationPeriod: Number(formData.offerDetails.probationPeriod),
+          noticePeriod: Number(formData.offerDetails.noticePeriod),
+          benefits: formData.offerDetails.benefits
+        }
+      };
+
+      console.log('Sending request to API:', requestBody);
+
       const response = await axios.post(
         `${BASE_URL}/api/offers/initiate`,
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        requestBody,
+        { 
+          headers: { 
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          } 
+        }
       );
+
+      console.log('API Response:', response.data);
 
       if (response.data.success) {
         setCalculatedCTC(response.data.data.ctcDetails);
-        setSuccess('CTC calculated successfully!');
+        setSuccess(`Offer initiated successfully! Offer ID: ${response.data.data.offerId}`);
         
-        if (onSubmit) {
-          onSubmit(response.data.data);
-        }
+        // Prepare updated data for parent component
+        const updatedData = {
+          id: selectedCandidate?._id || selectedCandidate?.id,
+          status: 'Initiated',
+          offerId: response.data.data.offerId,
+          offerDetails: response.data.data
+        };
+        
+        // Wait a moment to show success message before closing
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete(updatedData);
+          }
+          handleClose();
+        }, 2000);
       }
     } catch (err) {
       console.error('Error calculating CTC:', err);
-      setError(err.response?.data?.message || 'Failed to calculate CTC');
+      
+      // Handle different error scenarios
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(err.response.data?.message || `Server error: ${err.response.status}`);
+        console.error('Error response data:', err.response.data);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your network connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(err.message || 'Failed to calculate CTC');
+      }
     } finally {
       setLoading(false);
     }
@@ -270,6 +423,27 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
     }).format(amount);
   };
 
+  // Check if button should be enabled
+  const isButtonEnabled = () => {
+    const enabled = !loading && 
+                    formData.candidateId && 
+                    formData.applicationId &&
+                    formData.ctcComponents.basic && 
+                    formData.ctcComponents.basic !== '' &&
+                    formData.joiningDate;
+    
+    console.log('Button enabled check:', {
+      loading,
+      candidateId: formData.candidateId,
+      applicationId: formData.applicationId,
+      basic: formData.ctcComponents.basic,
+      joiningDate: formData.joiningDate,
+      enabled
+    });
+    
+    return enabled;
+  };
+
   return (
     <Dialog
       open={open}
@@ -307,6 +481,18 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
             </Alert>
           )}
 
+          {/* Debug Info - Remove in production */}
+          <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+            <Typography variant="caption" component="div">
+              <strong>Debug Info:</strong><br />
+              Candidate ID: {formData.candidateId || 'Not set'}<br />
+              Application ID: {formData.applicationId || 'Not set'}<br />
+              Basic Salary: {formData.ctcComponents.basic || 'Not set'}<br />
+              Joining Date: {formData.joiningDate || 'Not set'}<br />
+              Button Enabled: {isButtonEnabled() ? 'Yes' : 'No'}
+            </Typography>
+          </Paper>
+
           {/* Candidate Selection Card */}
           <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
@@ -318,21 +504,29 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
                 <CircularProgress />
               </Box>
             ) : (
-              <FormControl fullWidth>
-                <InputLabel>Select Candidate</InputLabel>
-                <Select
-                  value={selectedCandidate?._id || ''}
-                  onChange={handleCandidateChange}
-                  label="Select Candidate"
-                >
-                  {candidates.map((cand) => (
-                    <MenuItem key={cand._id} value={cand._id}>
-                      {cand.firstName} {cand.lastName} - {cand.candidateId}
-                      {cand.latestApplication && ` (${cand.latestApplication.applicationId})`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <>
+                {candidates.length === 0 ? (
+                  <Alert severity="info">
+                    No candidates with applications found. Only candidates with applications can receive offers.
+                  </Alert>
+                ) : (
+                  <FormControl fullWidth>
+                    <InputLabel>Select Candidate</InputLabel>
+                    <Select
+                      value={selectedCandidate?._id || selectedCandidate?.id || ''}
+                      onChange={handleCandidateChange}
+                      label="Select Candidate"
+                    >
+                      {candidates.map((cand) => (
+                        <MenuItem key={cand._id} value={cand._id}>
+                          {cand.firstName} {cand.lastName} - {cand.candidateId}
+                          {cand.latestApplication && ` (${cand.latestApplication.applicationId} - ${cand.latestApplication.jobId?.title})`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </>
             )}
 
             {selectedCandidate && (
@@ -363,9 +557,19 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
                       Position
                     </Typography>
                     <Typography variant="body2">
-                      {selectedApplication?.jobId?.title || 'N/A'}
+                      {selectedApplication?.jobId?.title || selectedCandidate.position || 'N/A'}
                     </Typography>
                   </Grid>
+                  {selectedApplication && (
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="textSecondary">
+                        Application ID
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedApplication.applicationId || selectedApplication._id}
+                      </Typography>
+                    </Grid>
+                  )}
                 </Grid>
               </Box>
             )}
@@ -386,6 +590,9 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
                   type="number"
                   value={formData.ctcComponents.basic}
                   onChange={handleCTCComponentChange}
+                  required
+                  error={!formData.ctcComponents.basic}
+                  helperText={!formData.ctcComponents.basic ? "Required" : ""}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>
                   }}
@@ -540,6 +747,9 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
                   type="date"
                   value={formData.joiningDate}
                   onChange={handleInputChange}
+                  required
+                  error={!formData.joiningDate}
+                  helperText={!formData.joiningDate ? "Required" : ""}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -658,14 +868,14 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
         backgroundColor: '#F8FAFC',
         justifyContent: 'space-between'
       }}>
-        <Button onClick={handleClose}>
+        <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
         
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || !formData.candidateId || !formData.ctcComponents.basic}
+          disabled={!isButtonEnabled()}
           startIcon={loading ? <CircularProgress size={20} /> : <CalculateIcon />}
           sx={{
             backgroundColor: '#1976D2',
@@ -673,7 +883,7 @@ const InitiateOffer = ({ open, onClose, onSubmit, candidate = null }) => {
             minWidth: 200
           }}
         >
-          {loading ? 'Calculating...' : 'Calculate & Initiate Offer'}
+          {loading ? 'Processing...' : 'Calculate & Initiate Offer'}
         </Button>
       </DialogActions>
     </Dialog>

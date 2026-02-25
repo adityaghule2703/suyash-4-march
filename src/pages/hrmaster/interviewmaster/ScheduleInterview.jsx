@@ -170,11 +170,7 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        params: {
-          page: page,
-          limit: 10,
-          search: search
-        }
+        
       });
 
       if (response.data.success) {

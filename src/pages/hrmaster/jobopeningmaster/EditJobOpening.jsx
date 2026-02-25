@@ -1,44 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Paper,
-  Typography,
-  Grid,
-  TextField,
-  Button,
-  Stack,
-  Alert,
-  CircularProgress,
-  Breadcrumbs,
-  Link,
-  IconButton,
-  Chip,
-  Divider,
-  Stepper,
-  Step,
-  StepLabel,
-  styled,
-  StepConnector,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
-  FormHelperText,
-  OutlinedInput,
-  Card,
-  CardContent,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Tooltip
+  Button,
+  TextField,
+  Stack,
+  Alert,
+  MenuItem,
+  Grid,
+  CircularProgress,
+  Box,
+  Typography,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText,
+  Divider,
+  Paper,
+  Snackbar,
+  Stepper,
+  Step,
+  StepLabel,
+  styled,
+  StepConnector
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
   Edit as EditIcon,
   Work as WorkIcon,
   Business as BusinessIcon,
@@ -46,11 +35,8 @@ import {
   AttachMoney as MoneyIcon,
   School as SchoolIcon,
   Build as BuildIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-  Refresh as RefreshIcon
+  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
@@ -72,21 +58,8 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 
 const steps = ["Basic Information", "Job Details", "Review & Save"];
 
-/* ------------------- Main Component ------------------- */
-const EditJobOpening = () => {
-  const { jobId } = useParams();
-  const navigate = useNavigate();
-  
-  // State
+const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  
-  // Form data state
   const [formData, setFormData] = useState({
     description: '',
     companyIntro: '',
@@ -114,6 +87,11 @@ const EditJobOpening = () => {
   const [skillInput, setSkillInput] = useState('');
   const [educationInput, setEducationInput] = useState('');
 
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
   // Employment types
   const employmentTypes = [
     'Permanent',
@@ -127,53 +105,28 @@ const EditJobOpening = () => {
   // Currencies
   const currencies = ['INR', 'USD', 'EUR', 'GBP'];
 
-  // Fetch job details on mount
+  // Load job data when modal opens
   useEffect(() => {
-    if (jobId) {
-      fetchJobDetails();
-    }
-  }, [jobId]);
-
-  const fetchJobDetails = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/jobs/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+    if (job && open) {
+      setFormData({
+        description: job.description || '',
+        companyIntro: job.companyIntro || '',
+        requirements: job.requirements || [],
+        responsibilities: job.responsibilities || [],
+        location: job.location || '',
+        department: job.department || '',
+        employmentType: job.employmentType || '',
+        experienceRequired: job.experienceRequired || { min: 0, max: 0 },
+        salaryRange: job.salaryRange || { min: 0, max: 0, currency: 'INR' },
+        skills: job.skills || [],
+        education: job.education || []
       });
-      
-      if (response.data.success) {
-        const jobData = response.data.data;
-        setJob(jobData);
-        
-        // Initialize form with job data
-        setFormData({
-          description: jobData.description || '',
-          companyIntro: jobData.companyIntro || '',
-          requirements: jobData.requirements || [],
-          responsibilities: jobData.responsibilities || [],
-          location: jobData.location || '',
-          department: jobData.department || '',
-          employmentType: jobData.employmentType || '',
-          experienceRequired: jobData.experienceRequired || { min: 0, max: 0 },
-          salaryRange: jobData.salaryRange || { min: 0, max: 0, currency: 'INR' },
-          skills: jobData.skills || [],
-          education: jobData.education || []
-        });
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch job details');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [job, open]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Handle nested objects
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -330,7 +283,6 @@ const EditJobOpening = () => {
     setError('');
     setSuccess('');
     
-    // Prepare payload - only send fields that can be updated
     const payload = {
       description: formData.description,
       companyIntro: formData.companyIntro,
@@ -339,15 +291,22 @@ const EditJobOpening = () => {
       location: formData.location,
       department: formData.department,
       employmentType: formData.employmentType,
-      experienceRequired: formData.experienceRequired,
-      salaryRange: formData.salaryRange,
+      experienceRequired: {
+        min: Number(formData.experienceRequired.min),
+        max: Number(formData.experienceRequired.max)
+      },
+      salaryRange: {
+        min: Number(formData.salaryRange.min),
+        max: Number(formData.salaryRange.max),
+        currency: formData.salaryRange.currency
+      },
       skills: formData.skills,
       education: formData.education
     };
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${BASE_URL}/api/jobs/${jobId}`, payload, {
+      const response = await axios.put(`${BASE_URL}/api/jobs/${job._id}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -356,11 +315,11 @@ const EditJobOpening = () => {
       
       if (response.data.success) {
         setSuccess('Job updated successfully!');
-        setJob(response.data.data);
+        onUpdate(response.data.data);
         
-        // Show success message and then navigate after delay
         setTimeout(() => {
-          navigate(`/jobs/${jobId}`);
+          onClose();
+          setActiveStep(0);
         }, 1500);
       }
     } catch (err) {
@@ -370,464 +329,392 @@ const EditJobOpening = () => {
     }
   };
 
-  const handleCancel = () => {
-    if (hasUnsavedChanges()) {
-      setShowCancelDialog(true);
-    } else {
-      navigate(`/jobs/${jobId}`);
-    }
+  const handleModalClose = () => {
+    setActiveStep(0);
+    setError('');
+    setSuccess('');
+    onClose();
   };
-
-  const hasUnsavedChanges = () => {
-    if (!job) return false;
-    
-    return (
-      job.description !== formData.description ||
-      job.companyIntro !== formData.companyIntro ||
-      JSON.stringify(job.requirements) !== JSON.stringify(formData.requirements) ||
-      JSON.stringify(job.responsibilities) !== JSON.stringify(formData.responsibilities) ||
-      job.location !== formData.location ||
-      job.department !== formData.department ||
-      job.employmentType !== formData.employmentType ||
-      JSON.stringify(job.experienceRequired) !== JSON.stringify(formData.experienceRequired) ||
-      JSON.stringify(job.salaryRange) !== JSON.stringify(formData.salaryRange) ||
-      JSON.stringify(job.skills) !== JSON.stringify(formData.skills) ||
-      JSON.stringify(job.education) !== JSON.stringify(formData.education)
-    );
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!job && !loading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">Job not found</Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/jobs')} sx={{ mt: 2 }}>
-          Back to Jobs
-        </Button>
-      </Box>
-    );
-  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header with Breadcrumbs */}
-      <Box sx={{ mb: 3 }}>
-        <Breadcrumbs aria-label="breadcrumb">
-          <Link color="inherit" href="/dashboard" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
-            Dashboard
-          </Link>
-          <Link color="inherit" href="/jobs" onClick={(e) => { e.preventDefault(); navigate('/jobs'); }}>
-            Job Openings
-          </Link>
-          <Link color="inherit" href={`/jobs/${jobId}`} onClick={(e) => { e.preventDefault(); navigate(`/jobs/${jobId}`); }}>
-            {job?.jobId}
-          </Link>
-          <Typography color="textPrimary">Edit</Typography>
-        </Breadcrumbs>
-      </Box>
+    <>
+      <Dialog 
+        open={open} 
+        onClose={handleModalClose} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2, minHeight: 600 }
+        }}
+      >
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+          color: '#fff',
+          fontWeight: 600,
+          fontSize: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <EditIcon /> Edit Job Opening
+        </DialogTitle>
 
-      {/* Main Content */}
-      <Paper sx={{ p: 3 }}>
-        {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <IconButton onClick={handleCancel}>
-              <ArrowBackIcon />
-            </IconButton>
-            <Box>
-              <Typography variant="h5" fontWeight={600}>
-                Edit Job Opening
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {job?.jobId} • {job?.title}
-              </Typography>
-            </Box>
-            <Chip 
-              size="small" 
-              label={job?.status} 
-              color={job?.status === 'published' ? 'success' : 'default'}
-            />
-          </Stack>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchJobDetails}
+        <DialogContent sx={{ pt: 3 }}>
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 5, mt: 3 }}
           >
-            Refresh
-          </Button>
-        </Stack>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography fontWeight={500}>{label}</Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
 
-        {/* Modern Stepper */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 5, mt: 3 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500}>{label}</Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
-        {/* Form */}
-        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          <Stack spacing={4}>
-            
-            {/* Step 1: Basic Information */}
-            {activeStep === 0 && (
-              <>
-                {/* Company Introduction */}
-                <TextField
-                  label="Company Introduction"
-                  name="companyIntro"
-                  multiline
-                  rows={4}
-                  fullWidth
-                  value={formData.companyIntro}
-                  onChange={handleChange}
-                  placeholder="Brief introduction about your company..."
-                  required
-                  helperText="This will be displayed to candidates"
-                />
-
-                {/* Location and Department */}
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Location"
-                      name="location"
-                      fullWidth
-                      value={formData.location}
-                      onChange={handleChange}
-                      placeholder="e.g., Plant Unit A"
-                      required
-                      InputProps={{
-                        startAdornment: <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Department"
-                      name="department"
-                      fullWidth
-                      value={formData.department}
-                      onChange={handleChange}
-                      placeholder="e.g., Production"
-                      required
-                      InputProps={{
-                        startAdornment: <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }}
-                    />
-                  </Grid>
-                </Grid>
-
-                {/* Employment Type */}
-                <FormControl fullWidth required>
-                  <InputLabel>Employment Type</InputLabel>
-                  <Select
-                    name="employmentType"
-                    value={formData.employmentType}
+          <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+            <Stack spacing={4}>
+              
+              {/* Step 1: Basic Information */}
+              {activeStep === 0 && (
+                <>
+                  <TextField
+                    label="Company Introduction"
+                    name="companyIntro"
+                    multiline
+                    rows={4}
+                    fullWidth
+                    value={formData.companyIntro}
                     onChange={handleChange}
-                    label="Employment Type"
-                  >
-                    {employmentTypes.map(type => (
-                      <MenuItem key={type} value={type}>{type}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </>
-            )}
+                    placeholder="Brief introduction about your company..."
+                    required
+                  />
 
-            {/* Step 2: Job Details */}
-            {activeStep === 1 && (
-              <>
-                {/* Job Description */}
-                <TextField
-                  label="Job Description"
-                  name="description"
-                  multiline
-                  rows={4}
-                  fullWidth
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Detailed description of the job role..."
-                  required
-                />
-
-                {/* Requirements */}
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Requirements <span style={{ color: 'red' }}>*</span>
-                  </Typography>
-                  <Stack direction="row" spacing={1} mb={1}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={requirementInput}
-                      onChange={(e) => setRequirementInput(e.target.value)}
-                      placeholder="Add a requirement (e.g., Minimum 2 years experience)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddRequirement();
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddRequirement}
-                      disabled={!requirementInput.trim()}
-                      sx={{
-                        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                        '&:hover': { opacity: 0.9 }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </Stack>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50 }}>
-                    {formData.requirements.map((req, index) => (
-                      <Chip
-                        key={index}
-                        label={req}
-                        onDelete={() => handleRemoveRequirement(index)}
-                        color="primary"
-                        variant="outlined"
-                        deleteIcon={<DeleteIcon />}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* Responsibilities */}
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Responsibilities <span style={{ color: 'red' }}>*</span>
-                  </Typography>
-                  <Stack direction="row" spacing={1} mb={1}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={responsibilityInput}
-                      onChange={(e) => setResponsibilityInput(e.target.value)}
-                      placeholder="Add a responsibility (e.g., Operate production machinery)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddResponsibility();
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddResponsibility}
-                      disabled={!responsibilityInput.trim()}
-                      sx={{
-                        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                        '&:hover': { opacity: 0.9 }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </Stack>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50 }}>
-                    {formData.responsibilities.map((resp, index) => (
-                      <Chip
-                        key={index}
-                        label={resp}
-                        onDelete={() => handleRemoveResponsibility(index)}
-                        color="secondary"
-                        variant="outlined"
-                        deleteIcon={<DeleteIcon />}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* Experience Range */}
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Min Experience (years)"
-                      name="experienceRequired.min"
-                      type="number"
-                      fullWidth
-                      value={formData.experienceRequired.min}
-                      onChange={handleChange}
-                      inputProps={{ min: 0 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      label="Max Experience (years)"
-                      name="experienceRequired.max"
-                      type="number"
-                      fullWidth
-                      value={formData.experienceRequired.max}
-                      onChange={handleChange}
-                      inputProps={{ min: formData.experienceRequired.min }}
-                    />
-                  </Grid>
-                </Grid>
-
-                {/* Salary Range */}
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      label="Min Salary"
-                      name="salaryRange.min"
-                      type="number"
-                      fullWidth
-                      value={formData.salaryRange.min}
-                      onChange={handleChange}
-                      inputProps={{ min: 0 }}
-                      InputProps={{
-                        startAdornment: <AttachMoneyIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      label="Max Salary"
-                      name="salaryRange.max"
-                      type="number"
-                      fullWidth
-                      value={formData.salaryRange.max}
-                      onChange={handleChange}
-                      inputProps={{ min: formData.salaryRange.min }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Currency</InputLabel>
-                      <Select
-                        name="salaryRange.currency"
-                        value={formData.salaryRange.currency}
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        label="Location"
+                        name="location"
+                        fullWidth
+                        value={formData.location}
                         onChange={handleChange}
-                        label="Currency"
-                      >
-                        {currencies.map(curr => (
-                          <MenuItem key={curr} value={curr}>{curr}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        placeholder="e.g., Plant Unit A"
+                        required
+                        InputProps={{
+                          startAdornment: <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        label="Department"
+                        name="department"
+                        fullWidth
+                        value={formData.department}
+                        onChange={handleChange}
+                        placeholder="e.g., Production"
+                        required
+                        InputProps={{
+                          startAdornment: <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        }}
+                      />
+                    </Grid>
                   </Grid>
-                </Grid>
 
-                {/* Skills */}
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Required Skills
-                  </Typography>
-                  <Stack direction="row" spacing={1} mb={1}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={skillInput}
-                      onChange={(e) => setSkillInput(e.target.value)}
-                      placeholder="Add a skill (e.g., Lathe operation)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddSkill();
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddSkill}
-                      disabled={!skillInput.trim()}
-                      sx={{
-                        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                        '&:hover': { opacity: 0.9 }
-                      }}
+                  <FormControl fullWidth required>
+                    <InputLabel>Employment Type</InputLabel>
+                    <Select
+                      name="employmentType"
+                      value={formData.employmentType}
+                      onChange={handleChange}
+                      label="Employment Type"
                     >
-                      Add
-                    </Button>
-                  </Stack>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {formData.skills.map((skill, index) => (
-                      <Chip
-                        key={index}
-                        label={skill}
-                        onDelete={() => handleRemoveSkill(index)}
-                        icon={<BuildIcon />}
-                        variant="outlined"
-                        deleteIcon={<DeleteIcon />}
+                      {employmentTypes.map(type => (
+                        <MenuItem key={type} value={type}>{type}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              )}
+
+              {/* Step 2: Job Details */}
+              {activeStep === 1 && (
+                <>
+                  <TextField
+                    label="Job Description"
+                    name="description"
+                    multiline
+                    rows={4}
+                    fullWidth
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Detailed description of the job role..."
+                    required
+                  />
+
+                  {/* Requirements */}
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      Requirements <span style={{ color: 'red' }}>*</span>
+                    </Typography>
+                    <Stack direction="row" spacing={1} mb={1}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={requirementInput}
+                        onChange={(e) => setRequirementInput(e.target.value)}
+                        placeholder="Add a requirement (e.g., Minimum 2 years experience)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddRequirement();
+                          }
+                        }}
                       />
-                    ))}
+                      <Button
+                        variant="contained"
+                        onClick={handleAddRequirement}
+                        disabled={!requirementInput.trim()}
+                        sx={{
+                          background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                          '&:hover': { opacity: 0.9 }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Stack>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50 }}>
+                      {formData.requirements.map((req, index) => (
+                        <Chip
+                          key={index}
+                          label={req}
+                          onDelete={() => handleRemoveRequirement(index)}
+                          color="primary"
+                          variant="outlined"
+                          deleteIcon={<DeleteIcon />}
+                        />
+                      ))}
+                    </Box>
                   </Box>
-                </Box>
 
-                {/* Education */}
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Education Requirements
-                  </Typography>
-                  <Stack direction="row" spacing={1} mb={1}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={educationInput}
-                      onChange={(e) => setEducationInput(e.target.value)}
-                      placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddEducation();
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      onClick={handleAddEducation}
-                      disabled={!educationInput.trim()}
-                      sx={{
-                        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                        '&:hover': { opacity: 0.9 }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </Stack>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {formData.education.map((edu, index) => (
-                      <Chip
-                        key={index}
-                        label={edu}
-                        onDelete={() => handleRemoveEducation(index)}
-                        icon={<SchoolIcon />}
-                        variant="outlined"
-                        deleteIcon={<DeleteIcon />}
+                  {/* Responsibilities */}
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      Responsibilities <span style={{ color: 'red' }}>*</span>
+                    </Typography>
+                    <Stack direction="row" spacing={1} mb={1}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={responsibilityInput}
+                        onChange={(e) => setResponsibilityInput(e.target.value)}
+                        placeholder="Add a responsibility (e.g., Operate production machinery)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddResponsibility();
+                          }
+                        }}
                       />
-                    ))}
+                      <Button
+                        variant="contained"
+                        onClick={handleAddResponsibility}
+                        disabled={!responsibilityInput.trim()}
+                        sx={{
+                          background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                          '&:hover': { opacity: 0.9 }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Stack>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50 }}>
+                      {formData.responsibilities.map((resp, index) => (
+                        <Chip
+                          key={index}
+                          label={resp}
+                          onDelete={() => handleRemoveResponsibility(index)}
+                          color="secondary"
+                          variant="outlined"
+                          deleteIcon={<DeleteIcon />}
+                        />
+                      ))}
+                    </Box>
                   </Box>
-                </Box>
-              </>
-            )}
 
-            {/* Step 3: Review & Save */}
-            {activeStep === 2 && (
-              <>
-                <Alert severity="info" icon={<InfoIcon />}>
-                  Please review all the information before saving. You can go back to make changes if needed.
-                </Alert>
+                  {/* Experience Range */}
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        label="Min Experience (years)"
+                        name="experienceRequired.min"
+                        type="number"
+                        fullWidth
+                        value={formData.experienceRequired.min}
+                        onChange={handleChange}
+                        inputProps={{ min: 0 }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        label="Max Experience (years)"
+                        name="experienceRequired.max"
+                        type="number"
+                        fullWidth
+                        value={formData.experienceRequired.max}
+                        onChange={handleChange}
+                        inputProps={{ min: formData.experienceRequired.min }}
+                      />
+                    </Grid>
+                  </Grid>
 
-                {/* Summary Card */}
-                <Card variant="outlined">
-                  <CardContent>
+                  {/* Salary Range */}
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        label="Min Salary"
+                        name="salaryRange.min"
+                        type="number"
+                        fullWidth
+                        value={formData.salaryRange.min}
+                        onChange={handleChange}
+                        inputProps={{ min: 0 }}
+                        InputProps={{
+                          startAdornment: <MoneyIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        label="Max Salary"
+                        name="salaryRange.max"
+                        type="number"
+                        fullWidth
+                        value={formData.salaryRange.max}
+                        onChange={handleChange}
+                        inputProps={{ min: formData.salaryRange.min }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Currency</InputLabel>
+                        <Select
+                          name="salaryRange.currency"
+                          value={formData.salaryRange.currency}
+                          onChange={handleChange}
+                          label="Currency"
+                        >
+                          {currencies.map(curr => (
+                            <MenuItem key={curr} value={curr}>{curr}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+
+                  {/* Skills */}
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      Required Skills
+                    </Typography>
+                    <Stack direction="row" spacing={1} mb={1}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={skillInput}
+                        onChange={(e) => setSkillInput(e.target.value)}
+                        placeholder="Add a skill (e.g., Lathe operation)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddSkill();
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={handleAddSkill}
+                        disabled={!skillInput.trim()}
+                        sx={{
+                          background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                          '&:hover': { opacity: 0.9 }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Stack>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {formData.skills.map((skill, index) => (
+                        <Chip
+                          key={index}
+                          label={skill}
+                          onDelete={() => handleRemoveSkill(index)}
+                          icon={<BuildIcon />}
+                          variant="outlined"
+                          deleteIcon={<DeleteIcon />}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+
+                  {/* Education */}
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      Education Requirements
+                    </Typography>
+                    <Stack direction="row" spacing={1} mb={1}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={educationInput}
+                        onChange={(e) => setEducationInput(e.target.value)}
+                        placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddEducation();
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={handleAddEducation}
+                        disabled={!educationInput.trim()}
+                        sx={{
+                          background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                          '&:hover': { opacity: 0.9 }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Stack>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {formData.education.map((edu, index) => (
+                        <Chip
+                          key={index}
+                          label={edu}
+                          onDelete={() => handleRemoveEducation(index)}
+                          icon={<SchoolIcon />}
+                          variant="outlined"
+                          deleteIcon={<DeleteIcon />}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              {/* Step 3: Review & Save */}
+              {activeStep === 2 && (
+                <>
+                  <Alert severity="info" icon={<BuildIcon />}>
+                    Please review all the information before saving.
+                  </Alert>
+
+                  <Paper variant="outlined" sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom fontWeight={600}>
                       Summary
                     </Typography>
@@ -886,95 +773,58 @@ const EditJobOpening = () => {
                           ))}
                         </Box>
                       </Box>
-                      
-                      <Box>
-                        <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                          Skills ({formData.skills.length})
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {formData.skills.map((skill, idx) => (
-                            <Chip key={idx} label={skill} size="small" />
-                          ))}
-                        </Box>
-                      </Box>
                     </Stack>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                  </Paper>
+                </>
+              )}
 
-            {/* Error/Success Messages */}
-            {error && <Alert severity="error">{error}</Alert>}
-            {success && <Alert severity="success">{success}</Alert>}
-
-            {/* Navigation Buttons */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={handleCancel}
-                startIcon={<CancelIcon />}
-              >
-                Cancel
-              </Button>
-              
-              <Box>
-                {activeStep > 0 && (
-                  <Button onClick={handleBack} sx={{ mr: 1 }}>
-                    Back
-                  </Button>
-                )}
-                
-                {activeStep < steps.length - 1 ? (
-                  <Button
-                    variant="contained"
-                    onClick={handleNext}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <Button
-                    variant="contained"
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    startIcon={!saving && <SaveIcon />}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
-                  >
-                    {saving ? <CircularProgress size={24} /> : 'Save Changes'}
-                  </Button>
-                )}
-              </Box>
-            </Box>
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* Cancel Confirmation Dialog */}
-      <Dialog open={showCancelDialog} onClose={() => setShowCancelDialog(false)}>
-        <DialogTitle>Discard Changes?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            You have unsaved changes. Are you sure you want to leave without saving?
-          </Typography>
+              {error && <Alert severity="error">{error}</Alert>}
+              {success && <Alert severity="success">{success}</Alert>}
+            </Stack>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowCancelDialog(false)}>Continue Editing</Button>
-          <Button 
-            onClick={() => navigate(`/jobs/${jobId}`)} 
-            color="error"
-            variant="contained"
-          >
-            Discard Changes
+
+        <DialogActions sx={{ p: 3, borderTop: '1px solid #e2e8f0' }}>
+          <Button onClick={handleModalClose}>
+            Cancel
           </Button>
+          
+          <Box sx={{ flex: 1 }} />
+          
+          {activeStep > 0 && (
+            <Button onClick={handleBack}>
+              Back
+            </Button>
+          )}
+          
+          {activeStep < steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              sx={{
+                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                '&:hover': { opacity: 0.9 }
+              }}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={saving}
+              startIcon={!saving && <EditIcon />}
+              sx={{
+                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                '&:hover': { opacity: 0.9 }
+              }}
+            >
+              {saving ? <CircularProgress size={24} /> : 'Save Changes'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

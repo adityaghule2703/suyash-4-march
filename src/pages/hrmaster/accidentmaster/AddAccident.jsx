@@ -16,11 +16,49 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Typography
+  Typography,
+  Autocomplete,
+  Paper,
+  InputAdornment,
+  styled
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+
+// Custom styled Paper component for dropdown without scrollbars
+const CustomPaper = styled(Paper)({
+  maxHeight: 200,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    display: 'none'  // Hide scrollbar for Chrome/Safari/Edge
+  },
+  scrollbarWidth: 'none',  // Hide scrollbar for Firefox
+  '-ms-overflow-style': 'none',  // Hide scrollbar for IE
+  // Ensure no nested elements create scrollbars
+  '& .MuiAutocomplete-listbox': {
+    '&::-webkit-scrollbar': {
+      display: 'none'
+    },
+    scrollbarWidth: 'none',
+    '-ms-overflow-style': 'none'
+  }
+});
+
+// Custom styled MenuProps for Select components
+const selectMenuProps = {
+  PaperProps: {
+    sx: {
+      maxHeight: 200,
+      overflow: 'auto',
+      '&::-webkit-scrollbar': {
+        display: 'none'
+      },
+      scrollbarWidth: 'none',
+      '-ms-overflow-style': 'none'
+    }
+  }
+};
 
 const AddAccident = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
@@ -31,9 +69,9 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     department: '',
     machineId: '',
     machineName: '',
-    injuryType: 'Cut', // Default first enum
+    injuryType: 'Cut',
     bodyPartAffected: '',
-    severity: 'Minor', // Default first enum
+    severity: 'Minor',
     description: '',
     immediateAction: '',
     rootCause: '',
@@ -49,6 +87,11 @@ const AddAccident = ({ open, onClose, onAdd }) => {
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
+
+  // Search states for dropdowns
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
 
   // Enum options
   const injuryTypeOptions = [
@@ -127,6 +170,14 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     }));
   };
 
+  // Custom handler for Autocomplete components
+  const handleAutocompleteChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!formData.employee) return setError('Employee is required');
@@ -199,6 +250,9 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     });
     setError('');
     setActiveStep(0);
+    setEmployeeSearch('');
+    setDepartmentSearch('');
+    setUserSearch('');
   };
 
   const handleClose = () => {
@@ -243,21 +297,51 @@ const AddAccident = ({ open, onClose, onAdd }) => {
             {/* First Row - Employee and Date/Time */}
             <Stack direction="row" spacing={2}>
               <FormControl fullWidth>
-                <InputLabel>Employee *</InputLabel>
-                <Select
-                  name="employee"
-                  value={formData.employee}
-                  onChange={handleChange}
-                  label="Employee *"
-                  required
+                <Autocomplete
+                  options={employees}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return `${option.FirstName || ''} ${option.LastName || ''} (${option.EmployeeID || ''})`;
+                  }}
+                  value={employees.find(emp => emp._id === formData.employee) || null}
+                  onChange={(event, newValue) => {
+                    handleAutocompleteChange('employee', newValue?._id || '');
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setEmployeeSearch(newInputValue);
+                  }}
+                  loading={fetchingData}
                   disabled={loading}
-                >
-                  {employees.map((emp) => (
-                    <MenuItem key={emp._id} value={emp._id}>
-                      {emp.FirstName} {emp.LastName} ({emp.EmployeeID})
-                    </MenuItem>
-                  ))}
-                </Select>
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Employee *"
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                  PaperComponent={CustomPaper}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                      '&::-webkit-scrollbar': {
+                        display: 'none'
+                      }
+                    }
+                  }}
+                  noOptionsText="No employees found"
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                />
               </FormControl>
 
               <TextField
@@ -286,21 +370,51 @@ const AddAccident = ({ open, onClose, onAdd }) => {
               />
 
               <FormControl fullWidth>
-                <InputLabel>Department *</InputLabel>
-                <Select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  label="Department *"
-                  required
+                <Autocomplete
+                  options={departments}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return option.DepartmentName || '';
+                  }}
+                  value={departments.find(dept => dept._id === formData.department) || null}
+                  onChange={(event, newValue) => {
+                    handleAutocompleteChange('department', newValue?._id || '');
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setDepartmentSearch(newInputValue);
+                  }}
+                  loading={fetchingData}
                   disabled={loading}
-                >
-                  {departments.map((dept) => (
-                    <MenuItem key={dept._id} value={dept._id}>
-                      {dept.DepartmentName}
-                    </MenuItem>
-                  ))}
-                </Select>
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Department *"
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                  PaperComponent={CustomPaper}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                      '&::-webkit-scrollbar': {
+                        display: 'none'
+                      }
+                    }
+                  }}
+                  noOptionsText="No departments found"
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                />
               </FormControl>
             </Stack>
           </Stack>
@@ -340,6 +454,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                   label="Injury Type *"
                   required
                   disabled={loading}
+                  MenuProps={selectMenuProps}
                 >
                   {injuryTypeOptions.map((option) => (
                     <MenuItem key={option} value={option}>
@@ -358,6 +473,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                   label="Severity *"
                   required
                   disabled={loading}
+                  MenuProps={selectMenuProps}
                 >
                   {severityOptions.map((option) => (
                     <MenuItem key={option} value={option}>
@@ -433,20 +549,53 @@ const AddAccident = ({ open, onClose, onAdd }) => {
 
             {/* Third Row - Reported By (full width) */}
             <FormControl fullWidth>
-              <InputLabel>Reported By (User)</InputLabel>
-              <Select
-                name="reportedBy"
-                value={formData.reportedBy}
-                onChange={handleChange}
-                label="Reported By (User)"
+              <Autocomplete
+                options={users}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option;
+                  const employeeInfo = option.EmployeeID 
+                    ? ` - ${option.EmployeeID.FirstName || ''} ${option.EmployeeID.LastName || ''}`
+                    : '';
+                  return `${option.Username || ''}${employeeInfo}`;
+                }}
+                value={users.find(user => user._id === formData.reportedBy) || null}
+                onChange={(event, newValue) => {
+                  handleAutocompleteChange('reportedBy', newValue?._id || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  setUserSearch(newInputValue);
+                }}
+                loading={fetchingData}
                 disabled={loading}
-              >
-                {users.map((user) => (
-                  <MenuItem key={user._id} value={user._id}>
-                    {user.Username} {user.EmployeeID ? `- ${user.EmployeeID.FirstName} ${user.EmployeeID.LastName}` : ''}
-                  </MenuItem>
-                ))}
-              </Select>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Reported By (User)"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+                PaperComponent={CustomPaper}
+                ListboxProps={{
+                  style: {
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    '&::-webkit-scrollbar': {
+                      display: 'none'
+                    }
+                  }
+                }}
+                noOptionsText="No users found"
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+              />
             </FormControl>
           </Stack>
         );

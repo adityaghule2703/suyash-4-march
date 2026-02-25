@@ -308,23 +308,23 @@ const GetAllDocuments = () => {
   });
 
   // Document types for filter
-  const documentTypes = [
-    { value: 'aadhar', label: 'Aadhar Card' },
-    { value: 'pan', label: 'PAN Card' },
-    { value: 'voter', label: 'Voter ID' },
-    { value: 'passport', label: 'Passport' },
-    { value: 'driving_license', label: 'Driving License' },
-    { value: 'education_10th', label: '10th Marksheet' },
-    { value: 'education_12th', label: '12th Marksheet' },
-    { value: 'education_degree', label: 'Degree Certificate' },
-    { value: 'education_master', label: 'Master\'s Degree' },
-    { value: 'experience_letter', label: 'Experience Letter' },
-    { value: 'salary_slip', label: 'Salary Slip' },
-    { value: 'bank_statement', label: 'Bank Statement' },
-    { value: 'photo', label: 'Passport Photo' },
-    { value: 'signature', label: 'Signature' },
-    { value: 'other', label: 'Other' }
-  ];
+  const documentTypes =  [
+      { value: 'resume', label: 'Resume/CV'},
+      { value: 'offer_letter', label: 'Offer Letter'},
+      { value: 'appointment_letter', label: 'Appointment Letter'},
+      { value: 'ctc_breakdown', label: 'CTC Breakdown'},
+      { value: 'aadhar', label: 'Aadhar Card'},      
+      { value: 'pan', label: 'PAN Card'},
+      { value: 'passport', label: 'Passport'},
+      { value: 'voter_id', label: 'Voter ID'},
+      { value: 'driving_license', label: 'Driving License'},
+      { value: 'educational_certificate', label: 'Educational Certificate'},
+      { value: 'experience_certificate', label: 'Experience Certificate'},
+      { value: 'salary_slip', label: 'Salary Slip'},
+      { value: 'bank_statement', label: 'Bank Statement'},
+      { value: 'photograph', label: 'Photograph' },
+      { value: 'other', label: 'Other' }
+    ];
 
   // Status options for filter
   const statusOptions = [
@@ -947,17 +947,7 @@ const GetAllDocuments = () => {
                     disabled={loading}
                   />
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Document
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
+               
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -1100,7 +1090,7 @@ const GetAllDocuments = () => {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Box sx={{ 
                             p: 1, 
@@ -1120,7 +1110,7 @@ const GetAllDocuments = () => {
                             </Typography>
                           </Box>
                         </Stack>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <Typography variant="body2" fontWeight={600}>
                           {doc.documentId || 'N/A'}

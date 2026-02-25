@@ -1,68 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Paper,
-  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Button,
   Stack,
   Alert,
   CircularProgress,
-  Breadcrumbs,
-  Link,
-  IconButton,
-  Chip,
   Stepper,
   Step,
   StepLabel,
   styled,
   StepConnector,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Checkbox,
-  ListItemText,
-  OutlinedInput,
-  FormHelperText,
-  Card,
-  CardContent,
-  Divider,
   Grid,
   Avatar,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
+  Typography,
+  Chip,
+  Paper,
   LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow
+  Link,
+  IconButton,
+  FormHelperText,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
   Publish as PublishIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  Warning as WarningIcon,
   Info as InfoIcon,
-  Refresh as RefreshIcon,
-  Launch as LaunchIcon,
+  Schedule as ScheduleIcon,
   LinkedIn as LinkedInIcon,
   Language as LanguageIcon,
   Business as BusinessIcon,
   Work as WorkIcon,
-  Schedule as ScheduleIcon,
-  Verified as VerifiedIcon,
-  Share as ShareIcon,
-  ContentCopy as CopyIcon,
-  Download as DownloadIcon,
-  Close as CloseIcon
+  Launch as LaunchIcon,
+  ContentCopy as CopyIcon
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
@@ -96,8 +73,6 @@ const PlatformCard = ({ platform, selected, onToggle, disabled }) => {
         return <BusinessIcon sx={{ fontSize: 40, color: '#164e63' }} />;
       case 'indeed':
         return <WorkIcon sx={{ fontSize: 40, color: '#003a9b' }} />;
-      case 'monster':
-        return <WorkIcon sx={{ fontSize: 40, color: '#6e2b8b' }} />;
       default:
         return <LanguageIcon sx={{ fontSize: 40 }} />;
     }
@@ -108,8 +83,7 @@ const PlatformCard = ({ platform, selected, onToggle, disabled }) => {
       linkedin: 'LinkedIn',
       naukri: 'Naukri.com',
       careerPage: 'Career Page',
-      indeed: 'Indeed',
-      monster: 'Monster'
+      indeed: 'Indeed'
     };
     return names[platform] || platform;
   };
@@ -160,6 +134,8 @@ const PublishingStatus = ({ platform, status, result, error }) => {
         return <LanguageIcon fontSize="small" />;
       case 'careerPage':
         return <BusinessIcon fontSize="small" />;
+      case 'indeed':
+        return <WorkIcon fontSize="small" />;
       default:
         return <LanguageIcon fontSize="small" />;
     }
@@ -189,7 +165,7 @@ const PublishingStatus = ({ platform, status, result, error }) => {
               {getPlatformIcon(platform)}
             </Avatar>
             <Typography variant="subtitle2" textTransform="capitalize">
-              {platform}
+              {platform === 'careerPage' ? 'Career Page' : platform}
             </Typography>
           </Stack>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -240,11 +216,6 @@ const PublishingStatus = ({ platform, status, result, error }) => {
                   </IconButton>
                 </Tooltip>
               </Stack>
-              {result.data?.id && (
-                <Typography variant="caption" color="textSecondary">
-                  Platform ID: {result.data.id}
-                </Typography>
-              )}
             </Stack>
           </Box>
         )}
@@ -259,70 +230,34 @@ const PublishingStatus = ({ platform, status, result, error }) => {
   );
 };
 
-/* ------------------- Main Component ------------------- */
-const PublishJob = () => {
-  const { jobId } = useParams();
-  const navigate = useNavigate();
-  
-  // State
+const PublishJob = ({ open, onClose, job, onPublish }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
   const [publishing, setPublishing] = useState(false);
+  const [publishResults, setPublishResults] = useState(null);
+  const [publishingStatus, setPublishingStatus] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  // Platform selection
-  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
-  const [publishResults, setPublishResults] = useState(null);
-  
-  // Publishing status tracking
-  const [publishingStatus, setPublishingStatus] = useState({});
-  
-  // Share dialog
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  
-  // Available platforms
+
+  // Available platforms - exactly matching the enum in your schema
   const availablePlatforms = [
-    { value: 'careerPage', label: 'Career Page', icon: <BusinessIcon /> },
-    { value: 'linkedin', label: 'LinkedIn', icon: <LinkedInIcon /> },
-    { value: 'naukri', label: 'Naukri.com', icon: <LanguageIcon /> },
-    { value: 'indeed', label: 'Indeed', icon: <WorkIcon /> },
-    { value: 'monster', label: 'Monster', icon: <WorkIcon /> }
+    { value: 'careerPage', label: 'Career Page' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'naukri', label: 'Naukri.com' },
+    { value: 'indeed', label: 'Indeed' }
   ];
 
-  // Fetch job details on mount
+  // Reset state when modal opens
   useEffect(() => {
-    if (jobId) {
-      fetchJobDetails();
+    if (open && job) {
+      setActiveStep(0);
+      setSelectedPlatforms([]);
+      setPublishResults(null);
+      setPublishingStatus({});
+      setError('');
+      setSuccess('');
     }
-  }, [jobId]);
-
-  const fetchJobDetails = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/jobs/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        setJob(response.data.data);
-        
-        // Pre-select platforms that are already pending
-        const existingPlatforms = response.data.data.publishTo
-          ?.filter(p => p.status === 'pending')
-          .map(p => p.platform) || [];
-        setSelectedPlatforms(existingPlatforms);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch job details');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open, job]);
 
   const handlePlatformToggle = (platform) => {
     setSelectedPlatforms(prev => {
@@ -369,7 +304,6 @@ const PublishJob = () => {
     setPublishing(true);
     setError('');
     
-    // Initialize status for each platform
     const initialStatus = {};
     selectedPlatforms.forEach(platform => {
       initialStatus[platform] = { status: 'pending' };
@@ -379,7 +313,6 @@ const PublishJob = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // Update status to publishing for all platforms
       selectedPlatforms.forEach(platform => {
         setPublishingStatus(prev => ({
           ...prev,
@@ -387,7 +320,7 @@ const PublishJob = () => {
         }));
       });
       
-      const response = await axios.post(`${BASE_URL}/api/jobs/${jobId}/publish`, {
+      const response = await axios.post(`${BASE_URL}/api/jobs/${job._id}/publish`, {
         platforms: selectedPlatforms
       }, {
         headers: {
@@ -399,7 +332,6 @@ const PublishJob = () => {
       if (response.data.success) {
         setPublishResults(response.data.data);
         
-        // Update status with results
         const updatedStatus = {};
         response.data.data.publishResults.forEach(result => {
           updatedStatus[result.platform] = {
@@ -412,11 +344,14 @@ const PublishJob = () => {
         
         setSuccess('Job published successfully!');
         setActiveStep(2);
+        
+        if (onPublish) {
+          onPublish(response.data.data);
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to publish job');
       
-      // Mark all as failed
       const failedStatus = {};
       selectedPlatforms.forEach(platform => {
         failedStatus[platform] = { 
@@ -430,111 +365,61 @@ const PublishJob = () => {
     }
   };
 
-  const handleViewJob = () => {
-    navigate(`/jobs/${jobId}`);
-  };
-
-  const handleViewPublished = () => {
-    if (publishResults?.publishResults) {
-      const careerPageResult = publishResults.publishResults.find(r => r.platform === 'careerPage');
-      if (careerPageResult?.jobUrl) {
-        window.open(careerPageResult.jobUrl, '_blank');
-      }
-    }
-  };
-
-  const handleCopyAllLinks = () => {
-    if (publishResults?.publishResults) {
-      const urls = publishResults.publishResults
-        .filter(r => r.success)
-        .map(r => `${r.platform}: ${r.jobUrl}`)
-        .join('\n');
-      navigator.clipboard.writeText(urls);
-    }
+  const handleModalClose = () => {
+    setActiveStep(0);
+    setSelectedPlatforms([]);
+    setPublishResults(null);
+    setPublishingStatus({});
+    setError('');
+    setSuccess('');
+    onClose();
   };
 
   const getSuccessCount = () => {
     return publishResults?.publishResults?.filter(r => r.success).length || 0;
   };
 
-  const getFailureCount = () => {
-    return publishResults?.publishResults?.filter(r => !r.success).length || 0;
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!job && !loading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">Job not found</Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/jobs')} sx={{ mt: 2 }}>
-          Back to Jobs
-        </Button>
-      </Box>
-    );
-  }
+  if (!job) return null;
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header with Breadcrumbs */}
-      <Box sx={{ mb: 3 }}>
-        <Breadcrumbs aria-label="breadcrumb">
-          <Link color="inherit" href="/dashboard" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
-            Dashboard
-          </Link>
-          <Link color="inherit" href="/jobs" onClick={(e) => { e.preventDefault(); navigate('/jobs'); }}>
-            Job Openings
-          </Link>
-          <Link color="inherit" href={`/jobs/${jobId}`} onClick={(e) => { e.preventDefault(); navigate(`/jobs/${jobId}`); }}>
-            {job?.jobId}
-          </Link>
-          <Typography color="textPrimary">Publish</Typography>
-        </Breadcrumbs>
-      </Box>
+    <Dialog
+      open={open}
+      onClose={handleModalClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 2, minHeight: 500 }
+      }}
+    >
+      <DialogTitle sx={{
+        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+        color: '#fff',
+        fontWeight: 600,
+        fontSize: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <PublishIcon /> Publish Job Opening
+      </DialogTitle>
 
-      {/* Main Content */}
-      <Paper sx={{ p: 3 }}>
-        {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <IconButton onClick={() => navigate(`/jobs/${jobId}`)}>
-              <ArrowBackIcon />
-            </IconButton>
-            <Box>
-              <Typography variant="h5" fontWeight={600}>
-                Publish Job Opening
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {job?.jobId} • {job?.title}
-              </Typography>
-            </Box>
-            <Chip 
-              size="small" 
-              label={job?.status} 
-              color={job?.status === 'published' ? 'success' : 'default'}
-            />
-          </Stack>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchJobDetails}
-          >
-            Refresh
-          </Button>
-        </Stack>
+      <DialogContent sx={{ pt: 3 }}>
+        {/* Job Summary */}
+        <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f8f9fa' }}>
+          <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+            {job.jobId} - {job.title}
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            {job.location} • {job.department} • {job.employmentType}
+          </Typography>
+        </Paper>
 
-        {/* Modern Stepper */}
+        {/* Stepper */}
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ mb: 5, mt: 3 }}
+          sx={{ mb: 4 }}
         >
           {steps.map((label) => (
             <Step key={label}>
@@ -545,369 +430,190 @@ const PublishJob = () => {
           ))}
         </Stepper>
 
-        {/* Step Content */}
-        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          
-          {/* Step 1: Select Platforms */}
-          {activeStep === 0 && (
-            <Stack spacing={4}>
-              {/* Job Summary */}
-              <Card variant="outlined" sx={{ bgcolor: '#f8f9fa' }}>
-                <CardContent>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Job Summary
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">Title</Typography>
-                      <Typography variant="body2" fontWeight={500}>{job?.title}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">Location</Typography>
-                      <Typography variant="body2" fontWeight={500}>{job?.location}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">Department</Typography>
-                      <Typography variant="body2" fontWeight={500}>{job?.department}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="textSecondary">Employment Type</Typography>
-                      <Typography variant="body2" fontWeight={500}>{job?.employmentType}</Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-
-              {/* Platform Selection */}
-              <Box>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                  <Typography variant="h6" fontWeight={600}>
-                    Select Platforms
-                  </Typography>
-                  <Button onClick={handleSelectAll} size="small">
-                    {selectedPlatforms.length === availablePlatforms.length ? 'Deselect All' : 'Select All'}
-                  </Button>
-                </Stack>
-
-                <Grid container spacing={2}>
-                  {availablePlatforms.map((platform) => (
-                    <Grid item xs={12} sm={6} md={4} key={platform.value}>
-                      <PlatformCard
-                        platform={platform.value}
-                        selected={selectedPlatforms.includes(platform.value)}
-                        onToggle={handlePlatformToggle}
-                        disabled={job?.status === 'published'}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-
-                <FormHelperText sx={{ mt: 2 }}>
-                  Selected {selectedPlatforms.length} of {availablePlatforms.length} platforms
-                </FormHelperText>
-              </Box>
-
-              {/* Info Alert */}
-              <Alert severity="info" icon={<InfoIcon />}>
-                <Typography variant="body2">
-                  <strong>Note:</strong> Publishing will make this job visible on the selected platforms.
-                  {job?.status === 'published' && ' This job is already published. Publishing again will update the existing listings.'}
+        {/* Step 1: Select Platforms */}
+        {activeStep === 0 && (
+          <Stack spacing={3}>
+            <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={600}>
+                  Select Platforms
                 </Typography>
-              </Alert>
-            </Stack>
-          )}
-
-          {/* Step 2: Publishing */}
-          {activeStep === 1 && (
-            <Stack spacing={3}>
-              <Alert severity="info" icon={<InfoIcon />}>
-                Publishing job to selected platforms. Please do not close this window.
-              </Alert>
-
-              {/* Publishing Status */}
-              <Stack spacing={2}>
-                {selectedPlatforms.map((platform) => (
-                  <PublishingStatus
-                    key={platform}
-                    platform={platform}
-                    status={publishingStatus[platform]?.status || 'pending'}
-                    result={publishingStatus[platform]?.result}
-                    error={publishingStatus[platform]?.error}
-                  />
-                ))}
+                <Button onClick={handleSelectAll} size="small">
+                  {selectedPlatforms.length === availablePlatforms.length ? 'Deselect All' : 'Select All'}
+                </Button>
               </Stack>
 
-              {/* Overall Progress */}
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2">Overall Progress</Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {Object.values(publishingStatus).filter(s => s.status === 'success' || s.status === 'failed').length} / {selectedPlatforms.length}
-                    </Typography>
-                  </Stack>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={(Object.values(publishingStatus).filter(s => s.status === 'success' || s.status === 'failed').length / selectedPlatforms.length) * 100}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Stack>
-              </Paper>
-            </Stack>
-          )}
-
-          {/* Step 3: Results */}
-          {activeStep === 2 && publishResults && (
-            <Stack spacing={3}>
-              {/* Success Summary */}
-              <Paper 
-                sx={{ 
-                  p: 3, 
-                  textAlign: 'center',
-                  background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                  color: 'white'
-                }}
-              >
-                <VerifiedIcon sx={{ fontSize: 60, mb: 2 }} />
-                <Typography variant="h5" gutterBottom fontWeight={600}>
-                  Published Successfully!
-                </Typography>
-                <Typography variant="body1">
-                  Job has been published to {getSuccessCount()} out of {selectedPlatforms.length} platforms
-                </Typography>
-              </Paper>
-
-              {/* Results Summary Cards */}
               <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <Avatar sx={{ bgcolor: '#4caf50' }}>
-                          <CheckCircleIcon />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="h4" fontWeight={600}>
-                            {getSuccessCount()}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            Successful
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <Avatar sx={{ bgcolor: '#f44336' }}>
-                          <ErrorIcon />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="h4" fontWeight={600}>
-                            {getFailureCount()}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            Failed
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                {availablePlatforms.map((platform) => (
+                  <Grid item xs={12} sm={6} md={3} key={platform.value}>
+                    <PlatformCard
+                      platform={platform.value}
+                      selected={selectedPlatforms.includes(platform.value)}
+                      onToggle={handlePlatformToggle}
+                      disabled={job?.status === 'published'}
+                    />
+                  </Grid>
+                ))}
               </Grid>
 
-              {/* Detailed Results */}
-              <Typography variant="h6" fontWeight={600}>
-                Detailed Results
-              </Typography>
-              
-              <TableContainer component={Paper} variant="outlined">
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Platform</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Job URL</TableCell>
-                      <TableCell>Platform ID</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {publishResults.publishResults.map((result, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            {result.platform === 'linkedin' && <LinkedInIcon fontSize="small" />}
-                            {result.platform === 'naukri' && <LanguageIcon fontSize="small" />}
-                            {result.platform === 'careerPage' && <BusinessIcon fontSize="small" />}
-                            <Typography textTransform="capitalize">{result.platform}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell>
-                          {result.success ? (
-                            <Chip size="small" icon={<CheckCircleIcon />} label="Success" color="success" />
-                          ) : (
-                            <Chip size="small" icon={<ErrorIcon />} label="Failed" color="error" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {result.success ? (
-                            <Link href={result.jobUrl} target="_blank" rel="noopener">
-                              View Job
-                            </Link>
-                          ) : (
-                            'N/A'
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {result.data?.id || 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              {/* Action Buttons */}
-              <Stack direction="row" spacing={2} justifyContent="center">
-                <Button
-                  variant="contained"
-                  startIcon={<VisibilityIcon />}
-                  onClick={handleViewJob}
-                >
-                  View Job Details
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<ShareIcon />}
-                  onClick={() => setShareDialogOpen(true)}
-                >
-                  Share Links
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleCopyAllLinks}
-                >
-                  Copy All Links
-                </Button>
-              </Stack>
-            </Stack>
-          )}
-
-          {/* Error/Success Messages */}
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>}
-
-          {/* Navigation Buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate(`/jobs/${jobId}`)}
-              startIcon={<CloseIcon />}
-            >
-              Cancel
-            </Button>
-            
-            <Box>
-              {activeStep > 0 && activeStep < 2 && (
-                <Button onClick={handleBack} sx={{ mr: 1 }}>
-                  Back
-                </Button>
-              )}
-              
-              {activeStep < 2 ? (
-                <Button
-                  variant="contained"
-                  onClick={handleNext}
-                  disabled={publishing || (activeStep === 0 && selectedPlatforms.length === 0)}
-                  startIcon={activeStep === 1 ? <CircularProgress size={20} /> : <PublishIcon />}
-                  sx={{
-                    background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                    '&:hover': { opacity: 0.9 }
-                  }}
-                >
-                  {activeStep === 0 && 'Publish'}
-                  {activeStep === 1 && 'Publishing...'}
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  onClick={handleViewJob}
-                  sx={{
-                    background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                    '&:hover': { opacity: 0.9 }
-                  }}
-                >
-                  Done
-                </Button>
-              )}
+              <FormHelperText sx={{ mt: 2 }}>
+                Selected {selectedPlatforms.length} of {availablePlatforms.length} platforms
+              </FormHelperText>
             </Box>
-          </Box>
-        </Box>
-      </Paper>
 
-      {/* Share Links Dialog */}
-      <Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Share Job Links</Typography>
-            <IconButton onClick={() => setShareDialogOpen(false)}>
-              <CloseIcon />
-            </IconButton>
+            <Alert severity="info" icon={<InfoIcon />}>
+              <Typography variant="body2">
+                Publishing will make this job visible on the selected platforms.
+              </Typography>
+            </Alert>
           </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            {publishResults?.publishResults?.filter(r => r.success).map((result, index) => (
-              <Paper key={index} variant="outlined" sx={{ p: 2 }}>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="subtitle2" textTransform="capitalize">
-                      {result.platform}
-                    </Typography>
-                    <Chip size="small" label="Published" color="success" />
-                  </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" color="textSecondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
-                      {result.jobUrl}
-                    </Typography>
-                    <Tooltip title="Copy link">
-                      <IconButton 
-                        size="small"
-                        onClick={() => navigator.clipboard.writeText(result.jobUrl)}
-                      >
-                        <CopyIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Open in new tab">
-                      <IconButton size="small" href={result.jobUrl} target="_blank">
-                        <LaunchIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+        )}
+
+        {/* Step 2: Publishing */}
+        {activeStep === 1 && (
+          <Stack spacing={3}>
+            <Alert severity="info" icon={<InfoIcon />}>
+              Publishing job to selected platforms. Please do not close this window.
+            </Alert>
+
+            <Stack spacing={2}>
+              {selectedPlatforms.map((platform) => (
+                <PublishingStatus
+                  key={platform}
+                  platform={platform}
+                  status={publishingStatus[platform]?.status || 'pending'}
+                  result={publishingStatus[platform]?.result}
+                  error={publishingStatus[platform]?.error}
+                />
+              ))}
+            </Stack>
+
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+              <Stack spacing={1}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2">Overall Progress</Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {Object.values(publishingStatus).filter(s => s.status === 'success' || s.status === 'failed').length} / {selectedPlatforms.length}
+                  </Typography>
                 </Stack>
-              </Paper>
-            ))}
+                <LinearProgress 
+                  variant="determinate" 
+                  value={(Object.values(publishingStatus).filter(s => s.status === 'success' || s.status === 'failed').length / selectedPlatforms.length) * 100}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </Stack>
+            </Paper>
           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShareDialogOpen(false)}>Close</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleCopyAllLinks}
+        )}
+
+        {/* Step 3: Results */}
+        {activeStep === 2 && publishResults && (
+          <Stack spacing={3}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                textAlign: 'center',
+                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                color: 'white'
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 60, mb: 2 }} />
+              <Typography variant="h5" gutterBottom fontWeight={600}>
+                Published Successfully!
+              </Typography>
+              <Typography variant="body1">
+                Job has been published to {getSuccessCount()} out of {selectedPlatforms.length} platforms
+              </Typography>
+            </Paper>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: '#4caf50' }}>
+                        <CheckCircleIcon />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h4" fontWeight={600}>
+                          {getSuccessCount()}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          Successful
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: '#f44336' }}>
+                        <ErrorIcon />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h4" fontWeight={600}>
+                          {publishResults.publishResults?.filter(r => !r.success).length || 0}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          Failed
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Stack>
+        )}
+
+        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>}
+      </DialogContent>
+
+      <DialogActions sx={{ p: 3, borderTop: '1px solid #e2e8f0' }}>
+        <Button onClick={handleModalClose}>
+          Cancel
+        </Button>
+        
+        <Box sx={{ flex: 1 }} />
+        
+        {activeStep > 0 && activeStep < 2 && (
+          <Button onClick={handleBack}>
+            Back
+          </Button>
+        )}
+        
+        {activeStep < 2 ? (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={publishing || (activeStep === 0 && selectedPlatforms.length === 0)}
+            startIcon={activeStep === 1 ? <CircularProgress size={20} /> : <PublishIcon />}
             sx={{
               background: 'linear-gradient(135deg, #164e63, #00B4D8)',
               '&:hover': { opacity: 0.9 }
             }}
           >
-            Copy All Links
+            {activeStep === 0 && 'Publish'}
+            {activeStep === 1 && 'Publishing...'}
           </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        ) : (
+          <Button
+            variant="contained"
+            onClick={handleModalClose}
+            sx={{
+              background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+              '&:hover': { opacity: 0.9 }
+            }}
+          >
+            Done
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 

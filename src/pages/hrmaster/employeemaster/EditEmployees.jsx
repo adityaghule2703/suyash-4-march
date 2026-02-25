@@ -21,13 +21,15 @@ import {
   Box,
   Paper,
   Divider,
-  FormHelperText
+  FormHelperText,
+  Autocomplete,
+  InputAdornment
 } from '@mui/material';
-import { Edit as EditIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
+import { Edit as EditIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwardIcon, Search as SearchIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-// Validation functions
+// Validation functions (keep existing)
 const validateEmail = (email) => {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return re.test(String(email).toLowerCase());
@@ -95,6 +97,39 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
+// Custom styled Paper component for dropdown without scrollbars
+const CustomPaper = styled(Paper)({
+  maxHeight: 200,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    display: 'none'
+  },
+  scrollbarWidth: 'none',
+  '-ms-overflow-style': 'none',
+  '& .MuiAutocomplete-listbox': {
+    '&::-webkit-scrollbar': {
+      display: 'none'
+    },
+    scrollbarWidth: 'none',
+    '-ms-overflow-style': 'none'
+  }
+});
+
+// Custom styled MenuProps for Select components
+const selectMenuProps = {
+  PaperProps: {
+    sx: {
+      maxHeight: 200,
+      overflow: 'auto',
+      '&::-webkit-scrollbar': {
+        display: 'none'
+      },
+      scrollbarWidth: 'none',
+      '-ms-overflow-style': 'none'
+    }
+  }
+};
+
 const steps = ['Personal Info', 'Employment', 'Pay & Work', 'Bank & Emergency'];
 
 const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
@@ -147,6 +182,10 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     EmergencyContactAddress: '',
     EmergencyContactPIN: ''
   });
+
+  // Search states for dropdowns
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [designationSearch, setDesignationSearch] = useState('');
 
   // Field-specific error states
   const [fieldErrors, setFieldErrors] = useState({
@@ -386,6 +425,14 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         [name]: errorMessage
       }));
     }
+  };
+
+  // Custom handler for Autocomplete components
+  const handleAutocompleteChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleBlur = (e) => {
@@ -822,6 +869,8 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     setTouched({});
     setActiveStep(0);
     setError('');
+    setDepartmentSearch('');
+    setDesignationSearch('');
   };
 
   // Render content based on active step
@@ -876,6 +925,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                   label="Gender"
                   disabled={loading || loadingData}
                   sx={{ borderRadius: 1 }}
+                  MenuProps={selectMenuProps}
                 >
                   {genderOptions.map((gender) => (
                     <MenuItem key={gender} value={gender}>
@@ -962,60 +1012,104 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
               Employment Information
             </Typography>
             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-              <FormControl fullWidth error={touched.DepartmentID && !formData.DepartmentID}>
-                <InputLabel>Department *</InputLabel>
-                <Select
-                  name="DepartmentID"
-                  value={formData.DepartmentID}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  label="Department *"
-                  required
-                  disabled={loading || loadingData || departments.length === 0}
-                  sx={{ borderRadius: 1 }}
-                >
-                  {departments.map((dept) => (
-                    <MenuItem key={dept._id} value={dept._id}>
-                      {dept.DepartmentName}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {touched.DepartmentID && !formData.DepartmentID && (
-                  <FormHelperText>Department is required</FormHelperText>
-                )}
-                {departments.length === 0 && (
-                  <Typography variant="caption" color="error">
-                    No departments available.
-                  </Typography>
-                )}
+              <FormControl fullWidth>
+                <Autocomplete
+                  options={departments}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return option.DepartmentName || '';
+                  }}
+                  value={departments.find(dept => dept._id === formData.DepartmentID) || null}
+                  onChange={(event, newValue) => {
+                    handleAutocompleteChange('DepartmentID', newValue?._id || '');
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setDepartmentSearch(newInputValue);
+                  }}
+                  loading={loadingData}
+                  disabled={loading || loadingData}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Department *"
+                      required
+                      error={touched.DepartmentID && !formData.DepartmentID}
+                      helperText={touched.DepartmentID && !formData.DepartmentID ? 'Department is required' : ''}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                  PaperComponent={CustomPaper}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                      '&::-webkit-scrollbar': {
+                        display: 'none'
+                      }
+                    }
+                  }}
+                  noOptionsText={departments.length === 0 ? "No departments available" : "No matching departments"}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                />
               </FormControl>
               
-              <FormControl fullWidth error={touched.DesignationID && !formData.DesignationID}>
-                <InputLabel>Designation *</InputLabel>
-                <Select
-                  name="DesignationID"
-                  value={formData.DesignationID}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  label="Designation *"
-                  required
-                  disabled={loading || loadingData || designations.length === 0}
-                  sx={{ borderRadius: 1 }}
-                >
-                  {designations.map((desig) => (
-                    <MenuItem key={desig._id} value={desig._id}>
-                      {desig.DesignationName} (Level {desig.Level})
-                    </MenuItem>
-                  ))}
-                </Select>
-                {touched.DesignationID && !formData.DesignationID && (
-                  <FormHelperText>Designation is required</FormHelperText>
-                )}
-                {designations.length === 0 && (
-                  <Typography variant="caption" color="error">
-                    No designations available.
-                  </Typography>
-                )}
+              <FormControl fullWidth>
+                <Autocomplete
+                  options={designations}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return `${option.DesignationName || ''} ${option.Level ? `(Level ${option.Level})` : ''}`;
+                  }}
+                  value={designations.find(desig => desig._id === formData.DesignationID) || null}
+                  onChange={(event, newValue) => {
+                    handleAutocompleteChange('DesignationID', newValue?._id || '');
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    setDesignationSearch(newInputValue);
+                  }}
+                  loading={loadingData}
+                  disabled={loading || loadingData}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Designation *"
+                      required
+                      error={touched.DesignationID && !formData.DesignationID}
+                      helperText={touched.DesignationID && !formData.DesignationID ? 'Designation is required' : ''}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                  PaperComponent={CustomPaper}
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                      '&::-webkit-scrollbar': {
+                        display: 'none'
+                      }
+                    }
+                  }}
+                  noOptionsText={designations.length === 0 ? "No designations available" : "No matching designations"}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                />
               </FormControl>
             </Stack>
           
@@ -1047,6 +1141,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                   label="Employment Status"
                   disabled={loading || loadingData}
                   sx={{ borderRadius: 1 }}
+                  MenuProps={selectMenuProps}
                 >
                   {employmentStatusOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -1077,6 +1172,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                   label="Employment Type *"
                   disabled={loading || loadingData}
                   sx={{ borderRadius: 1 }}
+                  MenuProps={selectMenuProps}
                 >
                   {employmentTypeOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -1095,6 +1191,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                   label="Pay Structure Type *"
                   disabled={loading || loadingData}
                   sx={{ borderRadius: 1 }}
+                  MenuProps={selectMenuProps}
                 >
                   {payStructureOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -1186,6 +1283,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                     label="Skill Level"
                     disabled={loading || loadingData}
                     sx={{ borderRadius: 1 }}
+                    MenuProps={selectMenuProps}
                   >
                     {skillLevelOptions.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
@@ -1322,6 +1420,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                   label="Bank Account Type"
                   disabled={loading || loadingData}
                   sx={{ borderRadius: 1 }}
+                  MenuProps={selectMenuProps}
                 >
                   {accountTypeOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>

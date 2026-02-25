@@ -217,7 +217,7 @@ const ViewAllBGV = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/bgv?page=${page + 1}&limit=${rowsPerPage}`, {
+      const response = await axios.get(`${BASE_URL}/api/bgv?page=${page + 1}&limit=${rowsPerPage}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

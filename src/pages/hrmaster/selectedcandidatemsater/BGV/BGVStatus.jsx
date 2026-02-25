@@ -793,7 +793,7 @@ const BGVStatus = ({ open, onClose, bgvId = null, bgvData = null }) => {
                     variant="contained"
                     color="error"
                     startIcon={<CloudUploadIcon />}
-                    onClick={() => window.open(`${BASE_URL}/bgv/${bgvDetails._id}/documents`, '_blank')}
+                    onClick={() => window.open(`${BASE_URL}/api/bgv/${bgvDetails._id}/documents`, '_blank')}
                   >
                     Upload Documents
                   </Button>

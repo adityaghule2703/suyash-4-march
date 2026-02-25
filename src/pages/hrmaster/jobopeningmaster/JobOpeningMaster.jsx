@@ -31,20 +31,16 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
   Publish as PublishIcon,
   Close as CloseIcon,
   Work as WorkIcon,
   LocationOn as LocationIcon,
-  Business as BusinessIcon,
   People as PeopleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
@@ -58,16 +54,16 @@ import DeleteJobOpening from './DeleteJobOpening';
 import PublishJob from './PublishJob';
 import CloseJobOpening from './CloseJobOpening';
 
-// Color constants - EXACT SAME as header gradient
+// Color constants
 const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
 const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc'; // slate-50
-const HOVER_COLOR = '#f1f5f9'; // slate-100
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
 const PRIMARY_BLUE = '#00B4D8';
 const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a'; // slate-900
+const TEXT_COLOR_MAIN = '#0f172a';
 
-// Action Menu Component - FIXED with correct prop names
+// Action Menu Component
 const ActionMenu = ({ 
   job, 
   onView, 
@@ -76,7 +72,7 @@ const ActionMenu = ({
   onPublish, 
   onClose, 
   anchorEl, 
-  onMenuClose,  // Renamed from onClose to onMenuClose to avoid conflict
+  onMenuClose,
   onOpen 
 }) => {
   return (
@@ -86,7 +82,7 @@ const ActionMenu = ({
           size="small"
           onClick={(e) => onOpen(e, job)}
           sx={{
-            color: '#64748b', // slate-500
+            color: '#64748b',
             '&:hover': {
               bgcolor: alpha(PRIMARY_BLUE, 0.1)
             }
@@ -98,7 +94,7 @@ const ActionMenu = ({
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={onMenuClose}  // Using the renamed prop
+        onClose={onMenuClose}
         PaperProps={{
           elevation: 3,
           sx: {
@@ -159,8 +155,8 @@ const ActionMenu = ({
         {job?.status !== 'closed' && (
           <MenuItem 
             onClick={() => {
-              onClose(job);      // This calls the job closing handler
-              onMenuClose();     // This closes the menu
+              onClose(job);
+              onMenuClose();
             }}
             sx={{ py: 1 }}
           >
@@ -220,8 +216,12 @@ const JobOpeningMaster = () => {
   const [openPublishModal, setOpenPublishModal] = useState(false);
   const [openCloseDialog, setOpenCloseDialog] = useState(false);
   
-  // Selected job
-  const [selectedJob, setSelectedJob] = useState(null);
+  // Selected job states for each modal
+  const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
+  const [selectedJobForView, setSelectedJobForView] = useState(null);
+  const [selectedJobForPublish, setSelectedJobForPublish] = useState(null);
+  const [selectedJobForClose, setSelectedJobForClose] = useState(null);
+  const [selectedJobForDelete, setSelectedJobForDelete] = useState(null);
   
   // Notification state
   const [snackbar, setSnackbar] = useState({
@@ -239,15 +239,29 @@ const JobOpeningMaster = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/jobs?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/jobs?page=1&limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.data.success) {
-        setJobs(response.data.data || []);
-        setFilteredJobs(response.data.data || []);
+        const jobsData = response.data.data || [];
+        setJobs(jobsData);
+        
+        if (searchTerm) {
+          const filtered = jobsData.filter(job =>
+            (job.jobId && job.jobId.toLowerCase().includes(searchTerm)) ||
+            (job.title && job.title.toLowerCase().includes(searchTerm)) ||
+            (job.department && job.department.toLowerCase().includes(searchTerm)) ||
+            (job.location && job.location.toLowerCase().includes(searchTerm)) ||
+            (job.requisitionNumber && job.requisitionNumber.toLowerCase().includes(searchTerm)) ||
+            (job.createdByName && job.createdByName.toLowerCase().includes(searchTerm))
+          );
+          setFilteredJobs(filtered);
+        } else {
+          setFilteredJobs(jobsData);
+        }
       } else {
         showNotification('Failed to load job openings', 'error');
       }
@@ -312,51 +326,32 @@ const JobOpeningMaster = () => {
   };
   
   // Handle add job
-  const handleAddJob = (newJob) => {
-    setJobs([newJob, ...jobs]);
-    setFilteredJobs([newJob, ...filteredJobs]);
+  const handleAddJob = async (newJob) => {
+    await fetchJobs();
     showNotification('Job opening created successfully!', 'success');
   };
   
   // Handle edit job
-  const handleEditJob = (updatedJob) => {
-    const updatedJobs = jobs.map(job =>
-      job._id === updatedJob._id ? updatedJob : job
-    );
-    
-    setJobs(updatedJobs);
-    setFilteredJobs(updatedJobs);
+  const handleEditJob = async (updatedJob) => {
+    await fetchJobs();
     showNotification('Job opening updated successfully!', 'success');
   };
   
   // Handle delete job
-  const handleDeleteJob = (jobId) => {
-    const updatedJobs = jobs.filter(job => job._id !== jobId);
-    setJobs(updatedJobs);
-    setFilteredJobs(updatedJobs);
-    setSelected(selected.filter(id => id !== jobId));
+  const handleDeleteJob = async (jobId) => {
+    await fetchJobs();
     showNotification('Job opening deleted successfully!', 'success');
   };
   
   // Handle publish job
-  const handlePublishJob = (publishedJob) => {
-    const updatedJobs = jobs.map(job =>
-      job._id === publishedJob._id ? { ...job, status: 'published' } : job
-    );
-    
-    setJobs(updatedJobs);
-    setFilteredJobs(updatedJobs);
+  const handlePublishJob = async (publishedJob) => {
+    await fetchJobs();
     showNotification('Job published successfully!', 'success');
   };
   
   // Handle close job
-  const handleCloseJob = (closedJob) => {
-    const updatedJobs = jobs.map(job =>
-      job._id === closedJob._id ? { ...job, status: 'closed' } : job
-    );
-    
-    setJobs(updatedJobs);
-    setFilteredJobs(updatedJobs);
+  const handleCloseJob = async (closedJob) => {
+    await fetchJobs();
     showNotification('Job closed successfully!', 'success');
   };
   
@@ -378,35 +373,40 @@ const JobOpeningMaster = () => {
 
   // Open edit modal
   const openEditJobModal = (job) => {
-    setSelectedJob(job);
+    console.log('Opening edit modal for job:', job);
+    setSelectedJobForEdit(job);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
   // Open view modal
   const openViewJobModal = (job) => {
-    setSelectedJob(job);
+    console.log('Opening view modal for job:', job);
+    setSelectedJobForView(job);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
   // Open publish modal
   const openPublishJobModal = (job) => {
-    setSelectedJob(job);
+    console.log('Opening publish modal for job:', job);
+    setSelectedJobForPublish(job);
     setOpenPublishModal(true);
     handleActionMenuClose();
   };
   
   // Open close dialog
   const openCloseJobDialog = (job) => {
-    setSelectedJob(job);
+    console.log('Opening close dialog for job:', job);
+    setSelectedJobForClose(job);
     setOpenCloseDialog(true);
     handleActionMenuClose();
   };
   
   // Open delete confirmation
   const openDeleteJobDialog = (job) => {
-    setSelectedJob(job);
+    console.log('Opening delete dialog for job:', job);
+    setSelectedJobForDelete(job);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
@@ -446,20 +446,6 @@ const JobOpeningMaster = () => {
     }
   };
   
-  // Get platform status color (unused but kept for completeness)
-  const getPlatformStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-      case 'published':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'failed':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-  
   // Get avatar initials
   const getAvatarInitials = (title) => {
     if (!title) return 'JB';
@@ -475,16 +461,8 @@ const JobOpeningMaster = () => {
     if (!title) return PRIMARY_BLUE;
     
     const colors = [
-      '#164e63', // cyan-900
-      '#0e7490', // cyan-700
-      '#0891b2', // cyan-600
-      '#0c4a6e', // blue-900
-      '#1d4ed8', // blue-700
-      '#7c3aed', // violet-600
-      '#7e22ce', // purple-700
-      '#be185d', // pink-700
-      '#c2410c', // orange-700
-      '#059669'  // emerald-600
+      '#164e63', '#0e7490', '#0891b2', '#0c4a6e', '#1d4ed8',
+      '#7c3aed', '#7e22ce', '#be185d', '#c2410c', '#059669'
     ];
     
     const charCode = title.charCodeAt(0) || 0;
@@ -564,46 +542,6 @@ const JobOpeningMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -626,26 +564,6 @@ const JobOpeningMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            {/* <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -695,92 +613,50 @@ const JobOpeningMaster = () => {
                     onChange={handleSelectAll}
                     sx={{
                       color: TEXT_COLOR_HEADER,
-                      '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: 20
-                      }
+                      '&.Mui-checked': { color: TEXT_COLOR_HEADER },
+                      '&.MuiCheckbox-indeterminate': { color: TEXT_COLOR_HEADER },
+                      '& .MuiSvgIcon-root': { fontSize: 20 }
                     }}
                     disabled={loading}
                   />
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Job Details
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Job ID
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Department
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Location
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Status
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Applications
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
-                }} align="center">
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 100, color: TEXT_COLOR_HEADER }} align="center">
                   Actions
                 </TableCell>
               </TableRow>
@@ -823,14 +699,10 @@ const JobOpeningMaster = () => {
                       selected={isSelected}
                       sx={{ 
                         bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
-                        '&:hover': {
-                          bgcolor: HOVER_COLOR
-                        },
+                        '&:hover': { bgcolor: HOVER_COLOR },
                         '&.Mui-selected': {
                           bgcolor: alpha(PRIMARY_BLUE, 0.08),
-                          '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
-                          }
+                          '&:hover': { bgcolor: alpha(PRIMARY_BLUE, 0.12) }
                         }
                       }}
                     >
@@ -840,9 +712,7 @@ const JobOpeningMaster = () => {
                           onChange={() => handleSelect(job._id)}
                           sx={{
                             color: PRIMARY_BLUE,
-                            '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
-                            },
+                            '&.Mui-checked': { color: PRIMARY_BLUE },
                           }}
                         />
                       </TableCell>
@@ -909,11 +779,7 @@ const JobOpeningMaster = () => {
                             label={job.status?.toUpperCase()}
                             size="small"
                             color={getStatusColor(job.status)}
-                            sx={{ 
-                              fontWeight: 600,
-                              height: 24,
-                              minWidth: 80
-                            }}
+                            sx={{ fontWeight: 600, height: 24, minWidth: 80 }}
                           />
                           {job.publishTo && job.publishTo.length > 0 && (
                             <Stack direction="row" spacing={0.5}>
@@ -966,7 +832,7 @@ const JobOpeningMaster = () => {
                           onPublish={openPublishJobModal}
                           onClose={openCloseJobDialog}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onMenuClose={handleActionMenuClose}  // FIXED: Changed from onClosed to onMenuClose
+                          onMenuClose={handleActionMenuClose}
                           onOpen={handleActionMenuOpen}
                         />
                       </TableCell>
@@ -1007,61 +873,74 @@ const JobOpeningMaster = () => {
         onAdd={handleAddJob}
       />
 
-      {selectedJob && (
-        <>
-          <EditJobOpening 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedJob(null);
-            }}
-            jobId={selectedJob._id}
-            onUpdate={handleEditJob}
-          />
+      {/* Edit Modal */}
+      {selectedJobForEdit && (
+        <EditJobOpening
+          open={openEditModal}
+          onClose={() => {
+            setOpenEditModal(false);
+            setSelectedJobForEdit(null);
+          }}
+          job={selectedJobForEdit}
+          onUpdate={handleEditJob}
+        />
+      )}
 
-          <ViewJobOpening 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedJob(null);
-            }}
-            jobId={selectedJob._id}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+      {/* View Modal */}
+      {selectedJobForView && (
+        <ViewJobOpening
+          open={openViewModal}
+          onClose={() => {
+            setOpenViewModal(false);
+            setSelectedJobForView(null);
+          }}
+          job={selectedJobForView}
+          onEdit={() => {
+            setOpenViewModal(false);
+            setSelectedJobForView(null);
+            setSelectedJobForEdit(selectedJobForView);
+            setOpenEditModal(true);
+          }}
+        />
+      )}
 
-          <PublishJob 
-            open={openPublishModal}
-            onClose={() => {
-              setOpenPublishModal(false);
-              setSelectedJob(null);
-            }}
-            jobId={selectedJob._id}
-            onPublish={handlePublishJob}
-          />
+      {/* Publish Modal */}
+      {selectedJobForPublish && (
+        <PublishJob
+          open={openPublishModal}
+          onClose={() => {
+            setOpenPublishModal(false);
+            setSelectedJobForPublish(null);
+          }}
+          job={selectedJobForPublish}
+          onPublish={handlePublishJob}
+        />
+      )}
 
-          <CloseJobOpening 
-            open={openCloseDialog}
-            onClose={() => {
-              setOpenCloseDialog(false);
-              setSelectedJob(null);
-            }}
-            jobId={selectedJob._id}
-            onMenuClose={handleCloseJob}  
-          />
+      {/* Close Modal */}
+      {selectedJobForClose && (
+        <CloseJobOpening 
+          open={openCloseDialog}
+          onClose={() => {
+            setOpenCloseDialog(false);
+            setSelectedJobForClose(null);
+          }}
+          jobId={selectedJobForClose._id}
+          onCloseJob={handleCloseJob}  
+        />
+      )}
 
-          <DeleteJobOpening 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedJob(null);
-            }}
-            job={selectedJob}
-            onDelete={handleDeleteJob}
-          />
-        </>
+      {/* Delete Modal */}
+      {selectedJobForDelete && (
+        <DeleteJobOpening 
+          open={openDeleteDialog}
+          onClose={() => {
+            setOpenDeleteDialog(false);
+            setSelectedJobForDelete(null);
+          }}
+          job={selectedJobForDelete}
+          onDelete={handleDeleteJob}
+        />
       )}
 
       {/* Snackbar Notification */}

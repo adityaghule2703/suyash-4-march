@@ -22,6 +22,32 @@ import { Edit as EditIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Shift enums from backend
+const SHIFT_NAMES = {
+  MORNING: 'Morning Shift',
+  NIGHT: 'Night Shift',
+  DAY: 'Day Shift',
+  GENERAL: 'General Shift'
+};
+
+const SHIFT_CODES = {
+  MORNING: 'MORN',
+  NIGHT: 'NIGHT',
+  DAY: 'DAY',
+  GENERAL: 'GEN'
+};
+
+// Convert enums to arrays for dropdown
+const shiftNameOptions = Object.entries(SHIFT_NAMES).map(([key, value]) => ({
+  key,
+  value
+}));
+
+const shiftCodeOptions = Object.entries(SHIFT_CODES).map(([key, value]) => ({
+  key,
+  value
+}));
+
 const EditShifts = ({ open, onClose, shift, onUpdate }) => {
   const [formData, setFormData] = useState({
     ShiftName: '',
@@ -119,7 +145,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
     }
   };
 
-  // 🔥 Load shift data and map department IDs to objects
+  // Load shift data and map department IDs to objects
   useEffect(() => {
     const loadShiftData = async () => {
       if (shift) {
@@ -183,6 +209,31 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleShiftNameChange = (e) => {
+    const selectedName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      ShiftName: selectedName
+    }));
+
+    // Auto-set shift code based on selected shift name
+    if (selectedName) {
+      const selectedOption = shiftNameOptions.find(option => option.value === selectedName);
+      if (selectedOption) {
+        setFormData(prev => ({
+          ...prev,
+          ShiftName: selectedName,
+          Code: SHIFT_CODES[selectedOption.key]
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        Code: ''
+      }));
+    }
   };
 
   const handleOvertimeChange = (e) => {
@@ -332,25 +383,49 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
                   <TextField
                     fullWidth
                     size="small"
+                    select
                     label="Shift Name *"
                     name="ShiftName"
                     value={formData.ShiftName}
-                    onChange={handleChange}
+                    onChange={handleShiftNameChange}
                     required
-                    placeholder="e.g., Morning Shift"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  >
+                    <MenuItem value="">
+                      <em>Select Shift Name</em>
+                    </MenuItem>
+                    {shiftNameOptions.map((option) => (
+                      <MenuItem key={option.key} value={option.value}>
+                        {option.value}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <TextField
                     fullWidth
                     size="small"
+                    select
                     label="Shift Code *"
                     name="Code"
                     value={formData.Code}
                     onChange={handleChange}
                     required
-                    placeholder="e.g., MORN"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                    disabled={!!formData.ShiftName} // Disable if shift name is selected (auto-filled)
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
+                      '& .Mui-disabled': {
+                        backgroundColor: '#f5f5f5'
+                      }
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Select Shift Code</em>
+                    </MenuItem>
+                    {shiftCodeOptions.map((option) => (
+                      <MenuItem key={option.key} value={option.value}>
+                        {option.value}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Stack>
 
                 {/* Second Row - Start Time and End Time */}
@@ -557,33 +632,6 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
                     style: { maxHeight: 200 }
                   }}
                 />
-
-                {/* Sixth Row - Active Checkbox */}
-                {/* <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.IsActive}
-                      onChange={(e) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          IsActive: e.target.checked
-                        }))
-                      }
-                      size="small"
-                      sx={{
-                        color: '#1976D2',
-                        '&.Mui-checked': {
-                          color: '#1976D2',
-                        },
-                      }}
-                    />
-                  } */}
-                  {/* label={
-                    <Typography variant="body2" sx={{ color: '#333' }}>
-                      Active (Shift is currently in use)
-                    </Typography>
-                  } */}
-              
               </Stack>
             </Paper>
           </Stack>
@@ -620,7 +668,7 @@ const EditShifts = ({ open, onClose, shift, onUpdate }) => {
         </DialogActions>
       </Dialog>
 
-      {/* 🔥 Snackbar Bottom Right */}
+      {/* Snackbar Bottom Right */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

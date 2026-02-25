@@ -33,8 +33,8 @@ import {
   Avatar,
   Collapse,
   Grid,
-  Tab,
-  Tabs
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -97,16 +97,16 @@ const STATUS_COLORS = {
   closed: { bg: '#F5F5F5', color: '#616161', icon: <ErrorIcon sx={{ fontSize: 14 }} />, label: 'Closed' }
 };
 
-// Tab configurations
+// Tab configurations - simplified for cleaner tabs
 const TABS = [
-  { value: 'all', label: 'All', icon: null },
-  { value: 'draft', label: 'Draft', icon: <PendingIcon />, color: '#E65100' },
-  { value: 'pending_approval', label: 'Pending', icon: <PendingIcon />, color: '#E65100' },
-  { value: 'approved', label: 'Approved', icon: <CheckCircleIcon />, color: '#2E7D32' },
-  { value: 'rejected', label: 'Rejected', icon: <ErrorIcon />, color: '#C62828' },
-  { value: 'in_progress', label: 'In Progress', icon: <TrendingUpIcon />, color: '#1976D2' },
-  { value: 'filled', label: 'Filled', icon: <CheckCircleIcon />, color: '#2E7D32' },
-  { value: 'closed', label: 'Closed', icon: <ErrorIcon />, color: '#616161' }
+  { value: 'all', label: 'All' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'pending_approval', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'filled', label: 'Filled' },
+  { value: 'closed', label: 'Closed' }
 ];
 
 // Priority color mapping
@@ -116,6 +116,32 @@ const PRIORITY_COLORS = {
   high: '#F44336',
   critical: '#9C27B0'
 };
+
+// Tab Panel Component - matches the reference implementation
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`requisition-tabpanel-${index}`}
+      aria-labelledby={`requisition-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
+
+function a11yProps(index) {
+  return {
+    id: `requisition-tab-${index}`,
+    'aria-controls': `requisition-tabpanel-${index}`,
+  };
+}
 
 // Action Menu Component - Enhanced with Delete option
 const ActionMenu = ({ 
@@ -302,7 +328,7 @@ const ActionMenu = ({
   );
 };
 
-// Filter Dropdown Component - Opens on the right side
+// Filter Dropdown Component
 const FilterDropdown = ({ 
   filters, 
   onFilterChange, 
@@ -477,33 +503,14 @@ const FilterDropdown = ({
   );
 };
 
-// Tab Panel Component
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`requisition-tabpanel-${index}`}
-      aria-labelledby={`requisition-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
-
 const RequisitionMaster = () => {
   // State for data
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Tab state
-  const [currentTab, setCurrentTab] = useState(0);
+  // Tab state - using index-based navigation like reference
+  const [tabValue, setTabValue] = useState(0);
   const [tabStatus, setTabStatus] = useState('all');
   
   // Pagination state
@@ -647,9 +654,9 @@ const RequisitionMaster = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Handle tab change
+  // Handle tab change - matches reference implementation
   const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
+    setTabValue(newValue);
     setTabStatus(TABS[newValue].value);
     setPage(0);
     setSelected([]);
@@ -858,38 +865,19 @@ const RequisitionMaster = () => {
     return Object.values(filters).filter(v => v).length;
   };
 
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          fontWeight="600" 
-          sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
-          }}
-        >
-          Requisition Master
-        </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage and track job requisitions throughout the approval workflow
-        </Typography>
-      </Box>
-
-      {/* Action Bar */}
+  // Reusable table component to avoid code duplication
+  const renderRequisitionsTable = () => (
+    <>
+      {/* Action Bar - Removed top margin to connect with tabs */}
       <Paper sx={{ 
         p: 2, 
-        mb: 3, 
         borderRadius: 2,
         bgcolor: '#FFFFFF',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #e2e8f0',
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+        borderTop: 'none'
       }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
           {/* Search */}
@@ -925,36 +913,27 @@ const RequisitionMaster = () => {
               }}
               disabled={loading}
             />
+            
+            {/* <Tooltip title="Filter">
+              <IconButton 
+                onClick={handleFilterClick}
+                sx={{ 
+                  color: '#64748B',
+                  '&:hover': {
+                    bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                    color: PRIMARY_BLUE
+                  }
+                }}
+              >
+                <Badge badgeContent={getActiveFilterCount()} color="primary">
+                  <FilterAltIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={2} alignItems="center">
-            {/* <Button
-              variant="outlined"
-              startIcon={
-                <Badge badgeContent={getActiveFilterCount()} color="primary">
-                  <FilterAltIcon />
-                </Badge>
-              }
-              onClick={handleFilterClick}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filters
-            </Button> */}
-
             {selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -973,27 +952,6 @@ const RequisitionMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            
-            {/* <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button> */}
             
             <Button
               variant="contained"
@@ -1020,7 +978,7 @@ const RequisitionMaster = () => {
       </Paper>
 
       {/* Filter Dropdown */}
-      <FilterDropdown
+      {/* <FilterDropdown
         filters={filters}
         onFilterChange={handleFilterChange}
         onApplyFilters={handleApplyFilters}
@@ -1031,73 +989,18 @@ const RequisitionMaster = () => {
         open={filterOpen}
         onClose={handleFilterClose}
         currentTab={tabStatus}
-      />
+      /> */}
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs 
-          value={currentTab} 
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            '& .MuiTab-root': {
-              minHeight: 48,
-              textTransform: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              color: '#64748B',
-              '&.Mui-selected': {
-                color: PRIMARY_BLUE,
-                fontWeight: 600
-              }
-            },
-            '& .MuiTabs-indicator': {
-              backgroundColor: PRIMARY_BLUE,
-              height: 3
-            }
-          }}
-        >
-          {TABS.map((tab, index) => (
-            <Tab
-              key={tab.value}
-              icon={tab.icon}
-              iconPosition="start"
-              label={
-                <Badge 
-                  badgeContent={statusCounts[tab.value] || 0} 
-                  color="primary"
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      fontSize: '0.65rem',
-                      height: 18,
-                      minWidth: 18,
-                      bgcolor: tab.color,
-                      color: '#FFFFFF'
-                    }
-                  }}
-                >
-                  {tab.label}
-                </Badge>
-              }
-              sx={{
-                '& .MuiSvgIcon-root': {
-                  fontSize: 18,
-                  color: tab.color || 'inherit'
-                }
-              }}
-            />
-          ))}
-        </Tabs>
-      </Box>
-
-      {/* Requisitions Table */}
+      {/* Requisitions Table - Connected to action bar */}
       <Paper sx={{ 
         width: '100%', 
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #e2e8f0',
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+        borderTop: 'none'
       }}>
         <TableContainer>
           <Table>
@@ -1175,7 +1078,7 @@ const RequisitionMaster = () => {
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm || filters.department || filters.priority 
                           ? 'No requisitions found matching your criteria' 
-                          : `No ${tabStatus !== 'all' ? TABS[currentTab].label.toLowerCase() : ''} requisitions available`}
+                          : `No ${tabStatus !== 'all' ? TABS[tabValue].label.toLowerCase() : ''} requisitions available`}
                       </Typography>
                       <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
                         {searchTerm || filters.department || filters.priority 
@@ -1373,6 +1276,118 @@ const RequisitionMaster = () => {
           }}
         />
       </Paper>
+    </>
+  );
+
+ return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography 
+          variant="h5" 
+          component="h1" 
+          fontWeight="600" 
+          sx={{ 
+            color: TEXT_COLOR_MAIN,
+            background: HEADER_GRADIENT,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            display: 'inline-block'
+          }}
+        >
+          Requisition Master
+        </Typography>
+        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+          Manage and track job requisitions throughout the approval workflow
+        </Typography>
+      </Box>
+
+      {/* Tabs - Matches reference design */}
+      <Paper sx={{ 
+        borderRadius: 2,
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0',
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderBottom: 'none',
+        overflow: 'hidden'
+      }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={handleTabChange}
+          aria-label="requisition management tabs"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.875rem',
+              minHeight: 48
+            },
+            '& .Mui-selected': {
+              color: PRIMARY_BLUE,
+              fontWeight: 600
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: PRIMARY_BLUE
+            }
+          }}
+        >
+          {TABS.map((tab, index) => (
+            <Tab 
+              key={tab.value} 
+              label={tab.label} 
+              {...a11yProps(index)} 
+            />
+          ))}
+        </Tabs>
+        
+        {/* Horizontal line separator */}
+        <Divider sx={{ borderColor: '#e2e8f0' }} />
+      </Paper>
+
+      {/* All Requisitions Tab */}
+      <TabPanel value={tabValue} index={0}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Draft Tab */}
+      <TabPanel value={tabValue} index={1}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Pending Tab */}
+      <TabPanel value={tabValue} index={2}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Approved Tab */}
+      <TabPanel value={tabValue} index={3}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Rejected Tab */}
+      <TabPanel value={tabValue} index={4}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* In Progress Tab */}
+      <TabPanel value={tabValue} index={5}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Filled Tab */}
+      <TabPanel value={tabValue} index={6}>
+        {renderRequisitionsTable()}
+      </TabPanel>
+
+      {/* Closed Tab */}
+      <TabPanel value={tabValue} index={7}>
+        {renderRequisitionsTable()}
+      </TabPanel>
 
       {/* Modal Components */}
       <AddRequisition 

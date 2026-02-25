@@ -39,12 +39,16 @@ import {
   Person as PersonIcon,
   Email as EmailIcon,
   Work as WorkIcon,
-  Event as EventIcon
+  Event as EventIcon,
+  Description as DescriptionIcon,
+  Verified as VerifiedIcon,
+  Pending as PendingIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
 // Import management components
-import OfferManagement from './offer/OfferManagenent';
+import OfferManagement from './offer/OfferManagement';
 import DocumentManagement from './documents/DocumentManagement';
 import BGVManagement from './BGV/BGVManagement';
 
@@ -135,12 +139,26 @@ const SelectedCandidatesMaster = () => {
     }
   ]);
 
-  // Stats data
-  const stats = {
+  // Stats data for different tabs
+  const onboardingStats = {
     total: 3,
     notStarted: 0,
     inProgress: 3,
     completed: 0
+  };
+
+  const documentStats = {
+    total: 0,
+    verified: 0,
+    pending: 0,
+    rejected: 0
+  };
+
+  const bgvStats = {
+    total: 6,
+    pending: 0,
+    inProgress: 0,
+    completed: 6
   };
 
   const handleTabChange = (event, newValue) => {
@@ -205,133 +223,248 @@ const SelectedCandidatesMaster = () => {
         </Typography>
       </Box>
 
-      {/* Tabs */}
+      {/* Tabs with integrated stats */}
       <Paper sx={{ 
         borderRadius: 2,
         bgcolor: '#FFFFFF',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: '1px solid #e2e8f0',
-        mb: 3
+        overflow: 'hidden'
       }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange}
-          aria-label="candidate management tabs"
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: '0.875rem',
-              minHeight: 48
-            },
-            '& .Mui-selected': {
-              color: PRIMARY_BLUE,
-              fontWeight: 600
-            },
-            '& .MuiTabs-indicator': {
-              backgroundColor: PRIMARY_BLUE
-            }
-          }}
-        >
-          <Tab label="Overview" {...a11yProps(0)} />
-          <Tab label="Offer Management" {...a11yProps(1)} />
-          <Tab label="Documents" {...a11yProps(2)} />
-          <Tab label="BGV" {...a11yProps(3)} />
-          <Tab label="Onboarding" {...a11yProps(4)} />
-        </Tabs>
-      </Paper>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            aria-label="candidate management tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              px: 2,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.875rem',
+                minHeight: 48,
+                minWidth: 120
+              },
+              '& .Mui-selected': {
+                color: PRIMARY_BLUE,
+                fontWeight: 600
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: PRIMARY_BLUE
+              }
+            }}
+          >
+            <Tab 
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <span>Overview</span>
+                </Stack>
+              } 
+              {...a11yProps(0)} 
+            />
+            <Tab 
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <span>Offer Management</span>
+                </Stack>
+              } 
+              {...a11yProps(1)} 
+            />
+            <Tab 
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <span>Documents</span>
+                  <Chip 
+                    label={documentStats.total} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                      color: PRIMARY_BLUE
+                    }} 
+                  />
+                </Stack>
+              } 
+              {...a11yProps(2)} 
+            />
+            <Tab 
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <span>BGV</span>
+                  <Chip 
+                    label={bgvStats.total} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                      color: PRIMARY_BLUE
+                    }} 
+                  />
+                </Stack>
+              } 
+              {...a11yProps(3)} 
+            />
+            <Tab 
+              label={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <span>Onboarding</span>
+                  <Chip 
+                    label={onboardingStats.total} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                      color: PRIMARY_BLUE
+                    }} 
+                  />
+                </Stack>
+              } 
+              {...a11yProps(4)} 
+            />
+          </Tabs>
+        </Box>
 
-      {/* Overview Tab - Only shows stats and candidate table */}
-      <TabPanel value={tabValue} index={0}>
-        {/* Stats Cards */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E3F2FD' }}>
-                  <PersonIcon sx={{ color: '#1976D2' }} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {stats.total}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    TOTAL ONBOARDING
-                  </Typography>
-                </Box>
+        {/* Stats Section based on active tab */}
+        <Box sx={{ p: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+          {tabValue === 0 && (
+            <Stack 
+              direction="row" 
+              spacing={4} 
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{ justifyContent: 'center' }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {onboardingStats.total}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  TOTAL ONBOARDING
+                </Typography>
               </Box>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#F1F5F9' }}>
-                  <InfoIcon sx={{ color: '#64748B' }} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {stats.notStarted}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    NOT STARTED
-                  </Typography>
-                </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {onboardingStats.notStarted}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  NOT STARTED
+                </Typography>
               </Box>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#FFF3E0' }}>
-                  <AccessTimeIcon sx={{ color: '#F57C00' }} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {stats.inProgress}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    IN PROGRESS
-                  </Typography>
-                </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {onboardingStats.inProgress}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  IN PROGRESS
+                </Typography>
               </Box>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#E8F5E9' }}>
-                  <CheckCircleIcon sx={{ color: '#2E7D32' }} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {stats.completed}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    COMPLETED
-                  </Typography>
-                </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {onboardingStats.completed}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  COMPLETED
+                </Typography>
               </Box>
-            </Paper>
-          </Grid>
-        </Grid>
+            </Stack>
+          )}
+
+          {tabValue === 2 && (
+            <Stack 
+              direction="row" 
+              spacing={4} 
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{ justifyContent: 'center' }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {documentStats.total}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Total Documents
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {documentStats.verified}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Verified
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {documentStats.pending}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Pending
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {documentStats.rejected}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Rejected
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+
+          {tabValue === 3 && (
+            <Stack 
+              direction="row" 
+              spacing={4} 
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{ justifyContent: 'center' }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {bgvStats.total}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Total Verifications
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {bgvStats.pending}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Pending
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {bgvStats.inProgress}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  In Progress
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  {bgvStats.completed}
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Completed
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+        </Box>
 
         {/* Action Bar */}
-        <Paper sx={{ 
-          p: 2, 
-          mb: 3, 
-          borderRadius: 2,
-          bgcolor: '#FFFFFF',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: '1px solid #e2e8f0'
-        }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid #e2e8f0' }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
             {/* Search */}
             <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
               <TextField
-                placeholder="Search onboarding..."
+                placeholder="Search candidates..."
                 size="small"
                 value={searchTerm}
                 onChange={handleSearch}
@@ -421,16 +554,11 @@ const SelectedCandidatesMaster = () => {
               </Button>
             </Stack>
           </Stack>
-        </Paper>
+        </Box>
 
-        {/* Candidates Table */}
-        <Paper sx={{ 
-          width: '100%', 
-          borderRadius: 2, 
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: '1px solid #e2e8f0'
-        }}>
+        {/* Tab Content */}
+        <TabPanel value={tabValue} index={0}>
+          {/* Candidates Table */}
           <TableContainer>
             <Table>
               <TableHead>
@@ -552,35 +680,28 @@ const SelectedCandidatesMaster = () => {
               </TableBody>
             </Table>
           </TableContainer>
-        </Paper>
+        </TabPanel>
 
-        {/* Footer Note */}
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Typography variant="caption" color="#94A3B8">
-            Employee Statutory Document Orientation Completion Creation Details Verification
-          </Typography>
-        </Box>
-      </TabPanel>
+        {/* Offer Management Tab */}
+        <TabPanel value={tabValue} index={1}>
+          <OfferManagement />
+        </TabPanel>
 
-      {/* Offer Management Tab */}
-      <TabPanel value={tabValue} index={1}>
-        <OfferManagement />
-      </TabPanel>
+        {/* Documents Tab */}
+        <TabPanel value={tabValue} index={2}>
+          <DocumentManagement />
+        </TabPanel>
 
-      {/* Documents Tab */}
-      <TabPanel value={tabValue} index={2}>
-        <DocumentManagement />
-      </TabPanel>
+        {/* BGV Tab */}
+        <TabPanel value={tabValue} index={3}>
+          <BGVManagement />
+        </TabPanel>
 
-      {/* BGV Tab */}
-      <TabPanel value={tabValue} index={3}>
-        <BGVManagement />
-      </TabPanel>
-
-      {/* Onboarding Tab */}
-      <TabPanel value={tabValue} index={4}>
-        <OnboardingManagement />
-      </TabPanel>
+        {/* Onboarding Tab */}
+        <TabPanel value={tabValue} index={4}>
+          <OnboardingManagement />
+        </TabPanel>
+      </Paper>
 
       {/* Snackbar Notification */}
       <Snackbar

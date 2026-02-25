@@ -75,7 +75,7 @@
 
 //     try {
 //       console.log('Fetching from:', `${BASE_URL}/candidates?status=selected`);
-      
+
 //       const response = await fetch(`${BASE_URL}/candidates?status=selected`, {
 //         method: 'GET',
 //         headers: {
@@ -107,7 +107,7 @@
 
 //       const result = await response.json();
 //       console.log('API Response:', result);
-      
+
 //       if (result.success) {
 //         // Transform the data to include required fields for offer management
 //         const transformedData = result.data.map(candidate => ({
@@ -152,7 +152,7 @@
 //   // Helper function to format experience
 //   const formatExperience = (experience) => {
 //     if (!experience || experience.length === 0) return 'Fresher';
-    
+
 //     const totalExperience = experience.reduce((total, exp) => {
 //       if (exp.current) {
 //         const startDate = new Date(exp.fromDate);
@@ -167,7 +167,7 @@
 //       }
 //       return total;
 //     }, 0);
-    
+
 //     return `${totalExperience} ${totalExperience === 1 ? 'year' : 'years'}`;
 //   };
 
@@ -221,7 +221,7 @@
 //         candidate.id === updatedData.id ? { ...candidate, ...updatedData } : candidate
 //       )
 //     );
-    
+
 //     handleCloseDialog(action);
 //   };
 
@@ -236,7 +236,7 @@
 //       viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated'],
 //       acceptOffer: ['Viewed', 'Sent']
 //     };
-    
+
 //     return actionStatusMap[action]?.includes(status) || actionStatusMap[action]?.includes(applicationStatus) || false;
 //   };
 
@@ -267,7 +267,7 @@
 //           Refresh
 //         </Button>
 //       </Box>
-      
+
 //       {error ? (
 //         <Box sx={{ mb: 3 }}>
 //           <Alert 
@@ -603,7 +603,7 @@ const OfferManagement = () => {
       const token = getAuthToken();
       const apiUrl = `${BASE_URL}/api/candidates?status=selected`;
       console.log('Fetching from:', apiUrl);
-      
+
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -621,7 +621,7 @@ const OfferManagement = () => {
       if (!response.ok) {
         const text = await response.text();
         console.error('Response not OK. Status:', response.status, 'Body:', text);
-        
+
         if (response.status === 401) {
           throw new Error('Authentication failed. Please log in again.');
         } else {
@@ -640,7 +640,7 @@ const OfferManagement = () => {
 
       const result = await response.json();
       console.log('API Response:', result);
-      
+
       if (result.success) {
         // Transform the data to include required fields for offer management
         const transformedData = result.data.map(candidate => ({
@@ -685,7 +685,7 @@ const OfferManagement = () => {
   // Helper function to format experience
   const formatExperience = (experience) => {
     if (!experience || experience.length === 0) return 'Fresher';
-    
+
     const totalExperience = experience.reduce((total, exp) => {
       if (exp.current) {
         const startDate = new Date(exp.fromDate);
@@ -700,7 +700,7 @@ const OfferManagement = () => {
       }
       return total;
     }, 0);
-    
+
     return `${totalExperience} ${totalExperience === 1 ? 'year' : 'years'}`;
   };
 
@@ -715,6 +715,15 @@ const OfferManagement = () => {
     };
     return statusMap[applicationStatus] || 'Pending';
   };
+
+  // Color constants - EXACT SAME as header gradient
+  const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+  const STRIPE_COLOR_ODD = '#FFFFFF';
+  const STRIPE_COLOR_EVEN = '#f8fafc'; // slate-50
+  const HOVER_COLOR = '#f1f5f9'; // slate-100
+  const PRIMARY_BLUE = '#00B4D8';
+  const TEXT_COLOR_HEADER = '#FFFFFF';
+  const TEXT_COLOR_MAIN = '#0f172a'; // slate-900
 
   // Status color mapping
   const getStatusColor = (status) => {
@@ -754,7 +763,7 @@ const OfferManagement = () => {
         candidate.id === updatedData.id ? { ...candidate, ...updatedData } : candidate
       )
     );
-    
+
     handleCloseDialog(action);
   };
 
@@ -769,7 +778,7 @@ const OfferManagement = () => {
       viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated'],
       acceptOffer: ['Viewed', 'Sent']
     };
-    
+
     return actionStatusMap[action]?.includes(status) || actionStatusMap[action]?.includes(applicationStatus) || false;
   };
 
@@ -788,23 +797,43 @@ const OfferManagement = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">
           Offer Management
+        </Typography> */}
+      <Box>
+        <Typography
+          variant="h5"
+          component="h1"
+          fontWeight="600"
+          sx={{
+            color: TEXT_COLOR_MAIN,
+            background: HEADER_GRADIENT,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            display: 'inline-block',
+
+          }}
+        >
+          Offer Management
         </Typography>
-        <Button 
-          variant="outlined" 
+        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5, mb:2 }}>
+          View and manage offers for candidates
+        </Typography>
+        {/* <Button
+          variant="outlined"
           startIcon={<RefreshIcon />}
           onClick={fetchSelectedCandidates}
         >
           Refresh
-        </Button>
+        </Button> */}
       </Box>
-      
+
       {error ? (
         <Box sx={{ mb: 3 }}>
-          <Alert 
-            severity="error" 
+          <Alert
+            severity="error"
             action={
               <Button color="inherit" size="small" onClick={fetchSelectedCandidates}>
                 Retry
@@ -830,8 +859,8 @@ const OfferManagement = () => {
       ) : selectedCandidates.length === 0 ? (
         <Alert severity="info">No selected candidates found</Alert>
       ) : (
-        <TableContainer component={Paper} elevation={3}>
-          <Table sx={{ minWidth: 650 }} aria-label="offer management table">
+        <TableContainer component={Paper} elevation={3} marginTop={5} >
+          <Table sx={{ minWidth: 650, }} aria-label="offer management table">
             <TableHead>
               <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableCell><strong>Candidate</strong></TableCell>
@@ -884,8 +913,8 @@ const OfferManagement = () => {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip 
-                      label={candidate.status} 
+                    <Chip
+                      label={candidate.status}
                       color={getStatusColor(candidate.status)}
                       size="small"
                     />
@@ -895,8 +924,8 @@ const OfferManagement = () => {
                       {/* Initiate Offer */}
                       <Tooltip title="Initiate Offer">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="primary"
                             onClick={() => handleOpenDialog('initiateOffer', candidate)}
                             disabled={!isActionEnabled('initiateOffer', candidate.status, candidate.applicationStatus)}
@@ -909,8 +938,8 @@ const OfferManagement = () => {
                       {/* Submit for Approval */}
                       <Tooltip title="Submit for Approval">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="warning"
                             onClick={() => handleOpenDialog('submitForApproval', candidate)}
                             disabled={!isActionEnabled('submitForApproval', candidate.status, candidate.applicationStatus)}
@@ -923,8 +952,8 @@ const OfferManagement = () => {
                       {/* Approve Offer */}
                       <Tooltip title="Approve Offer">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="success"
                             onClick={() => handleOpenDialog('approveOffer', candidate)}
                             disabled={!isActionEnabled('approveOffer', candidate.status, candidate.applicationStatus)}
@@ -937,8 +966,8 @@ const OfferManagement = () => {
                       {/* Generate Offer Letter */}
                       <Tooltip title="Generate Offer Letter">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="secondary"
                             onClick={() => handleOpenDialog('generateOffer', candidate)}
                             disabled={!isActionEnabled('generateOffer', candidate.status, candidate.applicationStatus)}
@@ -951,8 +980,8 @@ const OfferManagement = () => {
                       {/* Send to Candidate */}
                       <Tooltip title="Send to Candidate">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="info"
                             onClick={() => handleOpenDialog('sendOffer', candidate)}
                             disabled={!isActionEnabled('sendOffer', candidate.status, candidate.applicationStatus)}
@@ -965,8 +994,8 @@ const OfferManagement = () => {
                       {/* View Offer */}
                       <Tooltip title="View Offer">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="default"
                             onClick={() => handleOpenDialog('viewOffer', candidate)}
                             disabled={!isActionEnabled('viewOffer', candidate.status, candidate.applicationStatus)}
@@ -979,8 +1008,8 @@ const OfferManagement = () => {
                       {/* Accept Offer */}
                       <Tooltip title="Accept Offer">
                         <span>
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             color="success"
                             onClick={() => handleOpenDialog('acceptOffer', candidate)}
                             disabled={!isActionEnabled('acceptOffer', candidate.status, candidate.applicationStatus)}

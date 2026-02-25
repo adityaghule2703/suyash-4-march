@@ -131,7 +131,7 @@ const BGVReport = ({ open, onClose, bgvId = null, bgvData = null }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/bgv/${id}`, {
+      const response = await axios.get(`${BASE_URL}/api/bgv/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -151,7 +151,7 @@ const BGVReport = ({ open, onClose, bgvId = null, bgvData = null }) => {
   const fetchReportStatus = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/bgv/${id}/report`, {
+      const response = await axios.get(`${BASE_URL}/api/bgv/${id}/report`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -197,7 +197,7 @@ const BGVReport = ({ open, onClose, bgvId = null, bgvData = null }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${BASE_URL}/bgv/${bgvDetails._id}/report/generate`,
+        `${BASE_URL}/bgv/${bgvDetails._id}/api/report/generate`,
         {
           format: reportFormat,
           type: reportType,
@@ -245,7 +245,7 @@ const BGVReport = ({ open, onClose, bgvId = null, bgvData = null }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${BASE_URL}/bgv/${bgvDetails._id}/report/download?format=${reportFormat}`,
+        `${BASE_URL}/bgv/${bgvDetails._id}/api/report/download?format=${reportFormat}`,
         { 
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'

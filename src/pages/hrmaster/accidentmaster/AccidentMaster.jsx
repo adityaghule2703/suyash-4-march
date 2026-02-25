@@ -1192,7 +1192,7 @@ const AccidentMaster = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="#475569">
-                          {accident.reportedBy?.name || 'N/A'}
+                          {accident.employee?.FirstName || 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 100 }}>
