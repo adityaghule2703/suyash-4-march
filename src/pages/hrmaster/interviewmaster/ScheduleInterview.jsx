@@ -147,15 +147,18 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
       });
 
       if (response.data.success) {
+        // Adjust based on your actual API response structure for candidates
+        const newData = response.data.data || response.data.data?.candidates || [];
         if (page === 1) {
-          setApplications(response.data.data || []);
+          setApplications(Array.isArray(newData) ? newData : []);
         } else {
-          setApplications(prev => [...prev, ...(response.data.data || [])]);
+          setApplications(prev => Array.isArray(prev) ? [...prev, ...(Array.isArray(newData) ? newData : [])] : []);
         }
-        setApplicationsTotalPages(response.data.pagination?.totalPages || 1);
+        setApplicationsTotalPages(response.data.pagination?.totalPages || response.data.data?.pagination?.totalPages || 1);
       }
     } catch (err) {
       console.error('Error fetching applications:', err);
+      setApplications([]); // Reset to empty array on error
     } finally {
       setApplicationsLoading(false);
     }
@@ -170,19 +173,33 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        
+        params: {
+          page: page,
+          limit: 10,
+          search: search
+        }
       });
 
+      console.log('Interviewers API Response:', response.data); // Debug log
+
       if (response.data.success) {
+        // ✅ Fix: Access users from response.data.data.users
+        const usersData = response.data.data?.users || [];
+        const pagination = response.data.data?.pagination || {};
+        
+        console.log('Users Data:', usersData); // Debug log
+        
         if (page === 1) {
-          setInterviewers(response.data.data || []);
+          setInterviewers(Array.isArray(usersData) ? usersData : []);
         } else {
-          setInterviewers(prev => [...prev, ...(response.data.data || [])]);
+          setInterviewers(prev => Array.isArray(prev) ? [...prev, ...(Array.isArray(usersData) ? usersData : [])] : []);
         }
-        setInterviewersTotalPages(response.data.pagination?.totalPages || 1);
+        
+        setInterviewersTotalPages(pagination.totalPages || 1);
       }
     } catch (err) {
       console.error('Error fetching interviewers:', err);
+      setInterviewers([]); // Reset to empty array on error
     } finally {
       setInterviewersLoading(false);
     }
@@ -286,14 +303,22 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
     if (newValue) {
       // Check if interviewer already added
       const exists = selectedInterviewers.some(
-        interviewer => interviewer._id === newValue._id
+        interviewer => interviewer.interviewerId === newValue._id
       );
       
       if (!exists) {
+        // Get proper name from user object
+        let interviewerName = newValue.Username || 'Interviewer';
+        if (newValue.EmployeeID?.FirstName && newValue.EmployeeID?.LastName) {
+          interviewerName = `${newValue.EmployeeID.FirstName} ${newValue.EmployeeID.LastName}`;
+        }
+        
         const newInterviewer = {
           interviewerId: newValue._id,
-          name: newValue.name || newValue.username || 'Interviewer',
-          email: newValue.email
+          name: interviewerName,
+          email: newValue.Email,
+          username: newValue.Username,
+          role: newValue.RoleID?.RoleName
         };
         
         setSelectedInterviewers([...selectedInterviewers, newInterviewer]);
@@ -487,7 +512,7 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                 open={applicationsOpen}
                 onOpen={() => setApplicationsOpen(true)}
                 onClose={() => setApplicationsOpen(false)}
-                options={applications}
+                options={Array.isArray(applications) ? applications : []}
                 loading={applicationsLoading}
                 value={formData.applicationId}
                 onChange={(event, newValue) => {
@@ -504,6 +529,9 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                   const name = option.name || `${option.firstName || ''} ${option.lastName || ''}`.trim() || 'Unknown';
                   const jobTitle = option.jobTitle || option.position || 'Position';
                   return `${name} - ${jobTitle}`;
+                }}
+                isOptionEqualToValue={(option, value) => {
+                  return option?._id === value?._id;
                 }}
                 fullWidth
                 renderInput={(params) => (
@@ -532,6 +560,7 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                   />
                 )}
                 renderOption={(props, option) => {
+                  if (!option) return null;
                   const name = option.name || `${option.firstName || ''} ${option.lastName || ''}`.trim() || 'Unknown';
                   const email = option.email || '';
                   const jobTitle = option.jobTitle || option.position || 'Position';
@@ -717,7 +746,7 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                   open={interviewersOpen}
                   onOpen={() => setInterviewersOpen(true)}
                   onClose={() => setInterviewersOpen(false)}
-                  options={interviewers}
+                  options={Array.isArray(interviewers) ? interviewers : []}
                   loading={interviewersLoading}
                   value={null}
                   onChange={handleAddInterviewer}
@@ -726,7 +755,17 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                     setInterviewersInputValue(newInputValue);
                     setInterviewersSearch(newInputValue);
                   }}
-                  getOptionLabel={(option) => option?.name || option?.username || option?.email || ''}
+                  getOptionLabel={(option) => {
+                    if (!option) return '';
+                    // Try to get name from different possible locations
+                    if (option.EmployeeID?.FirstName && option.EmployeeID?.LastName) {
+                      return `${option.EmployeeID.FirstName} ${option.EmployeeID.LastName}`;
+                    }
+                    return option.Username || option.Email || '';
+                  }}
+                  isOptionEqualToValue={(option, value) => {
+                    return option?._id === value?._id;
+                  }}
                   fullWidth
                   renderInput={(params) => (
                     <TextField
@@ -750,18 +789,37 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
                       }}
                     />
                   )}
-                  renderOption={(props, option) => (
-                    <MenuItem {...props} key={option._id} sx={{ py: 0.5 }}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={500}>
-                          {option.name || option.username || 'Unknown'}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          {option.email} • {option.department || 'No department'}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  )}
+                  renderOption={(props, option) => {
+                    if (!option) return null;
+                    
+                    // Extract name based on data structure
+                    let displayName = option.Username || 'Unknown';
+                    let displayEmail = option.Email || '';
+                    let department = '';
+                    let role = option.RoleID?.RoleName || 'No role';
+                    
+                    if (option.EmployeeID) {
+                      if (option.EmployeeID.FirstName && option.EmployeeID.LastName) {
+                        displayName = `${option.EmployeeID.FirstName} ${option.EmployeeID.LastName}`;
+                      }
+                      if (option.EmployeeID.DepartmentID?.DepartmentName) {
+                        department = option.EmployeeID.DepartmentID.DepartmentName;
+                      }
+                    }
+                    
+                    return (
+                      <MenuItem {...props} key={option._id} sx={{ py: 0.5 }}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {displayName}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            {displayEmail} • {role} {department && `• ${department}`}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    );
+                  }}
                   ListboxProps={{ 
                     onScroll: handleInterviewersScroll, 
                     style: { maxHeight: 200 } 

@@ -518,7 +518,7 @@ const BGVManagement = () => {
       </Box>
 
       {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -590,7 +590,7 @@ const BGVManagement = () => {
             </Box>
           </Paper>
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* Action Bar */}
       <Paper sx={{ 

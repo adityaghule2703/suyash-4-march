@@ -1005,7 +1005,7 @@ const DocumentManagement = () => {
       </Box>
 
       {/* Stats Cards - Only show in candidates view */}
-      {viewMode === 'candidates' && (
+      {/* {viewMode === 'candidates' && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Paper sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF' }}>
@@ -1079,7 +1079,7 @@ const DocumentManagement = () => {
             </Paper>
           </Grid>
         </Grid>
-      )}
+      )} */}
 
       {/* Action Bar */}
       <Paper sx={{ 

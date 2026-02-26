@@ -331,7 +331,7 @@ const SelectedCandidatesMaster = () => {
 
         {/* Stats Section based on active tab */}
         <Box sx={{ p: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-          {tabValue === 0 && (
+          {/* {tabValue === 0 && (
             <Stack 
               direction="row" 
               spacing={4} 
@@ -371,9 +371,9 @@ const SelectedCandidatesMaster = () => {
                 </Typography>
               </Box>
             </Stack>
-          )}
+          )} */}
 
-          {tabValue === 2 && (
+          {/* {tabValue === 2 && (
             <Stack 
               direction="row" 
               spacing={4} 
@@ -413,9 +413,9 @@ const SelectedCandidatesMaster = () => {
                 </Typography>
               </Box>
             </Stack>
-          )}
+          )} */}
 
-          {tabValue === 3 && (
+          {/* {tabValue === 3 && (
             <Stack 
               direction="row" 
               spacing={4} 
@@ -455,7 +455,7 @@ const SelectedCandidatesMaster = () => {
                 </Typography>
               </Box>
             </Stack>
-          )}
+          )} */}
         </Box>
 
         {/* Action Bar */}
