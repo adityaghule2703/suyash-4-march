@@ -26,9 +26,18 @@ import {
   TableRow,
   Paper,
   Chip,
-  Autocomplete
+  Autocomplete,
+  Collapse,
+  Divider
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, AddCircle as AddCircleIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  Delete as DeleteIcon, 
+  AddCircle as AddCircleIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  ShoppingCart as ShoppingCartIcon
+} from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
@@ -37,9 +46,10 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     VendorType: 'Existing',
     VendorID: '',
+    QuotationType: 'CostBreakup', // Changed to CostBreakup by default for process-based quotations
     ValidTill: '',
     InternalRemarks: '',
-    VendorRemarks: '',
+    CustomerRemarks: '', // Changed from VendorRemarks to CustomerRemarks
     Items: []
   });
   
@@ -63,16 +73,29 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     PartName: ''
   });
   
+  // New state for process selection
+  const [processes, setProcesses] = useState([]);
+  const [selectedItemForProcess, setSelectedItemForProcess] = useState(null);
+  const [openProcessDialog, setOpenProcessDialog] = useState(false);
+  const [currentProcessSelection, setCurrentProcessSelection] = useState({
+    ProcessID: '',
+    Price: ''
+  });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
   const [vendors, setVendors] = useState([]);
   const [items, setItems] = useState([]);
 
+  // Quotation type options from enum
+  const quotationTypes = ['Standard', 'CostBreakup', 'Detailed', 'Summary'];
+
   useEffect(() => {
     if (open) {
       fetchVendors();
       fetchItems();
+      fetchProcesses();
     }
   }, [open]);
 
@@ -105,6 +128,22 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     } catch (err) {
       console.error('Error fetching items:', err);
       setError('Failed to load items. Please try again.');
+    }
+  };
+
+  const fetchProcesses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/processes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setProcesses(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching processes:', err);
+      setError('Failed to load processes. Please try again.');
     }
   };
 
@@ -172,7 +211,8 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       Quantity: parseInt(itemInput.Quantity),
       PartName: selectedItem.PartName || '',
       Unit: selectedItem.Unit || '',
-      HSNCode: selectedItem.HSNCode || ''
+      HSNCode: selectedItem.HSNCode || '',
+      Processes: [] // Initialize empty processes array for this item
     };
 
     setFormData(prev => ({
@@ -191,6 +231,74 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
+  // Process management functions
+  const handleOpenProcessDialog = (itemIndex) => {
+    setSelectedItemForProcess(itemIndex);
+    setCurrentProcessSelection({ ProcessID: '', Price: '' });
+    setOpenProcessDialog(true);
+  };
+
+  const handleCloseProcessDialog = () => {
+    setOpenProcessDialog(false);
+    setSelectedItemForProcess(null);
+    setCurrentProcessSelection({ ProcessID: '', Price: '' });
+  };
+
+  const handleProcessSelectionChange = (e) => {
+    const { name, value } = e.target;
+    setCurrentProcessSelection(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddProcessToItem = () => {
+    if (!currentProcessSelection.ProcessID || !currentProcessSelection.Price || parseFloat(currentProcessSelection.Price) <= 0) {
+      setError('Please select a process and enter a valid price');
+      return;
+    }
+
+    const selectedProcess = processes.find(p => p._id === currentProcessSelection.ProcessID);
+    if (!selectedProcess) {
+      setError('Selected process not found');
+      return;
+    }
+
+    // Check if process already added to this item
+    const itemProcesses = formData.Items[selectedItemForProcess].Processes;
+    if (itemProcesses.some(p => p.ProcessID === currentProcessSelection.ProcessID)) {
+      setError('This process has already been added to the item');
+      return;
+    }
+
+    const updatedItems = [...formData.Items];
+    updatedItems[selectedItemForProcess].Processes.push({
+      ProcessID: currentProcessSelection.ProcessID,
+      Price: parseFloat(currentProcessSelection.Price),
+      ProcessName: selectedProcess.ProcessName,
+      RateType: selectedProcess.RateType,
+      VendorOrInhouse: selectedProcess.VendorOrInhouse
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      Items: updatedItems
+    }));
+
+    handleCloseProcessDialog();
+    setError('');
+  };
+
+  const handleRemoveProcessFromItem = (itemIndex, processIndex) => {
+    const updatedItems = [...formData.Items];
+    updatedItems[itemIndex].Processes.splice(processIndex, 1);
+    
+    setFormData(prev => ({
+      ...prev,
+      Items: updatedItems
+    }));
+  };
+
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0];
   };
@@ -198,6 +306,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const validateForm = () => {
     if (!formData.ValidTill) {
       setError('Valid Till date is required');
+      return false;
+    }
+
+    if (!formData.QuotationType) {
+      setError('Please select a quotation type');
       return false;
     }
 
@@ -221,6 +334,14 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       return false;
     }
 
+    // Validate that each item has at least one process
+    for (let i = 0; i < formData.Items.length; i++) {
+      if (formData.Items[i].Processes.length === 0) {
+        setError(`Item ${formData.Items[i].PartNo} must have at least one process`);
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -230,15 +351,21 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     setLoading(true);
     setError('');
 
+    // Format the payload according to the API structure
     const payload = {
+      QuotationType: formData.QuotationType,
       VendorType: vendorType,
       ValidTill: formData.ValidTill,
+      InternalRemarks: formData.InternalRemarks,
+      CustomerRemarks: formData.CustomerRemarks,
       Items: formData.Items.map(item => ({
         PartNo: item.PartNo,
-        Quantity: item.Quantity
-      })),
-      InternalRemarks: formData.InternalRemarks,
-      VendorRemarks: formData.VendorRemarks
+        Quantity: item.Quantity,
+        Processes: item.Processes.map(process => ({
+          ProcessID: process.ProcessID,
+          Price: process.Price
+        }))
+      }))
     };
 
     if (vendorType === 'Existing') {
@@ -276,9 +403,10 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     setFormData({
       VendorType: 'Existing',
       VendorID: '',
+      QuotationType: 'CostBreakup',
       ValidTill: '',
       InternalRemarks: '',
-      VendorRemarks: '',
+      CustomerRemarks: '',
       Items: []
     });
     setNewVendor({
@@ -295,6 +423,9 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       PAN: ''
     });
     setItemInput({ PartNo: '', Quantity: '', PartName: '' });
+    setCurrentProcessSelection({ ProcessID: '', Price: '' });
+    setSelectedItemForProcess(null);
+    setOpenProcessDialog(false);
     setError('');
   };
 
@@ -305,11 +436,22 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
   const partNoOptions = items.map(item => item.PartNo).filter(Boolean);
 
+  // Helper function to format quotation type for display
+  const formatQuotationType = (type) => {
+    return type.replace(/([A-Z])/g, ' $1').trim();
+  };
+
+  // Get process name by ID
+  const getProcessName = (processId) => {
+    const process = processes.find(p => p._id === processId);
+    return process ? process.ProcessName : 'Unknown Process';
+  };
+
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
+      maxWidth="lg"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2 } }}
     >
@@ -343,6 +485,43 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               <FormControlLabel value="Existing" control={<Radio />} label="Existing Vendor" />
               <FormControlLabel value="New" control={<Radio />} label="New Vendor" />
             </RadioGroup>
+          </Box>
+
+          {/* Quotation Type Selection */}
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+              Quotation Type
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Select Quotation Type *</InputLabel>
+              <Select
+                name="QuotationType"
+                value={formData.QuotationType}
+                onChange={handleFormChange}
+                label="Select Quotation Type *"
+                disabled={loading}
+              >
+                {quotationTypes.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography>{formatQuotationType(type)}</Typography>
+                      <Chip 
+                        label={type} 
+                        size="small" 
+                        sx={{ 
+                          ml: 1,
+                          bgcolor: type === formData.QuotationType ? '#00B4D8' : '#f1f5f9',
+                          color: type === formData.QuotationType ? 'white' : '#475569'
+                        }} 
+                      />
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+              Choose the type of quotation format
+            </Typography>
           </Box>
 
           {/* Vendor Details */}
@@ -563,9 +742,9 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               </Stack>
             </Paper>
 
-            {/* Items Table */}
+            {/* Items Table with Processes */}
             {formData.Items.length > 0 ? (
-              <TableContainer component={Paper} sx={{ maxHeight: 200 }}>
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
@@ -573,26 +752,112 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                       <TableCell>Part No</TableCell>
                       <TableCell>Part Name</TableCell>
                       <TableCell>Quantity</TableCell>
+                      <TableCell>Processes</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {formData.Items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{item.PartNo}</TableCell>
-                        <TableCell>{item.PartName}</TableCell>
-                        <TableCell>{item.Quantity}</TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRemoveItem(index)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
+                    {formData.Items.map((item, itemIndex) => (
+                      <React.Fragment key={itemIndex}>
+                        <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                          <TableCell>{itemIndex + 1}</TableCell>
+                          <TableCell>
+                            <Typography fontWeight={600}>{item.PartNo}</Typography>
+                          </TableCell>
+                          <TableCell>{item.PartName}</TableCell>
+                          <TableCell>{item.Quantity}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip 
+                                label={`${item.Processes.length} Process(es)`} 
+                                size="small"
+                                color={item.Processes.length > 0 ? "primary" : "default"}
+                              />
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleOpenProcessDialog(itemIndex)}
+                                sx={{ ml: 1 }}
+                              >
+                                Add Process
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveItem(itemIndex)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                        
+                        {/* Processes Sub-table */}
+                        {item.Processes.length > 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} sx={{ p: 0, borderBottom: 'none' }}>
+                              <Box sx={{ p: 2, bgcolor: '#f1f5f9' }}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                  Processes for {item.PartNo}
+                                </Typography>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>Process Name</TableCell>
+                                      <TableCell>Rate Type</TableCell>
+                                      <TableCell>Vendor/Inhouse</TableCell>
+                                      <TableCell align="right">Price (₹)</TableCell>
+                                      <TableCell align="right"></TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {item.Processes.map((process, processIndex) => (
+                                      <TableRow key={processIndex}>
+                                        <TableCell>
+                                          <Typography variant="body2">
+                                            {process.ProcessName || getProcessName(process.ProcessID)}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Chip 
+                                            label={process.RateType || 'N/A'} 
+                                            size="small"
+                                            variant="outlined"
+                                          />
+                                        </TableCell>
+                                        <TableCell>
+                                          <Chip 
+                                            label={process.VendorOrInhouse || 'N/A'} 
+                                            size="small"
+                                            color={process.VendorOrInhouse === 'Vendor' ? 'warning' : 'info'}
+                                          />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography fontWeight={500}>
+                                            ₹{process.Price.toFixed(2)}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => handleRemoveProcessFromItem(itemIndex, processIndex)}
+                                            color="error"
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -631,18 +896,82 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               />
               <TextField
                 fullWidth
-                label="Vendor Remarks"
-                name="VendorRemarks"
-                value={formData.VendorRemarks}
+                label="Customer Remarks"
+                name="CustomerRemarks"
+                value={formData.CustomerRemarks}
                 onChange={handleFormChange}
                 multiline
                 rows={2}
-                placeholder="Message for the vendor..."
+                placeholder="Message for the customer..."
               />
             </Stack>
           </Box>
         </Stack>
       </DialogContent>
+
+      {/* Process Selection Dialog */}
+      <Dialog open={openProcessDialog} onClose={handleCloseProcessDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Process to Item</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Select Process *</InputLabel>
+              <Select
+                name="ProcessID"
+                value={currentProcessSelection.ProcessID}
+                onChange={handleProcessSelectionChange}
+                label="Select Process *"
+              >
+                <MenuItem value="">
+                  <em>Select a process</em>
+                </MenuItem>
+                {processes.map((process) => (
+                  <MenuItem key={process._id} value={process._id}>
+                    <Stack direction="column" spacing={0.5}>
+                      <Typography variant="body2">{process.ProcessName}</Typography>
+                      <Stack direction="row" spacing={1}>
+                        <Chip 
+                          label={process.RateType} 
+                          size="small" 
+                          variant="outlined"
+                        />
+                        <Chip 
+                          label={process.VendorOrInhouse} 
+                          size="small"
+                          color={process.VendorOrInhouse === 'Vendor' ? 'warning' : 'info'}
+                        />
+                      </Stack>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Price (₹) *"
+              name="Price"
+              type="number"
+              value={currentProcessSelection.Price}
+              onChange={handleProcessSelectionChange}
+              inputProps={{ min: 0, step: 0.01 }}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1, color: '#64748B' }}>₹</Typography>
+              }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseProcessDialog}>Cancel</Button>
+          <Button 
+            onClick={handleAddProcessToItem} 
+            variant="contained"
+            disabled={!currentProcessSelection.ProcessID || !currentProcessSelection.Price}
+          >
+            Add Process
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <DialogActions sx={{
         px: 3,

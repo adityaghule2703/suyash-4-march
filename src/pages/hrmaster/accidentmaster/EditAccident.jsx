@@ -16,7 +16,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Typography
+  Typography,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -30,16 +32,21 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
     preventiveAction: '',
     investigationStatus: '',
     investigationDate: '',
-    investigationBy: '',
+    investigationBy: null,
     costIncurred: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Data fetching states
+  // Enhanced users dropdown state
   const [users, setUsers] = useState([]);
-  const [fetchingData, setFetchingData] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersSearch, setUsersSearch] = useState('');
+  const [usersOpen, setUsersOpen] = useState(false);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersTotalPages, setUsersTotalPages] = useState(1);
+  const [usersInputValue, setUsersInputValue] = useState('');
 
   // Enum options - Updated to match schema exactly
   const investigationStatusOptions = ['Open', 'Under Investigation', 'Closed', 'Resolved'];
@@ -50,16 +57,74 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
     'Investigation Details'
   ];
 
-  // Fetch users when dialog opens
-  useEffect(() => {
-    if (open) {
-      fetchUsers();
+  // Fetch users from API with pagination and search
+  const fetchUsers = async (search = '', page = 1) => {
+    setUsersLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/users`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: {
+          page: page,
+          limit: 10,
+          search: search
+        }
+      });
+
+      if (response.data.success) {
+        const usersData = response.data.data?.users || [];
+        if (page === 1) {
+          setUsers(Array.isArray(usersData) ? usersData : []);
+        } else {
+          setUsers(prev => [...prev, ...(Array.isArray(usersData) ? usersData : [])]);
+        }
+        setUsersTotalPages(response.data.data?.pagination?.totalPages || 1);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
     }
-  }, [open]);
+  };
+
+  // Load users when dropdown opens
+  useEffect(() => {
+    if (usersOpen) {
+      fetchUsers(usersSearch, 1);
+    }
+  }, [usersOpen]);
+
+  // Search users with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (usersOpen) {
+        setUsersPage(1);
+        fetchUsers(usersSearch, 1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [usersSearch, usersOpen]);
+
+  // Handle scroll load more for users
+  const handleUsersScroll = (event) => {
+    const listboxNode = event.currentTarget;
+    if (listboxNode.scrollTop + listboxNode.clientHeight >= listboxNode.scrollHeight - 50) {
+      if (usersPage < usersTotalPages && !usersLoading) {
+        const nextPage = usersPage + 1;
+        setUsersPage(nextPage);
+        fetchUsers(usersSearch, nextPage);
+      }
+    }
+  };
 
   // Prefill Data
   useEffect(() => {
     if (accident) {
+      // Find the user object from users list if available, otherwise store as null
+      const selectedUser = users.find(user => user._id === accident.investigationBy) || null;
+      
       setFormData({
         rootCause: accident.rootCause || '',
         correctiveAction: accident.correctiveAction || '',
@@ -68,30 +133,14 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
         investigationDate: accident.investigationDate
           ? new Date(accident.investigationDate).toISOString().substring(0, 10)
           : '',
-        investigationBy: accident.investigationBy || '',
+        investigationBy: selectedUser,
         costIncurred:
           accident.costIncurred !== undefined
             ? accident.costIncurred.toString()
             : ''
       });
     }
-  }, [accident]);
-
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/users`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        const usersData = response.data.data.users || [];
-        setUsers(usersData);
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    }
-  };
+  }, [accident, users]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -99,6 +148,10 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleUserChange = (event, newValue) => {
+    setFormData(prev => ({ ...prev, investigationBy: newValue }));
   };
 
   const validateStep = () => {
@@ -116,7 +169,7 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
       case 2:
         if (!formData.investigationDate)
           return 'Investigation date is required';
-        if (!formData.investigationBy?.trim())
+        if (!formData.investigationBy)
           return 'Investigation By is required';
         
         const costNum = parseFloat(formData.costIncurred || 0);
@@ -164,7 +217,7 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
         preventiveAction: formData.preventiveAction || '',
         investigationStatus: formData.investigationStatus,
         investigationDate: new Date(formData.investigationDate).toISOString(),
-        investigationBy: formData.investigationBy,
+        investigationBy: formData.investigationBy?._id || formData.investigationBy,
         costIncurred: costNum
       };
 
@@ -199,6 +252,8 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
 
   const handleClose = () => {
     setActiveStep(0);
+    setUsersInputValue('');
+    setUsersSearch('');
     setError('');
     onClose();
   };
@@ -291,23 +346,78 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
                 disabled={loading}
               />
 
-              <FormControl fullWidth>
-                <InputLabel>Investigation By *</InputLabel>
-                <Select
-                  name="investigationBy"
-                  value={formData.investigationBy}
-                  onChange={handleChange}
-                  label="Investigation By *"
-                  required
-                  disabled={loading}
-                >
-                  {users.map((user) => (
-                    <MenuItem key={user._id} value={user._id}>
-                      {user.Username} {user.EmployeeID ? `- ${user.EmployeeID.FirstName} ${user.EmployeeID.LastName}` : ''}
+              {/* Enhanced Investigation By Autocomplete */}
+              <Autocomplete
+                fullWidth
+                id="investigationBy-autocomplete"
+                open={usersOpen}
+                onOpen={() => setUsersOpen(true)}
+                onClose={() => setUsersOpen(false)}
+                options={Array.isArray(users) ? users : []}
+                loading={usersLoading}
+                value={formData.investigationBy}
+                onChange={handleUserChange}
+                inputValue={usersInputValue}
+                onInputChange={(event, newInputValue) => {
+                  setUsersInputValue(newInputValue);
+                  setUsersSearch(newInputValue);
+                }}
+                getOptionLabel={(option) => {
+                  if (!option) return '';
+                  const username = option.Username || '';
+                  if (option.EmployeeID?.FirstName && option.EmployeeID?.LastName) {
+                    return `${option.EmployeeID.FirstName} ${option.EmployeeID.LastName}`;
+                  }
+                  return username;
+                }}
+                isOptionEqualToValue={(option, value) => option?._id === value?._id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Investigation By *"
+                    required
+                    placeholder="Search investigator..."
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {usersLoading ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => {
+                  if (!option) return null;
+                  
+                  let displayName = option.Username || 'Unknown';
+                  let displayEmail = option.Email || '';
+                  
+                  if (option.EmployeeID) {
+                    if (option.EmployeeID.FirstName && option.EmployeeID.LastName) {
+                      displayName = `${option.EmployeeID.FirstName} ${option.EmployeeID.LastName}`;
+                    }
+                  }
+                  
+                  return (
+                    <MenuItem {...props} key={option._id} sx={{ py: 0.5 }}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {displayName}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {displayEmail}
+                        </Typography>
+                      </Box>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  );
+                }}
+                ListboxProps={{
+                  onScroll: handleUsersScroll,
+                  style: { maxHeight: 250 }
+                }}
+              />
             </Stack>
 
             {/* Second Row - Cost Incurred (full width) */}

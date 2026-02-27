@@ -22,8 +22,8 @@ import BASE_URL from '../../../config/Config';
 const AddProcess = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     ProcessName: '',
+    ProcessType: 'Main',
     RateType: 'Per Hour',
-    Rate: '',
     VendorOrInhouse: 'Vendor',
     Description: '',
     IsActive: true
@@ -31,6 +31,9 @@ const AddProcess = ({ open, onClose, onAdd }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Process type options
+  const processTypeOptions = ['Main', 'Finishing'];
+  
   // Rate type options
   const rateTypeOptions = ['Per Nos', 'Per Kg', 'Per Hour', 'Fixed'];
   
@@ -60,13 +63,13 @@ const AddProcess = ({ open, onClose, onAdd }) => {
       return;
     }
 
-    if (!formData.RateType) {
-      setError('Rate Type is required');
+    if (!formData.ProcessType) {
+      setError('Process Type is required');
       return;
     }
 
-    if (!formData.Rate || parseFloat(formData.Rate) <= 0) {
-      setError('Rate must be greater than 0');
+    if (!formData.RateType) {
+      setError('Rate Type is required');
       return;
     }
 
@@ -80,10 +83,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${BASE_URL}/api/processes`, {
-        ...formData,
-        Rate: parseFloat(formData.Rate)
-      }, {
+      const response = await axios.post(`${BASE_URL}/api/processes`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -108,8 +108,8 @@ const AddProcess = ({ open, onClose, onAdd }) => {
   const resetForm = () => {
     setFormData({
       ProcessName: '',
+      ProcessType: 'Main',
       RateType: 'Per Hour',
-      Rate: '',
       VendorOrInhouse: 'Vendor',
       Description: '',
       IsActive: true
@@ -120,15 +120,6 @@ const AddProcess = ({ open, onClose, onAdd }) => {
   const handleClose = () => {
     resetForm();
     onClose();
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
   };
 
   return (
@@ -171,44 +162,43 @@ const AddProcess = ({ open, onClose, onAdd }) => {
             disabled={loading}
           />
 
-          {/* Rate Type and Rate - Two fields in one row */}
-          <Stack direction="row" spacing={2}>
-            <FormControl fullWidth>
-              <InputLabel>Rate Type *</InputLabel>
-              <Select
-                name="RateType"
-                value={formData.RateType}
-                onChange={handleSelectChange}
-                label="Rate Type *"
-                required
-                disabled={loading}
-              >
-                {rateTypeOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label={`Rate (${formData.RateType}) *`}
-              name="Rate"
-              type="number"
-              value={formData.Rate}
-              onChange={handleChange}
+          {/* Process Type Dropdown */}
+          <FormControl fullWidth>
+            <InputLabel>Process Type *</InputLabel>
+            <Select
+              name="ProcessType"
+              value={formData.ProcessType}
+              onChange={handleSelectChange}
+              label="Process Type *"
               required
               disabled={loading}
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                inputProps: {
-                  step: "0.01",
-                  min: "0"
-                }
-              }}
-            />
-          </Stack>
+            >
+              {processTypeOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Rate Type */}
+          <FormControl fullWidth>
+            <InputLabel>Rate Type *</InputLabel>
+            <Select
+              name="RateType"
+              value={formData.RateType}
+              onChange={handleSelectChange}
+              label="Rate Type *"
+              required
+              disabled={loading}
+            >
+              {rateTypeOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {/* Vendor/Inhouse Dropdown */}
           <FormControl fullWidth>
@@ -242,8 +232,8 @@ const AddProcess = ({ open, onClose, onAdd }) => {
             placeholder="Describe the process, equipment used, special requirements, etc."
           />
 
-          {/* Rate Preview */}
-          {formData.Rate && (
+          {/* Process Information Preview */}
+          {formData.ProcessName && (
             <Box sx={{ 
               p: 2.5, 
               bgcolor: '#E8F5E9', 
@@ -251,13 +241,20 @@ const AddProcess = ({ open, onClose, onAdd }) => {
               border: '1px solid #C8E6C9'
             }}>
               <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
-                Rate Information
+                Process Information
               </Typography>
               <Stack spacing={1}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Process:</Typography>
+                  <Typography variant="body2" color="textSecondary">Process Name:</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {formData.ProcessName || 'N/A'}
+                    {formData.ProcessName}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Process Type:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.ProcessType}
                   </Typography>
                 </Stack>
                 
@@ -269,14 +266,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
                 </Stack>
                 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Rate:</Typography>
-                  <Typography variant="body1" fontWeight={700} color="success.main">
-                    {formatCurrency(formData.Rate)} / {formData.RateType.toLowerCase().replace('per ', '')}
-                  </Typography>
-                </Stack>
-                
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Type:</Typography>
+                  <Typography variant="body2" color="textSecondary">Vendor/Inhouse:</Typography>
                   <Typography variant="body2" fontWeight={500}>
                     {formData.VendorOrInhouse === 'Vendor' ? 'External Vendor' : 'In-house'}
                   </Typography>

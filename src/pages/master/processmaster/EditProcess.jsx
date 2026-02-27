@@ -22,8 +22,8 @@ import BASE_URL from '../../../config/Config';
 const EditProcess = ({ open, onClose, process, onUpdate }) => {
   const [formData, setFormData] = useState({
     ProcessName: '',
+    ProcessType: 'Main',
     RateType: 'Per Hour',
-    Rate: '',
     VendorOrInhouse: 'Vendor',
     Description: '',
     IsActive: true
@@ -31,6 +31,9 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Process type options
+  const processTypeOptions = ['Main', 'Finishing'];
+  
   // Rate type options
   const rateTypeOptions = ['Per Nos', 'Per Kg', 'Per Hour', 'Fixed'];
   
@@ -41,8 +44,8 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
     if (process) {
       setFormData({
         ProcessName: process.ProcessName || '',
+        ProcessType: process.ProcessType || 'Main',
         RateType: process.RateType || 'Per Hour',
-        Rate: process.Rate || '',
         VendorOrInhouse: process.VendorOrInhouse || 'Vendor',
         Description: process.Description || '',
         IsActive: process.IsActive !== undefined ? process.IsActive : true
@@ -73,13 +76,13 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
       return;
     }
 
-    if (!formData.RateType) {
-      setError('Rate Type is required');
+    if (!formData.ProcessType) {
+      setError('Process Type is required');
       return;
     }
 
-    if (!formData.Rate || parseFloat(formData.Rate) <= 0) {
-      setError('Rate must be greater than 0');
+    if (!formData.RateType) {
+      setError('Rate Type is required');
       return;
     }
 
@@ -93,10 +96,7 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${BASE_URL}/api/processes/${process._id}`, {
-        ...formData,
-        Rate: parseFloat(formData.Rate)
-      }, {
+      const response = await axios.put(`${BASE_URL}/api/processes/${process._id}`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -115,15 +115,6 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
   };
 
   return (
@@ -166,44 +157,43 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
             disabled={loading}
           />
 
-          {/* Rate Type and Rate - Two fields in one row */}
-          <Stack direction="row" spacing={2}>
-            <FormControl fullWidth>
-              <InputLabel>Rate Type *</InputLabel>
-              <Select
-                name="RateType"
-                value={formData.RateType}
-                onChange={handleSelectChange}
-                label="Rate Type *"
-                required
-                disabled={loading}
-              >
-                {rateTypeOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label={`Rate (${formData.RateType}) *`}
-              name="Rate"
-              type="number"
-              value={formData.Rate}
-              onChange={handleChange}
+          {/* Process Type Dropdown */}
+          <FormControl fullWidth>
+            <InputLabel>Process Type *</InputLabel>
+            <Select
+              name="ProcessType"
+              value={formData.ProcessType}
+              onChange={handleSelectChange}
+              label="Process Type *"
               required
               disabled={loading}
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                inputProps: {
-                  step: "0.01",
-                  min: "0"
-                }
-              }}
-            />
-          </Stack>
+            >
+              {processTypeOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Rate Type */}
+          <FormControl fullWidth>
+            <InputLabel>Rate Type *</InputLabel>
+            <Select
+              name="RateType"
+              value={formData.RateType}
+              onChange={handleSelectChange}
+              label="Rate Type *"
+              required
+              disabled={loading}
+            >
+              {rateTypeOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {/* Vendor/Inhouse Dropdown */}
           <FormControl fullWidth>
@@ -237,8 +227,8 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
             placeholder="Describe the process, equipment used, special requirements, etc."
           />
 
-          {/* Rate Preview */}
-          {formData.Rate && (
+          {/* Process Information Preview */}
+          {process && (
             <Box sx={{ 
               p: 2.5, 
               bgcolor: '#E8F5E9', 
@@ -246,38 +236,45 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
               border: '1px solid #C8E6C9'
             }}>
               <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
-                Rate Information
+                Process Information
               </Typography>
               <Stack spacing={1}>
-                {process && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" color="textSecondary">Current Rate:</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {formatCurrency(process.Rate)} / {process.RateType.toLowerCase().replace('per ', '')}
-                    </Typography>
-                  </Stack>
-                )}
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Process Name:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.ProcessName || process.ProcessName}
+                  </Typography>
+                </Stack>
                 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">New Rate Type:</Typography>
+                  <Typography variant="body2" color="textSecondary">Process Type:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.ProcessType}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Rate Type:</Typography>
                   <Typography variant="body2" fontWeight={500}>
                     {formData.RateType}
                   </Typography>
                 </Stack>
                 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">New Rate:</Typography>
-                  <Typography variant="body1" fontWeight={700} color="success.main">
-                    {formatCurrency(formData.Rate)} / {formData.RateType.toLowerCase().replace('per ', '')}
-                  </Typography>
-                </Stack>
-                
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Type:</Typography>
+                  <Typography variant="body2" color="textSecondary">Vendor/Inhouse:</Typography>
                   <Typography variant="body2" fontWeight={500}>
                     {formData.VendorOrInhouse === 'Vendor' ? 'External Vendor' : 'In-house'}
                   </Typography>
                 </Stack>
+
+                {process.Description && (
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="textSecondary">Description:</Typography>
+                    <Typography variant="body2" fontWeight={500} sx={{ maxWidth: '60%', textAlign: 'right' }}>
+                      {process.Description}
+                    </Typography>
+                  </Stack>
+                )}
               </Stack>
             </Box>
           )}

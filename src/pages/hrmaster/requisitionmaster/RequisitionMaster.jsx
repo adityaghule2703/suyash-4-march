@@ -97,10 +97,9 @@ const STATUS_COLORS = {
   closed: { bg: '#F5F5F5', color: '#616161', icon: <ErrorIcon sx={{ fontSize: 14 }} />, label: 'Closed' }
 };
 
-// Tab configurations - simplified for cleaner tabs
+// Tab configurations - draft removed
 const TABS = [
   { value: 'all', label: 'All' },
-  { value: 'draft', label: 'Draft' },
   { value: 'pending_approval', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
@@ -1354,38 +1353,33 @@ const RequisitionMaster = () => {
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* Draft Tab */}
+      {/* Pending Tab */}
       <TabPanel value={tabValue} index={1}>
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* Pending Tab */}
+      {/* Approved Tab */}
       <TabPanel value={tabValue} index={2}>
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* Approved Tab */}
+      {/* Rejected Tab */}
       <TabPanel value={tabValue} index={3}>
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* Rejected Tab */}
+      {/* In Progress Tab */}
       <TabPanel value={tabValue} index={4}>
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* In Progress Tab */}
+      {/* Filled Tab */}
       <TabPanel value={tabValue} index={5}>
         {renderRequisitionsTable()}
       </TabPanel>
 
-      {/* Filled Tab */}
-      <TabPanel value={tabValue} index={6}>
-        {renderRequisitionsTable()}
-      </TabPanel>
-
       {/* Closed Tab */}
-      <TabPanel value={tabValue} index={7}>
+      <TabPanel value={tabValue} index={6}>
         {renderRequisitionsTable()}
       </TabPanel>
 

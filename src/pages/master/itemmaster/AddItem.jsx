@@ -31,6 +31,7 @@ const AddItem = ({ open, onClose, onAdd, materials }) => {
     Unit: '',
     HSNCode: '',
     MaterialID: '',
+    NetWgt: '', // Added NetWgt field
     IsActive: true
   });
   const [loading, setLoading] = useState(false);
@@ -81,10 +82,22 @@ const AddItem = ({ open, onClose, onAdd, materials }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Special handling for NetWgt to ensure it's a number
+    if (name === 'NetWgt') {
+      // Allow empty string or valid number
+      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleSelectChange = (event) => {
@@ -120,12 +133,31 @@ const AddItem = ({ open, onClose, onAdd, materials }) => {
       return;
     }
 
+    // Net weight validation
+    if (!formData.NetWgt && formData.NetWgt !== 0) {
+      setError('Net weight is required');
+      return;
+    }
+
+    const netWgt = parseFloat(formData.NetWgt);
+    if (isNaN(netWgt) || netWgt < 0) {
+      setError('Net weight must be a valid number greater than or equal to 0');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${BASE_URL}/api/items`, formData, {
+      
+      // Prepare data for submission
+      const submissionData = {
+        ...formData,
+        NetWgt: parseFloat(formData.NetWgt) // Convert to number for API
+      };
+
+      const response = await axios.post(`${BASE_URL}/api/items`, submissionData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -157,6 +189,7 @@ const AddItem = ({ open, onClose, onAdd, materials }) => {
       Unit: '',
       HSNCode: '',
       MaterialID: '',
+      NetWgt: '', // Added NetWgt field
       IsActive: true
     });
     setError('');
@@ -312,26 +345,48 @@ const AddItem = ({ open, onClose, onAdd, materials }) => {
             </FormControl>
           </Stack>
 
-          {/* Fourth Row - Material (Full Width) */}
-          <FormControl fullWidth>
-            <InputLabel>Material</InputLabel>
-            <Select
-              name="MaterialID"
-              value={formData.MaterialID}
-              onChange={handleSelectChange}
-              label="Material"
-              disabled={loading}
-            >
-              <MenuItem value="">
-                <em>Select Material</em>
-              </MenuItem>
-              {materials.map((material) => (
-                <MenuItem key={material._id} value={material._id}>
-                  {material.MaterialCode} - {material.MaterialName}
+          {/* Fourth Row - Material and Net Weight */}
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Material</InputLabel>
+              <Select
+                name="MaterialID"
+                value={formData.MaterialID}
+                onChange={handleSelectChange}
+                label="Material"
+                disabled={loading}
+              >
+                <MenuItem value="">
+                  <em>Select Material</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                {materials.map((material) => (
+                  <MenuItem key={material._id} value={material._id}>
+                    {material.MaterialCode} - {material.MaterialName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Net Weight *"
+              name="NetWgt"
+              value={formData.NetWgt}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              error={!!error && error.includes('Net weight')}
+              helperText={error && error.includes('Net weight') ? error : ''}
+              type="text"
+              placeholder="0.00"
+              InputProps={{
+                inputProps: { 
+                  min: 0,
+                  step: "0.01"
+                }
+              }}
+            />
+          </Stack>
         </Stack>
       </DialogContent>
 

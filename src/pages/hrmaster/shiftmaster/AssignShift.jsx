@@ -9,7 +9,9 @@ import {
   Stack,
   Alert,
   MenuItem,
-  Snackbar
+  Snackbar,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { AssignmentTurnedIn as AssignIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -17,12 +19,27 @@ import BASE_URL from '../../../config/Config';
 
 const AssignShift = ({ open, onClose }) => {
 
+  // Enhanced employees state
   const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeesSearch, setEmployeesSearch] = useState('');
+  const [employeesOpen, setEmployeesOpen] = useState(false);
+  const [employeesPage, setEmployeesPage] = useState(1);
+  const [employeesTotalPages, setEmployeesTotalPages] = useState(1);
+  const [employeesInputValue, setEmployeesInputValue] = useState('');
+
+  // Enhanced shifts state
   const [shifts, setShifts] = useState([]);
+  const [shiftsLoading, setShiftsLoading] = useState(false);
+  const [shiftsSearch, setShiftsSearch] = useState('');
+  const [shiftsOpen, setShiftsOpen] = useState(false);
+  const [shiftsPage, setShiftsPage] = useState(1);
+  const [shiftsTotalPages, setShiftsTotalPages] = useState(1);
+  const [shiftsInputValue, setShiftsInputValue] = useState('');
 
   const [formData, setFormData] = useState({
-    employeeId: '',
-    shiftId: '',
+    employeeId: null,
+    shiftId: null,
     effectiveFrom: '',
     effectiveTo: ''
   });
@@ -37,45 +54,125 @@ const AssignShift = ({ open, onClose }) => {
     severity: 'success'
   });
 
-  // 🔥 Load Employees
-  useEffect(() => {
-    if (!open) return;
+  // 🔥 Fetch Employees with pagination and search
+  const fetchEmployees = async (search = '', page = 1) => {
+    setEmployeesLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${BASE_URL}/api/employees`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: page,
+          limit: 10,
+          search: search
+        }
+      });
 
-    const fetchEmployees = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${BASE_URL}/api/employees`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setEmployees(res.data.data || []);
-      } catch {
-        setError('Failed to load employees');
+      const newData = res.data.data || [];
+      if (page === 1) {
+        setEmployees(Array.isArray(newData) ? newData : []);
+      } else {
+        setEmployees(prev => [...prev, ...(Array.isArray(newData) ? newData : [])]);
       }
-    };
+      setEmployeesTotalPages(res.data.pagination?.totalPages || 1);
+    } catch {
+      setError('Failed to load employees');
+      setEmployees([]);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
 
-    fetchEmployees();
-  }, [open]);
+  // 🔥 Fetch Shifts with pagination and search
+  const fetchShifts = async (search = '', page = 1) => {
+    setShiftsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${BASE_URL}/api/shifts`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: page,
+          limit: 10,
+          search: search
+        }
+      });
 
-  // 🔥 Load Shifts
-  useEffect(() => {
-    if (!open) return;
-
-    const fetchShifts = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${BASE_URL}/api/shifts`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setShifts(res.data.data || []);
-      } catch {
-        setError('Failed to load shifts');
+      const newData = res.data.data || [];
+      if (page === 1) {
+        setShifts(Array.isArray(newData) ? newData : []);
+      } else {
+        setShifts(prev => [...prev, ...(Array.isArray(newData) ? newData : [])]);
       }
-    };
+      setShiftsTotalPages(res.data.pagination?.totalPages || 1);
+    } catch {
+      setError('Failed to load shifts');
+      setShifts([]);
+    } finally {
+      setShiftsLoading(false);
+    }
+  };
 
-    fetchShifts();
-  }, [open]);
+  // Load employees when dropdown opens
+  useEffect(() => {
+    if (employeesOpen) {
+      fetchEmployees(employeesSearch, 1);
+    }
+  }, [employeesOpen]);
+
+  // Search employees with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (employeesOpen) {
+        setEmployeesPage(1);
+        fetchEmployees(employeesSearch, 1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [employeesSearch, employeesOpen]);
+
+  // Load shifts when dropdown opens
+  useEffect(() => {
+    if (shiftsOpen) {
+      fetchShifts(shiftsSearch, 1);
+    }
+  }, [shiftsOpen]);
+
+  // Search shifts with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (shiftsOpen) {
+        setShiftsPage(1);
+        fetchShifts(shiftsSearch, 1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [shiftsSearch, shiftsOpen]);
+
+  // Handle scroll load more for employees
+  const handleEmployeesScroll = (event) => {
+    const listboxNode = event.currentTarget;
+    if (listboxNode.scrollTop + listboxNode.clientHeight >= listboxNode.scrollHeight - 50) {
+      if (employeesPage < employeesTotalPages && !employeesLoading) {
+        const nextPage = employeesPage + 1;
+        setEmployeesPage(nextPage);
+        fetchEmployees(employeesSearch, nextPage);
+      }
+    }
+  };
+
+  // Handle scroll load more for shifts
+  const handleShiftsScroll = (event) => {
+    const listboxNode = event.currentTarget;
+    if (listboxNode.scrollTop + listboxNode.clientHeight >= listboxNode.scrollHeight - 50) {
+      if (shiftsPage < shiftsTotalPages && !shiftsLoading) {
+        const nextPage = shiftsPage + 1;
+        setShiftsPage(nextPage);
+        fetchShifts(shiftsSearch, nextPage);
+      }
+    }
+  };
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -84,8 +181,15 @@ const AssignShift = ({ open, onClose }) => {
     }));
   };
 
-  const handleSubmit = async () => {
+  const handleEmployeeChange = (event, newValue) => {
+    setFormData(prev => ({ ...prev, employeeId: newValue }));
+  };
 
+  const handleShiftChange = (event, newValue) => {
+    setFormData(prev => ({ ...prev, shiftId: newValue }));
+  };
+
+  const handleSubmit = async () => {
     if (!formData.employeeId)
       return setError('Please select employee');
 
@@ -103,7 +207,8 @@ const AssignShift = ({ open, onClose }) => {
 
       // Format dates to ISO string with time set to start of day (00:00:00)
       const payload = {
-        ...formData,
+        employeeId: formData.employeeId?._id || formData.employeeId?.id,
+        shiftId: formData.shiftId?._id || formData.shiftId?.id,
         effectiveFrom: new Date(formData.effectiveFrom).toISOString().split('T')[0] + 'T00:00:00.000Z',
         effectiveTo: new Date(formData.effectiveTo).toISOString().split('T')[0] + 'T00:00:00.000Z'
       };
@@ -120,7 +225,6 @@ const AssignShift = ({ open, onClose }) => {
       );
 
       if (res.data.success) {
-
         // ✅ Show Success Snackbar
         setSnackbar({
           open: true,
@@ -129,11 +233,9 @@ const AssignShift = ({ open, onClose }) => {
         });
 
         handleClose();
-
       } else {
         setError(res.data.message || 'Failed to assign shift');
       }
-
     } catch (error) {
       setError(
         error.response?.data?.message ||
@@ -146,11 +248,15 @@ const AssignShift = ({ open, onClose }) => {
 
   const handleClose = () => {
     setFormData({
-      employeeId: '',
-      shiftId: '',
+      employeeId: null,
+      shiftId: null,
       effectiveFrom: '',
       effectiveTo: ''
     });
+    setEmployeesInputValue('');
+    setShiftsInputValue('');
+    setEmployeesSearch('');
+    setShiftsSearch('');
     setError('');
     onClose();
   };
@@ -185,37 +291,103 @@ const AssignShift = ({ open, onClose }) => {
         <DialogContent sx={{ pt: 3 }}>
           <Stack spacing={3} sx={{ mt: 2 }}>
 
-            <TextField
-              select
-              fullWidth
-              label="Select Employee"
-              name="employeeId"
+            {/* Enhanced Employee Autocomplete */}
+            <Autocomplete
+              id="employee-autocomplete"
+              open={employeesOpen}
+              onOpen={() => setEmployeesOpen(true)}
+              onClose={() => setEmployeesOpen(false)}
+              options={Array.isArray(employees) ? employees : []}
+              loading={employeesLoading}
               value={formData.employeeId}
-              onChange={handleChange}
-              required
-            >
-              {employees.map(emp => (
-                <MenuItem key={emp._id} value={emp._id}>
-                  {emp.FirstName} {emp.LastName}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
+              onChange={handleEmployeeChange}
+              inputValue={employeesInputValue}
+              onInputChange={(event, newInputValue) => {
+                setEmployeesInputValue(newInputValue);
+                setEmployeesSearch(newInputValue);
+              }}
+              getOptionLabel={(option) => {
+                if (!option) return '';
+                return `${option.FirstName || ''} ${option.LastName || ''}`.trim();
+              }}
+              isOptionEqualToValue={(option, value) => option?._id === value?._id}
               fullWidth
-              label="Select Shift"
-              name="shiftId"
-              value={formData.shiftId}
-              onChange={handleChange}
-              required
-            >
-              {shifts.map(shift => (
-                <MenuItem key={shift._id} value={shift._id}>
-                  {shift.ShiftName} ({shift.StartTime} - {shift.EndTime})
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Employee"
+                  required
+                  placeholder="Search employee..."
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {employeesLoading ? <CircularProgress size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <MenuItem {...props} key={option._id}>
+                  {option.FirstName} {option.LastName}
                 </MenuItem>
-              ))}
-            </TextField>
+              )}
+              ListboxProps={{
+                onScroll: handleEmployeesScroll,
+                style: { maxHeight: 250 }
+              }}
+            />
+
+            {/* Enhanced Shift Autocomplete */}
+            <Autocomplete
+              id="shift-autocomplete"
+              open={shiftsOpen}
+              onOpen={() => setShiftsOpen(true)}
+              onClose={() => setShiftsOpen(false)}
+              options={Array.isArray(shifts) ? shifts : []}
+              loading={shiftsLoading}
+              value={formData.shiftId}
+              onChange={handleShiftChange}
+              inputValue={shiftsInputValue}
+              onInputChange={(event, newInputValue) => {
+                setShiftsInputValue(newInputValue);
+                setShiftsSearch(newInputValue);
+              }}
+              getOptionLabel={(option) => {
+                if (!option) return '';
+                return option.ShiftName || '';
+              }}
+              isOptionEqualToValue={(option, value) => option?._id === value?._id}
+              fullWidth
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Shift"
+                  required
+                  placeholder="Search shift..."
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {shiftsLoading ? <CircularProgress size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <MenuItem {...props} key={option._id}>
+                  {option.ShiftName} ({option.StartTime} - {option.EndTime})
+                </MenuItem>
+              )}
+              ListboxProps={{
+                onScroll: handleShiftsScroll,
+                style: { maxHeight: 250 }
+              }}
+            />
 
             <TextField
               fullWidth

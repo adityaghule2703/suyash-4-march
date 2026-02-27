@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -23,7 +23,9 @@ import {
   ListItemText,
   FormHelperText,
   InputAdornment,
-  Tooltip
+  Tooltip,
+  Tab,
+  Tabs
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -42,11 +44,27 @@ import {
   Description as DescriptionIcon,
   VerifiedUser as VerifiedUserIcon,
   Comment as CommentIcon,
-  Fingerprint as FingerprintIcon
+  Fingerprint as FingerprintIcon,
+  Upload as UploadIcon,
+  Brush as BrushIcon,
+  
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import SignaturePad from 'react-signature-canvas';
+
+// Tab Panel component
+const TabPanel = ({ children, value, index, ...other }) => (
+  <div
+    role="tabpanel"
+    hidden={value !== index}
+    id={`signature-tabpanel-${index}`}
+    aria-labelledby={`signature-tab-${index}`}
+    {...other}
+  >
+    {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+  </div>
+);
 
 const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
   const [requisition, setRequisition] = useState(null);
@@ -61,6 +79,13 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
   const [commentsError, setCommentsError] = useState('');
   const [approveSuccess, setApproveSuccess] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(true);
+  
+  // New states for file upload
+  const [signatureMethod, setSignatureMethod] = useState(0); // 0 = draw, 1 = upload
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedFilePreview, setUploadedFilePreview] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (open && requisitionId) {
@@ -77,6 +102,10 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
       setCommentsError('');
       setApproveSuccess(false);
       setShowSignaturePad(true);
+      setSignatureMethod(0);
+      setUploadedFile(null);
+      setUploadedFilePreview(null);
+      setUploadError('');
     }
   }, [open]);
 
@@ -106,29 +135,54 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Please upload a valid image file (JPEG, PNG, or GIF)');
+      setUploadedFile(null);
+      setUploadedFilePreview(null);
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError('File size should be less than 2MB');
+      setUploadedFile(null);
+      setUploadedFilePreview(null);
+      return;
+    }
+
+    setUploadError('');
+    setUploadedFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUploadedFilePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Helper function to convert PNG to JPEG
   const convertPNGToJPEG = (pngDataUrl) => {
     return new Promise((resolve, reject) => {
       try {
-        // Create an image element
         const img = new Image();
         img.onload = () => {
-          // Create a canvas element
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
           canvas.height = img.height;
           
-          // Draw the image onto the canvas
           const ctx = canvas.getContext('2d');
-          
-          // Fill with white background (since JPEG doesn't support transparency)
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // Draw the signature on top of white background
           ctx.drawImage(img, 0, 0);
           
-          // Convert to JPEG format with 0.9 quality (90%)
           const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.9);
           resolve(jpegDataUrl);
         };
@@ -145,10 +199,19 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
   };
 
   const handleApprove = async () => {
-    // Validate signature
-   if (!signaturePad || signaturePad.isEmpty()) {
-      setSignatureError('Signature is required');
-      return;
+    // Validate signature based on selected method
+    if (signatureMethod === 0) {
+      // Drawing method
+      if (!signaturePad || signaturePad.isEmpty()) {
+        setSignatureError('Signature is required');
+        return;
+      }
+    } else {
+      // Upload method
+      if (!uploadedFile && !uploadedFilePreview) {
+        setUploadError('Please upload a signature file');
+        return;
+      }
     }
 
     // Validate comments (optional but recommended)
@@ -161,36 +224,58 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
     setError('');
     setSignatureError('');
     setCommentsError('');
+    setUploadError('');
 
     try {
-      // Get signature data URL (PNG format from SignaturePad)
-      let signatureData = signature;
-      let pngSignatureData = null;
-      
-      if (signaturePad && !signaturePad.isEmpty()) {
-        pngSignatureData = signaturePad.toDataURL('image/png');
-      } else if (signature) {
-        pngSignatureData = signature;
-      }
-
-      // Convert PNG to JPEG if we have signature data
       let jpegSignatureData = null;
-      if (pngSignatureData) {
-        try {
-          jpegSignatureData = await convertPNGToJPEG(pngSignatureData);
-        } catch (conversionError) {
-          console.error('Error converting signature to JPEG:', conversionError);
-          setError('Failed to process signature. Please try again.');
-          setApproving(false);
-          return;
+
+      if (signatureMethod === 0) {
+        // Get signature from drawing pad
+        let pngSignatureData = null;
+        
+        if (signaturePad && !signaturePad.isEmpty()) {
+          pngSignatureData = signaturePad.toDataURL('image/png');
+        } else if (signature) {
+          pngSignatureData = signature;
+        }
+
+        // Convert PNG to JPEG
+        if (pngSignatureData) {
+          try {
+            jpegSignatureData = await convertPNGToJPEG(pngSignatureData);
+          } catch (conversionError) {
+            console.error('Error converting signature to JPEG:', conversionError);
+            setError('Failed to process signature. Please try again.');
+            setApproving(false);
+            return;
+          }
+        }
+      } else {
+        // Get signature from uploaded file
+        if (uploadedFilePreview) {
+          // If uploaded file is PNG, convert to JPEG, otherwise use as is
+          if (uploadedFile?.type === 'image/png') {
+            try {
+              jpegSignatureData = await convertPNGToJPEG(uploadedFilePreview);
+            } catch (conversionError) {
+              console.error('Error converting uploaded PNG to JPEG:', conversionError);
+              setError('Failed to process uploaded signature. Please try again.');
+              setApproving(false);
+              return;
+            }
+          } else {
+            // For JPEG or other formats, use as is
+            jpegSignatureData = uploadedFilePreview;
+          }
         }
       }
 
       const token = localStorage.getItem('token');
       const submitData = {
-        signature: jpegSignatureData, // Send JPEG format
+        signature: jpegSignatureData,
         comments: comments.trim(),
-        signatureFormat: 'jpeg' // Optional: indicate format to backend
+        signatureFormat: 'jpeg',
+        signatureMethod: signatureMethod === 0 ? 'draw' : 'upload'
       };
 
       const response = await axios.post(`${BASE_URL}/api/requisitions/${requisitionId}/approve`, submitData, {
@@ -204,10 +289,8 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
         setSuccess(response.data.message || 'Requisition approved successfully');
         setApproveSuccess(true);
         
-        // Call the onApprove callback with the response data
         onApprove(response.data.data);
         
-        // Close dialog after short delay to show success message
         setTimeout(() => {
           handleClose();
         }, 2000);
@@ -222,54 +305,6 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
     }
   };
 
-  // Alternative method if you want to compress JPEG further or adjust quality
-  const convertPNGToJPEGWithOptions = async (pngDataUrl, quality = 0.85, maxWidth = 800) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const img = new Image();
-        img.onload = () => {
-          // Calculate new dimensions while maintaining aspect ratio
-          let width = img.width;
-          let height = img.height;
-          
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-          
-          // Create canvas with calculated dimensions
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          
-          const ctx = canvas.getContext('2d');
-          
-          // Fill with white background
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // Draw scaled signature
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Convert to JPEG with specified quality
-          const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
-          resolve(jpegDataUrl);
-        };
-        
-        img.onerror = () => {
-          reject(new Error('Failed to load signature image'));
-        };
-        
-        img.src = pngDataUrl;
-      } catch (error) {
-        reject(error);
-      }
-    });
-  };
-
-  // If you want to use the alternative method with compression, replace the convertPNGToJPEG function above with this one
-  // and uncomment the line below in handleApprove
-
   const handleClearSignature = () => {
     if (signaturePad) {
       signaturePad.clear();
@@ -278,12 +313,28 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
     setSignatureError('');
   };
 
+  const handleClearUpload = () => {
+    setUploadedFile(null);
+    setUploadedFilePreview(null);
+    setUploadError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleClose = () => {
     setRequisition(null);
     setError('');
     setSuccess('');
     setApproveSuccess(false);
     onClose();
+  };
+
+  const handleMethodChange = (event, newValue) => {
+    setSignatureMethod(newValue);
+    // Clear errors when switching methods
+    setSignatureError('');
+    setUploadError('');
   };
 
   const formatDate = (dateString) => {
@@ -518,6 +569,290 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
     </Paper>
   );
 
+  const renderSignatureSection = () => (
+    <Paper sx={{ 
+      p: 3, 
+      borderRadius: 2,
+      border: '1px solid #E0E0E0'
+    }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#101010', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <VerifiedUserIcon sx={{ color: '#2E7D32' }} />
+        Approval Signature
+      </Typography>
+
+      {/* Signature Method Tabs */}
+      <Tabs
+        value={signatureMethod}
+        onChange={handleMethodChange}
+        variant="fullWidth"
+        sx={{
+          mb: 2,
+          borderBottom: '1px solid #E0E0E0',
+          '& .MuiTab-root': {
+            textTransform: 'none',
+            fontWeight: 500,
+            fontSize: '14px',
+            minHeight: '48px'
+          }
+        }}
+      >
+        <Tab 
+          icon={<BrushIcon sx={{ fontSize: 20 }} />} 
+          iconPosition="start" 
+          label="Draw Signature" 
+          disabled={approving}
+        />
+        <Tab 
+          icon={<UploadIcon sx={{ fontSize: 20 }} />} 
+          iconPosition="start" 
+          label="Upload Signature" 
+          disabled={approving}
+        />
+      </Tabs>
+
+      {/* Draw Signature Panel */}
+      <TabPanel value={signatureMethod} index={0}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ color: '#666', mb: 1 }}>
+              Draw your signature <span style={{ color: '#F44336' }}>*</span>
+            </Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                border: signatureError ? '1px solid #F44336' : '1px solid #E0E0E0',
+                borderRadius: 1,
+                overflow: 'hidden',
+                backgroundColor: '#FFF'
+              }}
+            >
+              {showSignaturePad ? (
+                <SignaturePad
+                  ref={(ref) => setSignaturePad(ref)}
+                  canvasProps={{
+                    width: 500,
+                    height: 200,
+                    className: 'signature-pad',
+                    style: {
+                      width: '100%',
+                      height: '200px',
+                      cursor: 'crosshair'
+                    }
+                  }}
+                  backgroundColor="rgb(255,255,255)"
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '200px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#F5F5F5'
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: '#999' }}>
+                    Signature pad hidden
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+              <FormHelperText error={!!signatureError}>
+                {signatureError || 'Draw your signature in the box above'}
+              </FormHelperText>
+              <Box>
+                <Button
+                  size="small"
+                  onClick={handleClearSignature}
+                  sx={{ mr: 1, color: '#666' }}
+                  disabled={approving}
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setShowSignaturePad(!showSignaturePad)}
+                  sx={{ color: '#1976D2' }}
+                  disabled={approving}
+                >
+                  {showSignaturePad ? 'Hide' : 'Show'} Pad
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        </Stack>
+      </TabPanel>
+
+      {/* Upload Signature Panel */}
+      <TabPanel value={signatureMethod} index={1}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ color: '#666', mb: 1 }}>
+              Upload signature file <span style={{ color: '#F44336' }}>*</span>
+            </Typography>
+            
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              disabled={approving}
+            />
+            
+            {!uploadedFilePreview ? (
+              <Paper
+                variant="outlined"
+                sx={{
+                  border: uploadError ? '1px solid #F44336' : '2px dashed #BDBDBD',
+                  borderRadius: 2,
+                  p: 3,
+                  textAlign: 'center',
+                  backgroundColor: '#FAFAFA',
+                  cursor: approving ? 'not-allowed' : 'pointer',
+                  '&:hover': {
+                    backgroundColor: approving ? '#FAFAFA' : '#F5F5F5',
+                    borderColor: approving ? '#BDBDBD' : '#1976D2'
+                  }
+                }}
+                onClick={() => !approving && fileInputRef.current?.click()}
+              >
+                <UploadIcon sx={{ fontSize: 48, color: '#9E9E9E', mb: 1 }} />
+                <Typography variant="body1" sx={{ color: '#424242', fontWeight: 500, mb: 0.5 }}>
+                  Click to upload or drag and drop
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#9E9E9E' }}>
+                  Supported formats: JPEG, PNG, GIF (Max size: 2MB)
+                </Typography>
+              </Paper>
+            ) : (
+              <Box>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    border: '1px solid #4CAF50',
+                    borderRadius: 2,
+                    p: 2,
+                    backgroundColor: '#F1F8E9'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <CheckCircleIcon sx={{ color: '#4CAF50', mr: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#2E7D32' }}>
+                      File uploaded successfully
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                    <img 
+                      src={uploadedFilePreview} 
+                      alt="Signature preview" 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '150px', 
+                        objectFit: 'contain',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '4px',
+                        backgroundColor: '#FFF'
+                      }} 
+                    />
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: '#616161' }}>
+                      {uploadedFile?.name} ({(uploadedFile?.size / 1024).toFixed(1)} KB)
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <Button
+                      size="small"
+                      onClick={handleClearUpload}
+                      sx={{ color: '#F44336' }}
+                      disabled={approving}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
+            
+            {uploadError && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {uploadError}
+              </FormHelperText>
+            )}
+            
+            <FormHelperText sx={{ mt: 1 }}>
+              Upload a clear image of your signature. The file will be converted to JPEG format.
+            </FormHelperText>
+          </Box>
+        </Stack>
+      </TabPanel>
+
+      {/* Comments Section (common for both methods) */}
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="subtitle2" sx={{ color: '#666', mb: 1 }}>
+          Approval Comments <span style={{ color: '#F44336' }}>*</span>
+        </Typography>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          placeholder="Please provide your comments and justification for approval..."
+          value={comments}
+          onChange={(e) => {
+            setComments(e.target.value);
+            if (commentsError) setCommentsError('');
+          }}
+          error={!!commentsError}
+          helperText={commentsError || 'Minimum 5 characters'}
+          disabled={approving}
+          variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <CommentIcon sx={{ color: '#999', fontSize: 20 }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1,
+            }
+          }}
+        />
+      </Box>
+
+      {/* Preview of approval */}
+      {((signatureMethod === 0 && signaturePad && !signaturePad.isEmpty()) || 
+        (signatureMethod === 1 && uploadedFilePreview)) && 
+        comments.trim().length >= 5 && (
+        <Paper sx={{ 
+          p: 2, 
+          backgroundColor: '#E8F5E9', 
+          borderRadius: 2,
+          border: '1px solid #4CAF50',
+          mt: 2
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: 20 }} />
+            <Typography variant="subtitle2" sx={{ color: '#2E7D32' }}>
+              Ready for Approval
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ color: '#1B5E20' }}>
+            Your signature and comments are complete. Click "Approve Requisition" to confirm.
+          </Typography>
+        </Paper>
+      )}
+    </Paper>
+  );
+
   return (
     <Dialog 
       open={open} 
@@ -541,14 +876,9 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <VerifiedUserIcon sx={{ color: '#2E7D32' }} />
-          <div style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
-            color: '#101010',
-            paddingTop: '8px'
-          }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: '#101010' }}>
             Approve Requisition
-          </div>
+          </Typography>
           {requisition && (
             <Chip
               label={requisition.requisitionId}
@@ -654,143 +984,8 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
             {/* Requisition Summary */}
             {renderRequisitionSummary()}
 
-            {/* Approval Form */}
-            <Paper sx={{ 
-              p: 3, 
-              borderRadius: 2,
-              border: '1px solid #E0E0E0'
-            }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#101010', mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <VerifiedUserIcon sx={{ color: '#2E7D32' }} />
-                Approval Signature
-              </Typography>
-
-              <Stack spacing={3}>
-                {/* Signature Pad */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ color: '#666', mb: 1 }}>
-                    Digital Signature <span style={{ color: '#F44336' }}>*</span>
-                  </Typography>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      border: signatureError ? '1px solid #F44336' : '1px solid #E0E0E0',
-                      borderRadius: 1,
-                      overflow: 'hidden',
-                      backgroundColor: '#FFF'
-                    }}
-                  >
-                    {showSignaturePad ? (
-                      <SignaturePad
-                        ref={(ref) => setSignaturePad(ref)}
-                        canvasProps={{
-                          width: 500,
-                          height: 200,
-                          className: 'signature-pad',
-                          style: {
-                            width: '100%',
-                            height: '200px',
-                            cursor: 'crosshair'
-                          }
-                        }}
-                        backgroundColor="rgb(255,255,255)"
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: '100%',
-                          height: '200px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#F5F5F5'
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ color: '#999' }}>
-                          Signature pad hidden
-                        </Typography>
-                      </Box>
-                    )}
-                  </Paper>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                    <FormHelperText error={!!signatureError}>
-                      {signatureError || 'Draw your signature in the box above'}
-                    </FormHelperText>
-                    <Box>
-                      <Button
-                        size="small"
-                        onClick={handleClearSignature}
-                        sx={{ mr: 1, color: '#666' }}
-                      >
-                        Clear
-                      </Button>
-                      <Button
-                        size="small"
-                        onClick={() => setShowSignaturePad(!showSignaturePad)}
-                        sx={{ color: '#1976D2' }}
-                      >
-                        {showSignaturePad ? 'Hide' : 'Show'} Pad
-                      </Button>
-                    </Box>
-                  </Box>
-                </Box>
-
-                {/* Comments */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ color: '#666', mb: 1 }}>
-                    Approval Comments <span style={{ color: '#F44336' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={4}
-                    placeholder="Please provide your comments and justification for approval..."
-                    value={comments}
-                    onChange={(e) => {
-                      setComments(e.target.value);
-                      if (commentsError) setCommentsError('');
-                    }}
-                    error={!!commentsError}
-                    helperText={commentsError || 'Minimum 5 characters'}
-                    disabled={approving}
-                    variant="outlined"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CommentIcon sx={{ color: '#999', fontSize: 20 }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                      }
-                    }}
-                  />
-                </Box>
-
-                {/* Preview of approval */}
-                {(signaturePad && !signaturePad.isEmpty() || signature) && comments.trim().length >= 5 && (
-                  <Paper sx={{ 
-                    p: 2, 
-                    backgroundColor: '#E8F5E9', 
-                    borderRadius: 2,
-                    border: '1px solid #4CAF50'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: 20 }} />
-                      <Typography variant="subtitle2" sx={{ color: '#2E7D32' }}>
-                        Ready for Approval
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ color: '#1B5E20' }}>
-                      Your signature and comments are complete. Click "Approve Requisition" to confirm.
-                    </Typography>
-                  </Paper>
-                )}
-              </Stack>
-            </Paper>
+            {/* Approval Form with Signature Options */}
+            {renderSignatureSection()}
           </Stack>
         ) : null}
       </DialogContent>
@@ -833,7 +1028,8 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
               approving || 
               approveSuccess || 
               (requisition && requisition.status !== 'pending_approval' && requisition.status !== 'draft') ||
-              (!signature && signaturePad?.isEmpty()) ||
+              (signatureMethod === 0 && (!signaturePad || signaturePad.isEmpty())) ||
+              (signatureMethod === 1 && !uploadedFilePreview) ||
               comments.trim().length < 5
             }
             startIcon={approving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}

@@ -110,15 +110,17 @@ const AddShifts = ({ open, onClose, onAdd }) => {
       });
 
       if (response.data.success) {
+        const newData = response.data.data || [];
         if (page === 1) {
-          setDepartments(response.data.data || []);
+          setDepartments(Array.isArray(newData) ? newData : []);
         } else {
-          setDepartments(prev => [...prev, ...(response.data.data || [])]);
+          setDepartments(prev => [...prev, ...(Array.isArray(newData) ? newData : [])]);
         }
         setDepartmentTotalPages(response.data.pagination?.totalPages || 1);
       }
     } catch (err) {
       console.error('Error fetching departments:', err);
+      setDepartments([]);
     } finally {
       setDepartmentLoading(false);
     }
@@ -591,12 +593,12 @@ const AddShifts = ({ open, onClose, onAdd }) => {
                     setDepartmentSearch(newInputValue);
                   }}
                   getOptionLabel={(option) => option?.DepartmentName || ''}
-                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                  isOptionEqualToValue={(option, value) => option?._id === value?._id}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Applicable Departments"
-                      placeholder="Select departments"
+                      placeholder="Search departments..."
                       size="small"
                       sx={{
                         '& .MuiOutlinedInput-root': {

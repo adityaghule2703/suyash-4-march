@@ -22,7 +22,8 @@ import {
   Avatar,
   Tabs,
   Tab,
-  Alert
+  Alert,
+  IconButton
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -63,6 +64,7 @@ function TabPanel({ children, value, index, ...other }) {
 /* ------------------- Status Chip Component ------------------- */
 const StatusChip = ({ status }) => {
   const statusConfig = {
+    open: { color: 'success', icon: <CheckCircleOutlineIcon />, label: 'Open', bgcolor: '#4caf50' },
     draft: { color: 'default', icon: <VisibilityIcon />, label: 'Draft', bgcolor: '#e0e0e0' },
     published: { color: 'success', icon: <CheckCircleOutlineIcon />, label: 'Published', bgcolor: '#4caf50' },
     closed: { color: 'error', icon: <CloseIcon />, label: 'Closed', bgcolor: '#f44336' },
@@ -89,10 +91,12 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [departmentNames, setDepartmentNames] = useState({});
+  const [requisitionDetails, setRequisitionDetails] = useState(null);
 
   useEffect(() => {
     if (job?.requisitionId?._id) {
       fetchDepartmentDetails();
+      fetchRequisitionDetails();
     }
   }, [job]);
 
@@ -124,6 +128,25 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
     }
   };
 
+  const fetchRequisitionDetails = async () => {
+    if (!job?.requisitionId?._id) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/requisitions/${job.requisitionId._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setRequisitionDetails(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching requisition details:', err);
+    }
+  };
+
   if (!job) return null;
 
   const handleTabChange = (event, newValue) => {
@@ -136,12 +159,12 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
   };
 
   const getPlatformIcon = (platform) => {
-    switch(platform) {
+    switch(platform?.toLowerCase()) {
       case 'linkedin':
         return <LinkedInIcon fontSize="small" />;
       case 'naukri':
         return <LanguageIcon fontSize="small" />;
-      case 'careerPage':
+      case 'careerpage':
         return <BusinessIcon fontSize="small" />;
       default:
         return <LanguageIcon fontSize="small" />;
@@ -212,14 +235,16 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
             <Grid item xs={12} md={8}>
               <Stack spacing={3}>
                 {/* Company Intro */}
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                    Company Introduction
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography>{job.companyIntro}</Typography>
-                  </Paper>
-                </Box>
+                {job.companyIntro && (
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      Company Introduction
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                      <Typography>{job.companyIntro}</Typography>
+                    </Paper>
+                  </Box>
+                )}
 
                 {/* Job Description */}
                 <Box>
@@ -232,38 +257,42 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
                 </Box>
 
                 {/* Requirements */}
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                    Requirements
-                  </Typography>
-                  <List dense>
-                    {job.requirements?.map((req, idx) => (
-                      <ListItem key={idx} sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircleOutlineIcon color="success" fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={req} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
+                {job.requirements?.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      Requirements
+                    </Typography>
+                    <List dense>
+                      {job.requirements?.map((req, idx) => (
+                        <ListItem key={idx} sx={{ py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <CheckCircleOutlineIcon color="success" fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText primary={req} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
 
                 {/* Responsibilities */}
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                    Responsibilities
-                  </Typography>
-                  <List dense>
-                    {job.responsibilities?.map((resp, idx) => (
-                      <ListItem key={idx} sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircleOutlineIcon color="primary" fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={resp} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
+                {job.responsibilities?.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      Responsibilities
+                    </Typography>
+                    <List dense>
+                      {job.responsibilities?.map((resp, idx) => (
+                        <ListItem key={idx} sx={{ py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <CheckCircleOutlineIcon color="primary" fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText primary={resp} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
               </Stack>
             </Grid>
 
@@ -278,35 +307,37 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
                     <List dense>
                       <ListItem>
                         <ListItemIcon><LocationIcon fontSize="small" /></ListItemIcon>
-                        <ListItemText primary="Location" secondary={job.location} />
+                        <ListItemText primary="Location" secondary={job.location || '-'} />
                       </ListItem>
                       <ListItem>
                         <ListItemIcon><BusinessIcon fontSize="small" /></ListItemIcon>
-                        <ListItemText primary="Department" secondary={job.department} />
+                        <ListItemText primary="Department" secondary={job.department || '-'} />
                       </ListItem>
                       <ListItem>
                         <ListItemIcon><WorkIcon fontSize="small" /></ListItemIcon>
-                        <ListItemText primary="Employment Type" secondary={job.employmentType} />
+                        <ListItemText primary="Employment Type" secondary={job.employmentType || '-'} />
                       </ListItem>
                       <ListItem>
                         <ListItemIcon><DateRangeIcon fontSize="small" /></ListItemIcon>
                         <ListItemText 
                           primary="Experience" 
-                          secondary={`${job.experienceRequired?.min} - ${job.experienceRequired?.max} years`} 
+                          secondary={job.experienceRequired ? 
+                            `${job.experienceRequired.min} - ${job.experienceRequired.max} years` : '-'} 
                         />
                       </ListItem>
                       <ListItem>
                         <ListItemIcon><MoneyIcon fontSize="small" /></ListItemIcon>
                         <ListItemText 
                           primary="Salary" 
-                          secondary={`${job.salaryRange?.currency} ${job.salaryRange?.min?.toLocaleString()} - ${job.salaryRange?.max?.toLocaleString()}`} 
+                          secondary={job.salaryRange ? 
+                            `${job.salaryRange.currency || ''} ${job.salaryRange.min?.toLocaleString() || ''} - ${job.salaryRange.max?.toLocaleString() || ''}` : '-'} 
                         />
                       </ListItem>
                       <ListItem>
                         <ListItemIcon><PeopleIcon fontSize="small" /></ListItemIcon>
                         <ListItemText 
                           primary="Applications" 
-                          secondary={job.applicationCount || 0} 
+                          secondary={job.applicationCount || job.totalApplications || 0} 
                         />
                       </ListItem>
                     </List>
@@ -314,35 +345,39 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
                 </Card>
 
                 {/* Skills Card */}
-                <Card>
-                  <CardContent>
-                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                      Required Skills
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {job.skills?.map((skill, idx) => (
-                        <Chip key={idx} label={skill} icon={<BuildIcon />} variant="outlined" size="small" />
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
+                {job.skills?.length > 0 && (
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                        Required Skills
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {job.skills?.map((skill, idx) => (
+                          <Chip key={idx} label={skill} icon={<BuildIcon />} variant="outlined" size="small" />
+                        ))}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Education Card */}
-                <Card>
-                  <CardContent>
-                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                      Education
-                    </Typography>
-                    <List dense>
-                      {job.education?.map((edu, idx) => (
-                        <ListItem key={idx}>
-                          <ListItemIcon><SchoolIcon fontSize="small" /></ListItemIcon>
-                          <ListItemText primary={edu} />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </CardContent>
-                </Card>
+                {job.education?.length > 0 && (
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                        Education
+                      </Typography>
+                      <List dense>
+                        {job.education?.map((edu, idx) => (
+                          <ListItem key={idx}>
+                            <ListItemIcon><SchoolIcon fontSize="small" /></ListItemIcon>
+                            <ListItemText primary={edu} />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </CardContent>
+                  </Card>
+                )}
               </Stack>
             </Grid>
           </Grid>
@@ -351,84 +386,98 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
         {/* Requisition Details Tab */}
         <TabPanel value={tabValue} index={1}>
           {job.requisitionId ? (
-            <Stack spacing={3}>
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+            requisitionDetails ? (
+              <Stack spacing={3}>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {requisitionDetails.positionTitle || requisitionDetails.jobTitle || 'Requisition'}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Requisition ID: {requisitionDetails.requisitionId || job.requisitionNumber}
+                      </Typography>
+                    </Box>
+                    <StatusChip status={requisitionDetails.status} />
+                  </Stack>
+                </Paper>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Department</Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {departmentNames[requisitionDetails.department] || requisitionDetails.department || job.department}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Location</Typography>
+                    <Typography variant="body1" fontWeight={500}>{requisitionDetails.location || job.location || '-'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Employment Type</Typography>
+                    <Typography variant="body1" fontWeight={500}>{requisitionDetails.employmentType || job.employmentType || '-'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Number of Positions</Typography>
+                    <Typography variant="body1" fontWeight={500}>{requisitionDetails.noOfPositions || '-'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Target Hire Date</Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {requisitionDetails.targetHireDate ? formatDate(requisitionDetails.targetHireDate) : 'N/A'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">Priority</Typography>
+                    {requisitionDetails.priority ? (
+                      <Chip 
+                        size="small" 
+                        label={requisitionDetails.priority} 
+                        color={requisitionDetails.priority === 'High' ? 'error' : 'default'}
+                      />
+                    ) : '-'}
+                  </Grid>
+                </Grid>
+
+                {/* Education */}
+                {requisitionDetails.education && (
                   <Box>
-                    <Typography variant="subtitle1" fontWeight={600}>
-                      {job.requisitionId.positionTitle || job.requisitionId.jobTitle}
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      Education Required
                     </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Requisition ID: {job.requisitionNumber}
-                    </Typography>
+                    <Typography>{requisitionDetails.education}</Typography>
                   </Box>
-                  <StatusChip status={job.requisitionId.status} />
-                </Stack>
-              </Paper>
+                )}
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Department</Typography>
-                  <Typography variant="body1" fontWeight={500}>
-                    {departmentNames[job.requisitionId.department] || job.requisitionId.department}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Location</Typography>
-                  <Typography variant="body1" fontWeight={500}>{job.requisitionId.location}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Employment Type</Typography>
-                  <Typography variant="body1" fontWeight={500}>{job.requisitionId.employmentType}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Number of Positions</Typography>
-                  <Typography variant="body1" fontWeight={500}>{job.requisitionId.noOfPositions}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Target Hire Date</Typography>
-                  <Typography variant="body1" fontWeight={500}>
-                    {job.requisitionId.targetHireDate ? formatDate(job.requisitionId.targetHireDate) : 'N/A'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">Priority</Typography>
-                  <Chip 
-                    size="small" 
-                    label={job.requisitionId.priority} 
-                    color={job.requisitionId.priority === 'High' ? 'error' : 'default'}
-                  />
-                </Grid>
-              </Grid>
+                {/* Skills */}
+                {requisitionDetails.skills?.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      Required Skills
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {requisitionDetails.skills?.map((skill, idx) => (
+                        <Chip key={idx} label={skill} size="small" variant="outlined" />
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
 
-              {/* Education */}
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                  Education Required
-                </Typography>
-                <Typography>{job.requisitionId.education}</Typography>
+                {/* Justification */}
+                {requisitionDetails.justification && (
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      Justification
+                    </Typography>
+                    <Typography variant="body2">{requisitionDetails.justification}</Typography>
+                  </Box>
+                )}
+              </Stack>
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={40} />
               </Box>
-
-              {/* Skills */}
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                  Required Skills
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {job.requisitionId.skills?.map((skill, idx) => (
-                    <Chip key={idx} label={skill} size="small" variant="outlined" />
-                  ))}
-                </Stack>
-              </Box>
-
-              {/* Justification */}
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                  Justification
-                </Typography>
-                <Typography variant="body2">{job.requisitionId.justification}</Typography>
-              </Box>
-            </Stack>
+            )
           ) : (
             <Alert severity="info">No requisition linked to this job</Alert>
           )}
@@ -460,11 +509,6 @@ const ViewJobOpening = ({ open, onClose, job, onEdit }) => {
                         label={platform.status}
                         color={getPlatformStatusColor(platform.status)}
                       />
-                      {platform.status === 'published' && (
-                        <IconButton size="small">
-                          <LaunchIcon fontSize="small" />
-                        </IconButton>
-                      )}
                     </Stack>
                   </Stack>
                   {platform.errorMessage && (
