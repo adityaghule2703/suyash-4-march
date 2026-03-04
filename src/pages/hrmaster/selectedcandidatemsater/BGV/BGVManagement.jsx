@@ -143,7 +143,7 @@ const ActionMenu = ({
         }}
       >
         {/* View Status - Always visible */}
-        <MenuItem 
+        {/* <MenuItem 
           onClick={() => {
             onView(bgv);
             onClose();
@@ -156,10 +156,10 @@ const ActionMenu = ({
           <ListItemText>
             <Typography variant="body2" fontWeight={500}>View Status</Typography>
           </ListItemText>
-        </MenuItem>
+        </MenuItem> */}
 
         {/* View Report - Always visible */}
-        <MenuItem 
+        {/* <MenuItem 
           onClick={() => {
             onReport(bgv);
             onClose();
@@ -172,9 +172,9 @@ const ActionMenu = ({
           <ListItemText>
             <Typography variant="body2" fontWeight={500}>Generate Report</Typography>
           </ListItemText>
-        </MenuItem>
+        </MenuItem> */}
 
-        <Divider sx={{ my: 0.5 }} />
+        {/* <Divider sx={{ my: 0.5 }} /> */}
 
         {/* Approve/Reject - Only for Pending or In Progress status */}
         {(status === 'pending' || status === 'in_progress') && (
@@ -195,7 +195,7 @@ const ActionMenu = ({
         )}
 
         {/* Edit - Only for Pending status */}
-        {status === 'pending' && (
+        {/* {status === 'pending' && (
           <MenuItem 
             onClick={() => {
               onEdit(bgv);
@@ -210,10 +210,10 @@ const ActionMenu = ({
               <Typography variant="body2" fontWeight={500}>Edit BGV</Typography>
             </ListItemText>
           </MenuItem>
-        )}
+        )} */}
 
         {/* Delete - Only for specific statuses */}
-        {(status === 'pending' || status === 'failed') && (
+        {/* {(status === 'pending' || status === 'failed') && (
           <MenuItem 
             onClick={() => {
               onDelete(bgv);
@@ -230,7 +230,7 @@ const ActionMenu = ({
               </Typography>
             </ListItemText>
           </MenuItem>
-        )}
+        )} */}
       </Menu>
     </>
   );
@@ -494,7 +494,7 @@ const BGVManagement = () => {
   const totalFailed = bgvList.filter(b => b.status?.toLowerCase() === 'failed').length;
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, mt: -8}}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography 
@@ -635,7 +635,7 @@ const BGVManagement = () => {
               }}
               disabled={loading}
             />
-            <Tooltip title="Refresh">
+            {/* <Tooltip title="Refresh">
               <IconButton 
                 onClick={handleRefresh}
                 sx={{ 
@@ -648,8 +648,8 @@ const BGVManagement = () => {
               >
                 <RefreshIcon />
               </IconButton>
-            </Tooltip>
-            <Tooltip title="View All">
+            </Tooltip> */}
+            {/* <Tooltip title="View All">
               <IconButton 
                 onClick={openViewAllModal}
                 sx={{ 
@@ -662,7 +662,7 @@ const BGVManagement = () => {
               >
                 <VisibilityIcon />
               </IconButton>
-            </Tooltip>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}

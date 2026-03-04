@@ -21,7 +21,10 @@ import {
   Scale as ScaleIcon,
   CalendarToday,
   Inventory,
-  Category
+  Category,
+  ViewModule as PitchIcon,
+  GridView as CavityIcon,
+  SpaceDashboard as StripIcon
 } from '@mui/icons-material';
 
 const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
@@ -91,7 +94,7 @@ const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
                 <Typography variant="h5" fontWeight={600} color="#101010">
                   {dimension.PartNo}
                 </Typography>
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
                   {dimension.Item && (
                     <Chip
                       label={dimension.Item.PartName}
@@ -212,6 +215,73 @@ const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
               </Stack>
             </Grid>
           </Grid>
+          
+          {/* New Section: Manufacturing Details */}
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600} color="#101010" sx={{ mb: 2 }}>
+              <Category sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Manufacturing Details
+            </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ 
+                  border: '1px solid #E0E0E0',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: '#F8FAFC'
+                }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    <PitchIcon sx={{ color: '#8B5CF6' }} />
+                    <Typography variant="body2" fontWeight={600} color="#8B5CF6">
+                      Pitch
+                    </Typography>
+                  </Stack>
+                  <Typography variant="h5" fontWeight={700} color="#101010">
+                    {dimension.Pitch || '—'}
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ 
+                  border: '1px solid #E0E0E0',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: '#F8FAFC'
+                }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    <CavityIcon sx={{ color: '#EC4899' }} />
+                    <Typography variant="body2" fontWeight={600} color="#EC4899">
+                      No. of Cavities
+                    </Typography>
+                  </Stack>
+                  <Typography variant="h5" fontWeight={700} color="#101010">
+                    {dimension.NoOfCavity || '—'}
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ 
+                  border: '1px solid #E0E0E0',
+                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: '#F8FAFC'
+                }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    <StripIcon sx={{ color: '#6366F1' }} />
+                    <Typography variant="body2" fontWeight={600} color="#6366F1">
+                      Strip Size
+                    </Typography>
+                  </Stack>
+                  <Typography variant="h5" fontWeight={700} color="#101010">
+                    {dimension.StripSize || '—'} mm
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
           
           {dimension.Item && (
             <>
@@ -381,27 +451,6 @@ const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
         >
           Close
         </Button>
-        {/* <Button
-          variant="contained"
-          onClick={() => {
-            onClose();
-            onEdit();
-          }}
-          startIcon={<EditIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
-          }}
-        >
-          Edit Dimension
-        </Button> */}
       </DialogActions>
     </Dialog>
   );

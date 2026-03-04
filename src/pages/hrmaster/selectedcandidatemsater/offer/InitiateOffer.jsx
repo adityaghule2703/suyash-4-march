@@ -1,32 +1,112 @@
 import React, { useState, useEffect } from 'react';
 import {
+  // Layout components
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  Paper,
   Stack,
   Typography,
-  TextField,
-  MenuItem,
   Grid,
   Box,
-  Paper,
+  Divider,
+  Alert,
+  Snackbar,
+  
+  // Form components
+  TextField,
+  MenuItem,
   FormControl,
   InputLabel,
   Select,
   Chip,
-  Divider,
-  Alert,
+  
+  // Feedback components
   CircularProgress,
+  
+  // Buttons and actions
+  Button,
   IconButton,
+  
+  // Surfaces
+  styled,
+  
+  // Utils
   InputAdornment
 } from '@mui/material';
-import { Close as CloseIcon, Calculate as CalculateIcon } from '@mui/icons-material';
+import { 
+  Close as CloseIcon, 
+  Calculate as CalculateIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  Person as PersonIcon,
+  AttachMoney as AttachMoneyIcon,
+  Description as DescriptionIcon,
+  CheckCircle as CheckCircleIcon
+} from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
 
+// 🔥 Modern Stepper Connector with Gradient
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 3,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon with better styling
+const StepIcon = ({ active, completed, icon }) => {
+  const getIcon = () => {
+    if (icon === 1) return <PersonIcon fontSize="small" />;
+    if (icon === 2) return <AttachMoneyIcon fontSize="small" />;
+    if (icon === 3) return <DescriptionIcon fontSize="small" />;
+    return icon;
+  };
+
+  return (
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '50%',
+        backgroundColor: completed || active ? '#1976D2' : '#E0E0E0',
+        color: completed || active ? 'white' : '#9E9E9E',
+        transition: 'all 0.2s ease',
+        boxShadow: active ? '0 0 0 3px rgba(25, 118, 210, 0.2)' : 'none',
+        '& svg': {
+          fontSize: 18
+        }
+      }}
+    >
+      {completed ? <CheckCircleIcon fontSize="small" /> : getIcon()}
+    </Box>
+  );
+};
+
 const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [fetchingCandidates, setFetchingCandidates] = useState(false);
@@ -35,6 +115,11 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
   const [calculatedCTC, setCalculatedCTC] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [stepErrors, setStepErrors] = useState({});
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  // Steps definition
+  const steps = ['Select Candidate', 'CTC Components', 'Offer Details & Review'];
 
   const [formData, setFormData] = useState({
     candidateId: '',
@@ -172,6 +257,7 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
     } catch (err) {
       console.error('Error fetching candidates:', err);
       setError('Failed to fetch candidates');
+      setSnackbar({ open: true, message: '❌ Failed to fetch candidates', severity: 'error' });
     } finally {
       setFetchingCandidates(false);
     }
@@ -227,6 +313,14 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
     setCalculatedCTC(null);
     setError('');
     setSuccess('');
+    
+    // Clear step error for this field
+    if (stepErrors[name]) {
+      setStepErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const handleCTCComponentChange = (e) => {
@@ -243,6 +337,14 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
       }
     }));
     setCalculatedCTC(null);
+    
+    // Clear step error for this field
+    if (stepErrors[name]) {
+      setStepErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const handleAddBenefit = () => {
@@ -268,27 +370,54 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
     }));
   };
 
+  // Validate current step
+  const validateStep = (step) => {
+    const errors = {};
+    
+    if (step === 0) {
+      if (!formData.candidateId) {
+        errors.candidateId = 'Please select a candidate';
+      }
+      if (!formData.applicationId) {
+        errors.applicationId = 'Application ID is missing';
+      }
+    } else if (step === 1) {
+      if (!formData.ctcComponents.basic || formData.ctcComponents.basic === '') {
+        errors.basic = 'Basic salary is required';
+      }
+      if (!formData.joiningDate) {
+        errors.joiningDate = 'Joining date is required';
+      }
+    } else if (step === 2) {
+      if (!formData.offerDetails.reportingTo) {
+        errors.reportingTo = 'Reporting To is required';
+      }
+    }
+    
+    setStepErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (validateStep(activeStep)) {
+      setActiveStep((prevStep) => prevStep + 1);
+      setError('');
+    } else {
+      setError('Please fill in all required fields in this section');
+    }
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+    setError('');
+  };
+
   const calculateCTC = async () => {
     console.log('Current formData before submission:', formData);
     
-    // Validate required fields
-    if (!formData.candidateId) {
-      setError('Please select a candidate first');
-      return;
-    }
-
-    if (!formData.applicationId) {
-      setError('Application ID is missing. This candidate does not have a valid application.');
-      return;
-    }
-
-    if (!formData.ctcComponents.basic || formData.ctcComponents.basic === '') {
-      setError('Please enter basic salary');
-      return;
-    }
-
-    if (!formData.joiningDate) {
-      setError('Please select joining date');
+    // Validate step 2 before submission
+    if (!validateStep(2)) {
+      setError('Please fill in all required fields');
       return;
     }
 
@@ -341,6 +470,11 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
       if (response.data.success) {
         setCalculatedCTC(response.data.data.ctcDetails);
         setSuccess(`Offer initiated successfully! Offer ID: ${response.data.data.offerId}`);
+        setSnackbar({ 
+          open: true, 
+          message: `✅ Offer initiated successfully! Offer ID: ${response.data.data.offerId}`, 
+          severity: 'success' 
+        });
         
         // Prepare updated data for parent component
         const updatedData = {
@@ -362,18 +496,18 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
       console.error('Error calculating CTC:', err);
       
       // Handle different error scenarios
+      let errorMsg = 'Failed to initiate offer';
       if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(err.response.data?.message || `Server error: ${err.response.status}`);
+        errorMsg = err.response.data?.message || `Server error: ${err.response.status}`;
         console.error('Error response data:', err.response.data);
       } else if (err.request) {
-        // The request was made but no response was received
-        setError('No response from server. Please check your network connection.');
+        errorMsg = 'No response from server. Please check your network connection.';
       } else {
-        // Something happened in setting up the request that triggered an Error
-        setError(err.message || 'Failed to calculate CTC');
+        errorMsg = err.message || 'Failed to calculate CTC';
       }
+      
+      setError(errorMsg);
+      setSnackbar({ open: true, message: `❌ ${errorMsg}`, severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -389,6 +523,8 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
     setCalculatedCTC(null);
     setError('');
     setSuccess('');
+    setActiveStep(0);
+    setStepErrors({});
     setFormData({
       candidateId: '',
       applicationId: '',
@@ -411,6 +547,7 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
         benefits: []
       }
     });
+    setSnackbar({ ...snackbar, open: false });
     onClose();
   };
 
@@ -423,99 +560,34 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
     }).format(amount);
   };
 
-  // Check if button should be enabled
-  const isButtonEnabled = () => {
-    const enabled = !loading && 
-                    formData.candidateId && 
-                    formData.applicationId &&
-                    formData.ctcComponents.basic && 
-                    formData.ctcComponents.basic !== '' &&
-                    formData.joiningDate;
-    
-    console.log('Button enabled check:', {
-      loading,
-      candidateId: formData.candidateId,
-      applicationId: formData.applicationId,
-      basic: formData.ctcComponents.basic,
-      joiningDate: formData.joiningDate,
-      enabled
-    });
-    
-    return enabled;
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 2 } }}
-    >
-      <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography variant="h6" fontWeight={600}>
-          Initiate Offer Letter
-        </Typography>
-        <IconButton onClick={handleClose} size="small">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={3}>
-          {/* Error/Success Messages */}
-          {error && (
-            <Alert severity="error" onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
-          {success && (
-            <Alert severity="success" onClose={() => setSuccess('')}>
-              {success}
-            </Alert>
-          )}
-
-          {/* Debug Info - Remove in production */}
-          <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-            <Typography variant="caption" component="div">
-              <strong>Debug Info:</strong><br />
-              Candidate ID: {formData.candidateId || 'Not set'}<br />
-              Application ID: {formData.applicationId || 'Not set'}<br />
-              Basic Salary: {formData.ctcComponents.basic || 'Not set'}<br />
-              Joining Date: {formData.joiningDate || 'Not set'}<br />
-              Button Enabled: {isButtonEnabled() ? 'Yes' : 'No'}
-            </Typography>
-          </Paper>
-
-          {/* Candidate Selection Card */}
-          <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              👤 Select Candidate
+  // Render step content
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+            <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+              Select Candidate for Offer
             </Typography>
             
             {fetchingCandidates ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                <CircularProgress />
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={24} />
               </Box>
             ) : (
               <>
                 {candidates.length === 0 ? (
-                  <Alert severity="info">
+                  <Alert severity="info" sx={{ borderRadius: 1 }}>
                     No candidates with applications found. Only candidates with applications can receive offers.
                   </Alert>
                 ) : (
-                  <FormControl fullWidth>
-                    <InputLabel>Select Candidate</InputLabel>
+                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                    <InputLabel>Select Candidate *</InputLabel>
                     <Select
                       value={selectedCandidate?._id || selectedCandidate?.id || ''}
                       onChange={handleCandidateChange}
-                      label="Select Candidate"
+                      label="Select Candidate *"
+                      error={!!stepErrors.candidateId}
                     >
                       {candidates.map((cand) => (
                         <MenuItem key={cand._id} value={cand._id}>
@@ -524,368 +596,605 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
                         </MenuItem>
                       ))}
                     </Select>
+                    {stepErrors.candidateId && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                        {stepErrors.candidateId}
+                      </Typography>
+                    )}
                   </FormControl>
+                )}
+
+                {selectedCandidate && (
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1 }}>
+                    <Grid container spacing={1}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Name
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {selectedCandidate.firstName} {selectedCandidate.lastName}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Email
+                        </Typography>
+                        <Typography variant="body2">{selectedCandidate.email}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Phone
+                        </Typography>
+                        <Typography variant="body2">{selectedCandidate.phone}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Position
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedApplication?.jobId?.title || selectedCandidate.position || 'N/A'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
                 )}
               </>
             )}
+          </Paper>
+        );
 
-            {selectedCandidate && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">
-                      Name
-                    </Typography>
-                    <Typography variant="body2">
-                      {selectedCandidate.firstName} {selectedCandidate.lastName}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">
-                      Email
-                    </Typography>
-                    <Typography variant="body2">{selectedCandidate.email}</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">
-                      Phone
-                    </Typography>
-                    <Typography variant="body2">{selectedCandidate.phone}</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">
-                      Position
-                    </Typography>
-                    <Typography variant="body2">
-                      {selectedApplication?.jobId?.title || selectedCandidate.position || 'N/A'}
-                    </Typography>
-                  </Grid>
-                  {selectedApplication && (
-                    <Grid item xs={12}>
-                      <Typography variant="caption" color="textSecondary">
-                        Application ID
-                      </Typography>
-                      <Typography variant="body2">
-                        {selectedApplication.applicationId || selectedApplication._id}
-                      </Typography>
-                    </Grid>
-                  )}
+      case 1:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                CTC Components (Monthly)
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={6}  sx={{width: "150px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Basic Salary"
+                    name="basic"
+                    type="number"
+                    value={formData.ctcComponents.basic}
+                    onChange={handleCTCComponentChange}
+                    required
+                    error={!!stepErrors.basic}
+                    helperText={stepErrors.basic}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
                 </Grid>
-              </Box>
-            )}
-          </Paper>
 
-          {/* CTC Components Card */}
-          <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              💰 CTC Components (Monthly)
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Basic Salary"
-                  name="basic"
-                  type="number"
-                  value={formData.ctcComponents.basic}
-                  onChange={handleCTCComponentChange}
-                  required
-                  error={!formData.ctcComponents.basic}
-                  helperText={!formData.ctcComponents.basic ? "Required" : ""}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>
-                  }}
-                />
+                <Grid item xs={12} sm={6} sx={{width: "150px"}} >
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="HRA Percentage"
+                    name="hraPercent"
+                    type="number"
+                    value={formData.ctcComponents.hraPercent}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} sx={{width: "150px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Conveyance Allowance"
+                    name="conveyanceAllowance"
+                    type="number"
+                    value={formData.ctcComponents.conveyanceAllowance}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} sx={{width: "150px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Medical Allowance"
+                    name="medicalAllowance"
+                    type="number"
+                    value={formData.ctcComponents.medicalAllowance}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} sx={{width: "150px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Special Allowance"
+                    name="specialAllowance"
+                    type="number"
+                    value={formData.ctcComponents.specialAllowance}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} sx={{width: "150px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Bonus Percentage"
+                    name="bonusPercent"
+                    type="number"
+                    value={formData.ctcComponents.bonusPercent}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Employer PF Percentage"
+                    name="employerPfPercent"
+                    type="number"
+                    value={formData.ctcComponents.employerPfPercent}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Employer ESI Percentage"
+                    name="employerEsiPercent"
+                    type="number"
+                    value={formData.ctcComponents.employerEsiPercent}
+                    onChange={handleCTCComponentChange}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Joining Date"
+                    name="joiningDate"
+                    type="date"
+                    value={formData.joiningDate}
+                    onChange={handleInputChange}
+                    required
+                    error={!!stepErrors.joiningDate}
+                    helperText={stepErrors.joiningDate}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
               </Grid>
+            </Paper>
+          </Stack>
+        );
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="HRA Percentage"
-                  name="hraPercent"
-                  type="number"
-                  value={formData.ctcComponents.hraPercent}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Conveyance Allowance"
-                  name="conveyanceAllowance"
-                  type="number"
-                  value={formData.ctcComponents.conveyanceAllowance}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Medical Allowance"
-                  name="medicalAllowance"
-                  type="number"
-                  value={formData.ctcComponents.medicalAllowance}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Special Allowance"
-                  name="specialAllowance"
-                  type="number"
-                  value={formData.ctcComponents.specialAllowance}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Bonus Percentage"
-                  name="bonusPercent"
-                  type="number"
-                  value={formData.ctcComponents.bonusPercent}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Employer PF Percentage"
-                  name="employerPfPercent"
-                  type="number"
-                  value={formData.ctcComponents.employerPfPercent}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Employer ESI Percentage"
-                  name="employerEsiPercent"
-                  type="number"
-                  value={formData.ctcComponents.employerEsiPercent}
-                  onChange={handleCTCComponentChange}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>
-                  }}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Offer Details Card */}
-          <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              📄 Offer Details
-            </Typography>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Reporting To"
-                  name="offerDetails.reportingTo"
-                  value={formData.offerDetails.reportingTo}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Production Manager"
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Probation Period (months)"
-                  name="offerDetails.probationPeriod"
-                  type="number"
-                  value={formData.offerDetails.probationPeriod}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Notice Period (days)"
-                  name="offerDetails.noticePeriod"
-                  type="number"
-                  value={formData.offerDetails.noticePeriod}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Joining Date"
-                  name="joiningDate"
-                  type="date"
-                  value={formData.joiningDate}
-                  onChange={handleInputChange}
-                  required
-                  error={!formData.joiningDate}
-                  helperText={!formData.joiningDate ? "Required" : ""}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
-                  Benefits
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Add Benefit</InputLabel>
-                    <Select
-                      value={benefitInput}
-                      onChange={(e) => setBenefitInput(e.target.value)}
-                      label="Add Benefit"
-                    >
-                      {benefitOptions.map((benefit) => (
-                        <MenuItem key={benefit} value={benefit}>
-                          {benefit}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Button
-                    variant="contained"
-                    onClick={handleAddBenefit}
-                    disabled={!benefitInput}
-                  >
-                    Add
-                  </Button>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {formData.offerDetails.benefits.map((benefit) => (
-                    <Chip
-                      key={benefit}
-                      label={benefit}
-                      onDelete={() => handleRemoveBenefit(benefit)}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Calculated CTC Card */}
-          {calculatedCTC && (
-            <Paper sx={{ p: 3, bgcolor: '#F0F7FF', border: '1px solid #1976D2' }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ color: '#1976D2' }}>
-                ✅ Calculated CTC (Annual)
+      case 2:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Offer Details
               </Typography>
 
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="caption" color="textSecondary">
-                    Basic + DA
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {formatCurrency(calculatedCTC.basic * 12)}
-                  </Typography>
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={6} sx={{width: "300px"}}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Reporting To"
+                    name="offerDetails.reportingTo"
+                    value={formData.offerDetails.reportingTo}
+                    onChange={handleInputChange}
+                    required
+                    error={!!stepErrors.reportingTo}
+                    helperText={stepErrors.reportingTo}
+                    placeholder="e.g., Production Manager"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
                 </Grid>
 
-                <Grid item xs={6} md={3}>
-                  <Typography variant="caption" color="textSecondary">
-                    HRA
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatCurrency(calculatedCTC.hra * 12)}
-                  </Typography>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Probation (months)"
+                    name="offerDetails.probationPeriod"
+                    type="number"
+                    value={formData.offerDetails.probationPeriod}
+                    onChange={handleInputChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
                 </Grid>
 
-                <Grid item xs={6} md={3}>
-                  <Typography variant="caption" color="textSecondary">
-                    Gross Salary
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatCurrency(calculatedCTC.gross * 12)}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={6} md={3}>
-                  <Typography variant="caption" color="textSecondary">
-                    Employer PF
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatCurrency(calculatedCTC.employerPf)}
-                  </Typography>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Notice Period (days)"
+                    name="offerDetails.noticePeriod"
+                    type="number"
+                    value={formData.offerDetails.noticePeriod}
+                    onChange={handleInputChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                </Grid>
+                  <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block' }}>
+                    Benefits
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1, width: "810px" }}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Add Benefit</InputLabel>
+                      <Select
+                        value={benefitInput}
+                        onChange={(e) => setBenefitInput(e.target.value)}
+                        label="Add Benefit"
+                        sx={{ borderRadius: 1 }}
+                      >
+                        {benefitOptions.map((benefit) => (
+                          <MenuItem key={benefit} value={benefit}>
+                            {benefit}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="outlined"
+                      onClick={handleAddBenefit}
+                      disabled={!benefitInput}
+                      size="small"
+                      sx={{ borderRadius: 1, minWidth: 60 }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
 
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" color="#1976D2">
-                      Total CTC
-                    </Typography>
-                    <Typography variant="h5" color="#1976D2" fontWeight={700}>
-                      {formatCurrency(calculatedCTC.totalCtc)}
-                    </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {formData.offerDetails.benefits.map((benefit) => (
+                      <Chip
+                        key={benefit}
+                        label={benefit}
+                        onDelete={() => handleRemoveBenefit(benefit)}
+                        size="small"
+                        sx={{
+                          backgroundColor: '#E3F2FD',
+                          color: '#1976D2',
+                          '& .MuiChip-deleteIcon': {
+                            color: '#1976D2',
+                            '&:hover': { color: '#1565C0' }
+                          }
+                        }}
+                      />
+                    ))}
+                    {formData.offerDetails.benefits.length === 0 && (
+                      <Typography variant="caption" sx={{ color: '#999', fontStyle: 'italic' }}>
+                        No benefits added yet
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
             </Paper>
-          )}
-        </Stack>
+
+            {/* Preview Section */}
+            <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Offer Preview
+              </Typography>
+
+              <Grid container spacing={6}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Candidate
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {selectedCandidate ? `${selectedCandidate.firstName} ${selectedCandidate.lastName}` : 'Not selected'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Position
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedApplication?.jobId?.title || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Basic Salary
+                  </Typography>
+                  <Typography variant="body2">
+                    {formData.ctcComponents.basic ? `₹${formData.ctcComponents.basic}` : 'Not set'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Joining Date
+                  </Typography>
+                  <Typography variant="body2">
+                    {formData.joiningDate ? new Date(formData.joiningDate).toLocaleDateString() : 'Not set'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Reporting To
+                  </Typography>
+                  <Typography variant="body2">
+                    {formData.offerDetails.reportingTo || 'Not set'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary" display="block">
+                    Probation Period
+                  </Typography>
+                  <Typography variant="body2">
+                    {formData.offerDetails.probationPeriod} months
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Alert severity="info" sx={{ borderRadius: 1 }}>
+              <Typography variant="body2">
+                Review all details before initiating the offer. Click "Calculate & Initiate Offer" to proceed.
+              </Typography>
+            </Alert>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 1.5,
+          maxHeight: '95vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        py: 1.5,
+        px: 2,
+        backgroundColor: '#F8FAFC',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#101010' }}>
+          Initiate Offer Letter
+        </Typography>
+        <IconButton onClick={handleClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+
+      {/* 🔥 Modern Stepper with Gradient Connector */}
+      <Box sx={{ px: 2, pt: 1, backgroundColor: '#F8FAFC' }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ mb: 1 }}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={StepIcon}>
+                <Typography fontWeight={500} fontSize="0.8rem">{label}</Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      <DialogContent sx={{ p: 2, overflow: 'auto', backgroundColor: '#F5F7FA' }}>
+        {renderStepContent(activeStep)}
+
+        {/* Calculated CTC Card - Only show when calculated */}
+        {calculatedCTC && activeStep === 2 && (
+          <Paper sx={{ 
+            p: 2, 
+            mt: 2, 
+            bgcolor: '#F0F7FF', 
+            border: '1px solid #1976D2',
+            borderRadius: 1
+          }}>
+            <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600 }}>
+              ✅ Calculated CTC (Annual)
+            </Typography>
+
+            <Grid container spacing={1}>
+              <Grid item xs={6} sm={3}>
+                <Typography variant="caption" color="textSecondary" display="block">
+                  Basic + DA
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatCurrency(calculatedCTC.basic * 12)}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Typography variant="caption" color="textSecondary" display="block">
+                  HRA
+                </Typography>
+                <Typography variant="body2">
+                  {formatCurrency(calculatedCTC.hra * 12)}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Typography variant="caption" color="textSecondary" display="block">
+                  Gross Salary
+                </Typography>
+                <Typography variant="body2">
+                  {formatCurrency(calculatedCTC.gross * 12)}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Typography variant="caption" color="textSecondary" display="block">
+                  Employer PF
+                </Typography>
+                <Typography variant="body2">
+                  {formatCurrency(calculatedCTC.employerPf)}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle2" color="#1976D2">
+                    Total CTC
+                  </Typography>
+                  <Typography variant="h6" color="#1976D2" fontWeight={700}>
+                    {formatCurrency(calculatedCTC.totalCtc)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Error/Success Messages inside dialog */}
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mt: 2, borderRadius: 1 }} onClose={() => setSuccess('')}>
+            {success}
+          </Alert>
+        )}
       </DialogContent>
 
       <DialogActions sx={{
-        px: 3,
-        py: 2,
+        px: 2,
+        py: 1.5,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC',
         justifyContent: 'space-between'
       }}>
-        <Button onClick={handleClose} disabled={loading}>
-          Cancel
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          size="small"
+          startIcon={<NavigateBeforeIcon />}
+          sx={{ color: '#666' }}
+        >
+          Back
         </Button>
         
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={!isButtonEnabled()}
-          startIcon={loading ? <CircularProgress size={20} /> : <CalculateIcon />}
-          sx={{
-            backgroundColor: '#1976D2',
-            '&:hover': { backgroundColor: '#1565C0' },
-            minWidth: 200
+        <Box>
+          <Button
+            onClick={handleClose}
+            disabled={loading}
+            size="small"
+            sx={{ mr: 1, color: '#666' }}
+          >
+            Cancel
+          </Button>
+          
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading}
+              size="small"
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CalculateIcon />}
+              sx={{
+                backgroundColor: '#1976D2',
+                '&:hover': { backgroundColor: '#1565C0' },
+                minWidth: 160
+              }}
+            >
+              {loading ? 'Processing...' : 'Initiate Offer'}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading}
+              size="small"
+              endIcon={<NavigateNextIcon />}
+              sx={{
+                backgroundColor: '#1976D2',
+                '&:hover': { backgroundColor: '#1565C0' }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
+
+      {/* Snackbar for notifications (appears at bottom right) */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ 
+            borderRadius: 1,
+            boxShadow: 3,
+            minWidth: '300px'
           }}
         >
-          {loading ? 'Processing...' : 'Calculate & Initiate Offer'}
-        </Button>
-      </DialogActions>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 };

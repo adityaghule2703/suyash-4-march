@@ -29,7 +29,7 @@ import { Add as AddIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwar
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-// Validation functions (keep existing)
+// Enhanced Validation functions
 const validateEmail = (email) => {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return re.test(String(email).toLowerCase());
@@ -78,6 +78,73 @@ const validateUAN = (uan) => {
 const validateESINumber = (esi) => {
   const re = /^\d{17}$/;
   return esi === '' || re.test(esi);
+};
+
+// New validation functions for text-only fields
+const validateName = (name) => {
+  // Allows letters, spaces, dots, hyphens, and apostrophes
+  const re = /^[A-Za-z\s.'-]+$/;
+  return name === '' || re.test(name);
+};
+
+const validateAddress = (address) => {
+  // Allows letters, numbers, spaces, and common address characters
+  const re = /^[A-Za-z0-9\s,.#\-/]+$/;
+  return address === '' || re.test(address);
+};
+
+const validateCity = (city) => {
+  // Allows letters, spaces, dots, and hyphens
+  const re = /^[A-Za-z\s.-]+$/;
+  return city === '' || re.test(city);
+};
+
+const validateState = (state) => {
+  // Allows letters and spaces
+  const re = /^[A-Za-z\s]+$/;
+  return state === '' || re.test(state);
+};
+
+const validateBankName = (bankName) => {
+  // Allows letters, spaces, dots, and common bank name characters
+  const re = /^[A-Za-z\s.'&-]+$/;
+  return bankName === '' || re.test(bankName);
+};
+
+const validateAccountHolderName = (name) => {
+  // Allows letters, spaces, dots, and common name characters
+  const re = /^[A-Za-z\s.'-]+$/;
+  return name === '' || re.test(name);
+};
+
+const validateBranchName = (branch) => {
+  // Allows letters, numbers, spaces, and common branch name characters
+  const re = /^[A-Za-z0-9\s.-]+$/;
+  return branch === '' || re.test(branch);
+};
+
+const validateWorkStation = (station) => {
+  // Allows letters, numbers, spaces, and hyphens
+  const re = /^[A-Za-z0-9\s-]+$/;
+  return station === '' || re.test(station);
+};
+
+const validateLineNumber = (line) => {
+  // Allows letters, numbers, spaces, and hyphens
+  const re = /^[A-Za-z0-9\s-]+$/;
+  return line === '' || re.test(line);
+};
+
+const validateEmergencyContactName = (name) => {
+  // Allows letters, spaces, dots, and hyphens
+  const re = /^[A-Za-z\s.'-]+$/;
+  return name === '' || re.test(name);
+};
+
+const validateRelationship = (relationship) => {
+  // Allows letters and spaces
+  const re = /^[A-Za-z\s]+$/;
+  return relationship === '' || re.test(relationship);
 };
 
 // Custom styled connector for stepper
@@ -189,16 +256,27 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
 
   // Field-specific error states
   const [fieldErrors, setFieldErrors] = useState({
+    FirstName: '',
+    LastName: '',
     Email: '',
     Phone: '',
+    Address: '',
+    WorkStation: '',
+    LineNumber: '',
     PAN: '',
     AadharNumber: '',
-    BankIfscCode: '',
-    BankAccountNumber: '',
     PFNumber: '',
     UAN: '',
     ESINumber: '',
+    BankAccountNumber: '',
+    BankAccountHolderName: '',
+    BankName: '',
+    BankBranch: '',
+    BankIfscCode: '',
+    EmergencyContactName: '',
+    EmergencyContactRelationship: '',
     EmergencyContactPhone: '',
+    EmergencyContactAddress: '',
     EmergencyContactPIN: ''
   });
 
@@ -290,61 +368,141 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
   // Validate a specific field
   const validateField = (name, value) => {
     switch(name) {
+      // Personal Info
+      case 'FirstName':
+      case 'LastName':
+        if (value && !validateName(value)) {
+          return 'Only letters, spaces, dots, hyphens, and apostrophes are allowed';
+        }
+        if (!value && (name === 'FirstName' || name === 'LastName')) {
+          return ''; // Required validation handled separately
+        }
+        break;
+      
       case 'Email':
         if (value && !validateEmail(value)) {
           return 'Please enter a valid email address';
         }
         break;
+      
       case 'Phone':
         if (value && !validatePhone(value)) {
           return 'Phone number must be 10 digits';
         }
         break;
+      
+      case 'Address':
+        if (value && !validateAddress(value)) {
+          return 'Address contains invalid characters';
+        }
+        break;
+      
+      // Work Information
+      case 'WorkStation':
+        if (value && !validateWorkStation(value)) {
+          return 'Work station can only contain letters, numbers, spaces, and hyphens';
+        }
+        break;
+      
+      case 'LineNumber':
+        if (value && !validateLineNumber(value)) {
+          return 'Line number can only contain letters, numbers, spaces, and hyphens';
+        }
+        break;
+      
+      // Tax & Identification
       case 'PAN':
         if (value && !validatePAN(value)) {
           return 'PAN must be in format: ABCDE1234F';
         }
         break;
+      
       case 'AadharNumber':
         if (value && !validateAadhar(value)) {
           return 'Aadhar number must be 12 digits';
         }
         break;
-      case 'BankIfscCode':
-        if (value && !validateIFSC(value)) {
-          return 'IFSC code must be in format: ABCD0123456';
-        }
-        break;
-      case 'BankAccountNumber':
-        if (value && !validateAccountNumber(value)) {
-          return 'Account number must be 9-18 digits';
-        }
-        break;
+      
       case 'PFNumber':
         if (value && !validatePFNumber(value)) {
           return 'PF number must be in format: XX/12345/1234567';
         }
         break;
+      
       case 'UAN':
         if (value && !validateUAN(value)) {
           return 'UAN must be 12 digits';
         }
         break;
+      
       case 'ESINumber':
         if (value && !validateESINumber(value)) {
           return 'ESI number must be 17 digits';
         }
         break;
+      
+      // Bank Details
+      case 'BankAccountNumber':
+        if (value && !validateAccountNumber(value)) {
+          return 'Account number must be 9-18 digits';
+        }
+        break;
+      
+      case 'BankAccountHolderName':
+        if (value && !validateAccountHolderName(value)) {
+          return 'Account holder name can only contain letters, spaces, dots, and hyphens';
+        }
+        break;
+      
+      case 'BankName':
+        if (value && !validateBankName(value)) {
+          return 'Bank name can only contain letters, spaces, dots, apostrophes, and hyphens';
+        }
+        break;
+      
+      case 'BankBranch':
+        if (value && !validateBranchName(value)) {
+          return 'Branch name can only contain letters, numbers, spaces, dots, and hyphens';
+        }
+        break;
+      
+      case 'BankIfscCode':
+        if (value && !validateIFSC(value)) {
+          return 'IFSC code must be in format: ABCD0123456';
+        }
+        break;
+      
+      // Emergency Contact
+      case 'EmergencyContactName':
+        if (value && !validateEmergencyContactName(value)) {
+          return 'Contact name can only contain letters, spaces, dots, and hyphens';
+        }
+        break;
+      
+      case 'EmergencyContactRelationship':
+        if (value && !validateRelationship(value)) {
+          return 'Relationship can only contain letters and spaces';
+        }
+        break;
+      
       case 'EmergencyContactPhone':
         if (value && !validatePhone(value)) {
           return 'Emergency contact phone must be 10 digits';
         }
         break;
+      
+      case 'EmergencyContactAddress':
+        if (value && !validateAddress(value)) {
+          return 'Address contains invalid characters';
+        }
+        break;
+      
       case 'EmergencyContactPIN':
         if (value && !validatePIN(value)) {
           return 'PIN code must be 6 digits';
         }
         break;
+      
       default:
         return '';
     }
@@ -354,15 +512,89 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
+    // For text fields, prevent numbers if they shouldn't be there
+    let processedValue = value;
+    
+    // Apply specific field constraints
+    switch(name) {
+      case 'FirstName':
+      case 'LastName':
+      case 'BankAccountHolderName':
+      case 'EmergencyContactName':
+      case 'EmergencyContactRelationship':
+        // Only allow letters, spaces, and specific characters, no numbers
+        processedValue = value.replace(/[^A-Za-z\s.'-]/g, '');
+        break;
+      
+      case 'BankName':
+        // Only allow letters, spaces, and specific characters for bank name
+        processedValue = value.replace(/[^A-Za-z\s.'&-]/g, '');
+        break;
+      
+      case 'Address':
+      case 'EmergencyContactAddress':
+        // Allow common address characters but restrict special ones
+        processedValue = value.replace(/[^A-Za-z0-9\s,.#\-/]/g, '');
+        break;
+      
+      case 'WorkStation':
+      case 'LineNumber':
+        // Allow letters, numbers, spaces, hyphens
+        processedValue = value.replace(/[^A-Za-z0-9\s-]/g, '');
+        break;
+      
+      case 'BankBranch':
+        // Allow letters, numbers, spaces, dots, hyphens
+        processedValue = value.replace(/[^A-Za-z0-9\s.-]/g, '');
+        break;
+      
+      case 'Phone':
+      case 'EmergencyContactPhone':
+        // Only allow digits
+        processedValue = value.replace(/\D/g, '');
+        break;
+      
+      case 'BankAccountNumber':
+        // Only allow digits
+        processedValue = value.replace(/\D/g, '');
+        break;
+      
+      case 'PAN':
+        // Automatically uppercase PAN
+        processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        break;
+      
+      case 'AadharNumber':
+      case 'UAN':
+      case 'ESINumber':
+      case 'EmergencyContactPIN':
+        // Only allow digits
+        processedValue = value.replace(/\D/g, '');
+        break;
+      
+      case 'PFNumber':
+        // Format PF number with allowed characters
+        processedValue = value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+        break;
+      
+      case 'BankIfscCode':
+        // Format IFSC code
+        processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        break;
+      
+      default:
+        processedValue = value;
+    }
+    
     // Update form data
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
 
     // Validate field if it's been touched or has value
     if (touched[name] || value) {
-      const errorMessage = validateField(name, value);
+      const errorMessage = validateField(name, processedValue);
       setFieldErrors(prev => ({
         ...prev,
         [name]: errorMessage
@@ -449,20 +681,52 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
 
     switch(activeStep) {
       case 0: // Personal Info
+        // First Name validation
         if (!formData.FirstName.trim()) {
           setError('First name is required');
           isValid = false;
-        } else if (!formData.LastName.trim()) {
+        } else if (!validateName(formData.FirstName)) {
+          newFieldErrors.FirstName = 'First name can only contain letters, spaces, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct first name format');
+          isValid = false;
+        }
+        
+        // Last Name validation
+        if (!formData.LastName.trim()) {
           setError('Last name is required');
           isValid = false;
-        } else if (!formData.Email.trim()) {
+        } else if (!validateName(formData.LastName)) {
+          newFieldErrors.LastName = 'Last name can only contain letters, spaces, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct last name format');
+          isValid = false;
+        }
+        
+        // Email validation
+        if (!formData.Email.trim()) {
           setError('Email is required');
           isValid = false;
         } else if (!validateEmail(formData.Email)) {
-          setError('Please enter a valid email address');
+          newFieldErrors.Email = 'Please enter a valid email address';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct email format');
           isValid = false;
-        } else if (formData.Phone && !validatePhone(formData.Phone)) {
-          setError('Phone number must be 10 digits');
+        }
+        
+        // Phone validation if provided
+        if (formData.Phone && !validatePhone(formData.Phone)) {
+          newFieldErrors.Phone = 'Phone number must be 10 digits';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct phone number');
+          isValid = false;
+        }
+        
+        // Address validation if provided
+        if (formData.Address && !validateAddress(formData.Address)) {
+          newFieldErrors.Address = 'Address contains invalid characters';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct address format');
           isValid = false;
         }
         break;
@@ -486,6 +750,21 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
           isValid = false;
         } else if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
           setError('Hourly rate is required for hourly employees');
+          isValid = false;
+        }
+        
+        // Validate work fields if provided
+        if (formData.WorkStation && !validateWorkStation(formData.WorkStation)) {
+          newFieldErrors.WorkStation = 'Work station can only contain letters, numbers, spaces, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct work station format');
+          isValid = false;
+        }
+        
+        if (formData.LineNumber && !validateLineNumber(formData.LineNumber)) {
+          newFieldErrors.LineNumber = 'Line number can only contain letters, numbers, spaces, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct line number format');
           isValid = false;
         }
         
@@ -524,22 +803,74 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
 
       case 3: // Bank & Emergency
         // Validate bank fields if provided
-        if (formData.BankIfscCode && !validateIFSC(formData.BankIfscCode)) {
-          newFieldErrors.BankIfscCode = 'IFSC code must be in format: ABCD0123456';
-          setFieldErrors(newFieldErrors);
-          setError('Please correct IFSC code format');
-          isValid = false;
-        }
         if (formData.BankAccountNumber && !validateAccountNumber(formData.BankAccountNumber)) {
           newFieldErrors.BankAccountNumber = 'Account number must be 9-18 digits';
           setFieldErrors(newFieldErrors);
           setError('Please correct account number format');
           isValid = false;
         }
+        
+        if (formData.BankAccountHolderName && !validateAccountHolderName(formData.BankAccountHolderName)) {
+          newFieldErrors.BankAccountHolderName = 'Account holder name can only contain letters, spaces, dots, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct account holder name');
+          isValid = false;
+        }
+        
+        if (formData.BankName && !validateBankName(formData.BankName)) {
+          newFieldErrors.BankName = 'Bank name can only contain letters, spaces, dots, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct bank name');
+          isValid = false;
+        }
+        
+        if (formData.BankBranch && !validateBranchName(formData.BankBranch)) {
+          newFieldErrors.BankBranch = 'Branch name can only contain letters, numbers, spaces, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct branch name');
+          isValid = false;
+        }
+        
+        if (formData.BankIfscCode && !validateIFSC(formData.BankIfscCode)) {
+          newFieldErrors.BankIfscCode = 'IFSC code must be in format: ABCD0123456';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct IFSC code format');
+          isValid = false;
+        }
+        
+        // Validate emergency contact fields if provided
+        if (formData.EmergencyContactName && !validateEmergencyContactName(formData.EmergencyContactName)) {
+          newFieldErrors.EmergencyContactName = 'Contact name can only contain letters, spaces, dots, and hyphens';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct emergency contact name');
+          isValid = false;
+        }
+        
+        if (formData.EmergencyContactRelationship && !validateRelationship(formData.EmergencyContactRelationship)) {
+          newFieldErrors.EmergencyContactRelationship = 'Relationship can only contain letters and spaces';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct relationship');
+          isValid = false;
+        }
+        
         if (formData.EmergencyContactPhone && !validatePhone(formData.EmergencyContactPhone)) {
           newFieldErrors.EmergencyContactPhone = 'Emergency contact phone must be 10 digits';
           setFieldErrors(newFieldErrors);
           setError('Please correct emergency contact phone');
+          isValid = false;
+        }
+        
+        if (formData.EmergencyContactAddress && !validateAddress(formData.EmergencyContactAddress)) {
+          newFieldErrors.EmergencyContactAddress = 'Address contains invalid characters';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct emergency contact address');
+          isValid = false;
+        }
+        
+        if (formData.EmergencyContactPIN && !validatePIN(formData.EmergencyContactPIN)) {
+          newFieldErrors.EmergencyContactPIN = 'PIN code must be 6 digits';
+          setFieldErrors(newFieldErrors);
+          setError('Please correct PIN code');
           isValid = false;
         }
         break;
@@ -552,42 +883,54 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
   };
 
   const handleSubmit = async () => {
-    // Validate all required fields
+    // Validate all required fields and formats
+    setError('');
+    
+    // First Name validation
     if (!formData.FirstName.trim()) {
       setError('First name is required');
       return;
     }
+    if (!validateName(formData.FirstName)) {
+      setError('First name contains invalid characters');
+      return;
+    }
 
+    // Last Name validation
     if (!formData.LastName.trim()) {
       setError('Last name is required');
       return;
     }
+    if (!validateName(formData.LastName)) {
+      setError('Last name contains invalid characters');
+      return;
+    }
 
+    // Email validation
     if (!formData.Email.trim()) {
       setError('Email is required');
       return;
     }
-
     if (!validateEmail(formData.Email)) {
       setError('Please enter a valid email address');
       return;
     }
 
+    // Phone validation if provided
     if (formData.Phone && !validatePhone(formData.Phone)) {
       setError('Phone number must be 10 digits');
       return;
     }
 
+    // Department and Designation
     if (!formData.DepartmentID) {
       setError('Please select a department');
       return;
     }
-
     if (!formData.DesignationID) {
       setError('Please select a designation');
       return;
     }
-
     if (!formData.DateOfJoining) {
       setError('Date of joining is required');
       return;
@@ -598,9 +941,18 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
       setError('Basic salary is required for monthly employees');
       return;
     }
-
     if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
       setError('Hourly rate is required for hourly employees');
+      return;
+    }
+
+    // Work Information validation
+    if (formData.WorkStation && !validateWorkStation(formData.WorkStation)) {
+      setError('Work station contains invalid characters');
+      return;
+    }
+    if (formData.LineNumber && !validateLineNumber(formData.LineNumber)) {
+      setError('Line number contains invalid characters');
       return;
     }
 
@@ -609,44 +961,68 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
       setError('PAN must be in format: ABCDE1234F');
       return;
     }
-
     if (formData.AadharNumber && !validateAadhar(formData.AadharNumber)) {
       setError('Aadhar number must be 12 digits');
       return;
     }
-
     if (formData.PFNumber && !validatePFNumber(formData.PFNumber)) {
       setError('PF number must be in format: XX/12345/1234567');
       return;
     }
-
     if (formData.UAN && !validateUAN(formData.UAN)) {
       setError('UAN must be 12 digits');
       return;
     }
-
     if (formData.ESINumber && !validateESINumber(formData.ESINumber)) {
       setError('ESI number must be 17 digits');
       return;
     }
 
+    // Bank Details validation
+    if (formData.BankAccountNumber && !validateAccountNumber(formData.BankAccountNumber)) {
+      setError('Account number must be 9-18 digits');
+      return;
+    }
+    if (formData.BankAccountHolderName && !validateAccountHolderName(formData.BankAccountHolderName)) {
+      setError('Account holder name contains invalid characters');
+      return;
+    }
+    if (formData.BankName && !validateBankName(formData.BankName)) {
+      setError('Bank name contains invalid characters');
+      return;
+    }
+    if (formData.BankBranch && !validateBranchName(formData.BankBranch)) {
+      setError('Branch name contains invalid characters');
+      return;
+    }
     if (formData.BankIfscCode && !validateIFSC(formData.BankIfscCode)) {
       setError('IFSC code must be in format: ABCD0123456');
       return;
     }
 
-    if (formData.BankAccountNumber && !validateAccountNumber(formData.BankAccountNumber)) {
-      setError('Account number must be 9-18 digits');
+    // Emergency Contact validation
+    if (formData.EmergencyContactName && !validateEmergencyContactName(formData.EmergencyContactName)) {
+      setError('Emergency contact name contains invalid characters');
       return;
     }
-
+    if (formData.EmergencyContactRelationship && !validateRelationship(formData.EmergencyContactRelationship)) {
+      setError('Relationship contains invalid characters');
+      return;
+    }
     if (formData.EmergencyContactPhone && !validatePhone(formData.EmergencyContactPhone)) {
       setError('Emergency contact phone must be 10 digits');
       return;
     }
+    if (formData.EmergencyContactAddress && !validateAddress(formData.EmergencyContactAddress)) {
+      setError('Emergency contact address contains invalid characters');
+      return;
+    }
+    if (formData.EmergencyContactPIN && !validatePIN(formData.EmergencyContactPIN)) {
+      setError('PIN code must be 6 digits');
+      return;
+    }
 
     setLoading(true);
-    setError('');
 
     try {
       const token = localStorage.getItem('token');
@@ -829,8 +1205,12 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required
-                error={touched.FirstName && !formData.FirstName.trim()}
-                helperText={touched.FirstName && !formData.FirstName.trim() ? 'First name is required' : ''}
+                error={touched.FirstName && (!!fieldErrors.FirstName || !formData.FirstName.trim())}
+                helperText={
+                  touched.FirstName 
+                    ? (!formData.FirstName.trim() ? 'First name is required' : fieldErrors.FirstName)
+                    : 'Letters, spaces, and hyphens only'
+                }
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
@@ -844,8 +1224,12 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required
-                error={touched.LastName && !formData.LastName.trim()}
-                helperText={touched.LastName && !formData.LastName.trim() ? 'Last name is required' : ''}
+                error={touched.LastName && (!!fieldErrors.LastName || !formData.LastName.trim())}
+                helperText={
+                  touched.LastName 
+                    ? (!formData.LastName.trim() ? 'Last name is required' : fieldErrors.LastName)
+                    : 'Letters, spaces, and hyphens only'
+                }
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
@@ -902,7 +1286,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 helperText={
                   touched.Email 
                     ? (!formData.Email ? 'Email is required' : fieldErrors.Email)
-                    : ''
+                    : 'Enter a valid email address'
                 }
                 disabled={loading || loadingData}
                 size="medium"
@@ -917,11 +1301,12 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 error={touched.Phone && !!fieldErrors.Phone}
-                helperText={touched.Phone ? fieldErrors.Phone : ''}
+                helperText={touched.Phone ? fieldErrors.Phone : '10 digit number (optional)'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
-                placeholder="10 digit number"
+                placeholder="9876543210"
+                inputProps={{ maxLength: 10 }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>
@@ -932,8 +1317,11 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
               name="Address"
               value={formData.Address}
               onChange={handleChange}
+              onBlur={handleBlur}
               multiline
               rows={2}
+              error={touched.Address && !!fieldErrors.Address}
+              helperText={touched.Address ? fieldErrors.Address : 'Street, city, etc. (optional)'}
               disabled={loading || loadingData}
               size="medium"
               variant="outlined"
@@ -1229,6 +1617,9 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="WorkStation"
                 value={formData.WorkStation}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.WorkStation && !!fieldErrors.WorkStation}
+                helperText={touched.WorkStation ? fieldErrors.WorkStation : 'Letters, numbers, spaces, hyphens (optional)'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
@@ -1240,6 +1631,9 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="LineNumber"
                 value={formData.LineNumber}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.LineNumber && !!fieldErrors.LineNumber}
+                helperText={touched.LineNumber ? fieldErrors.LineNumber : 'Letters, numbers, spaces, hyphens (optional)'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
@@ -1265,6 +1659,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 size="medium"
                 variant="outlined"
                 placeholder="ABCDE1234F"
+                inputProps={{ maxLength: 10 }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
               <TextField
@@ -1378,6 +1773,8 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="123456789"
+                inputProps={{ maxLength: 18 }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
               <TextField
@@ -1386,9 +1783,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="BankAccountHolderName"
                 value={formData.BankAccountHolderName}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.BankAccountHolderName && !!fieldErrors.BankAccountHolderName}
+                helperText={touched.BankAccountHolderName ? fieldErrors.BankAccountHolderName : 'Letters, spaces, dots, hyphens only'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="John Doe"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>
@@ -1400,9 +1801,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="BankName"
                 value={formData.BankName}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.BankName && !!fieldErrors.BankName}
+                helperText={touched.BankName ? fieldErrors.BankName : 'Letters, spaces, dots, hyphens only'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="State Bank of India"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
               <TextField
@@ -1411,9 +1816,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="BankBranch"
                 value={formData.BankBranch}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.BankBranch && !!fieldErrors.BankBranch}
+                helperText={touched.BankBranch ? fieldErrors.BankBranch : 'Letters, numbers, spaces, hyphens only'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="Main Branch"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>
@@ -1432,6 +1841,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 size="medium"
                 variant="outlined"
                 placeholder="SBIN0123456"
+                inputProps={{ maxLength: 11 }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>
@@ -1449,9 +1859,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="EmergencyContactName"
                 value={formData.EmergencyContactName}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.EmergencyContactName && !!fieldErrors.EmergencyContactName}
+                helperText={touched.EmergencyContactName ? fieldErrors.EmergencyContactName : 'Letters, spaces, dots, hyphens only'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="Jane Doe"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
               <TextField
@@ -1460,9 +1874,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="EmergencyContactRelationship"
                 value={formData.EmergencyContactRelationship}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.EmergencyContactRelationship && !!fieldErrors.EmergencyContactRelationship}
+                helperText={touched.EmergencyContactRelationship ? fieldErrors.EmergencyContactRelationship : 'Letters and spaces only'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="Spouse"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>
@@ -1490,9 +1908,13 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 name="EmergencyContactAddress"
                 value={formData.EmergencyContactAddress}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.EmergencyContactAddress && !!fieldErrors.EmergencyContactAddress}
+                helperText={touched.EmergencyContactAddress ? fieldErrors.EmergencyContactAddress : 'Street, city, etc.'}
                 disabled={loading || loadingData}
                 size="medium"
                 variant="outlined"
+                placeholder="123 Main St, City"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Stack>

@@ -44,6 +44,9 @@ import ProductionMaster from './pages/hrmaster/productionmaster/ProductionMaster
 import TerminationMaster from './pages/hrmaster/terminationmaster/TerminationMaster'
 import EmployeeBehaviorMaster from './pages/hrmaster/employeebehaviormaster/EmployeeBehaviorMaster'
 import SelectedCandidatesMaster from './pages/hrmaster/selectedcandidatemsater/SelectedCandidatesMaster'
+import ProcessDetailsMaster from './pages/master/processdetailsmaster/ProcessDetailsMaster'
+import CompanyFinancialMaster from './pages/master/companyfinancialmaster/CompanyFinancialMaster'
+import MediclaimMaster from './pages/hrmaster/mediclaimmaster/MediclaimMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -84,7 +87,9 @@ const App = () => {
           <Route path="master/quotationmaster" element={<QuotationMaster />} />
           <Route path="master/taxmaster" element={<TaxMaster />} />
           <Route path="master/termsandconditionmaster" element={<TermsAndConditionMaster />} />
+          <Route path="master/companyfinancialmaster" element={<CompanyFinancialMaster />} />
           <Route path="master/materialmaster" element={<MaterialMaster />} />
+          <Route path="master/processdetailsmaster" element={<ProcessDetailsMaster />} />
           <Route path="master/rawmaterialmaster" element={<RawMaterialMaster />} />
           <Route path="hrmaster/departmentmaster" element={<DepartmentMaster />} />
           <Route path="hrmaster/designationmaster" element={<DesignationMaster />} />
@@ -104,6 +109,7 @@ const App = () => {
                   <Route path="hrmaster/terminationmaster" element={<TerminationMaster />} />
                   <Route path="hrmaster/employeebehaviormaster" element={<EmployeeBehaviorMaster />} />
                <Route path="hrmaster/interviewmaster" element={<InterviewMaster />} />
+               <Route path="hrmaster/mediclaimmaster" element={<MediclaimMaster />} />
           <Route path="roles" element={<Roles />} />
 
           <Route path='hrmaster/employeeleavemaster' element={<EmployeeLeaveMaster/>} />

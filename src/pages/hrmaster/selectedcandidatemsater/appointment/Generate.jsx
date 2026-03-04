@@ -71,6 +71,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
   // Data states
   const [candidates, setCandidates] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [filteredOffers, setFilteredOffers] = useState([]);
   const [fetchingCandidates, setFetchingCandidates] = useState(false);
   const [fetchingOffers, setFetchingOffers] = useState(false);
   
@@ -86,13 +87,22 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
 
   const steps = ['Select Candidate', 'Select Offer & Date', 'Generate & Download'];
 
-  // Fetch data on open
+  // Fetch candidates on open
   useEffect(() => {
     if (open) {
       fetchCandidates();
-      fetchOffers();
     }
   }, [open]);
+
+  // Fetch offers when candidate is selected
+  useEffect(() => {
+    if (selectedCandidate) {
+      fetchOffersForCandidate(selectedCandidate);
+    } else {
+      setFilteredOffers([]);
+      setSelectedOffer('');
+    }
+  }, [selectedCandidate]);
 
   // Fetch candidates
   const fetchCandidates = async () => {
@@ -119,36 +129,57 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     }
   };
 
-  // Fetch offers
-  const fetchOffers = async () => {
+  // Fetch offers for selected candidate
+  const fetchOffersForCandidate = async (candidateId) => {
     setFetchingOffers(true);
+    setError('');
     
     try {
       const token = localStorage.getItem('token');
-      // Fetch accepted offers
-      const response = await axios.get(`${BASE_URL}/api/offers?status=accepted`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      
+      // Try different endpoints to get offers for the candidate
+      let response;
+      
+      // First try: get offers by candidate ID
+      try {
+        response = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}&status=accepted`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (err) {
+        // Second try: get all offers and filter on client side
+        console.log('Trying base offers endpoint...');
+        response = await axios.get(`${BASE_URL}/api/offers?status=accepted`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
 
       if (response.data.success) {
+        // Filter offers for the selected candidate
+        const candidateOffers = response.data.data.filter(offer => 
+          (offer.candidateId?._id === candidateId || offer.candidateId === candidateId) &&
+          offer.status?.toLowerCase() === 'accepted'
+        );
+        
+        setFilteredOffers(candidateOffers);
         setOffers(response.data.data || []);
+        
+        // Reset selected offer when candidate changes
+        setSelectedOffer('');
+        
+        if (candidateOffers.length === 0) {
+          setError('No accepted offers found for this candidate');
+        }
+      } else {
+        setFilteredOffers([]);
       }
     } catch (err) {
       console.error('Error fetching offers:', err);
-      // Don't show error for offers, just set empty array
-      setOffers([]);
+      setFilteredOffers([]);
+      setError('Failed to fetch offers for this candidate');
     } finally {
       setFetchingOffers(false);
     }
   };
-
-  // Filter offers based on selected candidate
-  const filteredOffers = selectedCandidate
-    ? offers.filter(offer => 
-        (offer.candidateId?._id === selectedCandidate || offer.candidateId === selectedCandidate) &&
-        offer.status?.toLowerCase() === 'accepted'
-      )
-    : [];
 
   // Handle candidate change
   const handleCandidateChange = (e) => {
@@ -281,7 +312,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                👤 Select Candidate
+                Select Candidate
               </Typography>
               
               {fetchingCandidates ? (
@@ -360,7 +391,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                📄 Select Offer & Joining Date
+                Select Offer & Joining Date
               </Typography>
 
               {!selectedCandidate ? (

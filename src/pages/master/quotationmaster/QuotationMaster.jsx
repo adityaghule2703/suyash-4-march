@@ -28,7 +28,11 @@ import {
   Chip,
   Card,
   CardContent,
-  Grid
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  Badge
 } from '@mui/material';
 
 import {
@@ -42,12 +46,9 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Sort as SortIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   AttachMoney as MoneyIcon,
   Description as DescriptionIcon,
-  People as PeopleIcon,
-  LocalShipping as ShippingIcon
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -59,6 +60,7 @@ import EditQuotation from './EditQuotation';
 import ViewQuotation from './ViewQuotation';
 import DeleteQuotation from './DeleteQuotation';
 import PrintQuotation from './PrintQuotation';
+
 // Color constants
 const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
 const STRIPE_COLOR_ODD = '#FFFFFF';
@@ -76,8 +78,20 @@ const STATUS_COLORS = {
   'Rejected': { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' }
 };
 
+// Custom debounce function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
 // Action Menu Component
-// In QuotationMaster.jsx - Update the ActionMenu component
 const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose, onOpen }) => {
   return (
     <>
@@ -162,9 +176,16 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
 const QuotationMaster = () => {
   // State for data
   const [quotations, setQuotations] = useState([]);
-  const [filteredQuotations, setFilteredQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    status: '',
+    quotationType: '',
+    vendorName: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
   
   // Table state
   const [page, setPage] = useState(0);
@@ -209,7 +230,19 @@ const QuotationMaster = () => {
     sentCount: 0,
     approvedCount: 0
   });
+
+  // Filter options
+  const [vendors, setVendors] = useState([]);
   
+  // Create debounced search function
+  const debouncedSearch = React.useMemo(
+    () => debounce(() => {
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+      fetchQuotations();
+    }, 500),
+    [searchTerm, filters, rowsPerPage] // Dependencies
+  );
+
   // onPrint handler
   const openPrintQuotation = (quotation) => {
     setSelectedQuotation(quotation);
@@ -217,16 +250,35 @@ const QuotationMaster = () => {
     handleActionMenuClose();
   };
 
-  // Fetch quotations from API
-  useEffect(() => {
-    fetchQuotations();
-  }, []);
-
+  // Fetch quotations with pagination and filters
   const fetchQuotations = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/quotations`, {
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: pagination.currentPage,
+        limit: rowsPerPage
+      });
+      
+      // Add search term if present
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      // Add filters if present
+      if (filters.status) {
+        params.append('status', filters.status);
+      }
+      if (filters.quotationType) {
+        params.append('quotationType', filters.quotationType);
+      }
+      if (filters.vendorName) {
+        params.append('vendorName', filters.vendorName);
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/quotations?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -234,21 +286,23 @@ const QuotationMaster = () => {
 
       if (response.data.success) {
         setQuotations(response.data.data || []);
-        setFilteredQuotations(response.data.data || []);
         setPagination(response.data.pagination || {
           currentPage: 1,
           totalPages: 1,
           totalItems: response.data.data?.length || 0,
-          itemsPerPage: 10
+          itemsPerPage: rowsPerPage
         });
         setStatistics(response.data.statistics || {
-          totalQuotations: response.data.data?.length || 0,
+          totalQuotations: response.data.pagination?.totalItems || 0,
           totalAmount: 0,
           avgAmount: 0,
           draftCount: 0,
           sentCount: 0,
           approvedCount: 0
         });
+        
+        // Clear selected items when data changes
+        setSelected([]);
       } else {
         showNotification('Failed to load quotations', 'error');
       }
@@ -259,27 +313,81 @@ const QuotationMaster = () => {
       setLoading(false);
     }
   };
-  
-  // Handle search
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
-    
-    const filtered = quotations.filter(quotation =>
-      quotation.QuotationNo.toLowerCase().includes(value) ||
-      quotation.VendorName.toLowerCase().includes(value) ||
-      quotation.CompanyName.toLowerCase().includes(value) ||
-      quotation.Status.toLowerCase().includes(value)
-    );
-    
-    setFilteredQuotations(filtered);
-    setPage(0);
+
+  // Fetch vendors for filter dropdown
+  const fetchVendors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/vendors?limit=100`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setVendors(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchQuotations();
+    fetchVendors();
+  }, []);
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    debouncedSearch();
+  };
+
+  // Handle filter changes
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({ ...prev, [filterName]: value }));
+  };
+
+  // Apply filters
+  const applyFilters = () => {
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchQuotations();
+    setShowFilters(false);
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilters({
+      status: '',
+      quotationType: '',
+      vendorName: ''
+    });
+    setSearchTerm('');
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    setTimeout(() => fetchQuotations(), 0);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = () => {
+    return searchTerm !== '' || filters.status !== '' || 
+           filters.quotationType !== '' || filters.vendorName !== '';
+  };
+
+  // Get active filter count
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (filters.status) count++;
+    if (filters.quotationType) count++;
+    if (filters.vendorName) count++;
+    return count;
   };
   
   // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredQuotations.map(quotation => quotation._id));
+      setSelected(quotations.map(quotation => quotation._id));
     } else {
       setSelected([]);
     }
@@ -302,44 +410,63 @@ const QuotationMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setPagination(prev => ({ ...prev, currentPage: newPage + 1 }));
+    fetchQuotations();
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newLimit = parseInt(event.target.value, 10);
+    setRowsPerPage(newLimit);
     setPage(0);
+    setPagination(prev => ({ 
+      ...prev, 
+      itemsPerPage: newLimit,
+      currentPage: 1 
+    }));
+    fetchQuotations();
   };
   
   // Handle add quotation
   const handleAddQuotation = (newQuotation) => {
-    setQuotations([newQuotation, ...quotations]);
-    setFilteredQuotations([newQuotation, ...filteredQuotations]);
+    fetchQuotations(); // Refresh data
     showNotification('Quotation added successfully!', 'success');
   };
   
   // Handle edit quotation
   const handleEditQuotation = (updatedQuotation) => {
-    const updatedQuotations = quotations.map(quotation =>
-      quotation._id === updatedQuotation._id ? updatedQuotation : quotation
-    );
-    
-    setQuotations(updatedQuotations);
-    setFilteredQuotations(updatedQuotations);
+    fetchQuotations(); // Refresh data
     showNotification('Quotation updated successfully!', 'success');
   };
   
   // Handle delete quotation
   const handleDeleteQuotation = (quotationId) => {
-    const updatedQuotations = quotations.filter(quotation => quotation._id !== quotationId);
-    setQuotations(updatedQuotations);
-    setFilteredQuotations(updatedQuotations);
-    setSelected(selected.filter(id => id !== quotationId));
+    fetchQuotations(); // Refresh data
     showNotification('Quotation deleted successfully!', 'success');
   };
   
   // Handle bulk delete
-  const handleBulkDelete = () => {
-    showNotification('Bulk delete requires API implementation', 'warning');
+  const handleBulkDelete = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      // You'll need to implement a bulk delete endpoint on the backend
+      await Promise.all(selected.map(id => 
+        axios.delete(`${BASE_URL}/api/quotations/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ));
+      
+      showNotification(`${selected.length} quotations deleted successfully!`, 'success');
+      setSelected([]);
+      fetchQuotations(); // Refresh data
+    } catch (err) {
+      console.error('Error deleting quotations:', err);
+      showNotification('Failed to delete quotations', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Action menu handlers
@@ -418,12 +545,6 @@ const QuotationMaster = () => {
       />
     );
   };
-  
-  // Paginated quotations
-  const paginatedQuotations = filteredQuotations.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   return (
     <Box sx={{ p: 3 }}>
@@ -589,7 +710,7 @@ const QuotationMaster = () => {
               placeholder="Search by quotation no, vendor, or company..."
               size="small"
               value={searchTerm}
-              onChange={handleSearch}
+              onChange={handleSearchChange}
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -605,6 +726,16 @@ const QuotationMaster = () => {
                     <SearchIcon sx={{ color: '#64748B' }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => {
+                      setSearchTerm('');
+                      fetchQuotations();
+                    }}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 40,
                   bgcolor: '#f8fafc',
@@ -616,46 +747,48 @@ const QuotationMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
+            <Badge
+              badgeContent={getActiveFilterCount()}
+              color="primary"
+              invisible={!hasActiveFilters()}
             >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button>
+              <Button
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                onClick={() => setShowFilters(!showFilters)}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: PRIMARY_BLUE,
+                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                  }
+                }}
+                disabled={loading}
+              >
+                Filter
+              </Button>
+            </Badge>
+            {hasActiveFilters() && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={clearFilters}
+                sx={{ 
+                  height: 40,
+                  color: '#64748B',
+                  fontSize: '0.875rem',
+                  textTransform: 'none'
+                }}
+              >
+                Clear All
+              </Button>
+            )}
           </Stack>
 
           {/* Action Buttons */}
@@ -720,6 +853,77 @@ const QuotationMaster = () => {
             </Button>
           </Stack>
         </Stack>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+            <Grid container spacing={2} alignItems="flex-end">
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={filters.status}
+                    label="Status"
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="Draft">Draft</MenuItem>
+                    <MenuItem value="Sent">Sent</MenuItem>
+                    <MenuItem value="Approved">Approved</MenuItem>
+                    <MenuItem value="Rejected">Rejected</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Quotation Type</InputLabel>
+                  <Select
+                    value={filters.quotationType}
+                    label="Quotation Type"
+                    onChange={(e) => handleFilterChange('quotationType', e.target.value)}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="Detailed">Detailed</MenuItem>
+                    <MenuItem value="Summary">Summary</MenuItem>
+                    <MenuItem value="CostBreakup">Cost Breakup</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Vendor</InputLabel>
+                  <Select
+                    value={filters.vendorName}
+                    label="Vendor"
+                    onChange={(e) => handleFilterChange('vendorName', e.target.value)}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {vendors.map(vendor => (
+                      <MenuItem key={vendor._id} value={vendor.VendorName}>
+                        {vendor.VendorName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  onClick={applyFilters}
+                  fullWidth
+                  sx={{
+                    height: 40,
+                    borderRadius: 1.5,
+                    background: HEADER_GRADIENT,
+                    textTransform: 'none'
+                  }}
+                >
+                  Apply Filters
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
       </Paper>
 
       {/* Quotations Table */}
@@ -742,8 +946,8 @@ const QuotationMaster = () => {
               }}>
                 <TableCell padding="checkbox" sx={{ width: 60 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredQuotations.length}
-                    checked={filteredQuotations.length > 0 && selected.length === filteredQuotations.length}
+                    indeterminate={selected.length > 0 && selected.length < quotations.length}
+                    checked={quotations.length > 0 && selected.length === quotations.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: TEXT_COLOR_HEADER,
@@ -839,21 +1043,30 @@ const QuotationMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedQuotations.length === 0 ? (
+              ) : quotations.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
-                        {searchTerm ? 'No quotations found' : 'No quotations available'}
+                        {hasActiveFilters() ? 'No quotations found matching your filters' : 'No quotations available'}
                       </Typography>
                       <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
-                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first quotation to get started'}
+                        {hasActiveFilters() ? 'Try adjusting your filters' : 'Add your first quotation to get started'}
                       </Typography>
+                      {hasActiveFilters() && (
+                        <Button
+                          variant="text"
+                          onClick={clearFilters}
+                          sx={{ mt: 2, color: PRIMARY_BLUE }}
+                        >
+                          Clear Filters
+                        </Button>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedQuotations.map((quotation, index) => {
+                quotations.map((quotation, index) => {
                   const isSelected = selected.includes(quotation._id);
                   const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
@@ -956,9 +1169,9 @@ const QuotationMaster = () => {
 
         {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredQuotations.length}
+          count={pagination.totalItems}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -1008,13 +1221,13 @@ const QuotationMaster = () => {
             }}
           />
           <PrintQuotation
-      open={openPrintModal}
-      onClose={() => {
-        setOpenPrintModal(false);
-        setSelectedQuotation(null);
-      }}
-      quotation={selectedQuotation}
-    />
+            open={openPrintModal}
+            onClose={() => {
+              setOpenPrintModal(false);
+              setSelectedQuotation(null);
+            }}
+            quotation={selectedQuotation}
+          />
           <DeleteQuotation 
             open={openDeleteDialog}
             onClose={() => {

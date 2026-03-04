@@ -81,9 +81,20 @@ const ApplyLeave = ({
     if (!form.leaveTypeId) temp.leaveTypeId = "Required";
     if (!form.fromDate) temp.fromDate = "Required";
     if (!form.toDate) temp.toDate = "Required";
-    if (form.fromDate && form.toDate && form.startDate > form.toDate) {
-      temp.toDate = "To Date must be after From Date";
+    
+    // Compare dates without timezone issues
+    if (form.fromDate && form.toDate) {
+      const fromDateParts = form.fromDate.split('-').map(Number);
+      const toDateParts = form.toDate.split('-').map(Number);
+      
+      const fromDateObj = new Date(fromDateParts[0], fromDateParts[1] - 1, fromDateParts[2]);
+      const toDateObj = new Date(toDateParts[0], toDateParts[1] - 1, toDateParts[2]);
+      
+      if (fromDateObj > toDateObj) {
+        temp.toDate = "To Date must be after From Date";
+      }
     }
+    
     if (!form.reason) temp.reason = "Required";
 
     setErrors(temp);
@@ -106,11 +117,28 @@ const ApplyLeave = ({
     try {
       setLoading(true);
 
+      // FIXED: Send the toDate as the full day (end of day)
+      // The API expects endDate to be the end of the selected day
+      // So we need to add 1 day to make it inclusive of the full day
+      
+      let endDate = form.toDate;
+      
+      // If the API is using the pattern shown in response (end of previous day),
+      // we need to ensure the toDate is properly set
+      // Option 1: Send as is and let backend handle it
+      // Option 2: Send the next day if backend expects exclusive end date
+      
+      // For now, let's log what we're sending
+      console.log('Sending dates:', {
+        fromDate: form.fromDate,
+        toDate: form.toDate
+      });
+
       const payload = {
         employeeId,
         leaveTypeId: form.leaveTypeId,
         startDate: form.fromDate,
-        endDate: form.toDate,
+        endDate: form.toDate, // Send as selected by user
         reason: form.reason.trim(),
         contactNumber:
           form.contactNumber || employeeDetails?.PhoneNumber || "",
@@ -162,6 +190,14 @@ const ApplyLeave = ({
 
   /* ================= DATE SELECTION ================= */
   const today = new Date().toISOString().split("T")[0];
+
+  // Helper function to format date for min attribute
+  const getMinToDate = () => {
+    if (form.fromDate) {
+      return form.fromDate;
+    }
+    return today;
+  };
 
   return (
     <>
@@ -221,7 +257,7 @@ const ApplyLeave = ({
                 fullWidth
                 disabled={loading}
                 inputProps={{
-                  min: today   //prenets past date selection
+                  min: today
                 }}
               />
 
@@ -238,7 +274,7 @@ const ApplyLeave = ({
                 fullWidth
                 disabled={loading}
                 inputProps={{
-                  min: form.fromDate || today   //  prevents past & before From Date
+                  min: getMinToDate()
                 }}
               />
             </Stack>

@@ -69,6 +69,81 @@ import DeleteLeave from './DeleteLeave';
 
 const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
 
+// ==================== DATE FORMATTING UTILITIES ====================
+// These functions ensure dates are displayed correctly without timezone shifting
+
+/**
+ * Formats date from API response for display
+ * Handles ISO strings like "2026-03-14T23:59:59.999Z" correctly
+ * Extracts the date part and formats without timezone shifting
+ */
+const formatDisplayDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    // If it's an ISO string with time (like from API)
+    if (dateString.includes('T')) {
+      // Extract just the date part (YYYY-MM-DD)
+      const datePart = dateString.split('T')[0];
+      
+      // Parse the date parts
+      const [year, month, day] = datePart.split('-').map(Number);
+      
+      // Format as DD MMM YYYY (e.g., "14 Mar 2026")
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${day.toString().padStart(2, '0')} ${months[month - 1]} ${year}`;
+    }
+    
+    // If it's already a date string without time
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('default', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+};
+
+/**
+ * Formats date with time for display (for Applied On column)
+ */
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
+/**
+ * Formats date for internal use (returns YYYY-MM-DD)
+ */
+const formatDateForFilter = (date) => {
+  if (!date) return null;
+  
+  try {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    return null;
+  }
+};
+
+// ==================== STYLED COMPONENTS ====================
+
 // Styled Status Chip
 const StatusChip = ({ status }) => {
   const getStatusColor = (status) => {
@@ -92,8 +167,8 @@ const StatusChip = ({ status }) => {
       size="small"
       icon={
         status?.toLowerCase() === 'approved' ? <CheckCircleIcon /> :
-        status?.toLowerCase() === 'rejected' ? <CancelIcon /> :
-        <PendingIcon />
+          status?.toLowerCase() === 'rejected' ? <CancelIcon /> :
+            <PendingIcon />
       }
       sx={{
         backgroundColor: colors.bg,
@@ -112,7 +187,7 @@ const StatusChip = ({ status }) => {
 // Leave Balance Card Component
 const LeaveBalanceCard = ({ balance }) => {
   const percentage = balance.utilizationPercentage || 0;
-  
+
   const getProgressColor = (percent) => {
     if (percent >= 80) return '#d32f2f';
     if (percent >= 60) return '#ed6c02';
@@ -127,10 +202,10 @@ const LeaveBalanceCard = ({ balance }) => {
           <Typography variant="subtitle2" fontWeight="600">
             {balance.leaveTypeName}
           </Typography>
-          <Chip 
+          <Chip
             label={`${balance.usedDays}/${balance.maxDaysPerYear}`}
             size="small"
-            sx={{ 
+            sx={{
               backgroundColor: getProgressColor(percentage) + '20',
               color: getProgressColor(percentage),
               fontWeight: 500,
@@ -138,11 +213,11 @@ const LeaveBalanceCard = ({ balance }) => {
             }}
           />
         </Box>
-        
+
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Box sx={{ flex: 1 }}>
-            <LinearProgress 
-              variant="determinate" 
+            <LinearProgress
+              variant="determinate"
               value={Math.min(percentage, 100)}
               sx={{
                 height: 6,
@@ -159,7 +234,7 @@ const LeaveBalanceCard = ({ balance }) => {
             {percentage.toFixed(0)}%
           </Typography>
         </Box>
-        
+
         <Box display="flex" justifyContent="space-between">
           <Typography variant="caption" color="text.secondary">
             Used: {balance.usedDays}
@@ -173,31 +248,9 @@ const LeaveBalanceCard = ({ balance }) => {
   );
 };
 
-// View Leave Details Modal
+// ==================== VIEW LEAVE DETAILS MODAL ====================
 const ViewLeaveDetails = ({ open, onClose, leave }) => {
   if (!leave) return null;
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getAvatarInitials = (leaveData) => {
     if (!leaveData?.EmployeeID) return 'U';
@@ -215,10 +268,21 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
 
   const calculateDaysDifference = (startDate, endDate) => {
     if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    
+    // Extract date parts to avoid timezone issues
+    const startDatePart = startDate.split('T')[0];
+    const endDatePart = endDate.split('T')[0];
+    
+    const [startYear, startMonth, startDay] = startDatePart.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDatePart.split('-').map(Number);
+    
+    // Create dates at UTC noon to avoid timezone shifts
+    const start = new Date(Date.UTC(startYear, startMonth - 1, startDay, 12, 0, 0));
+    const end = new Date(Date.UTC(endYear, endMonth - 1, endDay, 12, 0, 0));
+    
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
     return diffDays;
   };
 
@@ -252,26 +316,6 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
       {/* Content */}
       <DialogContent sx={{ pt: 1.5, pb: 1 }}>
         <Stack spacing={2}>
-          {/* Status Banner */}
-          {/* {leave.Status && (
-            <Alert 
-              severity={
-                leave.Status?.toLowerCase() === 'approved' ? 'success' :
-                leave.Status?.toLowerCase() === 'rejected' ? 'error' : 'warning'
-              }
-              sx={{ borderRadius: 1, mb: 1 }}
-            >
-              <Typography variant="subtitle2">
-                This leave request is {leave.Status}
-              </Typography>
-              {leave.ProcessRemarks && (
-                <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  Remarks: {leave.ProcessRemarks}
-                </Typography>
-              )}
-            </Alert>
-          )} */}
-
           {/* Employee Info */}
           <Stack direction="row" spacing={2} alignItems="center">
             <Avatar
@@ -301,7 +345,7 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
 
           <Divider />
 
-          {/* Leave Details */}
+          {/* Leave Details - FIXED DATE DISPLAY */}
           <Stack spacing={1.5}>
             <Typography variant="subtitle2" fontWeight={600}>
               Leave Details
@@ -332,19 +376,20 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
                     size="small"
                     color={
                       leave.Status?.toLowerCase() === 'approved' ? 'success' :
-                      leave.Status?.toLowerCase() === 'rejected' ? 'error' : 'warning'
+                        leave.Status?.toLowerCase() === 'rejected' ? 'error' : 'warning'
                     }
                     sx={{ fontWeight: 500 }}
                   />
                 </Box>
               </Box>
 
+              {/* FIXED: Use formatDisplayDate for correct date display */}
               <Box flex={1} minWidth={150}>
                 <Typography variant="caption" color="text.secondary">
                   Duration
                 </Typography>
                 <Typography variant="body2">
-                  {formatDate(leave.StartDate)} - {formatDate(leave.EndDate)}
+                  {formatDisplayDate(leave.StartDate)} - {formatDisplayDate(leave.EndDate)}
                 </Typography>
               </Box>
 
@@ -353,7 +398,7 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
                   Days
                 </Typography>
                 <Typography fontWeight={600}>
-                  {leave.NumberOfDays || 
+                  {leave.NumberOfDays ||
                     calculateDaysDifference(
                       leave.StartDate,
                       leave.EndDate
@@ -449,7 +494,6 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
                   <Typography variant="body2">
                     {formatDateTime(leave.ProcessedOn)}
                   </Typography>
-                  
                 </Box>
               )}
             </Stack>
@@ -479,6 +523,7 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
   );
 };
 
+// ==================== MAIN COMPONENT ====================
 const EmployeeLeaveMaster = () => {
   // State for employees dropdown
   const [employees, setEmployees] = useState([]);
@@ -608,6 +653,7 @@ const EmployeeLeaveMaster = () => {
     setDateRangeFilter({ start: null, end: null });
   };
 
+  // Filter function with proper date handling
   const applyFilters = () => {
     let filtered = [...leaves];
 
@@ -624,16 +670,66 @@ const EmployeeLeaveMaster = () => {
       filtered = filtered.filter(leave => leave.Status === statusFilter);
     }
 
-    // Apply date range filter
-    if (dateRangeFilter.start) {
-      filtered = filtered.filter(leave => 
-        new Date(leave.StartDate) >= new Date(dateRangeFilter.start)
-      );
-    }
-    if (dateRangeFilter.end) {
-      filtered = filtered.filter(leave => 
-        new Date(leave.EndDate) <= new Date(dateRangeFilter.end)
-      );
+    // Apply date range filter - using date parts to avoid timezone issues
+    if (dateRangeFilter.start || dateRangeFilter.end) {
+      filtered = filtered.filter(leave => {
+        // Extract date parts from ISO strings
+        const leaveStartPart = leave.StartDate.split('T')[0];
+        const leaveEndPart = leave.EndDate.split('T')[0];
+        
+        const [startYear, startMonth, startDay] = leaveStartPart.split('-').map(Number);
+        const [endYear, endMonth, endDay] = leaveEndPart.split('-').map(Number);
+        
+        // Create date objects at noon to avoid timezone issues
+        const leaveStart = new Date(Date.UTC(startYear, startMonth - 1, startDay, 12, 0, 0));
+        const leaveEnd = new Date(Date.UTC(endYear, endMonth - 1, endDay, 12, 0, 0));
+
+        if (dateRangeFilter.start && dateRangeFilter.end) {
+          // If both dates are selected
+          const filterStartDate = new Date(dateRangeFilter.start);
+          const filterEndDate = new Date(dateRangeFilter.end);
+          
+          const filterStart = new Date(Date.UTC(
+            filterStartDate.getFullYear(),
+            filterStartDate.getMonth(),
+            filterStartDate.getDate(),
+            12, 0, 0
+          ));
+          const filterEnd = new Date(Date.UTC(
+            filterEndDate.getFullYear(),
+            filterEndDate.getMonth(),
+            filterEndDate.getDate(),
+            12, 0, 0
+          ));
+
+          // Check if leave period overlaps with filter period
+          return leaveStart <= filterEnd && leaveEnd >= filterStart;
+        }
+        else if (dateRangeFilter.start) {
+          // Only start date selected
+          const filterStartDate = new Date(dateRangeFilter.start);
+          const filterStart = new Date(Date.UTC(
+            filterStartDate.getFullYear(),
+            filterStartDate.getMonth(),
+            filterStartDate.getDate(),
+            12, 0, 0
+          ));
+          return leaveEnd >= filterStart;
+        }
+        else if (dateRangeFilter.end) {
+          // Only end date selected
+          const filterEndDate = new Date(dateRangeFilter.end);
+          const filterEnd = new Date(Date.UTC(
+            filterEndDate.getFullYear(),
+            filterEndDate.getMonth(),
+            filterEndDate.getDate(),
+            12, 0, 0
+          ));
+          return leaveStart <= filterEnd;
+        }
+
+        return true;
+      });
     }
 
     setFilteredLeaves(filtered);
@@ -758,28 +854,6 @@ const EmployeeLeaveMaster = () => {
     handleClearFilters();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const getEmployeeName = (employee) => {
     if (!employee) return '';
     return `${employee.FirstName || ''} ${employee.LastName || ''}`.trim();
@@ -807,34 +881,34 @@ const EmployeeLeaveMaster = () => {
   const totalLeaves = leaves.length;
 
   const stats = [
-    { 
-      label: 'Total Leaves', 
-      value: totalLeaves, 
-      color: '#164e63', 
+    {
+      label: 'Total Leaves',
+      value: totalLeaves,
+      color: '#164e63',
       bg: '#f1f5f9',
       icon: <EventIcon sx={{ fontSize: 24 }} />
     },
-    { 
-      label: 'Pending', 
-      value: pendingCount, 
-      subValue: `${pendingDays} days`, 
-      color: '#ed6c02', 
+    {
+      label: 'Pending',
+      value: pendingCount,
+      subValue: `${pendingDays} days`,
+      color: '#ed6c02',
       bg: '#fff3e0',
       icon: <PendingIcon sx={{ fontSize: 24 }} />
     },
-    { 
-      label: 'Approved', 
-      value: approvedCount, 
-      subValue: `${approvedDays} days`, 
-      color: '#2e7d32', 
+    {
+      label: 'Approved',
+      value: approvedCount,
+      subValue: `${approvedDays} days`,
+      color: '#2e7d32',
       bg: '#e8f5e9',
       icon: <CheckCircleIcon sx={{ fontSize: 24 }} />
     },
-    { 
-      label: 'Rejected', 
-      value: rejectedCount, 
-      subValue: `${rejectedDays} days`, 
-      color: '#d32f2f', 
+    {
+      label: 'Rejected',
+      value: rejectedCount,
+      subValue: `${rejectedDays} days`,
+      color: '#d32f2f',
       bg: '#ffebee',
       icon: <CancelIcon sx={{ fontSize: 24 }} />
     }
@@ -842,11 +916,11 @@ const EmployeeLeaveMaster = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 1 }}>
         {/* Header */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 1 }}>
           <Typography
-            variant="h4"
+            variant="h5"
             fontWeight={600}
             sx={{
               background: HEADER_GRADIENT,
@@ -864,26 +938,30 @@ const EmployeeLeaveMaster = () => {
 
         {/* Employee Selection Card */}
         <Paper sx={{
-          p: 3,
-          mb: 4,
+          p: 1.5,
+          mb: 2,
           borderRadius: 2,
           border: '1px solid #e2e8f0',
           background: 'linear-gradient(to right, #f8fafc, #ffffff)'
         }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth variant="outlined" size="medium">
-                <InputLabel id="employee-select-label">Select Employee</InputLabel>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6} sx={{ width: "400px" }}>
+              <FormControl fullWidth variant="outlined" size="small">
+                <InputLabel id="employee-select-label" sx={{ fontSize: '0.9rem' }}>Select Employee</InputLabel>
                 <Select
                   labelId="employee-select-label"
                   value={selectedEmployee}
                   onChange={handleEmployeeChange}
                   label="Select Employee"
                   disabled={loadingEmployees}
+                  size="medium"
                   sx={{
                     borderRadius: 1.5,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e2e8f0'
+                      borderColor: '#e2e8f0',
+                    },
+                    '& .MuiSelect-select': {
+                      py: 1,
                     }
                   }}
                 >
@@ -892,23 +970,10 @@ const EmployeeLeaveMaster = () => {
                   </MenuItem>
                   {employees.map((emp) => (
                     <MenuItem key={emp._id} value={emp._id}>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar 
-                          sx={{ 
-                            width: 32, 
-                            height: 32, 
-                            bgcolor: '#00B4D8',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          {getAvatarInitials(emp)}
-                        </Avatar>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
                         <Box>
-                          <Typography variant="body2" fontWeight={500}>
+                          <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.2 }}>
                             {getEmployeeName(emp)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {emp.EmployeeID}
                           </Typography>
                         </Box>
                       </Stack>
@@ -916,40 +981,45 @@ const EmployeeLeaveMaster = () => {
                   ))}
                 </Select>
                 {!loadingEmployees && employees.length === 0 && (
-                  <FormHelperText error>No employees found</FormHelperText>
+                  <FormHelperText error sx={{ mt: 0.5 }}>No employees found</FormHelperText>
                 )}
               </FormControl>
             </Grid>
 
             {employeeDetails && (
               <Grid item xs={12} md={6}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar
-                    sx={{
-                      width: 56,
-                      height: 56,
-                      bgcolor: '#00B4D8',
-                      fontSize: '1.25rem'
-                    }}
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    divider={<Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />}
+                    sx={{ mt: 0.25 }}
                   >
-                    {getAvatarInitials(employeeDetails)}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" fontWeight={600}>
-                      {getEmployeeName(employeeDetails)}
-                    </Typography>
-                    <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
-                      <Typography variant="body2" color="text.secondary">
+                    <Avatar
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: '#00B4D8',
+                        fontSize: '1rem'
+                      }}
+                    >
+                      {getAvatarInitials(employeeDetails)}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                        {getEmployeeName(employeeDetails)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         ID: {employeeDetails.EmployeeID}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {employeeDetails.DepartmentID?.DepartmentName || 'No Department'}
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                        {employeeDetails.DepartmentID?.DepartmentName || 'No Dept'}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {employeeDetails.DesignationID?.DesignationName || 'No Designation'}
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                        {employeeDetails.DesignationID?.DesignationName || 'No Desig'}
                       </Typography>
-                    </Stack>
-                  </Box>
+                    </Box>
+                  </Stack>
                 </Stack>
               </Grid>
             )}
@@ -958,72 +1028,6 @@ const EmployeeLeaveMaster = () => {
 
         {selectedEmployee && (
           <>
-            {/* Stats Cards */}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-                gap: 3,
-                mb: 4
-              }}
-            >
-              {stats.map((stat, i) => (
-                <Paper
-                  key={i}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: '1px solid #e2e8f0',
-                    bgcolor: stat.bg,
-                    transition: '0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      borderColor: stat.color,
-                      boxShadow: `0 4px 12px ${stat.color}20`
-                    }
-                  }}
-                >
-                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                      {stat.label}
-                    </Typography>
-                    <Avatar sx={{ bgcolor: stat.color, width: 32, height: 32 }}>
-                      {stat.icon}
-                    </Avatar>
-                  </Box>
-                  <Typography variant="h4" fontWeight={600} sx={{ color: stat.color }}>
-                    {stat.value}
-                  </Typography>
-                  {stat.subValue && (
-                    <Typography variant="caption" sx={{ color: stat.color, opacity: 0.8 }}>
-                      {stat.subValue}
-                    </Typography>
-                  )}
-                </Paper>
-              ))}
-            </Box>
-
-            {/* Leave Balance Cards */}
-            {leaveBalance.length > 0 && (
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: '#164e63' }}>
-                  Leave Balance
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                    gap: 2
-                  }}
-                >
-                  {leaveBalance.map((balance, index) => (
-                    <LeaveBalanceCard key={index} balance={balance} />
-                  ))}
-                </Box>
-              </Box>
-            )}
-
             {/* Action Bar */}
             <Paper sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0' }}>
               <Stack
@@ -1047,15 +1051,6 @@ const EmployeeLeaveMaster = () => {
                       )
                     }}
                   />
-                  
-                  <Button
-                    variant="outlined"
-                    startIcon={<FilterIcon />}
-                    onClick={() => setShowFilters(!showFilters)}
-                    color={showFilters ? 'primary' : 'inherit'}
-                  >
-                    Filters
-                  </Button>
 
                   {(statusFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end || searchTerm) && (
                     <Button
@@ -1070,12 +1065,6 @@ const EmployeeLeaveMaster = () => {
                 </Stack>
 
                 <Stack direction="row" spacing={2}>
-                  <Tooltip title="Refresh Data">
-                    <IconButton onClick={handleRefresh} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-
                   <Button
                     variant="contained"
                     startIcon={<CelebrationIcon />}
@@ -1177,8 +1166,9 @@ const EmployeeLeaveMaster = () => {
                               {leave.LeaveTypeID?.Name || 'N/A'}
                             </Typography>
                           </TableCell>
-                          <TableCell>{formatDate(leave.StartDate)}</TableCell>
-                          <TableCell>{formatDate(leave.EndDate)}</TableCell>
+                          {/* FIXED: Use formatDisplayDate for correct date display */}
+                          <TableCell>{formatDisplayDate(leave.StartDate)}</TableCell>
+                          <TableCell>{formatDisplayDate(leave.EndDate)}</TableCell>
                           <TableCell>
                             <Chip
                               label={leave.NumberOfDays}
@@ -1338,8 +1328,8 @@ const EmployeeLeaveMaster = () => {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
-          <Alert 
-            severity={snackbar.severity} 
+          <Alert
+            severity={snackbar.severity}
             variant="filled"
             onClose={() => setSnackbar({ ...snackbar, open: false })}
           >

@@ -46,10 +46,10 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     VendorType: 'Existing',
     VendorID: '',
-    QuotationType: 'CostBreakup', // Changed to CostBreakup by default for process-based quotations
+    QuotationType: 'CostBreakup',
     ValidTill: '',
     InternalRemarks: '',
-    CustomerRemarks: '', // Changed from VendorRemarks to CustomerRemarks
+    CustomerRemarks: '',
     Items: []
   });
   
@@ -73,7 +73,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     PartName: ''
   });
   
-  // New state for process selection
   const [processes, setProcesses] = useState([]);
   const [selectedItemForProcess, setSelectedItemForProcess] = useState(null);
   const [openProcessDialog, setOpenProcessDialog] = useState(false);
@@ -84,12 +83,13 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [downloadInProgress, setDownloadInProgress] = useState(false);
   
   const [vendors, setVendors] = useState([]);
   const [items, setItems] = useState([]);
 
   // Quotation type options from enum
-  const quotationTypes = ['Standard', 'CostBreakup', 'Detailed', 'Summary'];
+  const quotationTypes = ['CostBreakup', 'Detailed', 'Summary'];
 
   useEffect(() => {
     if (open) {
@@ -212,7 +212,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       PartName: selectedItem.PartName || '',
       Unit: selectedItem.Unit || '',
       HSNCode: selectedItem.HSNCode || '',
-      Processes: [] // Initialize empty processes array for this item
+      Processes: []
     };
 
     setFormData(prev => ({
@@ -231,7 +231,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  // Process management functions
   const handleOpenProcessDialog = (itemIndex) => {
     setSelectedItemForProcess(itemIndex);
     setCurrentProcessSelection({ ProcessID: '', Price: '' });
@@ -264,7 +263,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       return;
     }
 
-    // Check if process already added to this item
     const itemProcesses = formData.Items[selectedItemForProcess].Processes;
     if (itemProcesses.some(p => p.ProcessID === currentProcessSelection.ProcessID)) {
       setError('This process has already been added to the item');
@@ -334,7 +332,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       return false;
     }
 
-    // Validate that each item has at least one process
     for (let i = 0; i < formData.Items.length; i++) {
       if (formData.Items[i].Processes.length === 0) {
         setError(`Item ${formData.Items[i].PartNo} must have at least one process`);
@@ -345,13 +342,126 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     return true;
   };
 
+  // Improved file download function
+  // Improved file download function with better URL handling
+const downloadFile = (fileUrl, fileName) => {
+  try {
+    setDownloadInProgress(true);
+    
+    // Clean the base URL - remove trailing slash if present
+    const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+    
+    // Ensure fileUrl starts with a slash
+    const urlPath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+    
+    // Construct the full URL
+    const fullUrl = `${baseUrl}${urlPath}`;
+    
+    console.log('Attempting to download from:', fullUrl);
+    console.log('File name:', fileName);
+    
+    // Try multiple filename variations if the first attempt fails
+    const tryDownload = (url) => {
+      return fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        // Create blob URL and trigger download
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the blob URL
+        setTimeout(() => {
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+        
+        setDownloadInProgress(false);
+        return true;
+      })
+      .catch(error => {
+        console.log(`Failed to download from ${url}:`, error);
+        return false;
+      });
+    };
+
+    // Try the original URL first
+    tryDownload(fullUrl)
+      .then(success => {
+        if (!success) {
+          // If failed, try alternative filename formats
+          console.log('Trying alternative URL formats...');
+          
+          // Extract the filename from the path
+          const pathParts = fileUrl.split('/');
+          const originalFileName = pathParts[pathParts.length - 1];
+          
+          // Try different variations
+          const variations = [
+            // Variation 1: Replace hyphens with nothing (Cost-Breakup -> CostBreakup)
+            originalFileName.replace(/-/g, ''),
+            // Variation 2: Original name with hyphen
+            originalFileName,
+            // Variation 3: Try without the hyphen in the type part
+            originalFileName.replace(/^([A-Za-z]+)-/, (match, p1) => p1)
+          ];
+          
+          // Remove duplicates
+          const uniqueVariations = [...new Set(variations)];
+          
+          // Try each variation
+          let promiseChain = Promise.resolve(false);
+          uniqueVariations.forEach(variation => {
+            promiseChain = promiseChain.then(success => {
+              if (!success) {
+                const altPath = fileUrl.replace(originalFileName, variation);
+                const altUrl = `${baseUrl}${altPath.startsWith('/') ? altPath : `/${altPath}`}`;
+                console.log('Trying:', altUrl);
+                return tryDownload(altUrl);
+              }
+              return success;
+            });
+          });
+          
+          promiseChain.then(success => {
+            if (!success) {
+              // If all attempts fail, open in new tab as fallback
+              console.log('All download attempts failed, opening in new tab');
+              window.open(fullUrl, '_blank');
+              setDownloadInProgress(false);
+            }
+          });
+        }
+      });
+      
+  } catch (error) {
+    console.error('Download error:', error);
+    setDownloadInProgress(false);
+    
+    // Fallback: Show alert with URL
+    alert(`Unable to download automatically. You can access the file at:\n${BASE_URL}${fileUrl}`);
+  }
+};
+
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
     setError('');
 
-    // Format the payload according to the API structure
     const payload = {
       QuotationType: formData.QuotationType,
       VendorType: vendorType,
@@ -383,11 +493,76 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
         }
       });
 
-      if (response.data.success) {
-        onAdd(response.data.data);
-        resetForm();
-        onClose();
-      } else {
+      // In handleSubmit function, after successful response:
+
+if (response.data.success) {
+  const quotationData = response.data.data;
+  
+  // Call the onAdd callback with the quotation data
+  onAdd(quotationData);
+  
+  // Check if file exists in the response
+  if (quotationData.file && quotationData.file.url) {
+    const fileUrl = quotationData.file.url;
+    
+    // Use the filename from the response
+    let fileName = quotationData.file.name;
+    
+    // If the filename doesn't match the pattern we expect, create a proper one
+    if (!fileName || fileName === '') {
+      // Create filename based on QuotationType and QuotationNo
+      const type = quotationData.QuotationType || 'Quotation';
+      const number = quotationData.QuotationNo || Date.now();
+      
+      // Add hyphen between type and number if needed
+      fileName = `${type}-${number}.xlsx`;
+      
+      // If type doesn't have hyphen (like "CostBreakup"), format it properly
+      if (type === 'CostBreakup') {
+        fileName = `Cost-Breakup-${number}.xlsx`;
+      } else if (type === 'Detailed') {
+        fileName = `Detailed-${number}.xlsx`;
+      } else if (type === 'Summary') {
+        fileName = `Summary-${number}.xlsx`;
+      }
+    }
+    
+    console.log('File URL:', fileUrl);
+    console.log('File Name:', fileName);
+    
+    // Small delay to ensure the dialog closes properly before download starts
+    setTimeout(() => {
+      downloadFile(fileUrl, fileName);
+    }, 500);
+  } else {
+    console.log('No file URL in response, attempting to construct URL');
+    
+    // Try to construct file URL from QuotationType and QuotationNo
+    if (quotationData.QuotationType && quotationData.QuotationNo) {
+      const type = quotationData.QuotationType;
+      const number = quotationData.QuotationNo;
+      
+      // Format the filename correctly
+      let formattedType = type;
+      if (type === 'CostBreakup') {
+        formattedType = 'Cost-Breakup';
+      }
+      
+      const fileName = `${formattedType}-${number}.xlsx`;
+      const constructedUrl = `/uploads/quotations/${fileName}`;
+      
+      console.log('Constructed URL:', constructedUrl);
+      console.log('Constructed filename:', fileName);
+      
+      setTimeout(() => {
+        downloadFile(constructedUrl, fileName);
+      }, 500);
+    }
+  }
+  
+  resetForm();
+  onClose();
+} else {
         setError(response.data.message || 'Failed to add quotation');
       }
     } catch (err) {
@@ -436,15 +611,33 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
   const partNoOptions = items.map(item => item.PartNo).filter(Boolean);
 
-  // Helper function to format quotation type for display
   const formatQuotationType = (type) => {
     return type.replace(/([A-Z])/g, ' $1').trim();
   };
 
-  // Get process name by ID
   const getProcessName = (processId) => {
     const process = processes.find(p => p._id === processId);
     return process ? process.ProcessName : 'Unknown Process';
+  };
+
+  // Fixed renderOption function - no key spreading issue
+  const renderOption = (props, option) => {
+    const item = items.find(i => i.PartNo === option);
+    // Extract the key from props and don't spread it
+    const { key, ...otherProps } = props;
+    
+    return (
+      <li key={key} {...otherProps}>
+        <Box>
+          <Typography variant="body2">{option}</Typography>
+          {item && (
+            <Typography variant="caption" color="textSecondary">
+              {item.PartName} • {item.Unit || 'No unit'}
+            </Typography>
+          )}
+        </Box>
+      </li>
+    );
   };
 
   return (
@@ -453,7 +646,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       onClose={handleClose}
       maxWidth="lg"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 2 } }}
+      PaperProps={{
+        sx: {
+          borderRadius: 2
+        }
+      }}
     >
       <DialogTitle sx={{
         borderBottom: '1px solid #E0E0E0',
@@ -472,6 +669,12 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
         {error && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
+          </Alert>
+        )}
+
+        {downloadInProgress && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 1 }}>
+            Downloading quotation file...
           </Alert>
         )}
 
@@ -699,21 +902,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                         placeholder="Search or select part number"
                       />
                     )}
-                    renderOption={(props, option) => {
-                      const item = items.find(i => i.PartNo === option);
-                      return (
-                        <li {...props}>
-                          <Box>
-                            <Typography variant="body2">{option}</Typography>
-                            {item && (
-                              <Typography variant="caption" color="textSecondary">
-                                {item.PartName} • {item.Unit || 'No unit'}
-                              </Typography>
-                            )}
-                          </Box>
-                        </li>
-                      );
-                    }}
+                    renderOption={renderOption}
                   />
                   <TextField
                     sx={{ flex: 1 }}
@@ -988,14 +1177,14 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
-          startIcon={!loading && <AddIcon />}
+          disabled={loading || downloadInProgress}
+          startIcon={!loading && !downloadInProgress && <AddIcon />}
           sx={{
             backgroundColor: '#1976D2',
             '&:hover': { backgroundColor: '#1565C0' }
           }}
         >
-          {loading ? 'Creating...' : 'Create Quotation'}
+          {loading ? 'Creating...' : downloadInProgress ? 'Downloading...' : 'Create Quotation'}
         </Button>
       </DialogActions>
     </Dialog>

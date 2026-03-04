@@ -38,7 +38,8 @@ import {
   Assignment as AssignmentIcon,
   Person as PersonIcon,
   WorkOutline,
-  BusinessOutlined
+  BusinessOutlined,
+  Margin
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useDropzone } from 'react-dropzone';
@@ -204,7 +205,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
         setUploadedDocument(response.data.data);
         setSuccess(response.data.message || 'Document uploaded successfully!');
         if (onSubmit) onSubmit(response.data.data);
-        
+
         // Close the dialog after successful upload
         setTimeout(() => {
           handleClose();
@@ -237,10 +238,10 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
     switch (step) {
       case 0:
         return (
-          <Stack spacing={3}>
-            <Paper sx={{ p: 2 }}>
+          <Stack spacing={3} sx={{ Margin: "-5px" }}>
+            <Paper sx={{ p: 2, m: -2 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                👤 Select Candidate
+                Select Candidate
               </Typography>
               {fetchingCandidates ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -253,6 +254,22 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                     value={selectedCandidate?._id || ''}
                     onChange={handleCandidateChange}
                     label="Select Candidate"
+                    MenuProps={{
+                      anchorOrigin: {
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                      },
+                      transformOrigin: {
+                        vertical: 'top',
+                        horizontal: 'left',
+                      },
+                      PaperProps: {
+                        style: {
+                          maxHeight: 200, // Reduced height
+                          width: 'auto',
+                        },
+                      },
+                    }}
                   >
                     {candidates.map(cand => (
                       <MenuItem key={cand._id} value={cand._id}>
@@ -263,8 +280,8 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                 </FormControl>
               )}
               {selectedCandidate && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
-                  <Grid container spacing={2}>
+                <Box sx={{ mt: 1, bgcolor: '#F8FAFC', borderRadius: 1 }}>
+                  <Grid container spacing={8}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="textSecondary">Full Name</Typography>
                       <Typography variant="body2" fontWeight={500}>
@@ -283,7 +300,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                 </Box>
               )}
             </Paper>
-            <Paper sx={{ p: 2, bgcolor: '#E3F2FD', border: '1px solid #90CAF9' }}>
+            <Paper sx={{ p: 1, bgcolor: '#E3F2FD', border: '1px solid #90CAF9' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <InfoIcon sx={{ color: '#1976D2' }} />
                 <Typography variant="body2">
@@ -299,16 +316,32 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                📄 Upload Document
+                Upload Document
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
-                  <FormControl size="small" sx={{ width: 300 }}>
+                  <FormControl size="small" sx={{ width: 250 }}>
                     <InputLabel>Document Type</InputLabel>
-                    <Select 
+                    <Select
                       value={documentTypeValue}
                       onChange={(e) => setDocumentTypeValue(e.target.value)}
                       label="Document Type"
+                      MenuProps={{
+                        anchorOrigin: {
+                          vertical: 'bottom',
+                          horizontal: 'left',
+                        },
+                        transformOrigin: {
+                          vertical: 'top',
+                          horizontal: 'left',
+                        },
+                        PaperProps: {
+                          style: {
+                            maxHeight: 200, // Adjust this value as needed
+                            width: 250, // Set a specific width for better readability
+                          },
+                        },
+                      }}
                     >
                       {documentTypes.map(type => (
                         <MenuItem key={type.value} value={type.value}>
@@ -326,7 +359,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                     </Select>
                   </FormControl>
                 </Grid>
-                
+
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                     {/* File Upload Area */}
@@ -336,18 +369,18 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                         flex: 1,
                         p: 1,
                         height: 60,
-                        width: 350,
+                        width: 400,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        border: `2px dashed ${isDragActive ? '#1976D2' : documentFile ? '#4CAF50' : '#BDBDBD'}`,
+                        // border: `2px dashed ${isDragActive ? '#1976D2' : documentFile ? '#4CAF50' : '#BDBDBD'}`,
                         borderRadius: 2,
                         bgcolor: isDragActive ? '#E3F2FD' : documentFile ? '#E8F5E9' : '#F8FAFC',
                         cursor: 'pointer',
                         textAlign: 'center',
                         transition: 'all 0.2s',
-                        '&:hover': { 
-                          borderColor: '#1976D2', 
+                        '&:hover': {
+                          borderColor: '#1976D2',
                           bgcolor: '#E3F2FD',
                           transform: 'translateY(-2px)',
                           boxShadow: 1
@@ -372,7 +405,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                           <CloudUploadIcon sx={{ fontSize: 32, color: '#9E9E9E', mb: 0.5 }} />
                           <Typography variant="body2" fontWeight={500} gutterBottom>
                             Drag & Drop or Click to Upload
-                            <br /> 
+                            <br />
                             <span style={{ fontSize: '0.70rem', color: '#64748B', opacity: 0.8 }}>PDF, JPG, JPEG, PNG (Max: 10MB)</span>
                           </Typography>
                         </Box>
@@ -386,7 +419,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                         color="error"
                         size="small"
                         onClick={handleRemoveFile}
-                        sx={{ 
+                        sx={{
                           height: 40,
                           borderRadius: 2,
                           textTransform: 'none',
@@ -398,7 +431,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                           }
                         }}
                       >
-                        <DeleteIcon/>
+                        <DeleteIcon />
                       </Button>
                     )}
                   </Box>
@@ -410,17 +443,17 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                       <Typography variant="body2" color="textSecondary" gutterBottom>
                         Uploading... {uploadProgress}%
                       </Typography>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={uploadProgress} 
-                        sx={{ 
-                          height: 6, 
+                      <LinearProgress
+                        variant="determinate"
+                        value={uploadProgress}
+                        sx={{
+                          height: 6,
                           borderRadius: 3,
                           backgroundColor: '#E0E0E0',
                           '& .MuiLinearProgress-bar': {
                             background: 'linear-gradient(90deg, #1976D2, #64B5F6)'
                           }
-                        }} 
+                        }}
                       />
                     </Box>
                   </Grid>
@@ -428,10 +461,10 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
 
                 {uploadedDocument && (
                   <Grid item xs={12}>
-                    <Alert 
-                      severity="success" 
-                      icon={<CheckCircleIcon />} 
-                      sx={{ 
+                    <Alert
+                      severity="success"
+                      icon={<CheckCircleIcon />}
+                      sx={{
                         mb: 2,
                         borderRadius: 2,
                         '& .MuiAlert-icon': { color: '#2E7D32' }
@@ -439,9 +472,9 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                     >
                       Document uploaded successfully!
                     </Alert>
-                    <Paper sx={{ 
-                      p: 2, 
-                      bgcolor: '#E8F5E9', 
+                    <Paper sx={{
+                      p: 2,
+                      bgcolor: '#E8F5E9',
                       border: '1px solid #81C784',
                       borderRadius: 2
                     }}>
@@ -455,16 +488,16 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="caption" color="textSecondary">Status</Typography>
-                          <Chip 
-                            label={uploadedDocument.status || 'pending'} 
-                            size="small" 
-                            sx={{ 
-                              height: 20, 
+                          <Chip
+                            label={uploadedDocument.status || 'pending'}
+                            size="small"
+                            sx={{
+                              height: 20,
                               fontSize: '11px',
                               fontWeight: 500,
                               backgroundColor: '#FFE0B2',
                               color: '#E65100'
-                            }} 
+                            }}
                           />
                         </Grid>
                         <Grid item xs={12}>
@@ -488,7 +521,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                 Confirm Upload
               </Typography>
               <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1, mb: 2 }}>
-                <Grid container spacing={2}>
+                <Grid container spacing={10}>
                   <Grid item xs={12} md={6}>
                     <Typography variant="caption" color="textSecondary">Candidate</Typography>
                     <Typography variant="body1" fontWeight={500}>
@@ -517,7 +550,7 @@ const UploadDocument = ({ open, onClose, onSubmit, candidateId = null, documentT
                   )}
                 </Grid>
               </Box>
-              
+
               <Alert severity="warning" icon={<WarningIcon />}>
                 <Typography variant="body2">
                   Once uploaded, documents cannot be deleted. Please ensure you have selected the correct file.

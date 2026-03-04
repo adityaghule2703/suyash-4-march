@@ -31,8 +31,10 @@ const HeaderTwo = () => {
     { name: 'Item Master', path: '/master/itemmaster', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' }, // Package/Item icon
     { name: 'Company Master', path: '/master/companymaster', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' }, // Building/Company icon
     { name: 'Process Master', path: '/master/processmaster', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' }, // Process/Refresh icon
+    { name: 'Process Details Master', path: '/master/processdetailsmaster', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' }, // Process/Refresh icon
     { name: 'Costing Master', path: '/master/costingmaster', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }, // Currency/Cost icon
     { name: 'Dimension Master', path: '/master/dimentionmaster', icon: 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5' }, // Dimensions/Scale icon
+     { name: 'Company Financial Master', path: '/master/companyfinancialmaster', icon: 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5' }, // Dimensions/Scale icon
     { name: 'Quotation Master', path: '/master/quotationmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }, // Document/Quote icon
     { name: 'Tax Master', path: '/master/taxmaster', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2zM7 10h3M7 14h2m5-4h3' }, // Tax/Percentage icon
     { name: 'Terms & Conditions', path: '/master/termsandconditionmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z M12 2v4M12 22v-4' }, // Document with lines icon
@@ -62,6 +64,7 @@ const HeaderTwo = () => {
     { name: 'Production Master', path: '/hrmaster/productionmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15'},
     { name: 'Termination Master', path: '/hrmaster/terminationmaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
     { name: 'Employee Behavior Master', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
+     { name: 'Mediclaim Master', path: '/hrmaster/mediclaimmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15'},
 
   ];
 

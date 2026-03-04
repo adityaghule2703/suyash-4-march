@@ -28,9 +28,12 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   const [formData, setFormData] = useState({
     MaterialName: '',
     Grade: '',
+    RMSource: '',
+    RMType: '',
     RatePerKG: '',
     ScrapPercentage: '',
     TransportLossPercentage: '',
+    FabricationRate: '',
     DateEffective: new Date().toISOString().split('T')[0],
     IsActive: true
   });
@@ -42,9 +45,12 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
       setFormData({
         MaterialName: material.MaterialName || '',
         Grade: material.Grade || '',
+        RMSource: material.RMSource || '',
+        RMType: material.RMType || '',
         RatePerKG: material.RatePerKG || '',
         ScrapPercentage: material.ScrapPercentage || '',
         TransportLossPercentage: material.TransportLossPercentage || '',
+        FabricationRate: material.FabricationRate || '',
         DateEffective: material.DateEffective ? material.DateEffective.split('T')[0] : new Date().toISOString().split('T')[0],
         IsActive: material.IsActive !== undefined ? material.IsActive : true
       });
@@ -77,6 +83,14 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
           setError('Grade is required');
           return false;
         }
+        if (!formData.RMSource.trim()) {
+          setError('RM Source is required');
+          return false;
+        }
+        if (!formData.RMType.trim()) {
+          setError('RM Type is required');
+          return false;
+        }
         break;
       
       case 1: // Rate & Cost Details
@@ -90,6 +104,10 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
         }
         if (!formData.TransportLossPercentage || formData.TransportLossPercentage < 0) {
           setError('Transport loss percentage is required');
+          return false;
+        }
+        if (!formData.FabricationRate || formData.FabricationRate < 0) {
+          setError('Fabrication rate is required');
           return false;
         }
         if (!formData.DateEffective) {
@@ -124,12 +142,22 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${BASE_URL}/api/raw-materials/${material._id}`, {
-        ...formData,
+      
+      // Prepare the request body according to API specification
+      const requestBody = {
+        MaterialName: formData.MaterialName,
+        Grade: formData.Grade,
+        RMSource: formData.RMSource,
+        RMType: formData.RMType,
         RatePerKG: parseFloat(formData.RatePerKG),
         ScrapPercentage: parseFloat(formData.ScrapPercentage),
-        TransportLossPercentage: parseFloat(formData.TransportLossPercentage)
-      }, {
+        TransportLossPercentage: parseFloat(formData.TransportLossPercentage),
+        FabricationRate: parseFloat(formData.FabricationRate),
+        DateEffective: formData.DateEffective,
+        IsActive: formData.IsActive
+      };
+
+      const response = await axios.put(`${BASE_URL}/api/raw-materials/${material._id}`, requestBody, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -150,6 +178,16 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
     }
   };
 
+  const calculateEffectiveRate = () => {
+    if (!formData.RatePerKG || !formData.ScrapPercentage || !formData.TransportLossPercentage) return 0;
+    
+    const baseRate = parseFloat(formData.RatePerKG) || 0;
+    const scrap = (baseRate * (parseFloat(formData.ScrapPercentage) || 0) / 100);
+    const transport = (baseRate * (parseFloat(formData.TransportLossPercentage) || 0) / 100);
+    
+    return baseRate + scrap + transport;
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
@@ -165,11 +203,6 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               disabled={loading}
               size="medium"
               variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
             />
             
             <TextField
@@ -182,23 +215,34 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               disabled={loading}
               size="medium"
               variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                }
-              }}
             />
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.IsActive}
-                  onChange={handleSwitchChange}
-                  color="primary"
-                />
-              }
-              label={formData.IsActive ? 'Active' : 'Inactive'}
-              sx={{ mt: 1 }}
+
+            {/* RM Source - Text Field */}
+            <TextField
+              fullWidth
+              label="RM Source *"
+              name="RMSource"
+              value={formData.RMSource}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              size="medium"
+              variant="outlined"
+              placeholder="e.g., New India CT, Local Supplier, etc."
+            />
+
+            {/* RM Type - Text Field */}
+            <TextField
+              fullWidth
+              label="RM Type *"
+              name="RMType"
+              value={formData.RMType}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              size="medium"
+              variant="outlined"
+              placeholder="e.g., Strip, Sheet, Rod, etc."
             />
           </Stack>
         );
@@ -206,6 +250,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
       case 1:
         return (
           <Stack spacing={2.5}>
+            {/* Rate, Fabrication Rate and Date Effective */}
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -222,13 +267,30 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   InputProps={{
                     startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
+                  inputProps={{ step: "0.01", min: "0" }}
                 />
               </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Fabrication Rate (₹) *"
+                  name="FabricationRate"
+                  type="number"
+                  value={formData.FabricationRate}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                  }}
+                  inputProps={{ step: "0.01", min: "0" }}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
                   fullWidth
@@ -244,15 +306,24 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   InputLabelProps={{
                     shrink: true,
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.IsActive}
+                      onChange={handleSwitchChange}
+                      color="primary"
+                    />
+                  }
+                  label={formData.IsActive ? 'Active' : 'Inactive'}
+                  sx={{ mt: 1 }}
                 />
               </Grid>
             </Grid>
             
+            {/* Scrap and Transport Loss */}
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -269,11 +340,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   InputProps={{
                     endAdornment: <Typography>%</Typography>,
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
+                  inputProps={{ step: "0.1", min: "0" }}
                 />
               </Grid>
               <Grid item xs={6}>
@@ -291,15 +358,12 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   InputProps={{
                     endAdornment: <Typography>%</Typography>,
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                    }
-                  }}
+                  inputProps={{ step: "0.1", min: "0" }}
                 />
               </Grid>
             </Grid>
             
+            {/* Calculation Preview */}
             {formData.RatePerKG && formData.ScrapPercentage && formData.TransportLossPercentage && (
               <Box sx={{ 
                 p: 2, 
@@ -316,7 +380,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" fontWeight={500} align="right">
-                      ₹{parseFloat(formData.RatePerKG).toLocaleString('en-IN')}
+                      ₹{parseFloat(formData.RatePerKG).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
@@ -325,7 +389,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.ScrapPercentage / 100).toLocaleString('en-IN')}
+                      + ₹{(formData.RatePerKG * formData.ScrapPercentage / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
@@ -334,7 +398,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.TransportLossPercentage / 100).toLocaleString('en-IN')}
+                      + ₹{(formData.RatePerKG * formData.TransportLossPercentage / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
@@ -348,11 +412,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body1" fontWeight={700} color="success.main" align="right">
-                            ₹{(
-                              parseFloat(formData.RatePerKG) + 
-                              (formData.RatePerKG * formData.ScrapPercentage / 100) + 
-                              (formData.RatePerKG * formData.TransportLossPercentage / 100)
-                            ).toLocaleString('en-IN')}
+                            ₹{calculateEffectiveRate().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -378,7 +438,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
       PaperProps={{
         sx: { 
           borderRadius: 2,
-          minHeight: '520px'
+          minHeight: '620px'
         }
       }}
     >
@@ -420,14 +480,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
         py: 2,
         borderBottom: '1px solid #F0F0F0'
       }}>
-        <Stepper 
-          activeStep={activeStep} 
-          sx={{
-            '& .MuiStepLabel-root': {
-              padding: '0 8px'
-            }
-          }}
-        >
+        <Stepper activeStep={activeStep}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -436,20 +489,9 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
         </Stepper>
       </Box>
       
-      <DialogContent sx={{ 
-        pt: 3,
-        px: 3,
-        pb: 3,
-      }}>
-        <Box sx={{ 
-          minHeight: '320px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
-          <Box sx={{ mb: 2 }}>
-            {renderStepContent(activeStep)}
-          </Box>
+      <DialogContent sx={{ pt: 3, px: 3, pb: 3 }}>
+        <Box sx={{ minHeight: '380px' }}>
+          {renderStepContent(activeStep)}
         </Box>
       </DialogContent>
       

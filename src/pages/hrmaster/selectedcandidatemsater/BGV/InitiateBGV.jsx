@@ -133,51 +133,95 @@ const InitiateBGV = ({ open, onClose, onSubmit }) => {
   };
 
   // Fetch offers for selected candidate
-  const fetchOffersForCandidate = async (candidateId) => {
-    if (!candidateId) return;
+ // Fetch offers for selected candidate
+const fetchOffersForCandidate = async (candidateId) => {
+  if (!candidateId) return;
+  
+  setFetchingOffers(true);
+  setError('');
+  
+  try {
+    const token = localStorage.getItem('token');
     
-    setFetchingOffers(true);
-    setError('');
+    let offersArray = [];
+    let response;
     
     try {
-      const token = localStorage.getItem('token');
-      // Try different endpoints for offers
-      let response;
-      
       // First try: get offers by candidate ID
-      try {
-        response = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      } catch (err) {
-        // Second try: get all offers and filter on client side
-        console.log('Trying base offers endpoint...');
-        response = await axios.get(`${BASE_URL}/api/offers`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+      response = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) {
+      // Second try: get all offers
+      console.log('Trying base offers endpoint...');
+      response = await axios.get(`${BASE_URL}/api/offers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    }
+
+    console.log('Offers API Response:', response.data);
+
+    if (response.data.success) {
+      // Handle different response structures
+      const responseData = response.data.data;
+      
+      if (Array.isArray(responseData)) {
+        // If data is directly an array
+        offersArray = responseData;
+      } else if (responseData && typeof responseData === 'object') {
+        // If data is an object, check for common array properties
+        if (responseData.offers && Array.isArray(responseData.offers)) {
+          offersArray = responseData.offers;
+        } else if (responseData.results && Array.isArray(responseData.results)) {
+          offersArray = responseData.results;
+        } else if (responseData.items && Array.isArray(responseData.items)) {
+          offersArray = responseData.items;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          offersArray = responseData.data;
+        } else {
+          // If it's an object but not containing an array, maybe it's a single offer?
+          // Check if it has _id or offerId to treat as a single offer
+          if (responseData._id || responseData.offerId) {
+            offersArray = [responseData];
+          } else {
+            // Try to extract any array property from the object
+            const possibleArrayProps = Object.values(responseData).filter(val => Array.isArray(val));
+            if (possibleArrayProps.length > 0) {
+              offersArray = possibleArrayProps[0];
+            } else {
+              offersArray = [];
+              console.warn('No array found in response data:', responseData);
+            }
+          }
+        }
       }
 
-      if (response.data.success) {
-        // Filter offers for the selected candidate
-        const candidateOffers = response.data.data.filter(offer => 
-          offer.candidateId?._id === candidateId || offer.candidateId === candidateId
-        );
-        setOffers(candidateOffers);
-        
-        if (candidateOffers.length === 0) {
-          setError('No offers found for this candidate');
-        }
-      } else {
-        setOffers([]);
+      // Filter offers for the selected candidate
+      const candidateOffers = offersArray.filter(offer => {
+        const offerCandidateId = offer.candidateId?._id || 
+                                 offer.candidateId || 
+                                 offer.candidate?._id || 
+                                 offer.candidate;
+        return offerCandidateId === candidateId;
+      });
+      
+      console.log('Filtered offers for candidate:', candidateOffers);
+      setOffers(candidateOffers);
+      
+      if (candidateOffers.length === 0) {
+        // Don't set error, just show empty state
+        console.log('No offers found for candidate:', candidateId);
       }
-    } catch (err) {
-      console.error('Error fetching offers:', err);
+    } else {
       setOffers([]);
-      // Don't show error for offers, just set empty array
-    } finally {
-      setFetchingOffers(false);
     }
-  };
+  } catch (err) {
+    console.error('Error fetching offers:', err);
+    setOffers([]);
+  } finally {
+    setFetchingOffers(false);
+  }
+};
 
   // Handle candidate change
   const handleCandidateChange = async (e) => {
@@ -185,11 +229,10 @@ const InitiateBGV = ({ open, onClose, onSubmit }) => {
     setSelectedCandidate(candidateId);
     setSelectedOffer(''); // Reset offer when candidate changes
     setError('');
+    setOffers([]); // Clear offers while loading
     
     if (candidateId) {
       await fetchOffersForCandidate(candidateId);
-    } else {
-      setOffers([]);
     }
   };
 
@@ -299,7 +342,7 @@ const InitiateBGV = ({ open, onClose, onSubmit }) => {
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                👤 Select Candidate
+                Select Candidate
               </Typography>
               
               {fetchingCandidates ? (
@@ -398,7 +441,7 @@ const InitiateBGV = ({ open, onClose, onSubmit }) => {
                         <MenuItem key={offer._id} value={offer._id}>
                           <Box>
                             <Typography variant="body2" fontWeight={500}>
-                              {offer.offerId || 'N/A'}
+                              {offer.offerId || offer._id?.substring(0, 8) || 'N/A'}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">
                               Status: {offer.status || 'N/A'} 

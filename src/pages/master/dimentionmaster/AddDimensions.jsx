@@ -13,7 +13,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Grid
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -25,7 +26,10 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
     Thickness: '',
     Width: '',
     Length: '',
-    Density: ''
+    Density: '',
+    Pitch: '',
+    NoOfCavity: '',
+    StripSize: ''
   });
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -101,6 +105,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
   };
 
   const handleSubmit = async () => {
+    // Validation
     if (!formData.PartNo) {
       setError('Part No is required');
       return;
@@ -121,6 +126,18 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
       setError('Density must be greater than 0');
       return;
     }
+    if (!formData.Pitch || parseFloat(formData.Pitch) <= 0) {
+      setError('Pitch must be greater than 0');
+      return;
+    }
+    if (!formData.NoOfCavity || parseInt(formData.NoOfCavity) <= 0) {
+      setError('Number of Cavities must be greater than 0');
+      return;
+    }
+    if (!formData.StripSize || parseFloat(formData.StripSize) <= 0) {
+      setError('Strip Size must be greater than 0');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -128,11 +145,14 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${BASE_URL}/api/dimension-weights`, {
-        ...formData,
+        PartNo: formData.PartNo,
         Thickness: parseFloat(formData.Thickness),
         Width: parseFloat(formData.Width),
         Length: parseFloat(formData.Length),
-        Density: parseFloat(formData.Density)
+        Density: parseFloat(formData.Density),
+        Pitch: parseFloat(formData.Pitch),
+        NoOfCavity: parseInt(formData.NoOfCavity),
+        StripSize: parseFloat(formData.StripSize)
       }, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +181,10 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
       Thickness: '',
       Width: '',
       Length: '',
-      Density: ''
+      Density: '',
+      Pitch: '',
+      NoOfCavity: '',
+      StripSize: ''
     });
     setError('');
   };
@@ -177,7 +200,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2 } }}
     >
@@ -230,68 +253,125 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
           </FormControl>
 
           {/* Thickness and Width */}
-          <Stack direction="row" spacing={2}>
-            <TextField
-              fullWidth
-              label="Thickness (mm) *"
-              name="Thickness"
-              type="number"
-              value={formData.Thickness}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              InputProps={{
-                endAdornment: <Typography>mm</Typography>,
-                inputProps: { min: 0, step: 0.01 }
-              }}
-            />
-            <TextField
-              fullWidth
-              label="Width (mm) *"
-              name="Width"
-              type="number"
-              value={formData.Width}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              InputProps={{
-                endAdornment: <Typography>mm</Typography>,
-                inputProps: { min: 0, step: 0.01 }
-              }}
-            />
-          </Stack>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Thickness (mm) *"
+                name="Thickness"
+                type="number"
+                value={formData.Thickness}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  endAdornment: <Typography variant="caption">mm</Typography>,
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Width (mm) *"
+                name="Width"
+                type="number"
+                value={formData.Width}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  endAdornment: <Typography variant="caption">mm</Typography>,
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+          </Grid>
 
           {/* Length and Density */}
-          <Stack direction="row" spacing={2}>
-            <TextField
-              fullWidth
-              label="Length (mm) *"
-              name="Length"
-              type="number"
-              value={formData.Length}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              InputProps={{
-                endAdornment: <Typography>mm</Typography>,
-                inputProps: { min: 0, step: 0.01 }
-              }}
-            />
-            <TextField
-              fullWidth
-              label="Density (g/cm³) *"
-              name="Density"
-              type="number"
-              value={formData.Density}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              InputProps={{
-                endAdornment: <Typography>g/cm³</Typography>,
-                inputProps: { min: 0, step: 0.01 }
-              }}
-            />
-          </Stack>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Length (mm) *"
+                name="Length"
+                type="number"
+                value={formData.Length}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  endAdornment: <Typography variant="caption">mm</Typography>,
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Density (g/cm³) *"
+                name="Density"
+                type="number"
+                value={formData.Density}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  endAdornment: <Typography variant="caption">g/cm³</Typography>,
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+          </Grid>
+
+          {/* New Fields: Pitch, NoOfCavity, StripSize */}
+          <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Pitch *"
+                name="Pitch"
+                type="number"
+                value={formData.Pitch}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="No of Cavities *"
+                name="NoOfCavity"
+                type="number"
+                value={formData.NoOfCavity}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  inputProps: { min: 1, step: 1 }
+                }}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Strip Size *"
+                name="StripSize"
+                type="number"
+                value={formData.StripSize}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+          </Grid>
 
           {/* Weight Preview */}
           {weight > 0 && (

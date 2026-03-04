@@ -1,700 +1,501 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Stack,
-  Typography,
-  Grid,
   Box,
+  Typography,
+  IconButton,
+  Button,
+  CircularProgress,
+  Alert,
   Paper,
   Chip,
-  Divider,
-  Alert,
-  CircularProgress,
-  IconButton,
-  Avatar,
-  Tabs,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
-  Tooltip,
-  Card,
-  CardContent
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
-  Share as ShareIcon,
+  Refresh as RefreshIcon,
   PictureAsPdf as PdfIcon,
-  Visibility as ViewIcon,
-  Email as EmailIcon,
-  CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
-  ContentCopy as CopyIcon
+  Description as HtmlIcon,
+  CheckCircle as SuccessIcon,
+  Error as ErrorIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
 
-const GenerateOfferLetter = ({ open, onClose, onSubmit, offerData = null }) => {
+const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [error, setError] = useState(null);
+  const [offerHtml, setOfferHtml] = useState(null);
   const [offerDetails, setOfferDetails] = useState(null);
-  const [candidateDetails, setCandidateDetails] = useState(null);
-  const [offerLetterHtml, setOfferLetterHtml] = useState(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
-  const [copied, setCopied] = useState(false);
   
-  const printRef = useRef(null);
-  const iframeRef = useRef(null);
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    vertical: 'bottom',
+    horizontal: 'right'
+  });
 
+  const getAuthToken = () => {
+    return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  };
+
+  // Reset state when dialog opens with new candidate
   useEffect(() => {
-    if (open && offerData) {
-      setOfferDetails(offerData);
-      fetchCandidateDetails(offerData.candidateId);
-    }
-  }, [open, offerData]);
-
-  useEffect(() => {
-    if (open && offerData && activeTab === 1) {
-      generateOfferLetter();
-    }
-  }, [open, offerData, activeTab]);
-
-  const fetchCandidateDetails = async (candidateId) => {
-    setFetchingDetails(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/candidates/${candidateId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    if (open && candidate) {
+      setError(null);
+      setOfferHtml(null);
+      setOfferDetails(null);
       
-      if (response.data.success) {
-        setCandidateDetails(response.data.data);
+      // If candidate has offerId, fetch the offer letter
+      if (candidate.offerId) {
+        fetchOfferLetter(candidate.offerId);
+      } else {
+        setError('No offer ID found for this candidate');
+        showSnackbar('No offer ID found for this candidate', 'error');
       }
-    } catch (err) {
-      console.error('Error fetching candidate details:', err);
-      setError('Failed to fetch candidate details');
-    } finally {
-      setFetchingDetails(false);
     }
-  };
+  }, [open, candidate]);
 
-  const generateOfferLetter = async () => {
-    if (!offerDetails?._id) return;
-
-    setGenerating(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${BASE_URL}/api/offers/${offer._id}/generate-letter`,
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Accept': 'text/html'
-          },
-          responseType: 'text'
-        }
-      );
-
-      if (response.data) {
-        setOfferLetterHtml(response.data);
-        setSuccess('Offer letter generated successfully!');
-      }
-    } catch (err) {
-      console.error('Error generating offer letter:', err);
-      setError(err.response?.data?.message || 'Failed to generate offer letter');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
-  const handleClose = () => {
-    setActiveTab(0);
-    setOfferLetterHtml(null);
-    setError('');
-    setSuccess('');
-    setCopied(false);
-    onClose();
-  };
-
-  const handleDownload = () => {
-    if (!offerLetterHtml) return;
-
-    const blob = new Blob([offerLetterHtml], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Offer_Letter_${candidateDetails?.firstName}_${candidateDetails?.lastName}_${offerDetails?.offerId}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    
-    setSuccess('Offer letter downloaded successfully!');
-  };
-
-  const handlePrint = () => {
-    if (!offerLetterHtml) return;
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(offerLetterHtml);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
-
-  const handleCopyLink = () => {
-    const link = `${window.location.origin}/offers/${offer?._id}/letter`;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSendEmail = () => {
-    // In a real implementation, this would open an email modal or trigger an API
-    setSuccess('Email sent to candidate successfully!');
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+  // Show snackbar message
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity,
+      vertical: 'bottom',
+      horizontal: 'right'
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'draft': return 'default';
-      case 'pending_approval': return 'warning';
-      case 'approved': return 'success';
-      case 'rejected': return 'error';
-      case 'sent': return 'info';
-      default: return 'default';
+  // Handle snackbar close
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Fetch the offer letter HTML
+  const fetchOfferLetter = async (offerId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = getAuthToken();
+      console.log(`Fetching offer letter for offer ID: ${offerId}`);
+      
+      showSnackbar('Generating offer letter...', 'info');
+      
+      const response = await axios.get(
+        `${BASE_URL}/api/offers/${offerId}/generate-letter`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/html, application/json'
+          },
+          responseType: 'text' // Important: Get response as text for HTML
+        }
+      );
+
+      console.log('Offer letter response received');
+      
+      // Check if response is HTML or JSON
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+        // It's HTML content
+        setOfferHtml(response.data);
+        showSnackbar('Offer letter generated successfully!', 'success');
+        
+        // Try to extract basic offer details from HTML for display
+        extractOfferDetailsFromHtml(response.data);
+      } else if (response.data.success && response.data.data) {
+        // Handle if API returns JSON with HTML inside
+        const htmlContent = response.data.data.html || response.data.data;
+        if (htmlContent && typeof htmlContent === 'string' && htmlContent.includes('<!DOCTYPE html>')) {
+          setOfferHtml(htmlContent);
+          showSnackbar('Offer letter generated successfully!', 'success');
+          extractOfferDetailsFromHtml(htmlContent);
+        } else {
+          setError('Invalid response format from server');
+          showSnackbar('Invalid response format from server', 'error');
+        }
+      } else {
+        setError('Failed to generate offer letter');
+        showSnackbar('Failed to generate offer letter', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching offer letter:', err);
+      
+      let errorMessage = 'Failed to generate offer letter';
+      
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMessage = 'Offer not found';
+        } else if (err.response.status === 401) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (err.response.data) {
+          // Try to extract error message from response
+          if (typeof err.response.data === 'string') {
+            errorMessage = err.response.data;
+          } else if (err.response.data.message) {
+            errorMessage = err.response.data.message;
+          }
+        }
+      } else if (err.request) {
+        errorMessage = 'No response from server. Please check your connection.';
+      } else {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      showSnackbar(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Extract basic offer details from HTML (optional - for display purposes)
+  const extractOfferDetailsFromHtml = (html) => {
+    try {
+      // Create a temporary DOM element to parse HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Try to extract candidate name
+      const nameElement = doc.querySelector('p:contains("Dear") strong') || 
+                         doc.querySelector('strong:contains("Dear")');
+      
+      // Try to extract position
+      const positionElement = Array.from(doc.querySelectorAll('td')).find(
+        td => td.textContent.includes('Position') || td.textContent.includes('position')
+      );
+      
+      // Try to extract offer ID
+      const offerIdElement = Array.from(doc.querySelectorAll('p')).find(
+        p => p.textContent.includes('Offer ID:')
+      );
+      
+      // Try to extract CTC
+      const ctcElement = Array.from(doc.querySelectorAll('.total td, .total th')).find(
+        el => el.textContent.includes('₹')
+      );
+      
+      setOfferDetails({
+        candidateName: nameElement?.nextSibling?.textContent || candidate?.name || 'Unknown',
+        position: positionElement?.nextElementSibling?.textContent || candidate?.position || 'Unknown',
+        offerId: offerIdElement?.textContent?.replace('Offer ID:', '').trim() || candidate?.offerId,
+        totalCtc: ctcElement?.textContent?.match(/₹[\d,]+/)?.[0] || 'Not specified',
+        generatedDate: new Date().toLocaleDateString()
+      });
+    } catch (e) {
+      console.log('Could not extract details from HTML:', e);
+      setOfferDetails({
+        candidateName: candidate?.name || 'Unknown',
+        position: candidate?.position || 'Unknown',
+        offerId: candidate?.offerId,
+        totalCtc: 'Not specified',
+        generatedDate: new Date().toLocaleDateString()
+      });
+    }
+  };
+
+  // Handle regenerate offer letter
+  const handleRegenerate = () => {
+    if (candidate?.offerId) {
+      fetchOfferLetter(candidate.offerId);
+    }
+  };
+
+  // Handle download as HTML file
+  const handleDownloadHtml = () => {
+    if (!offerHtml) return;
+
+    try {
+      const blob = new Blob([offerHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `offer_letter_${candidate?.name || 'candidate'}_${candidate?.offerId || ''}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showSnackbar('Offer letter downloaded successfully!', 'success');
+    } catch (error) {
+      showSnackbar('Failed to download offer letter', 'error');
+    }
+  };
+
+  // Handle print
+  const handlePrint = () => {
+    if (!offerHtml) return;
+
+    try {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(offerHtml);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        showSnackbar('Print dialog opened successfully', 'success');
+      } else {
+        showSnackbar('Please allow pop-ups to print the offer letter', 'warning');
+      }
+    } catch (error) {
+      showSnackbar('Failed to open print dialog', 'error');
+    }
+  };
+
+  // Handle mark as generated and close
+  const handleMarkGenerated = () => {
+    if (onComplete) {
+      onComplete({
+        id: candidate?.id,
+        candidateId: candidate?.candidateId,
+        offerId: candidate?.offerId,
+        status: 'generated',
+        applicationStatus: 'generated'
+      });
+      
+      showSnackbar('Offer marked as generated successfully!', 'success');
+      
+      // Close dialog after a short delay to show success message
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } else {
+      onClose();
     }
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 2, height: '90vh' } }}
-    >
-      <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Box>
-          <Typography variant="h6" fontWeight={600}>
-            Generate Offer Letter
-          </Typography>
-          {offerDetails?.offerId && (
-            <Typography variant="caption" color="textSecondary">
-              Offer ID: {offerDetails.offerId}
+    <>
+      <Dialog 
+        open={open} 
+        onClose={onClose} 
+        maxWidth="lg" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #E0E0E0', 
+          py: 1.5, 
+          px: 2, 
+          bgcolor: '#F8FAFC',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HtmlIcon sx={{ color: '#1976D2' }} />
+            <Typography variant="subtitle1" fontWeight={600}>
+              Generate Offer Letter
             </Typography>
-          )}
-        </Box>
-        <IconButton onClick={handleClose} size="small">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+            {candidate && (
+              <Chip 
+                label={candidate.name}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ ml: 1 }}
+              />
+            )}
+          </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
 
-      <DialogContent sx={{ pt: 3, pb: 0 }}>
-        {/* Error/Success Messages */}
-        {error && (
-          <Alert 
-            severity="error" 
-            onClose={() => setError('')}
-            sx={{ mb: 3 }}
-          >
-            {error}
-          </Alert>
-        )}
-        
-        {success && (
-          <Alert 
-            severity="success" 
-            icon={<CheckCircleIcon />}
-            onClose={() => setSuccess('')}
-            sx={{ mb: 3 }}
-          >
-            {success}
-          </Alert>
-        )}
-
-        {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={activeTab} onChange={handleTabChange}>
-            <Tab 
-              label="Preview Details" 
-              icon={<ViewIcon />} 
-              iconPosition="start"
-              sx={{ textTransform: 'none', fontWeight: 500 }}
-            />
-            <Tab 
-              label="Offer Letter" 
-              icon={<PdfIcon />} 
-              iconPosition="start"
-              sx={{ textTransform: 'none', fontWeight: 500 }}
-            />
-          </Tabs>
-        </Box>
-
-        {/* Tab Content */}
-        <Box sx={{ height: 'calc(100% - 120px)', overflow: 'auto' }}>
-          {activeTab === 0 ? (
-            <Stack spacing={3}>
-              {/* Candidate Summary Card */}
-              <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                  👤 Candidate Information
-                </Typography>
-                
-                {fetchingDetails ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <Grid container spacing={3}>
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
-                        <Avatar sx={{ bgcolor: '#1976D2', width: 80, height: 80 }}>
-                          {candidateDetails?.firstName?.charAt(0)}{candidateDetails?.lastName?.charAt(0)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="h5">
-                            {candidateDetails?.firstName} {candidateDetails?.lastName}
-                          </Typography>
-                          <Typography variant="body1" color="textSecondary">
-                            {candidateDetails?.email} • {candidateDetails?.phone}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                            <Chip 
-                              label={candidateDetails?.candidateId} 
-                              size="small" 
-                              variant="outlined"
-                            />
-                            <Chip 
-                              label="Selected" 
-                              size="small" 
-                              color="success"
-                            />
-                          </Box>
-                        </Box>
-                      </Box>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Date of Birth
-                      </Typography>
-                      <Typography variant="body1">
-                        {candidateDetails?.dateOfBirth ? formatDate(candidateDetails.dateOfBirth) : 'N/A'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Gender
-                      </Typography>
-                      <Typography variant="body1">
-                        {candidateDetails?.gender === 'M' ? 'Male' : candidateDetails?.gender === 'F' ? 'Female' : 'Other'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Divider sx={{ my: 1 }} />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Skills
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {candidateDetails?.skills?.map((skill, index) => (
-                          <Chip key={index} label={skill} size="small" />
-                        ))}
-                        {(!candidateDetails?.skills || candidateDetails.skills.length === 0) && (
-                          <Typography variant="body2" color="textSecondary">No skills listed</Typography>
-                        )}
-                      </Box>
-                    </Grid>
-                  </Grid>
-                )}
-              </Paper>
-
-              {/* Offer Details Card */}
-              <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                  📄 Offer Details
-                </Typography>
-
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Position
-                      </Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {candidateDetails?.latestApplication?.jobId?.title || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Department
-                      </Typography>
-                      <Typography variant="body1">
-                        {candidateDetails?.latestApplication?.jobId?.department || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Joining Date
-                      </Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {offerDetails?.joiningDate ? formatDate(offerDetails.joiningDate) : 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Reporting To
-                      </Typography>
-                      <Typography variant="body1">
-                        {offerDetails?.offerDetails?.reportingTo || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Probation Period
-                      </Typography>
-                      <Typography variant="body1">
-                        {offerDetails?.offerDetails?.probationPeriod || '6'} months
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Notice Period
-                      </Typography>
-                      <Typography variant="body1">
-                        {offerDetails?.offerDetails?.noticePeriod || '30'} days
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
-                      Benefits
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {offerDetails?.offerDetails?.benefits?.map((benefit, index) => (
-                        <Chip
-                          key={index}
-                          label={benefit}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      ))}
-                      {(!offerDetails?.offerDetails?.benefits || offerDetails.offerDetails.benefits.length === 0) && (
-                        <Typography variant="body2" color="textSecondary">No benefits added</Typography>
-                      )}
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Paper>
-
-              {/* CTC Summary Card */}
-              <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, color: '#1976D2' }}>
-                  💰 Compensation Summary
-                </Typography>
-
-                <TableContainer component={Paper} variant="outlined">
-                  <Table>
-                    <TableBody>
-                      <TableRow sx={{ bgcolor: '#F8FAFC' }}>
-                        <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>Component</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Monthly (₹)</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Annual (₹)</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Basic + DA</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.basic)}</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.basic * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">HRA</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.hra)}</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.hra * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Conveyance Allowance</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.conveyanceAllowance)}</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.conveyanceAllowance * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Medical Allowance</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.medicalAllowance)}</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.medicalAllowance * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Special Allowance</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.specialAllowance)}</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.specialAllowance * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow sx={{ bgcolor: '#E3F2FD' }}>
-                        <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>Gross Salary</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>{formatCurrency(offerDetails?.ctcDetails?.gross)}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>{formatCurrency(offerDetails?.ctcDetails?.gross * 12)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Bonus (Annual)</TableCell>
-                        <TableCell align="right">-</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.bonus)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Employer PF (Annual)</TableCell>
-                        <TableCell align="right">-</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.employerPf)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Employer ESI (Annual)</TableCell>
-                        <TableCell align="right">-</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.employerEsi || 0)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow>
-                        <TableCell component="th" scope="row">Gratuity (Annual)</TableCell>
-                        <TableCell align="right">-</TableCell>
-                        <TableCell align="right">{formatCurrency(offerDetails?.ctcDetails?.gratuity)}</TableCell>
-                      </TableRow>
-                      
-                      <TableRow sx={{ bgcolor: '#1976D2' }}>
-                        <TableCell component="th" scope="row" sx={{ fontWeight: 700, color: 'white' }}>TOTAL CTC</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: 'white' }}>-</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: 'white', fontSize: '1.2rem' }}>
-                          {formatCurrency(offerDetails?.ctcDetails?.totalCtc)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-
-                {/* Note about PDF generation */}
-                <Box sx={{ 
-                  mt: 3, 
-                  p: 2, 
-                  bgcolor: '#FFF3E0', 
-                  borderRadius: 1,
-                  border: '1px solid #FFB74D'
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <InfoIcon sx={{ color: '#F57C00' }} />
-                    <Typography variant="subtitle2" sx={{ color: '#F57C00' }}>
-                      PDF Generation Notice
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="textSecondary">
-                    PDF generation is currently unavailable. You can view the HTML version or download the offer letter as HTML.
-                  </Typography>
-                </Box>
-              </Paper>
-            </Stack>
-          ) : (
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {/* Action Bar */}
-              <Paper sx={{ p: 2, mb: 2, bgcolor: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Offer Letter Preview
-                  </Typography>
-                  <Chip 
-                    label={offerDetails?.status || 'Approved'} 
-                    color={getStatusColor(offerDetails?.status)}
-                    size="small"
-                  />
-                </Box>
-                
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Download HTML">
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownload}
-                      disabled={generating || !offerLetterHtml}
-                      size="small"
-                    >
-                      Download
-                    </Button>
-                  </Tooltip>
-                  
-                  <Tooltip title="Print">
-                    <Button
-                      variant="outlined"
-                      startIcon={<PrintIcon />}
-                      onClick={handlePrint}
-                      disabled={generating || !offerLetterHtml}
-                      size="small"
-                    >
-                      Print
-                    </Button>
-                  </Tooltip>
-                  
-                  <Tooltip title="Copy Link">
-                    <Button
-                      variant="outlined"
-                      startIcon={copied ? <CheckCircleIcon /> : <CopyIcon />}
-                      onClick={handleCopyLink}
-                      size="small"
-                      color={copied ? 'success' : 'primary'}
-                    >
-                      {copied ? 'Copied!' : 'Copy Link'}
-                    </Button>
-                  </Tooltip>
-                  
-                  <Tooltip title="Send Email">
-                    <Button
-                      variant="outlined"
-                      startIcon={<EmailIcon />}
-                      onClick={handleSendEmail}
-                      size="small"
-                    >
-                      Email
-                    </Button>
-                  </Tooltip>
-                </Box>
-              </Paper>
-
-              {/* Offer Letter Content */}
-              <Paper 
-                ref={printRef}
-                sx={{ 
-                  p: 0, 
-                  flex: 1, 
-                  overflow: 'auto',
-                  bgcolor: '#FFFFFF',
-                  border: '1px solid #E0E0E0'
-                }}
+        <DialogContent sx={{ p: 0, bgcolor: '#F5F7FA', overflow: 'auto', flex: 1 }}>
+          {loading ? (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              gap: 2
+            }}>
+              <CircularProgress />
+              <Typography color="textSecondary">Generating offer letter...</Typography>
+            </Box>
+          ) : error ? (
+            <Box sx={{ p: 3 }}>
+              <Alert 
+                severity="error"
+                action={
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={() => candidate?.offerId && fetchOfferLetter(candidate.offerId)}
+                  >
+                    Retry
+                  </Button>
+                }
               >
-                {generating ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
-                    <CircularProgress />
-                    <Typography color="textSecondary">Generating offer letter...</Typography>
-                  </Box>
-                ) : offerLetterHtml ? (
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={offerLetterHtml}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                    title="Offer Letter"
-                    sandbox="allow-same-origin allow-popups allow-forms allow-scripts"
-                  />
-                ) : (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
-                    <WarningIcon sx={{ fontSize: 48, color: '#FFB74D' }} />
-                    <Typography variant="h6" color="textSecondary">
-                      No Offer Letter Generated
-                    </Typography>
-                    <Typography color="textSecondary" align="center">
-                      Click the "Generate" button to create the offer letter.
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      onClick={generateOfferLetter}
-                      startIcon={<PdfIcon />}
-                      sx={{ mt: 2 }}
-                    >
-                      Generate Offer Letter
-                    </Button>
-                  </Box>
+                {error}
+              </Alert>
+              
+              {candidate?.offerId && (
+                <Paper sx={{ mt: 2, p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>Debug Information:</Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Candidate: {candidate.name}<br />
+                    Offer ID: {candidate.offerId}<br />
+                    API Endpoint: {`${BASE_URL}/api/offers/${candidate.offerId}/generate-letter`}
+                  </Typography>
+                </Paper>
+              )}
+            </Box>
+          ) : offerHtml ? (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Preview toolbar */}
+              <Box sx={{ 
+                p: 1, 
+                bgcolor: '#FFFFFF', 
+                borderBottom: '1px solid #E0E0E0',
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+                flexWrap: 'wrap'
+              }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleDownloadHtml}
+                >
+                  Download
+                </Button>
+                {/* <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<PrintIcon />}
+                  onClick={handlePrint}
+                >
+                  Print
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<RefreshIcon />}
+                  onClick={handleRegenerate}
+                >
+                  Regenerate
+                </Button> */}
+                
+                <Box sx={{ flex: 1 }} />
+                
+                {offerDetails && (
+                  <Typography variant="caption" color="textSecondary">
+                    Generated: {offerDetails.generatedDate}
+                  </Typography>
                 )}
-              </Paper>
+              </Box>
+              
+              {/* HTML Preview */}
+              <Box sx={{ 
+                flex: 1, 
+                overflow: 'auto',
+                bgcolor: '#FFFFFF',
+                '& iframe': {
+                  width: '100%',
+                  height: '100%',
+                  border: 'none'
+                }
+              }}>
+                <iframe
+                  srcDoc={offerHtml}
+                  title="Offer Letter Preview"
+                  sandbox="allow-same-origin"
+                />
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color="textSecondary">
+                No offer letter available. Click "Generate" to create one.
+              </Typography>
             </Box>
           )}
-        </Box>
-      </DialogContent>
+        </DialogContent>
 
-      <DialogActions sx={{
-        px: 3,
-        py: 2,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
-      }}>
-        <Button onClick={handleClose}>
-          Close
-        </Button>
-
-        {activeTab === 1 && !offerLetterHtml && (
+        <DialogActions sx={{ 
+          p: 2, 
+          borderTop: '1px solid #E0E0E0', 
+          bgcolor: '#F8FAFC', 
+          justifyContent: 'space-between' 
+        }}>
+          <Button 
+            onClick={onClose} 
+            size="small"
+            sx={{ color: '#666' }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
-            onClick={generateOfferLetter}
-            disabled={generating}
-            startIcon={generating ? <CircularProgress size={20} /> : <PdfIcon />}
+            onClick={handleMarkGenerated}
+            disabled={!offerHtml || loading}
+            size="small"
+            startIcon={<HtmlIcon />}
             sx={{
               backgroundColor: '#1976D2',
               '&:hover': { backgroundColor: '#1565C0' }
             }}
           >
-            {generating ? 'Generating...' : 'Generate Offer Letter'}
+            Mark as Generated
           </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        anchorOrigin={{ 
+          vertical: snackbar.vertical, 
+          horizontal: snackbar.horizontal 
+        }}
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbar.severity}
+          sx={{ 
+            width: '100%',
+            boxShadow: 3,
+            borderRadius: 1,
+            '& .MuiAlert-icon': {
+              fontSize: 20
+            }
+          }}
+          iconMapping={{
+            success: <SuccessIcon fontSize="inherit" />,
+            error: <ErrorIcon fontSize="inherit" />,
+            info: <RefreshIcon fontSize="inherit" />,
+            warning: <ErrorIcon fontSize="inherit" />
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 

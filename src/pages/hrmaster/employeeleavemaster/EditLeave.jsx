@@ -144,10 +144,10 @@ const EditLeave = ({ open, onClose, leaveData, onUpdate }) => {
       return;
     }
 
-    if (formData.reason.trim().length < 10) {
-      setError('Reason must be at least 10 characters');
-      return;
-    }
+    // if (formData.reason.trim().length < 10) {
+    //   setError('Reason must be at least 10 characters');
+    //   return;
+    // }
 
     if (!formData.contactNumber.trim()) {
       setError('Contact number is required');

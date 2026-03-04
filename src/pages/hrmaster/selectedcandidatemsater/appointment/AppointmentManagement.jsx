@@ -31,9 +31,6 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Add as AddIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
-  Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Sort as SortIcon,
   Description as DescriptionIcon,
@@ -42,7 +39,6 @@ import {
   Refresh as RefreshIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
-  CalendarToday as CalendarIcon,
   Download as DownloadIcon
 } from "@mui/icons-material";
 
@@ -67,8 +63,8 @@ const getStatusColor = (status) => {
       return { bg: '#e3f2fd', color: '#1976d2', label: 'Sent' };
     case 'accepted':
       return { bg: '#d1fae5', color: '#065f46', label: 'Accepted' };
-    case 'rejected':
-      return { bg: '#fee2e2', color: '#991b1b', label: 'Rejected' };
+    case 'pending':
+      return { bg: '#f1f5f9', color: '#475569', label: 'Pending' };
     default:
       return { bg: '#f1f5f9', color: '#475569', label: status || 'Pending' };
   }
@@ -81,7 +77,6 @@ const AppointmentManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
 
   const [actionAnchor, setActionAnchor] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -115,7 +110,7 @@ const AppointmentManagement = () => {
       const token = localStorage.getItem("token");
 
       // Fetch all appointment letters
-      const lettersResponse = await axios.get(`${BASE_URL}/api/appointment-letters`, {
+      const lettersResponse = await axios.get(`${BASE_URL}/api/appointment-letter/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -123,25 +118,33 @@ const AppointmentManagement = () => {
         const letters = lettersResponse.data.data || [];
         
         // Transform the data to match the table structure
-        const transformedData = letters.map(letter => ({
-          _id: letter._id,
-          documentId: letter.documentId || letter._id,
-          firstName: letter.candidateName?.split(' ')[0] || '',
-          lastName: letter.candidateName?.split(' ').slice(1).join(' ') || '',
-          email: letter.candidateEmail || '',
-          phone: letter.candidatePhone || '',
-          candidateId: letter.candidateId?._id || letter.candidateId || 'N/A',
-          letterStatus: letter.status || 'generated',
-          appointmentLetter: letter,
-          fileUrl: letter.fileUrl,
-          generatedAt: letter.generatedAt || letter.createdAt,
-          joiningDate: letter.joiningDate,
-          offerDesignation: letter.offerDesignation
-        }));
+        const transformedData = letters.map(letter => {
+          // Extract candidate details from the nested candidateId object
+          const candidateInfo = letter.candidateId || {};
+          
+          return {
+            _id: letter._id,
+            documentId: letter.documentId || letter._id,
+            firstName: candidateInfo.firstName || '',
+            lastName: candidateInfo.lastName || '',
+            fullName: candidateInfo.fullName || `${candidateInfo.firstName || ''} ${candidateInfo.lastName || ''}`.trim(),
+            email: candidateInfo.email || '',
+            phone: '', // Phone number not available in the response
+            candidateId: candidateInfo._id || candidateInfo.id || 'N/A',
+            letterStatus: letter.status || 'pending',
+            appointmentLetter: letter,
+            fileUrl: letter.fileUrl,
+            generatedAt: letter.generatedAt || letter.createdAt,
+            joiningDate: '', // Not available in response
+            offerDesignation: letter.offerId?.offerDetails?.designation || 'N/A',
+            sentAt: letter.sentAt,
+            acceptedAt: letter.acceptedAt
+          };
+        });
 
+        console.log('Transformed data:', transformedData); // For debugging
         setDataList(transformedData);
         setFilteredList(transformedData);
-        setTotalCount(transformedData.length);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -164,9 +167,11 @@ const AppointmentManagement = () => {
     const filtered = dataList.filter((item) =>
       item.firstName?.toLowerCase().includes(value) ||
       item.lastName?.toLowerCase().includes(value) ||
+      item.fullName?.toLowerCase().includes(value) ||
       item.email?.toLowerCase().includes(value) ||
       item.candidateId?.toLowerCase().includes(value) ||
-      item.letterStatus?.toLowerCase().includes(value)
+      item.letterStatus?.toLowerCase().includes(value) ||
+      item.documentId?.toLowerCase().includes(value)
     );
 
     setFilteredList(filtered);
@@ -179,8 +184,8 @@ const AppointmentManagement = () => {
       let aValue, bValue;
       
       if (field === 'candidateName') {
-        aValue = `${a.firstName || ''} ${a.lastName || ''}`.trim();
-        bValue = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+        aValue = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim();
+        bValue = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim();
       } else if (field === 'status') {
         aValue = a.letterStatus || '';
         bValue = b.letterStatus || '';
@@ -275,6 +280,7 @@ const AppointmentManagement = () => {
       fetchData();
       showNotification("Appointment letter generated successfully");
     }
+    setSelectedItem(null);
   };
 
   const handleSendClose = (success) => {
@@ -305,8 +311,15 @@ const AppointmentManagement = () => {
     });
   };
 
+  // Get display name
+  const getDisplayName = (item) => {
+    if (item.fullName) return item.fullName;
+    if (item.firstName || item.lastName) return `${item.firstName || ''} ${item.lastName || ''}`.trim();
+    return 'N/A';
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, mt: -8}}>
       {/* Header */}
       <Typography
         variant="h5"
@@ -329,7 +342,7 @@ const AppointmentManagement = () => {
         <Stack direction="row" spacing={2} justifyContent="space-between" flexWrap="wrap">
           <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
             <TextField
-              placeholder="Search by name, email, ID..."
+              placeholder="Search by name, email, document ID..."
               size="small"
               value={searchTerm}
               onChange={handleSearch}
@@ -343,7 +356,7 @@ const AppointmentManagement = () => {
               sx={{ width: 300 }}
             />
 
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               onClick={handleFilterClick}
@@ -366,12 +379,12 @@ const AppointmentManagement = () => {
               </IconButton>
             </Tooltip>
 
-            {(searchTerm || statusFilter || filteredList.length !== dataList.length) && (
+            {(searchTerm || statusFilter) && (
               <Button variant="text" onClick={handleResetFilter}>
                 Clear Filters
               </Button>
-            )}
-          </Stack>
+            )}*/}
+          </Stack> 
 
           <Stack direction="row" spacing={2}>
             <Button
@@ -396,6 +409,12 @@ const AppointmentManagement = () => {
           <ListItemText>All Status</ListItemText>
         </MenuItem>
         <Divider />
+        <MenuItem onClick={() => handleStatusFilter('pending')}>
+          <ListItemIcon>
+            <DescriptionIcon fontSize="small" sx={{ color: '#475569' }} />
+          </ListItemIcon>
+          <ListItemText>Pending</ListItemText>
+        </MenuItem>
         <MenuItem onClick={() => handleStatusFilter('generated')}>
           <ListItemIcon>
             <DescriptionIcon fontSize="small" sx={{ color: '#92400e' }} />
@@ -423,7 +442,7 @@ const AppointmentManagement = () => {
             <TableHead>
               <TableRow sx={{ background: HEADER_GRADIENT }}>
                 <TableCell sx={{ color: "white" }}>Candidate</TableCell>
-                <TableCell sx={{ color: "white" }}>Candidate ID</TableCell>
+                <TableCell sx={{ color: "white" }}>Document ID</TableCell>
                 <TableCell sx={{ color: "white" }}>Contact</TableCell>
                 <TableCell sx={{ color: "white" }}>Letter Status</TableCell>
                 <TableCell sx={{ color: "white" }}>Generated On</TableCell>
@@ -443,17 +462,21 @@ const AppointmentManagement = () => {
               ) : paginated.length > 0 ? (
                 paginated.map((item) => {
                   const statusStyle = getStatusColor(item.letterStatus);
+                  const displayName = getDisplayName(item);
                   
                   return (
                     <TableRow key={item._id} hover>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: PRIMARY_BLUE }}>
-                            {item.firstName?.[0]}{item.lastName?.[0]}
+                            {displayName.charAt(0)}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight={500}>
-                              {item.firstName} {item.lastName}
+                              {displayName}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              ID: {item.candidateId}
                             </Typography>
                           </Box>
                         </Stack>
@@ -461,20 +484,28 @@ const AppointmentManagement = () => {
 
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>
-                          {item.candidateId || 'N/A'}
+                          {item.documentId}
                         </Typography>
                       </TableCell>
 
                       <TableCell>
                         <Stack spacing={0.5}>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <EmailIcon sx={{ fontSize: 14, color: '#64748B' }} />
-                            <Typography variant="caption">{item.email}</Typography>
-                          </Stack>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <PhoneIcon sx={{ fontSize: 14, color: '#64748B' }} />
-                            <Typography variant="caption">{item.phone}</Typography>
-                          </Stack>
+                          {item.email ? (
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <EmailIcon sx={{ fontSize: 14, color: '#64748B' }} />
+                              <Typography variant="caption">{item.email}</Typography>
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="textSecondary">No email</Typography>
+                          )}
+                          {item.phone ? (
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <PhoneIcon sx={{ fontSize: 14, color: '#64748B' }} />
+                              <Typography variant="caption">{item.phone}</Typography>
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="textSecondary">No phone</Typography>
+                          )}
                         </Stack>
                       </TableCell>
 
@@ -532,8 +563,8 @@ const AppointmentManagement = () => {
 
       {/* ACTION MENU */}
       <Menu anchorEl={actionAnchor} open={Boolean(actionAnchor)} onClose={handleActionClose}>
-        {/* Generate Letter - Show if no letter or status is not accepted */}
-        {(!selectedItem?.letterStatus || selectedItem?.letterStatus === 'pending' || selectedItem?.letterStatus === 'generated') && (
+        {/* Generate Letter - Show if status is pending */}
+        {selectedItem?.letterStatus === 'pending' && (
           <MenuItem onClick={handleGenerateOpen}>
             <ListItemIcon>
               <DescriptionIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
@@ -562,9 +593,9 @@ const AppointmentManagement = () => {
           </MenuItem>
         )}
 
-        {/* Preview/Download option for all letters */}
+        {/* Download option for all letters with fileUrl */}
         {selectedItem?.fileUrl && (
-          <MenuItem onClick={() => window.open(`${BASE_URL}${selectedItem.fileUrl}`, '_blank')}>
+          <MenuItem onClick={() => window.open(selectedItem.fileUrl, '_blank')}>
             <ListItemIcon>
               <DownloadIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
             </ListItemIcon>

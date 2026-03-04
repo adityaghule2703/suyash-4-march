@@ -28,6 +28,8 @@ import {
   ListItemText,
   Divider
 } from '@mui/material';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import EmployeeIncrementSummary from './EmployeeIncrementSummary';
 import {
   Search as SearchIcon,
   FilterList as FilterIcon,
@@ -161,6 +163,7 @@ const EmployeeMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openIncrementSummaryModal, setOpenIncrementSummaryModal] = useState(false);
   
   // Selected employee
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -482,46 +485,6 @@ const EmployeeMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button> */}
-            {/* <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -544,10 +507,11 @@ const EmployeeMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            {/* <Button
+            <Button
               variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
+              startIcon={<AssessmentIcon />}
+              onClick={() => setOpenIncrementSummaryModal(true)}
+              sx={{
                 height: 40,
                 borderRadius: 1.5,
                 borderColor: '#cbd5e1',
@@ -562,8 +526,8 @@ const EmployeeMaster = () => {
               }}
               disabled={loading}
             >
-              Export
-            </Button> */}
+              Increment Summary
+            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -692,17 +656,6 @@ const EmployeeMaster = () => {
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Status
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -717,7 +670,7 @@ const EmployeeMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading employees...
                     </Typography>
@@ -725,7 +678,7 @@ const EmployeeMaster = () => {
                 </TableRow>
               ) : paginatedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" color="#64748B" fontWeight={500}>
                         {searchTerm ? 'No employees found' : 'No employees available'}
@@ -852,26 +805,6 @@ const EmployeeMaster = () => {
                           }}
                         />
                       </TableCell>
-                      {/* <TableCell>
-                        <Chip
-                          label={getStatusText(employee.EmploymentStatus)}
-                          size="small"
-                          sx={{ 
-                            fontWeight: 500,
-                            backgroundColor: getStatusColor(employee.EmploymentStatus) === 'success' ? '#dcfce7' :
-                                            getStatusColor(employee.EmploymentStatus) === 'warning' ? '#fef3c7' :
-                                            getStatusColor(employee.EmploymentStatus) === 'error' ? '#fee2e2' : '#f1f5f9',
-                            color: getStatusColor(employee.EmploymentStatus) === 'success' ? '#166534' :
-                                  getStatusColor(employee.EmploymentStatus) === 'warning' ? '#92400e' :
-                                  getStatusColor(employee.EmploymentStatus) === 'error' ? '#991b1b' : '#475569',
-                            border: `1px solid ${
-                              getStatusColor(employee.EmploymentStatus) === 'success' ? '#86efac' :
-                              getStatusColor(employee.EmploymentStatus) === 'warning' ? '#fcd34d' :
-                              getStatusColor(employee.EmploymentStatus) === 'error' ? '#fca5a5' : '#e2e8f0'
-                            }`
-                          }}
-                        />
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 
                           employee={employee}
@@ -956,6 +889,12 @@ const EmployeeMaster = () => {
           />
         </>
       )}
+
+      {/* Employee Increment Summary Modal */}
+      <EmployeeIncrementSummary 
+        open={openIncrementSummaryModal}
+        onClose={() => setOpenIncrementSummaryModal(false)}
+      />
 
       {/* Snackbar Notification */}
       <Snackbar
