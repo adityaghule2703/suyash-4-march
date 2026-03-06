@@ -13,18 +13,15 @@ import {
   Stepper,
   Step,
   StepLabel,
+  StepConnector,
+  stepConnectorClasses,
   Box,
   Paper,
   Avatar,
   IconButton,
   CircularProgress,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow
+  styled
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -51,10 +48,66 @@ import {
   LinkedIn as LinkedInIcon,
   Language as LanguageIcon,
   Business as BusinessIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+
+// 🔥 Modern Stepper Connector with Gradient (exactly like reference)
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 3,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon with better styling (exactly like reference)
+const StepIcon = ({ active, completed, icon }) => {
+  const getIcon = () => {
+    if (icon === 1) return <PersonIcon fontSize="small" />;
+    if (icon === 2) return <EmailIcon fontSize="small" />;
+    if (icon === 3) return <SchoolIcon fontSize="small" />;
+    if (icon === 4) return <WorkIcon fontSize="small" />;
+    if (icon === 5) return <AssignmentIcon fontSize="small" />;
+    return icon;
+  };
+
+  return (
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '50%',
+        backgroundColor: completed || active ? '#1976D2' : '#E0E0E0',
+        color: completed || active ? 'white' : '#9E9E9E',
+        transition: 'all 0.2s ease',
+        boxShadow: active ? '0 0 0 3px rgba(25, 118, 210, 0.2)' : 'none',
+        '& svg': {
+          fontSize: 18
+        }
+      }}
+    >
+      {completed ? <CheckCircleIcon fontSize="small" /> : getIcon()}
+    </Box>
+  );
+};
 
 // Status color mapping
 const STATUS_COLORS = {
@@ -209,7 +262,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
         return (
           <Stack spacing={3}>
             {/* Profile Header Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
                 <Avatar 
                   sx={{ 
@@ -290,7 +343,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             </Paper>
 
             {/* Personal Information Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <PersonIcon sx={{ color: '#1976D2' }} />
                 Personal Information
@@ -350,7 +403,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             </Paper>
 
             {/* System Information Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <HistoryIcon sx={{ color: '#1976D2' }} />
                 System Information
@@ -387,7 +440,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
         return (
           <Stack spacing={3}>
             {/* Contact Information Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <EmailIcon sx={{ color: '#1976D2' }} />
                 Contact Information
@@ -438,7 +491,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             </Paper>
 
             {/* Address Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <LocationIcon sx={{ color: '#1976D2' }} />
                 Address Information
@@ -499,7 +552,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
         return (
           <Stack spacing={3}>
             {/* Education Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <SchoolIcon sx={{ color: '#1976D2' }} />
                 Education
@@ -507,7 +560,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
               {candidate.education && candidate.education.length > 0 ? (
                 <Stack spacing={2}>
                   {candidate.education.map((edu, index) => (
-                    <Paper key={edu._id || index} sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+                    <Paper key={edu._id || index} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
                       <Grid container spacing={2}>
                         <Grid item xs={12} md={4}>
                           <Typography variant="caption" color="textSecondary">Degree</Typography>
@@ -535,7 +588,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             </Paper>
 
             {/* Skills Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <StarIcon sx={{ color: '#1976D2' }} />
                 Skills
@@ -566,7 +619,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
         return (
           <Stack spacing={3}>
             {/* Experience Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <WorkIcon sx={{ color: '#1976D2' }} />
                 Work Experience
@@ -574,7 +627,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
               {candidate.experience && candidate.experience.length > 0 ? (
                 <Stack spacing={2}>
                   {candidate.experience.map((exp, index) => (
-                    <Paper key={exp._id || index} sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+                    <Paper key={exp._id || index} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
                       <Grid container spacing={2}>
                         <Grid item xs={12} md={4}>
                           <Typography variant="caption" color="textSecondary">Position</Typography>
@@ -612,7 +665,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
         return (
           <Stack spacing={3}>
             {/* Applications Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <AssignmentIcon sx={{ color: '#1976D2' }} />
                 Job Applications
@@ -622,7 +675,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
                   {candidate.applications.map((app) => {
                     const appStatusStyle = getStatusStyle(app.status);
                     return (
-                      <Paper key={app._id} sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+                      <Paper key={app._id} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                           <JobIcon sx={{ color: '#1976D2', fontSize: 20 }} />
                           <Typography variant="subtitle2" fontWeight={600}>
@@ -668,7 +721,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             </Paper>
 
             {/* Notes Card */}
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF' }}>
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CommentIcon sx={{ color: '#1976D2' }} />
                 Notes & Activity
@@ -676,7 +729,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
               {candidate.notes && candidate.notes.length > 0 ? (
                 <Stack spacing={2}>
                   {candidate.notes.slice().reverse().map((note, index) => (
-                    <Paper key={note._id || index} sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+                    <Paper key={note._id || index} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1 }}>
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <Avatar sx={{ width: 32, height: 32, bgcolor: '#7B1FA2', fontSize: '14px' }}>
                           {note.createdByName?.[0] || 'S'}
@@ -712,12 +765,14 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 2 } }}
+      PaperProps={{ sx: { borderRadius: 1.5 } }}
     >
       <DialogTitle sx={{
         borderBottom: '1px solid #E0E0E0',
+        py: 1.5,
+        px: 2,
         backgroundColor: '#F8FAFC',
         display: 'flex',
         justifyContent: 'space-between',
@@ -725,7 +780,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <PersonIcon sx={{ color: '#1976D2' }} />
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#101010' }}>
             Candidate Details
           </Typography>
           {candidate && (
@@ -744,11 +799,30 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
           )}
         </Box>
         <IconButton onClick={handleClose} size="small">
-          <CloseIcon />
+          <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
+      {/* 🔥 Modern Stepper with Gradient Connector */}
+      {!loading && candidate && (
+        <Box sx={{ px: 2, pt: 1, backgroundColor: '#F8FAFC' }}>
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+          >
+            {steps.map((label, index) => (
+              <Step key={label}>
+                <StepLabel StepIconComponent={StepIcon}>
+                  <Typography fontWeight={500} fontSize="0.8rem">{label}</Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+      )}
+
+      <DialogContent sx={{ p: 2, overflow: 'auto', backgroundColor: '#F5F7FA' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
             <CircularProgress size={40} sx={{ color: '#1976D2' }} />
@@ -757,6 +831,7 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
           <Alert 
             severity="error" 
             sx={{ borderRadius: 1, mb: 2 }}
+            onClose={() => setError('')}
             action={
               <Button color="inherit" size="small" onClick={fetchCandidateDetails}>
                 Retry
@@ -766,58 +841,66 @@ const ViewCandidate = ({ open, onClose, candidateId }) => {
             {error}
           </Alert>
         ) : candidate ? (
-          <>
-            <Stepper activeStep={activeStep} sx={{ mb: 4, mt: 1 }}>
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-
-            <Box sx={{ minHeight: 500 }}>
-              {getStepContent(activeStep)}
-            </Box>
-          </>
+          <Box sx={{ py: 1 }}>
+            {getStepContent(activeStep)}
+          </Box>
         ) : null}
       </DialogContent>
 
       {candidate && !loading && !error && (
         <DialogActions sx={{
-          px: 3,
-          py: 2,
+          px: 2,
+          py: 1.5,
           borderTop: '1px solid #E0E0E0',
-          backgroundColor: '#F8FAFC'
+          backgroundColor: '#F8FAFC',
+          justifyContent: 'space-between'
         }}>
-          <Button onClick={handleClose}>
-            Close
-          </Button>
-
-          <Box sx={{ flex: 1 }} />
-
           <Button
-            disabled={activeStep === 0}
             onClick={handleBack}
+            disabled={activeStep === 0}
+            size="small"
+            startIcon={<NavigateBeforeIcon />}
+            sx={{ color: '#666' }}
           >
             Back
           </Button>
 
-          {activeStep === steps.length - 1 ? (
+          <Box>
             <Button
-              variant="contained"
-              onClick={handleReset}
-              sx={{ mr: 1 }}
+              onClick={handleClose}
+              size="small"
+              sx={{ mr: 1, color: '#666' }}
             >
-              View from Start
+              Close
             </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-            >
-              Next
-            </Button>
-          )}
+
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleReset}
+                size="small"
+                sx={{
+                  backgroundColor: '#1976D2',
+                  '&:hover': { backgroundColor: '#1565C0' }
+                }}
+              >
+                View from Start
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                size="small"
+                endIcon={<NavigateNextIcon />}
+                sx={{
+                  backgroundColor: '#1976D2',
+                  '&:hover': { backgroundColor: '#1565C0' }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
         </DialogActions>
       )}
     </Dialog>

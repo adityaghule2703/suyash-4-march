@@ -1949,7 +1949,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
     <Dialog 
       open={open} 
       onClose={handleClose} 
-      maxWidth="lg" 
+      maxWidth="md" 
       fullWidth
       PaperProps={{
         sx: { borderRadius: 2, maxHeight: '90vh' }

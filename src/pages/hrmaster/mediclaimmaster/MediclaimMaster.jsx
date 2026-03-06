@@ -61,11 +61,11 @@ const MediclaimMaster = () => {
             },
           }}
         >
-          <Tab
+          {/* <Tab
             icon={<DashboardIcon fontSize="small" />}
             iconPosition="start"
             label="Overview"
-          />
+          /> */}
           <Tab
             icon={<PolicyIcon fontSize="small" />}
             iconPosition="start"
@@ -86,15 +86,15 @@ const MediclaimMaster = () => {
 
       {/* ===== TAB CONTENT ===== */}
       <Box>
-        {tabValue === 0 && (
+        {/* {tabValue === 0 && (
           <Typography variant="body1">
             Mediclaim dashboard overview coming soon...
           </Typography>
-        )}
+        )} */}
 
-        {tabValue === 1 && <PolicyMaster />}
-        {tabValue === 2 && <EnrollmentMaster />}
-        {tabValue === 3 && <ClaimMaster />}
+        {tabValue === 0 && <PolicyMaster />}
+        {tabValue === 1 && <EnrollmentMaster />}
+        {tabValue === 2 && <ClaimMaster />}
       </Box>
     </Box>
   );

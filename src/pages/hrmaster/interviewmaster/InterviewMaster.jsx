@@ -131,7 +131,7 @@ const FilterBar = ({
 
   return (
     <Box>
-      <Button
+      {/* <Button
         variant="outlined"
         startIcon={
           <Badge 
@@ -159,7 +159,7 @@ const FilterBar = ({
         }}
       >
         Filters
-      </Button>
+      </Button> */}
 
       <Collapse in={open}>
         <Paper sx={{ 
@@ -365,7 +365,7 @@ const ActionMenu = ({
           </ListItemText>
         </MenuItem>
         
-        {interview.status === 'scheduled' && (
+        { (
           <>
             <Divider />
             <MenuItem 
@@ -809,7 +809,7 @@ const InterviewMaster = () => {
             display: 'inline-block'
           }}
         >
-          Interview Master
+          Interview Scheduling
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Schedule and manage candidate interviews across all job openings

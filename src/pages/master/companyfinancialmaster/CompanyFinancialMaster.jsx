@@ -480,7 +480,7 @@ const CompanyFinancialMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -499,7 +499,7 @@ const CompanyFinancialMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

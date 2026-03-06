@@ -27,7 +27,8 @@ import {
   StepConnector,
   Divider,
   CircularProgress,
-  Autocomplete
+  Autocomplete,
+  FormHelperText
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -37,7 +38,9 @@ import {
   Work as WorkIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  BusinessCenter as JobIcon
+  BusinessCenter as JobIcon,
+  Error as ErrorIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -68,7 +71,9 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   const [success, setSuccess] = useState('');
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
-  
+  const [touched, setTouched] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -103,6 +108,209 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   });
 
   const [skillInput, setSkillInput] = useState('');
+  const [skillInputError, setSkillInputError] = useState('');
+
+  // Validation rules
+  const validationRules = {
+    firstName: {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'First name should only contain letters and spaces'
+    },
+    lastName: {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'Last name should only contain letters and spaces'
+    },
+    email: {
+      required: true,
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'Please enter a valid email address'
+    },
+    phone: {
+      required: true,
+      pattern: /^\d{10}$/,
+      message: 'Phone number must be exactly 10 digits'
+    },
+    dateOfBirth: {
+      required: false,
+      validate: (value) => {
+        if (!value) return true;
+        const dob = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - dob.getFullYear();
+        return age >= 18 && age <= 70;
+      },
+      message: 'Age must be between 18 and 70 years'
+    },
+    'address.street': {
+      required: true,
+      minLength: 5,
+      maxLength: 200,
+      message: 'Street address must be at least 5 characters'
+    },
+    'address.city': {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'City should only contain letters and spaces'
+    },
+    'address.state': {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'State should only contain letters and spaces'
+    },
+    'address.pincode': {
+      required: true,
+      pattern: /^\d{6}$/,
+      message: 'Pincode must be exactly 6 digits'
+    }
+  };
+
+  // Validate a single field
+  const validateField = (fieldPath, value, allValues = formData) => {
+    const rules = getNestedRules(fieldPath);
+    if (!rules) return '';
+
+    if (rules.required && (!value || value.toString().trim() === '')) {
+      return `${getFieldLabel(fieldPath)} is required`;
+    }
+
+    if (value && rules.minLength && value.length < rules.minLength) {
+      return `${getFieldLabel(fieldPath)} must be at least ${rules.minLength} characters`;
+    }
+
+    if (value && rules.maxLength && value.length > rules.maxLength) {
+      return `${getFieldLabel(fieldPath)} must not exceed ${rules.maxLength} characters`;
+    }
+
+    if (value && rules.pattern && !rules.pattern.test(value)) {
+      return rules.message || `Invalid ${getFieldLabel(fieldPath).toLowerCase()}`;
+    }
+
+    if (rules.validate && !rules.validate(value, allValues)) {
+      return rules.message || `Invalid ${getFieldLabel(fieldPath).toLowerCase()}`;
+    }
+
+    return '';
+  };
+
+  const getNestedRules = (fieldPath) => {
+    if (fieldPath.includes('.')) {
+      return validationRules[fieldPath];
+    }
+    return validationRules[fieldPath];
+  };
+
+  const getFieldLabel = (fieldPath) => {
+    const labels = {
+      firstName: 'First name',
+      lastName: 'Last name',
+      email: 'Email',
+      phone: 'Phone number',
+      dateOfBirth: 'Date of birth',
+      'address.street': 'Street address',
+      'address.city': 'City',
+      'address.state': 'State',
+      'address.pincode': 'Pincode',
+      'address.country': 'Country'
+    };
+    return labels[fieldPath] || fieldPath;
+  };
+
+  // Validate all fields in current step
+  const validateStep = () => {
+    const errors = {};
+    const stepFields = getStepFields(activeStep);
+
+    stepFields.forEach(field => {
+      let value;
+      if (field.includes('.')) {
+        const [parent, child] = field.split('.');
+        value = formData[parent]?.[child];
+      } else {
+        value = formData[field];
+      }
+
+      const error = validateField(field, value);
+      if (error) {
+        errors[field] = error;
+      }
+    });
+
+    // Additional validations
+    if (activeStep === 0) {
+      // Email format validation (already handled by pattern)
+      // Phone format validation (already handled by pattern)
+    }
+
+    if (activeStep === 2) {
+      // Validate education entries
+      if (formData.education.length === 0 || !formData.education[0].degree) {
+        errors['education'] = 'At least one education entry is required';
+      } else {
+        formData.education.forEach((edu, index) => {
+          if (!edu.degree) errors[`education[${index}].degree`] = 'Degree is required';
+          if (!edu.institution) errors[`education[${index}].institution`] = 'Institution is required';
+          if (!edu.yearOfPassing) {
+            errors[`education[${index}].yearOfPassing`] = 'Year of passing is required';
+          } else if (edu.yearOfPassing < 1900 || edu.yearOfPassing > new Date().getFullYear()) {
+            errors[`education[${index}].yearOfPassing`] = 'Please enter a valid year';
+          }
+        });
+      }
+    }
+
+    if (activeStep === 3) {
+      // Validate experience entries
+      formData.experience.forEach((exp, index) => {
+        if (exp.company && (!exp.fromDate || !exp.position)) {
+          errors[`experience[${index}].details`] = 'Please fill all experience details';
+        }
+        if (exp.fromDate && exp.toDate && !exp.current) {
+          if (new Date(exp.toDate) < new Date(exp.fromDate)) {
+            errors[`experience[${index}].date`] = 'To date must be after from date';
+          }
+        }
+      });
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const getStepFields = (step) => {
+    switch (step) {
+      case 0: return ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth'];
+      case 1: return ['address.street', 'address.city', 'address.state', 'address.pincode'];
+      case 2: return [];
+      case 3: return [];
+      default: return [];
+    }
+  };
+
+  // Handle field blur
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+
+    let value;
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      value = formData[parent]?.[child];
+    } else {
+      value = formData[field];
+    }
+
+    const error = validateField(field, value);
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+  };
 
   // Fetch jobs when dialog opens
   useEffect(() => {
@@ -110,6 +318,12 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       fetchJobs();
     }
   }, [open]);
+
+  // Reset errors when step changes
+  useEffect(() => {
+    setFieldErrors({});
+    setError('');
+  }, [activeStep]);
 
   // Set selected job if jobId is provided
   useEffect(() => {
@@ -126,7 +340,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   const fetchJobs = async () => {
     setJobsLoading(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/jobs`, {
@@ -134,7 +348,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
           'Authorization': `Bearer ${token}`
         },
         params: {
-          status: 'published' // Only fetch published jobs, remove this if you want all jobs
+          status: 'published'
         }
       });
 
@@ -166,6 +380,12 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       ...prev,
       [name]: value
     }));
+
+    // Clear error for this field
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    setError('');
   };
 
   const handleAddressChange = (e) => {
@@ -177,21 +397,36 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
         [name]: value
       }
     }));
+
+    // Clear error for this field
+    const fieldPath = `address.${name}`;
+    if (fieldErrors[fieldPath]) {
+      setFieldErrors(prev => ({ ...prev, [fieldPath]: '' }));
+    }
+    setError('');
   };
 
   // Experience handlers
   const handleExperienceChange = (index, field, value) => {
     const updatedExperience = [...formData.experience];
     updatedExperience[index][field] = value;
-    
+
     if (field === 'current' && value === true) {
       updatedExperience[index].toDate = '';
     }
-    
+
     setFormData(prev => ({
       ...prev,
       experience: updatedExperience
     }));
+
+    // Clear related errors
+    const errorFields = [`experience[${index}].details`, `experience[${index}].date`];
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      errorFields.forEach(f => delete newErrors[f]);
+      return newErrors;
+    });
   };
 
   const addExperience = () => {
@@ -228,6 +463,16 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       ...prev,
       education: updatedEducation
     }));
+
+    // Clear education errors
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors['education'];
+      delete newErrors[`education[${index}].degree`];
+      delete newErrors[`education[${index}].institution`];
+      delete newErrors[`education[${index}].yearOfPassing`];
+      return newErrors;
+    });
   };
 
   const addEducation = () => {
@@ -256,13 +501,28 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
 
   // Skills handlers
   const handleAddSkill = () => {
-    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        skills: [...prev.skills, skillInput.trim()]
-      }));
-      setSkillInput('');
+    setSkillInputError('');
+
+    if (!skillInput.trim()) {
+      setSkillInputError('Please enter a skill');
+      return;
     }
+
+    if (formData.skills.includes(skillInput.trim())) {
+      setSkillInputError('This skill has already been added');
+      return;
+    }
+
+    if (skillInput.trim().length > 50) {
+      setSkillInputError('Skill name cannot exceed 50 characters');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      skills: [...prev.skills, skillInput.trim()]
+    }));
+    setSkillInput('');
   };
 
   const handleRemoveSkill = (skillToRemove) => {
@@ -279,48 +539,12 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
     }
   };
 
-  // Validation
-  const validateStep = () => {
-    switch(activeStep) {
-      case 0: // Personal Information
-        if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-          setError('Please fill all required fields');
-          return false;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-          setError('Please enter a valid email');
-          return false;
-        }
-        if (!/^\d{10}$/.test(formData.phone)) {
-          setError('Please enter a valid 10-digit phone number');
-          return false;
-        }
-        break;
-      case 1: // Address
-        if (!formData.address.street || !formData.address.city || 
-            !formData.address.state || !formData.address.pincode) {
-          setError('Please fill complete address');
-          return false;
-        }
-        if (!/^\d{6}$/.test(formData.address.pincode)) {
-          setError('Please enter a valid 6-digit pincode');
-          return false;
-        }
-        break;
-      case 2: // Education & Skills
-        if (!formData.education[0].degree || !formData.education[0].institution || !formData.education[0].yearOfPassing) {
-          setError('Please fill at least one education entry');
-          return false;
-        }
-        break;
-    }
-    return true;
-  };
-
   const handleNext = () => {
     setError('');
     if (validateStep()) {
       setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+    } else {
+      setError('Please fill all required fields');
     }
   };
 
@@ -330,11 +554,31 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   };
 
   const handleSubmit = async () => {
+    // Validate final step
+    if (!validateStep()) {
+      setError('Please fix all errors before submitting');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
+
+      // Final validation before submission
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
+        throw new Error('Please fill all required fields');
+      }
+
+      if (!/^\d{10}$/.test(formData.phone)) {
+        throw new Error('Please enter a valid 10-digit phone number');
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
       const response = await axios.post(`${BASE_URL}/api/candidates`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -354,7 +598,15 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       }
     } catch (err) {
       console.error('Error adding candidate:', err);
-      setError(err.response?.data?.message || 'Failed to add candidate. Please try again.');
+
+      // Handle specific error messages
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Failed to add candidate. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -397,6 +649,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
     setActiveStep(0);
     setError('');
     setSuccess('');
+    setFieldErrors({});
+    setTouched({});
+    setSkillInput('');
+    setSkillInputError('');
   };
 
   const handleClose = () => {
@@ -404,9 +660,18 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
     onClose();
   };
 
+  // Helper to get error props for TextField
+  const getErrorProps = (field) => {
+    const hasError = touched[field] && fieldErrors[field];
+    return {
+      error: !!hasError,
+      helperText: hasError || ''
+    };
+  };
+
   // Render step content
   const renderStepContent = (step) => {
-    switch(step) {
+    switch (step) {
       case 0:
         return (
           <Stack spacing={3}>
@@ -414,14 +679,14 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
               <PersonIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1976D2' }} />
               Personal Information
             </Typography>
-            
+
             {/* Job Selection Dropdown */}
             <Paper sx={{ p: 2, bgcolor: '#F0F7FF', border: '1px solid #BBDEFB', borderRadius: 2 }}>
               <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <JobIcon sx={{ color: '#1976D2' }} />
-                Apply for Job
+                Apply for Job *
               </Typography>
-              
+
               {jobsLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                   <CircularProgress size={24} />
@@ -437,9 +702,12 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Select Job (Optional)"
+                      label="Select Job *"
                       placeholder="Search by job title or ID"
                       size="small"
+                      required
+                      error={touched.jobId && fieldErrors.jobId}
+                      helperText={touched.jobId && fieldErrors.jobId}
                       InputProps={{
                         ...params.InputProps,
                         endAdornment: (
@@ -474,7 +742,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   noOptionsText="No jobs found"
                 />
               )}
-              
+
               {selectedJob && (
                 <Box sx={{ mt: 2, p: 1.5, bgcolor: '#E3F2FD', borderRadius: 1 }}>
                   <Grid container spacing={1}>
@@ -507,8 +775,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('firstName')}
                   size="small"
                   required
+                  {...getErrorProps('firstName')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -518,8 +788,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('lastName')}
                   size="small"
                   required
+                  {...getErrorProps('lastName')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -530,8 +802,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('email')}
                   size="small"
                   required
+                  {...getErrorProps('email')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -541,9 +815,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('phone')}
                   size="small"
                   required
                   placeholder="10 digit number"
+                  {...getErrorProps('phone')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -554,24 +830,56 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('dateOfBirth')}
                   size="small"
                   InputLabelProps={{ shrink: true }}
+                  {...getErrorProps('dateOfBirth')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth size="small">
+                <FormControl
+                  fullWidth
+                  size="small"
+                  error={touched.gender && fieldErrors.gender}
+                  sx={{
+                    minWidth: '200px',  // Ensures minimum width
+                    '& .MuiInputBase-root': {
+                      width: '100%'
+                    }
+                  }}
+                >
                   <InputLabel>Gender</InputLabel>
                   <Select
                     name="gender"
                     value={formData.gender}
                     onChange={handleInputChange}
+                    onBlur={() => handleBlur('gender')}
                     label="Gender"
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          maxHeight: 300,
+                          width: 'auto',
+                          minWidth: 200
+                        }
+                      }
+                    }}
+                    sx={{
+                      width: '100%',
+                      '& .MuiSelect-select': {
+                        whiteSpace: 'normal',  // Prevents text truncation
+                        overflow: 'visible'
+                      }
+                    }}
                   >
                     <MenuItem value="">Select Gender</MenuItem>
                     <MenuItem value="M">Male</MenuItem>
                     <MenuItem value="F">Female</MenuItem>
                     <MenuItem value="O">Other</MenuItem>
                   </Select>
+                  {touched.gender && fieldErrors.gender && (
+                    <FormHelperText>{fieldErrors.gender}</FormHelperText>
+                  )}
                 </FormControl>
               </Grid>
             </Grid>
@@ -593,8 +901,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="street"
                   value={formData.address.street}
                   onChange={handleAddressChange}
+                  onBlur={() => handleBlur('address.street')}
                   size="small"
                   required
+                  {...getErrorProps('address.street')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -604,8 +914,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="city"
                   value={formData.address.city}
                   onChange={handleAddressChange}
+                  onBlur={() => handleBlur('address.city')}
                   size="small"
                   required
+                  {...getErrorProps('address.city')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -615,8 +927,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="state"
                   value={formData.address.state}
                   onChange={handleAddressChange}
+                  onBlur={() => handleBlur('address.state')}
                   size="small"
                   required
+                  {...getErrorProps('address.state')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -637,9 +951,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   name="pincode"
                   value={formData.address.pincode}
                   onChange={handleAddressChange}
+                  onBlur={() => handleBlur('address.pincode')}
                   size="small"
                   required
                   placeholder="6 digit pincode"
+                  {...getErrorProps('address.pincode')}
                 />
               </Grid>
             </Grid>
@@ -655,7 +971,13 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                 <SchoolIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1976D2' }} />
                 Education
               </Typography>
-              
+
+              {fieldErrors.education && (
+                <Alert severity="error" sx={{ borderRadius: 1 }}>
+                  {fieldErrors.education}
+                </Alert>
+              )}
+
               {formData.education.map((edu, index) => (
                 <Paper key={index} elevation={0} sx={{ p: 2, bgcolor: '#F9F9F9', borderRadius: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -675,8 +997,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                         label="Degree *"
                         value={edu.degree}
                         onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
+                        onBlur={() => handleBlur(`education[${index}].degree`)}
                         size="small"
                         required={index === 0}
+                        error={!!fieldErrors[`education[${index}].degree`]}
+                        helperText={fieldErrors[`education[${index}].degree`] || ''}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -685,8 +1010,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                         label="Institution *"
                         value={edu.institution}
                         onChange={(e) => handleEducationChange(index, 'institution', e.target.value)}
+                        onBlur={() => handleBlur(`education[${index}].institution`)}
                         size="small"
                         required={index === 0}
+                        error={!!fieldErrors[`education[${index}].institution`]}
+                        helperText={fieldErrors[`education[${index}].institution`] || ''}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -696,8 +1024,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                         type="number"
                         value={edu.yearOfPassing}
                         onChange={(e) => handleEducationChange(index, 'yearOfPassing', e.target.value)}
+                        onBlur={() => handleBlur(`education[${index}].yearOfPassing`)}
                         size="small"
                         required={index === 0}
+                        error={!!fieldErrors[`education[${index}].yearOfPassing`]}
+                        helperText={fieldErrors[`education[${index}].yearOfPassing`] || ''}
                         inputProps={{ min: 1900, max: new Date().getFullYear() }}
                       />
                     </Grid>
@@ -713,7 +1044,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   </Grid>
                 </Paper>
               ))}
-              
+
               <Button
                 startIcon={<AddIcon />}
                 onClick={addEducation}
@@ -730,15 +1061,20 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
               <Typography variant="h6" sx={{ fontWeight: 600, color: '#101010' }}>
                 Skills
               </Typography>
-              
+
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <TextField
                   fullWidth
                   placeholder="Enter a skill"
                   value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
+                  onChange={(e) => {
+                    setSkillInput(e.target.value);
+                    setSkillInputError('');
+                  }}
                   onKeyPress={handleKeyPress}
                   size="small"
+                  error={!!skillInputError}
+                  helperText={skillInputError}
                 />
                 <Button
                   variant="contained"
@@ -749,7 +1085,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   Add
                 </Button>
               </Box>
-              
+
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {formData.skills.map((skill, index) => (
                   <Chip
@@ -763,6 +1099,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                     }}
                   />
                 ))}
+                {formData.skills.length === 0 && (
+                  <Typography variant="caption" color="textSecondary">
+                    No skills added yet
+                  </Typography>
+                )}
               </Box>
             </Stack>
           </Stack>
@@ -775,7 +1116,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
               <WorkIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#1976D2' }} />
               Work Experience
             </Typography>
-            
+
             {formData.experience.map((exp, index) => (
               <Paper key={index} elevation={0} sx={{ p: 2, bgcolor: '#F9F9F9', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -788,6 +1129,16 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                     </IconButton>
                   )}
                 </Box>
+                {fieldErrors[`experience[${index}].details`] && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
+                    {fieldErrors[`experience[${index}].details`]}
+                  </Alert>
+                )}
+                {fieldErrors[`experience[${index}].date`] && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
+                    {fieldErrors[`experience[${index}].date`]}
+                  </Alert>
+                )}
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <TextField
@@ -855,7 +1206,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                 </Grid>
               </Paper>
             ))}
-            
+
             <Button
               startIcon={<AddIcon />}
               onClick={addExperience}
@@ -893,20 +1244,20 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { 
+        sx: {
           borderRadius: 2,
           maxHeight: '90vh'
         }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
         pb: 2,
         backgroundColor: '#F8FAFC',
         position: 'sticky',
@@ -932,7 +1283,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
             connector={<ColorConnector />}
             sx={{ mb: 2 }}
           >
-            {steps.map((label) => (
+            {steps.map((label, index) => (
               <Step key={label}>
                 <StepLabel>
                   <Typography variant="body2" fontWeight={500}>
@@ -943,28 +1294,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
             ))}
           </Stepper>
 
-          {/* Progress Bar */}
-          <Box sx={{ width: '100%', mb: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="caption" color="textSecondary">
-                Step {activeStep + 1} of {steps.length}
-              </Typography>
-              <Typography variant="caption" fontWeight={600} color="#1976D2">
-                {Math.round(((activeStep + 1) / steps.length) * 100)}% Complete
-              </Typography>
-            </Box>
-            <Box sx={{ width: '100%', bgcolor: '#E0E0E0', borderRadius: 2, height: 6 }}>
-              <Box
-                sx={{
-                  width: `${((activeStep + 1) / steps.length) * 100}%`,
-                  background: 'linear-gradient(90deg, #164e63, #00B4D8)',
-                  borderRadius: 2,
-                  height: 6,
-                  transition: 'width 0.3s ease'
-                }}
-              />
-            </Box>
-          </Box>
+       
 
           <Divider />
 
@@ -973,22 +1303,30 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
 
           {/* Error/Success Messages */}
           {error && (
-            <Alert severity="error" sx={{ borderRadius: 1 }}>
+            <Alert
+              severity="error"
+              sx={{ borderRadius: 1 }}
+              icon={<ErrorIcon />}
+            >
               {error}
             </Alert>
           )}
           {success && (
-            <Alert severity="success" sx={{ borderRadius: 1 }}>
+            <Alert
+              severity="success"
+              sx={{ borderRadius: 1 }}
+              icon={<CheckCircleIcon />}
+            >
               {success}
             </Alert>
           )}
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ 
-        px: 3, 
-        py: 2, 
-        borderTop: '1px solid #E0E0E0', 
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC',
         position: 'sticky',
         bottom: 0,
@@ -1002,7 +1340,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
         >
           Back
         </Button>
-        
+
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             onClick={handleClose}
@@ -1011,20 +1349,23 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
           >
             Cancel
           </Button>
-          
+
           {activeStep === steps.length - 1 ? (
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || Object.keys(fieldErrors).length > 0}
               sx={{
                 borderRadius: 1.5,
                 textTransform: 'none',
                 background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                '&:hover': { opacity: 0.9 }
+                '&:hover': { opacity: 0.9 },
+                '&.Mui-disabled': {
+                  background: '#E0E0E0'
+                }
               }}
             >
-              {loading ? 'Adding...' : 'Add Candidate'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Add Candidate'}
             </Button>
           ) : (
             <Button

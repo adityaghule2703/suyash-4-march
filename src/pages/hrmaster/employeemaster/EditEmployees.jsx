@@ -2015,7 +2015,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         resetForm();
         onClose();
       }} 
-      maxWidth="lg" 
+      maxWidth="md" 
       fullWidth
       PaperProps={{
         sx: { borderRadius: 2, maxHeight: '90vh' }

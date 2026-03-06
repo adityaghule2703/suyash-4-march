@@ -50,6 +50,7 @@ const AddCosting = ({ open, onClose, onAdd }) => {
         });
 
         if (response.data.success) {
+          // Extract the data array from the response
           setItems(response.data.data || []);
         }
       } catch (err) {
@@ -249,11 +250,11 @@ const AddCosting = ({ open, onClose, onAdd }) => {
                 <em>Select a Part No</em>
               </MenuItem>
               {items.map((item) => (
-                <MenuItem key={item._id} value={item.PartNo}>
+                <MenuItem key={item._id} value={item.part_no}> {/* Changed from item.PartNo to item.part_no */}
                   <Box>
-                    <Typography variant="body1">{item.PartNo}</Typography>
+                    <Typography variant="body1">{item.part_no}</Typography> {/* Changed from item.PartNo to item.part_no */}
                     <Typography variant="caption" color="textSecondary">
-                      {item.PartName}
+                      {item.part_description} {/* Changed from item.PartName to item.part_description */}
                     </Typography>
                   </Box>
                 </MenuItem>

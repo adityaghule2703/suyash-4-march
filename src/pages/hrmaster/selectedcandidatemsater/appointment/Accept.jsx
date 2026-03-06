@@ -15,138 +15,122 @@ import {
   CircularProgress,
   IconButton,
   Avatar,
-  Stepper,
-  Step,
-  StepLabel,
   Divider,
   Card,
   CardContent,
-  CardActions
+  CardActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent
 } from '@mui/material';
 import {
   Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  Download as DownloadIcon,
+  PictureAsPdf as PdfIcon,
+  Visibility as VisibilityIcon,
   Person as PersonIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
   Work as WorkIcon,
-  Description as DescriptionIcon,
-  CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
-  Assignment as AssignmentIcon,
   CalendarToday as CalendarIcon,
-  Download as DownloadIcon,
-  Visibility as VisibilityIcon,
-  Schedule as ScheduleIcon,
-  ThumbUp as ThumbUpIcon,
-  ThumbDown as ThumbDownIcon,
-  ArrowForward as ArrowForwardIcon
+  AttachMoney as MoneyIcon,
+  LocationOn as LocationIcon,
+  Business as BusinessIcon,
+  Verified as VerifiedIcon,
+  Pending as PendingIcon,
+  ThumbUp as ThumbUpIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import { useParams, useNavigate } from 'react-router-dom';
 
 // Color constants
 const PRIMARY_BLUE = '#00B4D8';
 const SUCCESS_COLOR = '#2E7D32';
-const INFO_COLOR = '#0288D1';
 const WARNING_COLOR = '#ED6C02';
+const INFO_COLOR = '#0288D1';
 
-const AcceptAppointmentLetter = ({ open, onClose, onSubmit, documentData, documentId }) => {
-  const [step, setStep] = useState(0);
+const AcceptAppointmentLetter = ({ open, onClose, documentId: propDocumentId, onAccept }) => {
+  const { documentId: paramDocumentId } = useParams();
+  const navigate = useNavigate();
+  
+  // Use documentId from props or URL params
+  const documentId = propDocumentId || paramDocumentId;
+  
+  const [loading, setLoading] = useState(false);
   const [accepting, setAccepting] = useState(false);
-  const [fetchingDetails, setFetchingDetails] = useState(false);
-  
-  // Data states
-  const [documentDetails, setDocumentDetails] = useState(documentData || null);
-  const [acceptedDetails, setAcceptedDetails] = useState(null);
-  
-  // Confirmation state
-  const [confirmAccept, setConfirmAccept] = useState(false);
-  
-  // Error/Success state
+  const [letterData, setLetterData] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [activeStep, setActiveStep] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const steps = ['Review Letter', 'Accept Letter', 'Confirmation'];
-
-  // Fetch document details on open if not provided
+  // Fetch appointment letter details on mount
   useEffect(() => {
-    if (open && !documentData && documentId) {
-      fetchDocumentDetails();
-    } else if (documentData) {
-      setDocumentDetails(documentData);
+    if (documentId && (open || paramDocumentId)) {
+      fetchAppointmentLetter();
     }
-  }, [open, documentData, documentId]);
+  }, [documentId, open, paramDocumentId]);
 
-  // Fetch document details from API
-  const fetchDocumentDetails = async () => {
-    setFetchingDetails(true);
+  // Fetch appointment letter details
+  const fetchAppointmentLetter = async () => {
+    setLoading(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/documents/${documentId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      
+      const response = await axios.get(
+        `${BASE_URL}/api/appointment-letter/${documentId}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      console.log('Appointment letter response:', response.data);
 
       if (response.data.success) {
-        setDocumentDetails(response.data.data);
+        setLetterData(response.data.data);
+        
+        // Set active step based on status
+        if (response.data.data.status === 'accepted') {
+          setActiveStep(2);
+        } else if (response.data.data.status === 'rejected') {
+          setActiveStep(3);
+        } else {
+          setActiveStep(1);
+        }
       } else {
-        setError('Failed to fetch document details');
+        setError('Failed to fetch appointment letter details');
       }
     } catch (err) {
-      console.error('Error fetching document details:', err);
-      setError(err.response?.data?.message || 'Failed to fetch document details');
+      console.error('Error fetching appointment letter:', err);
+      setError(err.response?.data?.message || 'Failed to fetch appointment letter details');
     } finally {
-      setFetchingDetails(false);
+      setLoading(false);
     }
-  };
-
-  // Handle next step
-  const handleNext = () => {
-    if (step === 1 && !confirmAccept) {
-      setError('Please confirm acceptance');
-      return;
-    }
-    setError('');
-    setStep(prev => prev + 1);
-  };
-
-  // Handle back step
-  const handleBack = () => {
-    setStep(prev => prev - 1);
-    setError('');
-  };
-
-  // Handle reset
-  const handleReset = () => {
-    setStep(0);
-    setConfirmAccept(false);
-    setAcceptedDetails(null);
-    setError('');
-    setSuccess('');
-  };
-
-  // Handle close
-  const handleClose = () => {
-    handleReset();
-    onClose();
   };
 
   // Handle accept appointment letter
-  const handleAcceptLetter = async () => {
-    if (!confirmAccept) {
-      setError('Please confirm acceptance');
-      return;
-    }
-
+  const handleAccept = async () => {
     setAccepting(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
+      
+      const response = await axios.post(
         `${BASE_URL}/api/appointment-letter/accept/${documentId}`,
+        {},
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -155,554 +139,560 @@ const AcceptAppointmentLetter = ({ open, onClose, onSubmit, documentData, docume
         }
       );
 
+      console.log('Accept response:', response.data);
+
       if (response.data.success) {
-        setAcceptedDetails(response.data.data);
+        setLetterData(response.data.data);
         setSuccess(response.data.message || 'Appointment letter accepted successfully!');
+        setActiveStep(2);
         
-        if (onSubmit) {
-          onSubmit(response.data.data);
+        if (onAccept) {
+          onAccept(response.data.data);
         }
-        
-        // Move to confirmation step
-        setStep(2);
+
+        // If this is a modal, don't navigate
+        if (!propDocumentId && paramDocumentId) {
+          // Update URL state without navigation
+          navigate(`/appointment-letter/accept/${documentId}`, { 
+            state: { accepted: true },
+            replace: true 
+          });
+        }
+      } else {
+        throw new Error(response.data.message || 'Failed to accept appointment letter');
       }
     } catch (err) {
       console.error('Error accepting appointment letter:', err);
-      setError(err.response?.data?.message || 'Failed to accept appointment letter');
+      setError(err.response?.data?.message || err.message || 'Failed to accept appointment letter');
     } finally {
       setAccepting(false);
     }
   };
 
+  // Handle reject appointment letter
+  const handleReject = async () => {
+    // You can implement rejection logic here if needed
+    setActiveStep(3);
+  };
+
   // Handle download letter
-  const handleDownloadLetter = () => {
-    if (documentDetails?.fileUrl || acceptedDetails?.fileUrl) {
-      const fileUrl = documentDetails?.fileUrl || acceptedDetails?.fileUrl;
-      window.open(`${BASE_URL}${fileUrl}`, '_blank');
+  const handleDownload = () => {
+    if (letterData?.fileUrl) {
+      const fileUrl = letterData.fileUrl.startsWith('http')
+        ? letterData.fileUrl
+        : `${BASE_URL}${letterData.fileUrl}`;
+      window.open(fileUrl, '_blank');
     }
   };
 
-  // Handle view letter
-  const handleViewLetter = () => {
-    if (documentDetails?.fileUrl || acceptedDetails?.fileUrl) {
-      const fileUrl = documentDetails?.fileUrl || acceptedDetails?.fileUrl;
-      window.open(`${BASE_URL}${fileUrl}`, '_blank');
+  // Handle preview
+  const handlePreview = () => {
+    setShowPreview(true);
+  };
+
+  // Handle close
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate(-1); // Go back to previous page
     }
   };
 
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (!bytes) return 'N/A';
-    const kb = bytes / 1024;
-    if (kb < 1024) {
-      return `${kb.toFixed(2)} KB`;
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Invalid Date';
     }
-    const mb = kb / 1024;
-    return `${mb.toFixed(2)} MB`;
   };
 
-  // Get document status color
+  // Format currency
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return 'N/A';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Get status color
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'accepted':
-        return { bg: '#d1fae5', color: '#065f46', label: 'Accepted' };
-      case 'sent':
-        return { bg: '#e3f2fd', color: '#1976d2', label: 'Sent' };
-      case 'generated':
-        return { bg: '#fef3c7', color: '#92400e', label: 'Generated' };
+        return 'success';
       case 'rejected':
-        return { bg: '#fee2e2', color: '#991b1b', label: 'Rejected' };
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'generated':
+        return 'info';
       default:
-        return { bg: '#f1f5f9', color: '#475569', label: status || 'Unknown' };
+        return 'default';
     }
   };
 
-  // Render step content
-  const renderStepContent = () => {
-    switch (step) {
-      case 0:
-        return (
-          <Stack spacing={3}>
-            {fetchingDetails ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={40} />
-              </Box>
-            ) : documentDetails ? (
-              <>
-                {/* Document Header Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    📄 Appointment Letter Details
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {documentDetails.documentId || documentDetails._id || 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Status</Typography>
-                      <Box>
-                        <Chip
-                          label={getStatusColor(documentDetails.status).label}
-                          size="small"
-                          sx={{
-                            bgcolor: getStatusColor(documentDetails.status).bg,
-                            color: getStatusColor(documentDetails.status).color,
-                            fontWeight: 500,
-                            mt: 0.5
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-
-                {/* Candidate Info Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    👤 Candidate Information
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Avatar sx={{ width: 48, height: 48, bgcolor: PRIMARY_BLUE }}>
-                      {documentDetails.candidateName?.charAt(0) || 'C'}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6">
-                        {documentDetails.candidateName || 'N/A'}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {documentDetails.candidateEmail || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Grid container spacing={2}>
-                    {documentDetails.candidateId && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Candidate ID</Typography>
-                        <Typography variant="body2">
-                          {typeof documentDetails.candidateId === 'object' 
-                            ? documentDetails.candidateId?.candidateId || documentDetails.candidateId?._id || 'N/A'
-                            : documentDetails.candidateId}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.offerId && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Offer ID</Typography>
-                        <Typography variant="body2">
-                          {typeof documentDetails.offerId === 'object'
-                            ? documentDetails.offerId?.offerId || documentDetails.offerId?._id || 'N/A'
-                            : documentDetails.offerId}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.offerDesignation && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Designation</Typography>
-                        <Typography variant="body2">{documentDetails.offerDesignation}</Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.joiningDate && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Joining Date</Typography>
-                        <Typography variant="body2">
-                          {new Date(documentDetails.joiningDate).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-
-                {/* Document Details Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    📎 Document Information
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">File Name</Typography>
-                      <Typography variant="body2">{documentDetails.fileName || 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">File Size</Typography>
-                      <Typography variant="body2">{formatFileSize(documentDetails.fileSize)}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Generated At</Typography>
-                      <Typography variant="body2">{formatDate(documentDetails.generatedAt || documentDetails.createdAt)}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Document Type</Typography>
-                      <Typography variant="body2">Appointment Letter</Typography>
-                    </Grid>
-                  </Grid>
-
-                  <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<VisibilityIcon />}
-                      onClick={handleViewLetter}
-                      size="small"
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Preview
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownloadLetter}
-                      size="small"
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Download
-                    </Button>
-                  </Box>
-                </Paper>
-              </>
-            ) : (
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                No document details found. Please select an appointment letter to accept.
-              </Alert>
-            )}
-          </Stack>
-        );
-
-      case 1:
-        return (
-          <Stack spacing={3}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                ✅ Accept Appointment Letter
-              </Typography>
-
-              {/* Summary Card */}
-              <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Document Summary
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {documentDetails?.documentId || documentDetails?._id || 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Candidate</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {documentDetails?.candidateName || 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Designation</Typography>
-                    <Typography variant="body2">{documentDetails?.offerDesignation || 'N/A'}</Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Joining Date</Typography>
-                    <Typography variant="body2">
-                      {documentDetails?.joiningDate 
-                        ? new Date(documentDetails.joiningDate).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })
-                        : 'N/A'}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-
-              {/* Confirmation Checkbox */}
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  bgcolor: '#FFF3E0', 
-                  border: '1px solid #FFB74D',
-                  borderRadius: 2,
-                  cursor: 'pointer'
-                }}
-                onClick={() => setConfirmAccept(!confirmAccept)}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <CheckCircleIcon 
-                    sx={{ 
-                      fontSize: 32, 
-                      color: confirmAccept ? SUCCESS_COLOR : '#BDBDBD',
-                      transition: 'color 0.2s'
-                    }} 
-                  />
-                  <Box>
-                    <Typography variant="body1" fontWeight={500}>
-                      I confirm that I have read and accept the terms of this appointment letter
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      By accepting, you agree to join on the specified date and abide by company policies
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-
-              {/* Info Alert */}
-              <Alert severity="warning" icon={<WarningIcon />} sx={{ borderRadius: 2 }}>
-                <Typography variant="body2">
-                  This action is legally binding and cannot be undone. Please ensure you have read the letter carefully.
-                </Typography>
-              </Alert>
-            </Paper>
-          </Stack>
-        );
-
-      case 2:
-        return (
-          <Stack spacing={3}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                🎉 Acceptance Confirmed
-              </Typography>
-
-              {acceptedDetails ? (
-                <Card sx={{ mb: 3, border: '1px solid', borderColor: 'success.main' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Avatar sx={{ bgcolor: SUCCESS_COLOR, width: 56, height: 56 }}>
-                        <CheckCircleIcon sx={{ fontSize: 32 }} />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h5" color="success.main" fontWeight={600}>
-                          Letter Accepted!
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          {acceptedDetails.message || 'Appointment letter has been accepted successfully'}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                        <Typography variant="body2" fontWeight={500}>{acceptedDetails.documentId}</Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Candidate Name</Typography>
-                        <Typography variant="body2">{acceptedDetails.candidateName}</Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Candidate Email</Typography>
-                        <Typography variant="body2">{acceptedDetails.candidateEmail}</Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Status</Typography>
-                        <Chip
-                          label={acceptedDetails.status || 'accepted'}
-                          size="small"
-                          color="success"
-                          sx={{ height: 20, fontSize: '11px', fontWeight: 500 }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Accepted At</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <ScheduleIcon fontSize="small" color="primary" />
-                          <Typography variant="body2">{formatDate(acceptedDetails.acceptedAt)}</Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-
-                    {/* Next Step */}
-                    {acceptedDetails.nextStep && (
-                      <Box sx={{ mt: 3, p: 2, bgcolor: '#F0F7FF', borderRadius: 2, border: '1px solid #90CAF9' }}>
-                        <Typography variant="subtitle2" gutterBottom fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <ArrowForwardIcon fontSize="small" color="primary" />
-                          Next Step
-                        </Typography>
-                        <Typography variant="body2">
-                          {acceptedDetails.nextStep}
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                  <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownloadLetter}
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Download Accepted Letter
-                    </Button>
-                  </CardActions>
-                </Card>
-              ) : (
-                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-                  <Typography variant="body2" fontWeight={500}>
-                    {success || 'Appointment letter accepted successfully!'}
-                  </Typography>
-                </Alert>
-              )}
-            </Paper>
-          </Stack>
-        );
-
+  // Get status icon
+  const getStatusIcon = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'accepted':
+        return <CheckCircleIcon />;
+      case 'rejected':
+        return <CancelIcon />;
+      case 'pending':
+        return <PendingIcon />;
+      case 'generated':
+        return <InfoIcon />;
       default:
-        return null;
+        return <InfoIcon />;
     }
   };
 
-  return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
-      fullWidth
-      PaperProps={{
-        sx: { borderRadius: 2, maxHeight: '90vh' }
-      }}
-    >
-      <DialogTitle sx={{ 
-        borderBottom: 1, 
-        borderColor: '#E0E0E0', 
-        bgcolor: '#F8FAFC',
-        px: 3,
-        py: 2,
-        position: 'sticky',
-        top: 0,
-        zIndex: 2
+  // Steps for the acceptance process
+  const steps = [
+    {
+      label: 'Appointment Letter Generated',
+      description: 'The appointment letter has been generated and is ready for your review.'
+    },
+    {
+      label: 'Review & Accept',
+      description: 'Please review the appointment letter carefully before accepting.'
+    },
+    {
+      label: 'Acceptance Confirmed',
+      description: 'You have successfully accepted the appointment letter.'
+    },
+    {
+      label: 'Acceptance Rejected',
+      description: 'You have rejected the appointment letter.'
+    }
+  ];
+
+  // Render loading state
+  if (loading) {
+    return (
+      <Dialog
+        open={open !== undefined ? open : true}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2 }
+        }}
+      >
+        <DialogContent sx={{ textAlign: 'center', py: 4 }}>
+          <CircularProgress size={48} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Loading Appointment Letter...
+          </Typography>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Main content
+  const content = (
+    <Box>
+      {/* Header Section */}
+      <Box sx={{ 
+        bgcolor: '#F8FAFC', 
+        p: 3, 
+        borderBottom: '1px solid',
+        borderColor: '#E0E0E0'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="h6" fontWeight={600}>
-              Accept Appointment Letter
+            <Typography variant="h5" fontWeight={600} gutterBottom>
+              Appointment Letter Acceptance
             </Typography>
-            <Typography variant="caption" color="textSecondary">
-              Review and accept the appointment letter
+            <Typography variant="body2" color="textSecondary">
+              Document ID: {documentId}
             </Typography>
           </Box>
-          <IconButton onClick={handleClose} size="small">
-            <CloseIcon />
-          </IconButton>
+          {letterData?.status && (
+            <Chip
+              icon={getStatusIcon(letterData.status)}
+              label={letterData.status.toUpperCase()}
+              color={getStatusColor(letterData.status)}
+              sx={{ 
+                fontWeight: 600,
+                px: 1,
+                '& .MuiChip-icon': { fontSize: 18 }
+              }}
+            />
+          )}
         </Box>
-      </DialogTitle>
+      </Box>
 
-      <DialogContent sx={{ pt: 3, px: 3, overflowY: 'auto' }}>
-        {/* Error/Success Messages */}
-        {error && (
-          <Alert severity="error" onClose={() => setError('')} sx={{ mb: 3, borderRadius: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {success && step !== 2 && (
-          <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 3, borderRadius: 2 }}>
-            {success}
-          </Alert>
-        )}
-
-        {/* Stepper */}
-        <Stepper activeStep={step} sx={{ mb: 4, mt: 2 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+      {/* Stepper Section */}
+      <Box sx={{ p: 3 }}>
+        <Stepper activeStep={activeStep} orientation="vertical">
+          {steps.map((step, index) => (
+            <Step key={step.label}>
+              <StepLabel
+                optional={
+                  index === 2 && letterData?.acceptedAt ? (
+                    <Typography variant="caption" color="textSecondary">
+                      {formatDate(letterData.acceptedAt)}
+                    </Typography>
+                  ) : null
+                }
+              >
+                {step.label}
+              </StepLabel>
+              <StepContent>
+                <Typography variant="body2" color="textSecondary">
+                  {step.description}
+                </Typography>
+              </StepContent>
             </Step>
           ))}
         </Stepper>
+      </Box>
 
-        {/* Step Content */}
-        <Box sx={{ minHeight: 400 }}>
-          {renderStepContent()}
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ 
-        px: 3, 
-        py: 2, 
-        borderTop: 1, 
-        borderColor: '#E0E0E0', 
-        bgcolor: '#F8FAFC',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 2
-      }}>
-        <Button onClick={handleClose}>
-          Cancel
-        </Button>
-        <Box>
-          <Button
-            disabled={step === 0}
-            onClick={handleBack}
-            sx={{ mr: 1 }}
+      {/* Error/Success Messages */}
+      {error && (
+        <Box sx={{ px: 3, pb: 2 }}>
+          <Alert 
+            severity="error" 
+            onClose={() => setError('')}
+            sx={{ borderRadius: 2 }}
           >
-            Back
+            {error}
+          </Alert>
+        </Box>
+      )}
+      
+      {success && (
+        <Box sx={{ px: 3, pb: 2 }}>
+          <Alert 
+            severity="success" 
+            onClose={() => setSuccess('')}
+            sx={{ borderRadius: 2 }}
+          >
+            {success}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2 }
+        }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Appointment Letter Preview</Typography>
+            <IconButton onClick={() => setShowPreview(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers sx={{ height: '70vh', p: 0 }}>
+          {letterData?.fileUrl && (
+            <iframe
+              src={letterData.fileUrl.startsWith('http') 
+                ? letterData.fileUrl 
+                : `${BASE_URL}${letterData.fileUrl}`
+              }
+              title="Appointment Letter Preview"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowPreview(false)}>Close</Button>
+          <Button
+            variant="contained"
+            onClick={handleDownload}
+            startIcon={<DownloadIcon />}
+            sx={{
+              background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+              }
+            }}
+          >
+            Download
           </Button>
-          {step === steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleClose}
-              color="success"
-              startIcon={<CheckCircleIcon />}
-              sx={{ minWidth: 150 }}
-            >
-              Done
-            </Button>
-          ) : step === 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleAcceptLetter}
-              disabled={accepting || !confirmAccept}
-              startIcon={accepting ? <CircularProgress size={20} /> : <ThumbUpIcon />}
-              sx={{
-                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                minWidth: 150,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
-                }
-              }}
-            >
-              {accepting ? 'Accepting...' : 'Accept Letter'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={!documentDetails}
-              sx={{
-                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
-                }
-              }}
-            >
-              Next
-            </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Document Details */}
+      {letterData && (
+        <Box sx={{ p: 3 }}>
+          {/* Candidate Information Card */}
+          <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom color={PRIMARY_BLUE}>
+              <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Candidate Information
+            </Typography>
+            
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Full Name</Typography>
+                <Typography variant="body1" fontWeight={500}>
+                  {letterData.candidateName || 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Candidate ID</Typography>
+                <Typography variant="body1">{letterData.candidateId || 'N/A'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Email Address</Typography>
+                <Typography variant="body1">{letterData.candidateEmail || 'N/A'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Designation</Typography>
+                <Typography variant="body1">{letterData.offerDesignation || 'N/A'}</Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Document Information Card */}
+          <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom color={PRIMARY_BLUE}>
+              <InfoIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Document Information
+            </Typography>
+            
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Document ID</Typography>
+                <Typography variant="body1">{letterData.documentId}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">File Name</Typography>
+                <Typography variant="body1">{letterData.fileName || 'N/A'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Generated At</Typography>
+                <Typography variant="body1">{formatDate(letterData.generatedAt)}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="textSecondary">Joining Date</Typography>
+                <Typography variant="body1" fontWeight={500} color={PRIMARY_BLUE}>
+                  {letterData.joiningDate ? new Date(letterData.joiningDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }) : 'N/A'}
+                </Typography>
+              </Grid>
+              {letterData.acceptedAt && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Accepted At</Typography>
+                  <Typography variant="body1">{formatDate(letterData.acceptedAt)}</Typography>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+
+          {/* Next Steps Card */}
+          {letterData.nextStep && (
+            <Paper sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#E3F2FD' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: INFO_COLOR }}>
+                  <InfoIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                    Next Step
+                  </Typography>
+                  <Typography variant="body2">
+                    {letterData.nextStep}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          )}
+
+          {/* Action Buttons */}
+          {letterData.status === 'generated' && (
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handlePreview}
+                startIcon={<VisibilityIcon />}
+                sx={{
+                  borderColor: PRIMARY_BLUE,
+                  color: PRIMARY_BLUE,
+                  '&:hover': {
+                    borderColor: '#0096b4',
+                    bgcolor: 'rgba(0, 180, 216, 0.04)'
+                  }
+                }}
+              >
+                Preview Document
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleDownload}
+                startIcon={<DownloadIcon />}
+                sx={{
+                  borderColor: PRIMARY_BLUE,
+                  color: PRIMARY_BLUE,
+                  '&:hover': {
+                    borderColor: '#0096b4',
+                    bgcolor: 'rgba(0, 180, 216, 0.04)'
+                  }
+                }}
+              >
+                Download
+              </Button>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleAccept}
+                disabled={accepting}
+                startIcon={accepting ? <CircularProgress size={20} /> : <ThumbUpIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                  },
+                  '&.Mui-disabled': {
+                    background: '#e0e0e0'
+                  }
+                }}
+              >
+                {accepting ? 'Accepting...' : 'Accept Appointment Letter'}
+              </Button>
+              {/* Uncomment if rejection is needed */}
+              {/* <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleReject}
+                color="error"
+                startIcon={<CancelIcon />}
+              >
+                Reject
+              </Button> */}
+            </Box>
+          )}
+
+          {letterData.status === 'accepted' && (
+            <Card sx={{ bgcolor: '#d1fae5', border: '1px solid', borderColor: 'success.main' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: SUCCESS_COLOR }}>
+                    <CheckCircleIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" color="success.main" gutterBottom>
+                      Appointment Letter Accepted!
+                    </Typography>
+                    <Typography variant="body2">
+                      You have successfully accepted the appointment letter on{' '}
+                      {formatDate(letterData.acceptedAt)}.
+                    </Typography>
+                    {letterData.nextStep && (
+                      <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                        {letterData.nextStep}
+                      </Alert>
+                    )}
+                  </Box>
+                </Box>
+              </CardContent>
+              <CardActions sx={{ p: 2, pt: 0 }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={handleDownload}
+                  startIcon={<DownloadIcon />}
+                  sx={{
+                    borderColor: SUCCESS_COLOR,
+                    color: SUCCESS_COLOR,
+                    '&:hover': {
+                      borderColor: '#1b5e20',
+                      bgcolor: 'rgba(46, 125, 50, 0.04)'
+                    }
+                  }}
+                >
+                  Download Copy
+                </Button>
+              </CardActions>
+            </Card>
           )}
         </Box>
-      </DialogActions>
-    </Dialog>
+      )}
+    </Box>
+  );
+
+  // If used as a modal
+  if (open !== undefined) {
+    return (
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { 
+            borderRadius: 2,
+            maxHeight: '90vh',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: 1,
+          borderColor: '#E0E0E0',
+          bgcolor: '#F8FAFC',
+          px: 3,
+          py: 2,
+          position: 'sticky',
+          top: 0,
+          zIndex: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography variant="h6" fontWeight={600}>
+            Accept Appointment Letter
+          </Typography>
+          <IconButton onClick={handleClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
+          {content}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // If used as a page
+  return (
+    <Box sx={{ 
+      maxWidth: 'md', 
+      mx: 'auto', 
+      my: 4, 
+      bgcolor: 'white',
+      borderRadius: 2,
+      boxShadow: 3,
+      overflow: 'hidden'
+    }}>
+      {content}
+    </Box>
   );
 };
 

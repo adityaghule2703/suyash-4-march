@@ -1256,7 +1256,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Medical Allowance"
@@ -1372,7 +1372,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
+              </Grid> */}
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
@@ -1429,7 +1429,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Telephone"
@@ -1441,7 +1441,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
+              </Grid> */}
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
@@ -1455,7 +1455,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Medical"
@@ -1467,8 +1467,8 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Grid> */}
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Education"
@@ -1480,8 +1480,8 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Grid> */}
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="LTA"
@@ -1493,8 +1493,8 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Grid> */}
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Uniform"
@@ -1506,8 +1506,8 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Grid> */}
+              {/* <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Newspaper"
@@ -1519,7 +1519,7 @@ const EditSalary = ({ open, onClose, salary, onUpdate }) => {
                     startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                   }}
                 />
-              </Grid>
+              </Grid> */}
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth

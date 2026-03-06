@@ -12,32 +12,35 @@ import {
   Button,
   TextField,
   InputAdornment,
-  Tooltip,
   Typography,
   Snackbar,
   TablePagination,
-  Checkbox,
   Stack,
-  alpha,
   Alert,
+  Chip,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
   ToggleButton,
-  ToggleButtonGroup
+  ToggleButtonGroup,
+  Checkbox,
+  alpha
 } from "@mui/material";
 
 import {
   Search as SearchIcon,
+  FilterList as FilterIcon,
   Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
-  MoreVert as MoreVertIcon
+  MoreVert as MoreVertIcon,
+  Sort as SortIcon,
+  Clear as ClearIcon,
+  ArrowUpward as ArrowUpwardIcon
 } from "@mui/icons-material";
 
 import axios from "axios";
@@ -54,16 +57,16 @@ import EditHoliday from "./EditHoliday";
 import ViewHoliday from "./ViewHoliday";
 import DeleteHoliday from "./DeleteHoliday";
 
-// Color constants
+// Color constants - EXACT SAME as Employee Master
 const HEADER_GRADIENT = "linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)";
 const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc';
-const HOVER_COLOR = '#f1f5f9';
+const STRIPE_COLOR_EVEN = '#f8fafc'; // slate-50
+const HOVER_COLOR = '#f1f5f9'; // slate-100
 const PRIMARY_BLUE = '#00B4D8';
 const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
+const TEXT_COLOR_MAIN = '#0f172a'; // slate-900
 
-// Action Menu Component
+// Action Menu Component (same style as Employee Master)
 const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
   return (
     <>
@@ -72,7 +75,7 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: '#64748b', // slate-500
             '&:hover': {
               bgcolor: alpha(PRIMARY_BLUE, 0.1)
             }
@@ -145,21 +148,34 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
   );
 };
 
+// Tooltip wrapper to avoid undefined error
+const Tooltip = ({ children, title }) => {
+  return (
+    <Box component="span" sx={{ display: 'inline-block' }}>
+      {title ? (
+        <span title={title}>{children}</span>
+      ) : (
+        children
+      )}
+    </Box>
+  );
+};
+
 const LeaveTypeMaster = () => {
   const [mode, setMode] = useState("leave");
   const [dataList, setDataList] = useState([]);
   const [filteredList, setFilteredList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Checkbox selection state
   const [selected, setSelected] = useState([]);
 
-  // Menu state for action buttons
-  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-  const [selectedItemForAction, setSelectedItemForAction] = useState(null);
+  // Action menu state
+  const [actionAnchor, setActionAnchor] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // Modal state
   const [openAdd, setOpenAdd] = useState(false);
@@ -167,10 +183,13 @@ const LeaveTypeMaster = () => {
   const [openView, setOpenView] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
 
-  // Selected item
-  const [selectedItem, setSelectedItem] = useState(null);
+  // Sort state
+  const [sortConfig, setSortConfig] = useState({
+    field: mode === "leave" ? "Name" : "Title",
+    direction: "asc"
+  });
 
-  // Notification state
+  // Snackbar state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -198,10 +217,13 @@ const LeaveTypeMaster = () => {
       if (response.data.success) {
         setDataList(response.data.data || []);
         setFilteredList(response.data.data || []);
-        setSelected([]);
+        setSelected([]); // Clear selections when data changes
+      } else {
+        showNotification("Failed to load data", "error");
       }
     } catch (err) {
-      showNotification("Failed to load data", "error");
+      console.error('Error fetching data:', err);
+      showNotification("Failed to load data. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -211,39 +233,16 @@ const LeaveTypeMaster = () => {
     setSnackbar({ open: true, message, severity });
   };
 
-  /* SEARCH */
-  const handleSearch = (e) => {
-    const value = e.target.value.toLowerCase();
-    setSearchTerm(value);
-
-    const filtered = dataList.filter((item) =>
-      mode === "leave"
-        ? item.Name?.toLowerCase().includes(value)
-        : (item.Title || item.Name)?.toLowerCase().includes(value)
-    );
-
-    setFilteredList(filtered);
-    setPage(0);
-    setSelected([]);
-  };
-
-  /* RESET FILTER */
-  const handleResetFilter = () => {
-    setFilteredList(dataList);
-    setSearchTerm("");
-    setPage(0);
-    setSelected([]);
-  };
-
-  /* SELECTION HANDLERS */
+  // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(paginated.map(item => item._id));
+      setSelected(paginatedData.map(item => item._id));
     } else {
       setSelected([]);
     }
   };
 
+  // Handle single selection
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
@@ -257,73 +256,147 @@ const LeaveTypeMaster = () => {
     setSelected(newSelected);
   };
 
-  /* BULK DELETE */
+  // Handle bulk delete
   const handleBulkDelete = () => {
     if (selected.length === 0) return;
-    showNotification(`Bulk delete for ${selected.length} items requires API implementation`, 'warning');
+    
+    // Show confirmation or directly implement bulk delete API
+    showNotification(`Bulk delete for ${selected.length} items - API implementation required`, 'warning');
+    // You can implement actual bulk delete API call here
+    // setSelected([]); // Clear selections after successful delete
   };
 
-  /* PAGINATION */
-  const paginated = filteredList.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Handle search
+  const handleSearch = (e) => {
+    const value = e.target.value.toLowerCase();
+    setSearchTerm(value);
 
-  /* ACTION MENU */
-  const handleActionMenuOpen = (e, item) => {
-    setActionMenuAnchor(e.currentTarget);
-    setSelectedItemForAction(item);
+    const filtered = dataList.filter((item) =>
+      mode === "leave"
+        ? item.Name?.toLowerCase().includes(value)
+        : (item.Title || item.Name)?.toLowerCase().includes(value)
+    );
+
+    setFilteredList(filtered);
+    setPage(0);
+    setSelected([]); // Clear selections on search
   };
 
-  const handleActionMenuClose = () => {
-    setActionMenuAnchor(null);
-    setSelectedItemForAction(null);
+  // Handle sort
+  const handleSort = (field) => {
+    const direction = sortConfig.field === field && sortConfig.direction === "asc" ? "desc" : "asc";
+    
+    const sorted = [...filteredList].sort((a, b) => {
+      let aValue = field === "Title" ? (a.Title || a.Name || "") : (a[field] || "");
+      let bValue = field === "Title" ? (b.Title || b.Name || "") : (b[field] || "");
+      
+      if (field === "Date" || field === "CreatedAt" || field === "UpdatedAt") {
+        aValue = aValue ? new Date(aValue).getTime() : 0;
+        bValue = bValue ? new Date(bValue).getTime() : 0;
+      }
+      
+      if (direction === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredList(sorted);
+    setSortConfig({ field, direction });
   };
 
-  /* MODAL HANDLERS */
-  const openEditModal = (item) => {
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setFilteredList(dataList);
+    setPage(0);
+    setSelected([]); // Clear selections on filter reset
+  };
+
+  // Filter active only
+  const handleFilterActive = () => {
+    const filtered = dataList.filter((item) => item.IsActive);
+    setFilteredList(filtered);
+    setPage(0);
+    setSelected([]); // Clear selections on filter
+    showNotification(`Showing ${filtered.length} active ${mode === "leave" ? "leave types" : "holidays"}`, "info");
+  };
+
+  // Reset all filters
+  const handleResetFilter = () => {
+    setFilteredList(dataList);
+    setSearchTerm("");
+    setPage(0);
+    setSelected([]); // Clear selections on filter reset
+    setSortConfig({ field: mode === "leave" ? "Name" : "Title", direction: "asc" });
+    showNotification("Filters cleared", "info");
+  };
+
+  // Handle page change
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+    setSelected([]); // Clear selections on page change
+  };
+
+  // Handle rows per page change
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+    setSelected([]); // Clear selections on rows per page change
+  };
+
+  // Action menu handlers
+  const handleActionOpen = (event, item) => {
+    setActionAnchor(event.currentTarget);
     setSelectedItem(item);
-    setOpenEdit(true);
-    handleActionMenuClose();
   };
 
+  const handleActionClose = () => {
+    setActionAnchor(null);
+  };
+
+  // Modal handlers
   const openViewModal = (item) => {
     setSelectedItem(item);
     setOpenView(true);
-    handleActionMenuClose();
+  };
+
+  const openEditModal = (item) => {
+    setSelectedItem(item);
+    setOpenEdit(true);
   };
 
   const openDeleteModal = (item) => {
     setSelectedItem(item);
     setOpenDelete(true);
-    handleActionMenuClose();
   };
 
-  /* CLOSE HANDLERS WITH SNACKBAR */
   const handleAddClose = (success) => {
     setOpenAdd(false);
     if (success) {
       fetchData();
       showNotification(
-        `${mode === "leave" ? "Leave Type" : "Holiday"} added successfully`
+        `${mode === "leave" ? "Leave Type" : "Holiday"} added successfully`,
+        "success"
       );
     }
   };
 
   const handleEditClose = (success) => {
     setOpenEdit(false);
-    setSelectedItem(null);
     if (success) {
       fetchData();
       showNotification(
-        `${mode === "leave" ? "Leave Type" : "Holiday"} updated successfully`
+        `${mode === "leave" ? "Leave Type" : "Holiday"} updated successfully`,
+        "success"
       );
     }
+    setSelectedItem(null);
   };
 
   const handleDeleteClose = (success) => {
     setOpenDelete(false);
-    setSelectedItem(null);
     if (success) {
       fetchData();
       showNotification(
@@ -331,6 +404,7 @@ const LeaveTypeMaster = () => {
         "success"
       );
     }
+    setSelectedItem(null);
   };
 
   const handleViewClose = () => {
@@ -338,9 +412,9 @@ const LeaveTypeMaster = () => {
     setSelectedItem(null);
   };
 
-  /* FORMAT DATE */
+  // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return "-";
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -348,21 +422,77 @@ const LeaveTypeMaster = () => {
     });
   };
 
+  // Paginated data
+  const paginatedData = filteredList.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  // Check if filters are active
+  const isFilterActive = searchTerm || filteredList.length !== dataList.length;
+
   return (
     <Box sx={{ p: 3 }}>
-      {/* Toggle only */}
+      {/* Mode Toggle */}
       <Box sx={{ mb: 3 }}>
         <ToggleButtonGroup
           value={mode}
           exclusive
           onChange={(e, val) => val && setMode(val)}
+          sx={{
+            '& .MuiToggleButton-root': {
+              height: 40,
+              px: 3,
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.875rem',
+              borderColor: '#cbd5e1',
+              color: '#475569',
+              '&.Mui-selected': {
+                background: HEADER_GRADIENT,
+                color: '#fff',
+                '&:hover': {
+                  background: HEADER_GRADIENT,
+                  opacity: 0.9
+                }
+              }
+            }
+          }}
         >
-          <ToggleButton value="leave">Leave Types</ToggleButton>
-          <ToggleButton value="holiday">Holidays</ToggleButton>
+          <ToggleButton value="leave">
+            Leave Types
+          </ToggleButton>
+          <ToggleButton value="holiday">
+            Holidays
+          </ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
-      {/* ACTION BAR */}
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography 
+          variant="h5" 
+          component="h1" 
+          fontWeight="600" 
+          sx={{ 
+            color: TEXT_COLOR_MAIN,
+            background: HEADER_GRADIENT,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            display: 'inline-block'
+          }}
+        >
+          {mode === "leave" ? "Leave Type Master" : "Holiday Master"}
+        </Typography>
+        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+          {mode === "leave" 
+            ? "Manage leave types and their configurations" 
+            : "Manage holiday schedules and observances"}
+        </Typography>
+      </Box>
+
+      {/* Action Bar */}
       <Paper sx={{ 
         p: 2, 
         mb: 3, 
@@ -372,15 +502,15 @@ const LeaveTypeMaster = () => {
         border: '1px solid #e2e8f0'
       }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search only */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+          {/* Search and Filters */}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
             <TextField
               placeholder={`Search ${mode === "leave" ? "leave types" : "holidays"}...`}
               size="small"
               value={searchTerm}
               onChange={handleSearch}
               sx={{ 
-                width: { xs: '100%', sm: 320 },
+                width: { xs: '100%', sm: 300 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   '&:hover fieldset': {
@@ -394,6 +524,13 @@ const LeaveTypeMaster = () => {
                     <SearchIcon sx={{ color: '#64748B' }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" sx={{ color: '#64748B' }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 40,
                   bgcolor: '#f8fafc',
@@ -405,27 +542,75 @@ const LeaveTypeMaster = () => {
               }}
               disabled={loading}
             />
+            
+            {/* <Button
+              variant="outlined"
+              startIcon={<FilterIcon />}
+              onClick={handleFilterActive}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                borderColor: '#cbd5e1',
+                color: '#475569',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
+              disabled={loading}
+            >
+              Active Only
+            </Button>
+            
+            <Button
+              variant="outlined"
+              startIcon={<SortIcon />}
+              onClick={() => handleSort(mode === "leave" ? "Name" : "Title")}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                borderColor: '#cbd5e1',
+                color: '#475569',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
+              disabled={loading}
+            >
+              Sort {sortConfig.direction === "asc" ? "A-Z" : "Z-A"}
+            </Button> */}
 
-            {searchTerm && (
+            {isFilterActive && (
               <Button
                 variant="text"
                 onClick={handleResetFilter}
                 sx={{ 
                   height: 40,
                   borderRadius: 1.5,
+                  color: '#475569',
                   fontSize: '0.875rem',
                   fontWeight: 500,
                   textTransform: 'none',
-                  color: '#64748B'
+                  '&:hover': {
+                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                  }
                 }}
+                disabled={loading}
               >
-                Clear
+                Clear Filters
               </Button>
             )}
           </Stack>
 
           {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2}>
             {selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -437,14 +622,21 @@ const LeaveTypeMaster = () => {
                   borderRadius: 1.5,
                   textTransform: 'none',
                   fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontWeight: 500,
+                  borderColor: '#EF4444',
+                  color: '#EF4444',
+                  '&:hover': {
+                    borderColor: '#DC2626',
+                    bgcolor: alpha('#EF4444', 0.04)
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -463,7 +655,8 @@ const LeaveTypeMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
+            
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -488,7 +681,7 @@ const LeaveTypeMaster = () => {
         </Stack>
       </Paper>
 
-      {/* TABLE */}
+      {/* Table */}
       <Paper sx={{ 
         width: '100%', 
         borderRadius: 2, 
@@ -503,13 +696,17 @@ const LeaveTypeMaster = () => {
                 background: HEADER_GRADIENT,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: TEXT_COLOR_HEADER,
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  py: 2
                 }
               }}>
+                {/* Checkbox column */}
                 <TableCell padding="checkbox" sx={{ width: 60 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginated.length}
-                    checked={paginated.length > 0 && selected.length === paginated.length}
+                    indeterminate={selected.length > 0 && selected.length < paginatedData.length}
+                    checked={paginatedData.length > 0 && selected.length === paginatedData.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: TEXT_COLOR_HEADER,
@@ -523,75 +720,109 @@ const LeaveTypeMaster = () => {
                         fontSize: 20
                       }
                     }}
-                    disabled={loading || paginated.length === 0}
+                    disabled={loading || paginatedData.length === 0}
                   />
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                
+                <TableCell>
+                  <Stack 
+                    direction="row" 
+                    alignItems="center" 
+                    spacing={0.5}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort(mode === "leave" ? "Name" : "Title")}
+                  >
                     {mode === "leave" ? "Leave Name" : "Holiday Title"}
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    <ArrowUpwardIcon 
+                      sx={{ 
+                        fontSize: 14, 
+                        color: TEXT_COLOR_HEADER, 
+                        opacity: sortConfig.field === (mode === "leave" ? "Name" : "Title") ? 1 : 0.5,
+                        transform: sortConfig.direction === "desc" && sortConfig.field === (mode === "leave" ? "Name" : "Title") ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s'
+                      }} 
+                    />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                <TableCell>
+                  <Stack 
+                    direction="row" 
+                    alignItems="center" 
+                    spacing={0.5}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort(mode === "leave" ? "MaxDaysPerYear" : "Date")}
+                  >
                     {mode === "leave" ? "Max Days" : "Date"}
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    <ArrowUpwardIcon 
+                      sx={{ 
+                        fontSize: 14, 
+                        color: TEXT_COLOR_HEADER, 
+                        opacity: sortConfig.field === (mode === "leave" ? "MaxDaysPerYear" : "Date") ? 1 : 0.5,
+                        transform: sortConfig.direction === "desc" && sortConfig.field === (mode === "leave" ? "MaxDaysPerYear" : "Date") ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s'
+                      }} 
+                    />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
-                }} align="center">
-                  Actions
+                <TableCell>
+                  <Stack 
+                    direction="row" 
+                    alignItems="center" 
+                    spacing={0.5}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort("CreatedAt")}
+                  >
+                    Created At
+                    <ArrowUpwardIcon 
+                      sx={{ 
+                        fontSize: 14, 
+                        color: TEXT_COLOR_HEADER, 
+                        opacity: sortConfig.field === "CreatedAt" ? 1 : 0.5,
+                        transform: sortConfig.direction === "desc" && sortConfig.field === "CreatedAt" ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s'
+                      }} 
+                    />
+                  </Stack>
                 </TableCell>
+                <TableCell>
+                  <Stack 
+                    direction="row" 
+                    alignItems="center" 
+                    spacing={0.5}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort("UpdatedAt")}
+                  >
+                    Updated At
+                    <ArrowUpwardIcon 
+                      sx={{ 
+                        fontSize: 14, 
+                        color: TEXT_COLOR_HEADER, 
+                        opacity: sortConfig.field === "UpdatedAt" ? 1 : 0.5,
+                        transform: sortConfig.direction === "desc" && sortConfig.field === "UpdatedAt" ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s'
+                      }} 
+                    />
+                  </Stack>
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                       Loading {mode === "leave" ? "leave types" : "holidays"}...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginated.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
-                        {searchTerm 
-                          ? `No ${mode === "leave" ? "leave types" : "holidays"} found` 
-                          : `No ${mode === "leave" ? "leave types" : "holidays"} available`}
-                      </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
-                        {searchTerm 
-                          ? 'Try adjusting your search terms' 
-                          : `Click "Add ${mode === "leave" ? "Leave Type" : "Holiday"}" to create one`}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginated.map((item, index) => {
+              ) : paginatedData.length > 0 ? (
+                paginatedData.map((item, index) => {
                   const isSelected = selected.includes(item._id);
                   const isOddRow = index % 2 === 0;
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
-                    selectedItemForAction?._id === item._id;
+                  const isActionMenuOpen = Boolean(actionAnchor) && 
+                    selectedItem?._id === item._id;
 
                   return (
                     <TableRow
@@ -611,6 +842,7 @@ const LeaveTypeMaster = () => {
                         }
                       }}
                     >
+                      {/* Checkbox */}
                       <TableCell padding="checkbox" sx={{ width: 60 }}>
                         <Checkbox
                           checked={isSelected}
@@ -623,32 +855,76 @@ const LeaveTypeMaster = () => {
                           }}
                         />
                       </TableCell>
+
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                        <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
                           {mode === "leave" ? item.Name : (item.Title || item.Name)}
                         </Typography>
+                        {item.Description && (
+                          <Typography variant="caption" color="#64748B" display="block">
+                            {item.Description}
+                          </Typography>
+                        )}
                       </TableCell>
+
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {mode === "leave"
-                            ? item.MaxDaysPerYear
-                            : formatDate(item.Date)}
+                        {mode === "leave" ? (
+                          <Chip
+                            label={`${item.MaxDaysPerYear || 0} days`}
+                            size="small"
+                            sx={{ 
+                              fontWeight: 500,
+                              backgroundColor: '#e0f2fe',
+                              color: '#0c4a6e',
+                              border: '1px solid #bae6fd'
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                            {item.Date ? formatDate(item.Date) : '-'}
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                          {item.CreatedAt ? formatDate(item.CreatedAt) : '-'}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+
+                      <TableCell>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                          {item.UpdatedAt ? formatDate(item.UpdatedAt) : '-'}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell align="center">
                         <ActionMenu 
                           item={item}
                           onView={openViewModal}
                           onEdit={openEditModal}
                           onDelete={openDeleteModal}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, item)}
+                          anchorEl={isActionMenuOpen ? actionAnchor : null}
+                          onClose={handleActionClose}
+                          onOpen={(e) => handleActionOpen(e, item)}
                         />
                       </TableCell>
                     </TableRow>
                   );
                 })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                        {searchTerm ? `No ${mode === "leave" ? "leave types" : "holidays"} found` : `No ${mode === "leave" ? "leave types" : "holidays"} available`}
+                      </Typography>
+                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                        {searchTerm ? 'Try adjusting your search terms' : `Add your first ${mode === "leave" ? "leave type" : "holiday"} to get started`}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
@@ -661,10 +937,8 @@ const LeaveTypeMaster = () => {
           count={filteredList.length}
           rowsPerPage={rowsPerPage}
           page={page}
-          onPageChange={(e, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) =>
-            setRowsPerPage(parseInt(e.target.value, 10))
-          }
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
             borderTop: '1px solid #e2e8f0',
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
@@ -678,34 +952,66 @@ const LeaveTypeMaster = () => {
         />
       </Paper>
 
-      {/* MODALS */}
+      {/* Modals */}
       {mode === "leave" && (
         <>
           <AddLeaveTypes open={openAdd} onClose={handleAddClose} />
-          <EditLeaveTypes open={openEdit} leaveType={selectedItem} onClose={handleEditClose} />
-          <ViewLeaveTypes open={openView} leaveType={selectedItem} onClose={handleViewClose} />
-          <DeleteLeaveTypes open={openDelete} leaveType={selectedItem} onClose={handleDeleteClose} />
+          <EditLeaveTypes 
+            open={openEdit} 
+            leaveType={selectedItem} 
+            onClose={handleEditClose} 
+          />
+          <ViewLeaveTypes 
+            open={openView} 
+            leaveType={selectedItem} 
+            onClose={handleViewClose}
+            onEdit={() => {
+              handleViewClose();
+              setOpenEdit(true);
+            }}
+          />
+          <DeleteLeaveTypes 
+            open={openDelete} 
+            leaveType={selectedItem} 
+            onClose={handleDeleteClose} 
+          />
         </>
       )}
 
       {mode === "holiday" && (
         <>
           <AddHoliday open={openAdd} onClose={handleAddClose} />
-          <EditHoliday open={openEdit} holiday={selectedItem} onClose={handleEditClose} />
-          <ViewHoliday open={openView} holiday={selectedItem} onClose={handleViewClose} />
-          <DeleteHoliday open={openDelete} holiday={selectedItem} onClose={handleDeleteClose} />
+          <EditHoliday 
+            open={openEdit} 
+            holiday={selectedItem} 
+            onClose={handleEditClose} 
+          />
+          <ViewHoliday 
+            open={openView} 
+            holiday={selectedItem} 
+            onClose={handleViewClose}
+            onEdit={() => {
+              handleViewClose();
+              setOpenEdit(true);
+            }}
+          />
+          <DeleteHoliday 
+            open={openDelete} 
+            holiday={selectedItem} 
+            onClose={handleDeleteClose} 
+          />
         </>
       )}
 
-      {/* SNACKBAR */}
+      {/* Snackbar Notification */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSnackbar({...snackbar, open: false})}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          onClose={() => setSnackbar({...snackbar, open: false})} 
           severity={snackbar.severity}
           variant="filled"
           sx={{ 

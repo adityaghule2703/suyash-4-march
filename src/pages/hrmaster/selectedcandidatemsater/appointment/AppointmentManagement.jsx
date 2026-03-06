@@ -24,7 +24,10 @@ import {
   ListItemText,
   Divider,
   Avatar,
-  Tooltip
+  Tooltip,
+  Checkbox,
+  alpha,
+  CircularProgress
 } from "@mui/material";
 
 import {
@@ -39,34 +42,44 @@ import {
   Refresh as RefreshIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  Delete as DeleteIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  Assignment as AssignmentIcon,
+  AccessTime as AccessTimeIcon,
+  Error as ErrorIcon,
+  Visibility as VisibilityIcon
 } from "@mui/icons-material";
 
 import axios from "axios";
 import BASE_URL from "../../../../config/Config";
 
 /* COMPONENTS */
-import GenerateAppointmentLetter from "./Generate";
-import SendAppointmentLetter from "./SendEmail";
+import GenerateAppointmentLetter from "./GenerateAppointmentLetter";
+import SendAppointmentLetter from "./SendAppointmentLetter";
 import AcceptAppointmentLetter from "./Accept";
 
 const HEADER_GRADIENT =
   "linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)";
 const PRIMARY_BLUE = "#00B4D8";
+const TEXT_COLOR_HEADER = '#FFFFFF';
+const STRIPE_COLOR_ODD = '#FFFFFF';
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
 
 // Status color mapping
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
     case 'generated':
-      return { bg: '#fef3c7', color: '#92400e', label: 'Generated' };
+      return { bg: '#fef3c7', color: '#92400e', label: 'Generated', icon: <DescriptionIcon sx={{ fontSize: 16 }} /> };
     case 'sent':
-      return { bg: '#e3f2fd', color: '#1976d2', label: 'Sent' };
+      return { bg: '#e3f2fd', color: '#1976d2', label: 'Sent', icon: <SendIcon sx={{ fontSize: 16 }} /> };
     case 'accepted':
-      return { bg: '#d1fae5', color: '#065f46', label: 'Accepted' };
+      return { bg: '#d1fae5', color: '#065f46', label: 'Accepted', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> };
     case 'pending':
-      return { bg: '#f1f5f9', color: '#475569', label: 'Pending' };
+      return { bg: '#f1f5f9', color: '#475569', label: 'Pending', icon: <AccessTimeIcon sx={{ fontSize: 16 }} /> };
     default:
-      return { bg: '#f1f5f9', color: '#475569', label: status || 'Pending' };
+      return { bg: '#f1f5f9', color: '#475569', label: status || 'Pending', icon: <AccessTimeIcon sx={{ fontSize: 16 }} /> };
   }
 };
 
@@ -77,6 +90,8 @@ const AppointmentManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [selected, setSelected] = useState([]);
 
   const [actionAnchor, setActionAnchor] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -85,6 +100,7 @@ const AppointmentManagement = () => {
   const [openGenerate, setOpenGenerate] = useState(false);
   const [openSend, setOpenSend] = useState(false);
   const [openAccept, setOpenAccept] = useState(false);
+  const [openView, setOpenView] = useState(false);
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState('');
@@ -102,7 +118,7 @@ const AppointmentManagement = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, rowsPerPage]);
 
   const fetchData = async () => {
     try {
@@ -110,12 +126,13 @@ const AppointmentManagement = () => {
       const token = localStorage.getItem("token");
 
       // Fetch all appointment letters
-      const lettersResponse = await axios.get(`${BASE_URL}/api/appointment-letter/all`, {
+      const lettersResponse = await axios.get(`${BASE_URL}/api/appointment-letter/all?page=${page + 1}&limit=${rowsPerPage}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (lettersResponse.data.success) {
         const letters = lettersResponse.data.data || [];
+        const total = lettersResponse.data.total || letters.length;
         
         // Transform the data to match the table structure
         const transformedData = letters.map(letter => {
@@ -127,24 +144,26 @@ const AppointmentManagement = () => {
             documentId: letter.documentId || letter._id,
             firstName: candidateInfo.firstName || '',
             lastName: candidateInfo.lastName || '',
-            fullName: candidateInfo.fullName || `${candidateInfo.firstName || ''} ${candidateInfo.lastName || ''}`.trim(),
+            fullName: candidateInfo.fullName || `${candidateInfo.firstName || ''} ${candidateInfo.lastName || ''}`.trim() || 'N/A',
             email: candidateInfo.email || '',
-            phone: '', // Phone number not available in the response
+            phone: candidateInfo.phone || '',
             candidateId: candidateInfo._id || candidateInfo.id || 'N/A',
             letterStatus: letter.status || 'pending',
             appointmentLetter: letter,
             fileUrl: letter.fileUrl,
             generatedAt: letter.generatedAt || letter.createdAt,
-            joiningDate: '', // Not available in response
-            offerDesignation: letter.offerId?.offerDetails?.designation || 'N/A',
+            joiningDate: letter.joiningDate || '',
+            offerDesignation: letter.offerDesignation || letter.offerId?.offerDetails?.designation || 'N/A',
             sentAt: letter.sentAt,
-            acceptedAt: letter.acceptedAt
+            acceptedAt: letter.acceptedAt,
+            offerId: letter.offerId?._id || letter.offerId
           };
         });
 
         console.log('Transformed data:', transformedData); // For debugging
         setDataList(transformedData);
         setFilteredList(transformedData);
+        setTotalCount(total);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -184,8 +203,8 @@ const AppointmentManagement = () => {
       let aValue, bValue;
       
       if (field === 'candidateName') {
-        aValue = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim();
-        bValue = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim();
+        aValue = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || '';
+        bValue = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim() || '';
       } else if (field === 'status') {
         aValue = a.letterStatus || '';
         bValue = b.letterStatus || '';
@@ -236,6 +255,28 @@ const AppointmentManagement = () => {
     setPage(0);
   };
 
+  /* SELECTION HANDLERS */
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelected(filteredList.map(item => item._id));
+    } else {
+      setSelected([]);
+    }
+  };
+
+  const handleSelect = (id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+    
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else {
+      newSelected = selected.filter(item => item !== id);
+    }
+    
+    setSelected(newSelected);
+  };
+
   /* PAGINATION */
   const paginated = filteredList.slice(
     page * rowsPerPage,
@@ -244,18 +285,29 @@ const AppointmentManagement = () => {
 
   /* ACTION MENU */
   const handleActionOpen = (e, item) => {
+    e.stopPropagation();
     setActionAnchor(e.currentTarget);
     setSelectedItem(item);
   };
 
   const handleActionClose = () => {
     setActionAnchor(null);
+    // Don't clear selectedItem immediately to avoid null reference issues
+    setTimeout(() => {
+      setSelectedItem(null);
+    }, 100);
   };
 
   /* REFRESH DATA */
   const handleRefresh = () => {
     fetchData();
     showNotification("Data refreshed successfully", "success");
+  };
+
+  /* BULK DELETE */
+  const handleBulkDelete = () => {
+    if (selected.length === 0) return;
+    showNotification(`Bulk delete for ${selected.length} items - API coming soon`, 'warning');
   };
 
   /* MODAL HANDLERS */
@@ -274,27 +326,34 @@ const AppointmentManagement = () => {
     handleActionClose();
   };
 
-  const handleGenerateClose = (success) => {
-    setOpenGenerate(false);
-    if (success) {
-      fetchData();
-      showNotification("Appointment letter generated successfully");
+  const handleViewOpen = () => {
+    if (selectedItem?.fileUrl) {
+      window.open(selectedItem.fileUrl, '_blank');
     }
-    setSelectedItem(null);
+    handleActionClose();
   };
 
-  const handleSendClose = (success) => {
+ const handleGenerateClose = (data) => {
+  setOpenGenerate(false);
+  if (data) {
+    fetchData(); // Refresh the data to show the newly generated letter
+    showNotification("Appointment letter generated successfully", "success");
+  }
+  setSelectedItem(null);
+};
+
+  const handleSendClose = (data) => {
     setOpenSend(false);
-    if (success) {
+    if (data) {
       fetchData();
       showNotification("Appointment letter sent successfully");
     }
     setSelectedItem(null);
   };
 
-  const handleAcceptClose = (success) => {
+  const handleAcceptClose = (data) => {
     setOpenAccept(false);
-    if (success) {
+    if (data) {
       fetchData();
       showNotification("Appointment letter accepted successfully");
     }
@@ -311,12 +370,16 @@ const AppointmentManagement = () => {
     });
   };
 
-  // Get display name
+  // Get display name with null check
   const getDisplayName = (item) => {
+    if (!item) return 'N/A';
     if (item.fullName) return item.fullName;
-    if (item.firstName || item.lastName) return `${item.firstName || ''} ${item.lastName || ''}`.trim();
+    if (item.firstName || item.lastName) return `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'N/A';
     return 'N/A';
   };
+
+  // Check if any items are selected
+  const hasSelected = selected.length > 0;
 
   return (
     <Box sx={{ p: 3, mt: -8}}>
@@ -338,7 +401,14 @@ const AppointmentManagement = () => {
       </Typography>
 
       {/* ACTION BAR */}
-      <Paper sx={{ p: 1.5, mb: 3 }}>
+      <Paper sx={{ 
+        p: 1.5, 
+        mb: 3, 
+        borderRadius: 2,
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0'
+      }}>
         <Stack direction="row" spacing={2} justifyContent="space-between" flexWrap="wrap">
           <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
             <TextField
@@ -349,18 +419,38 @@ const AppointmentManagement = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon />
+                    <SearchIcon sx={{ color: '#64748B' }} />
                   </InputAdornment>
-                )
+                ),
+                sx: { 
+                  height: 40,
+                  bgcolor: '#f8fafc',
+                  '& input': {
+                    padding: '8px 12px',
+                    fontSize: '0.875rem'
+                  }
+                }
               }}
               sx={{ width: 300 }}
             />
-
-            {/* <Button
+{/* 
+            <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               onClick={handleFilterClick}
               endIcon={statusFilter && <Chip label={statusFilter} size="small" sx={{ ml: 1 }} />}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                borderColor: '#e2e8f0',
+                color: '#475569',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
             >
               Filter
             </Button>
@@ -369,29 +459,86 @@ const AppointmentManagement = () => {
               variant="outlined"
               startIcon={<SortIcon />}
               onClick={() => handleSort('candidateName')}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                borderColor: '#e2e8f0',
+                color: '#475569',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
             >
               Sort Name {sortField === 'candidateName' && (sortOrder === "asc" ? "↑" : "↓")}
             </Button>
 
             <Tooltip title="Refresh">
-              <IconButton onClick={handleRefresh}>
+              <IconButton 
+                onClick={handleRefresh}
+                sx={{ 
+                  color: '#64748B',
+                  '&:hover': {
+                    bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                    color: PRIMARY_BLUE
+                  }
+                }}
+              >
                 <RefreshIcon />
               </IconButton>
-            </Tooltip>
+            </Tooltip> */}
 
             {(searchTerm || statusFilter) && (
-              <Button variant="text" onClick={handleResetFilter}>
+              <Button 
+                variant="text" 
+                onClick={handleResetFilter}
+                sx={{ 
+                  color: PRIMARY_BLUE,
+                  fontSize: '0.875rem',
+                  textTransform: 'none'
+                }}
+              >
                 Clear Filters
               </Button>
-            )}*/}
+            )}
           </Stack> 
 
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            {hasSelected && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }}
+              >
+                Delete ({selected.length})
+              </Button>
+            )}
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setOpenGenerate(true)}
-              sx={{ background: HEADER_GRADIENT }}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                background: HEADER_GRADIENT,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  opacity: 0.9,
+                  background: HEADER_GRADIENT,
+                }
+              }}
             >
               Generate Letter
             </Button>
@@ -404,30 +551,33 @@ const AppointmentManagement = () => {
         anchorEl={filterAnchorEl}
         open={Boolean(filterAnchorEl)}
         onClose={handleFilterClose}
+        PaperProps={{
+          sx: { borderRadius: 1.5, minWidth: 160 }
+        }}
       >
-        <MenuItem onClick={() => handleStatusFilter('')}>
+        <MenuItem onClick={() => handleStatusFilter('')} sx={{ py: 1 }}>
           <ListItemText>All Status</ListItemText>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => handleStatusFilter('pending')}>
+        <MenuItem onClick={() => handleStatusFilter('pending')} sx={{ py: 1 }}>
           <ListItemIcon>
-            <DescriptionIcon fontSize="small" sx={{ color: '#475569' }} />
+            <AccessTimeIcon fontSize="small" sx={{ color: '#475569' }} />
           </ListItemIcon>
           <ListItemText>Pending</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleStatusFilter('generated')}>
+        <MenuItem onClick={() => handleStatusFilter('generated')} sx={{ py: 1 }}>
           <ListItemIcon>
             <DescriptionIcon fontSize="small" sx={{ color: '#92400e' }} />
           </ListItemIcon>
           <ListItemText>Generated</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleStatusFilter('sent')}>
+        <MenuItem onClick={() => handleStatusFilter('sent')} sx={{ py: 1 }}>
           <ListItemIcon>
             <SendIcon fontSize="small" sx={{ color: '#1976d2' }} />
           </ListItemIcon>
           <ListItemText>Sent</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleStatusFilter('accepted')}>
+        <MenuItem onClick={() => handleStatusFilter('accepted')} sx={{ py: 1 }}>
           <ListItemIcon>
             <CheckCircleIcon fontSize="small" sx={{ color: '#2e7d32' }} />
           </ListItemIcon>
@@ -436,17 +586,55 @@ const AppointmentManagement = () => {
       </Menu>
 
       {/* TABLE */}
-      <Paper>
+      <Paper sx={{ 
+        width: '100%', 
+        borderRadius: 2, 
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0'
+      }}>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow sx={{ background: HEADER_GRADIENT }}>
-                <TableCell sx={{ color: "white" }}>Candidate</TableCell>
-                <TableCell sx={{ color: "white" }}>Document ID</TableCell>
-                <TableCell sx={{ color: "white" }}>Contact</TableCell>
-                <TableCell sx={{ color: "white" }}>Letter Status</TableCell>
-                <TableCell sx={{ color: "white" }}>Generated On</TableCell>
-                <TableCell sx={{ color: "white" }} align="center">
+                <TableCell padding="checkbox" sx={{ width: 60, color: TEXT_COLOR_HEADER }}>
+                  <Checkbox
+                    indeterminate={selected.length > 0 && selected.length < filteredList.length}
+                    checked={filteredList.length > 0 && selected.length === filteredList.length}
+                    onChange={handleSelectAll}
+                    sx={{
+                      color: TEXT_COLOR_HEADER,
+                      '&.Mui-checked': {
+                        color: TEXT_COLOR_HEADER,
+                      },
+                      '&.MuiCheckbox-indeterminate': {
+                        color: TEXT_COLOR_HEADER,
+                      }
+                    }}
+                  />
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2 }}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    Candidate
+                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2 }}>
+                  Document ID
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2 }}>
+                  Contact
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2 }}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    Letter Status
+                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2 }}>
+                  Generated On
+                </TableCell>
+                <TableCell sx={{ color: TEXT_COLOR_HEADER, fontWeight: 700, fontSize: '0.875rem', py: 2, width: 100 }} align="center">
                   Actions
                 </TableCell>
               </TableRow>
@@ -455,27 +643,60 @@ const AppointmentManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                    Loading...
+                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                    <CircularProgress size={40} />
+                    <Typography variant="body2" color="#64748B" sx={{ mt: 2 }}>
+                      Loading appointment letters...
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : paginated.length > 0 ? (
-                paginated.map((item) => {
+                paginated.map((item, index) => {
                   const statusStyle = getStatusColor(item.letterStatus);
                   const displayName = getDisplayName(item);
+                  const isSelected = selected.includes(item._id);
+                  const isOddRow = index % 2 === 0;
                   
                   return (
-                    <TableRow key={item._id} hover>
+                    <TableRow 
+                      key={item._id} 
+                      hover
+                      selected={isSelected}
+                      sx={{ 
+                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        '&:hover': {
+                          bgcolor: HOVER_COLOR
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                          }
+                        }
+                      }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => handleSelect(item._id)}
+                          sx={{
+                            color: PRIMARY_BLUE,
+                            '&.Mui-checked': {
+                              color: PRIMARY_BLUE,
+                            },
+                          }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: PRIMARY_BLUE }}>
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: PRIMARY_BLUE, fontSize: '0.875rem' }}>
                             {displayName.charAt(0)}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight={500}>
                               {displayName}
                             </Typography>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="#64748B">
                               ID: {item.candidateId}
                             </Typography>
                           </Box>
@@ -485,6 +706,9 @@ const AppointmentManagement = () => {
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>
                           {item.documentId}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          {item.offerDesignation}
                         </Typography>
                       </TableCell>
 
@@ -511,13 +735,17 @@ const AppointmentManagement = () => {
 
                       <TableCell>
                         <Chip
+                          icon={statusStyle.icon}
                           label={statusStyle.label}
                           size="small"
                           sx={{
                             bgcolor: statusStyle.bg,
                             color: statusStyle.color,
                             fontWeight: 500,
-                            minWidth: 80
+                            minWidth: 90,
+                            '& .MuiChip-icon': {
+                              color: statusStyle.color
+                            }
                           }}
                         />
                       </TableCell>
@@ -539,8 +767,18 @@ const AppointmentManagement = () => {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                    No appointment letters found
+                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <AssignmentIcon sx={{ fontSize: 48, color: '#94A3B8', mb: 2 }} />
+                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                        {searchTerm || statusFilter ? 'No appointment letters found' : 'No appointment letters yet'}
+                      </Typography>
+                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                        {searchTerm || statusFilter 
+                          ? 'Try adjusting your search or filters' 
+                          : 'Click "Generate Letter" to create a new appointment letter'}
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               )}
@@ -550,7 +788,7 @@ const AppointmentManagement = () => {
 
         <TablePagination
           component="div"
-          count={filteredList.length}
+          count={searchTerm || statusFilter ? filteredList.length : totalCount}
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={(e, newPage) => setPage(newPage)}
@@ -558,55 +796,82 @@ const AppointmentManagement = () => {
             setRowsPerPage(parseInt(e.target.value, 10))
           }
           rowsPerPageOptions={[5, 10, 25, 50]}
+          sx={{
+            borderTop: '1px solid #e2e8f0',
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontSize: '0.875rem',
+              color: '#64748B'
+            },
+            '& .MuiTablePagination-actions button': {
+              color: PRIMARY_BLUE,
+            }
+          }}
         />
       </Paper>
 
       {/* ACTION MENU */}
-      <Menu anchorEl={actionAnchor} open={Boolean(actionAnchor)} onClose={handleActionClose}>
-        {/* Generate Letter - Show if status is pending */}
-        {selectedItem?.letterStatus === 'pending' && (
-          <MenuItem onClick={handleGenerateOpen}>
-            <ListItemIcon>
-              <DescriptionIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
-            </ListItemIcon>
-            <ListItemText>Generate Letter</ListItemText>
-          </MenuItem>
+      <Menu 
+        anchorEl={actionAnchor} 
+        open={Boolean(actionAnchor)} 
+        onClose={handleActionClose}
+        PaperProps={{
+          sx: { borderRadius: 1.5, minWidth: 180 }
+        }}
+      >
+        {selectedItem && (
+          <>
+            {/* View/Download - Show if file exists */}
+            {selectedItem?.fileUrl && (
+              <MenuItem onClick={handleViewOpen} sx={{ py: 1 }}>
+                <ListItemIcon>
+                  <VisibilityIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
+                </ListItemIcon>
+                <ListItemText>View/Download</ListItemText>
+              </MenuItem>
+            )}
+
+            {/* Generate Letter - Show if status is pending */}
+            {selectedItem?.letterStatus === 'pending' && (
+              <MenuItem onClick={handleGenerateOpen} sx={{ py: 1 }}>
+                <ListItemIcon>
+                  <DescriptionIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
+                </ListItemIcon>
+                <ListItemText>Generate Letter</ListItemText>
+              </MenuItem>
+            )}
+
+            {/* Send Letter - Show if status is generated */}
+            {/* {selectedItem?.letterStatus === 'generated' && (
+              <MenuItem onClick={handleSendOpen} sx={{ py: 1 }}>
+                <ListItemIcon>
+                  <SendIcon fontSize="small" sx={{ color: '#1976d2' }} />
+                </ListItemIcon>
+                <ListItemText>Send Letter</ListItemText>
+              </MenuItem>
+            )} */}
+
+            {/* Accept Letter - Show if status is sent */}
+            {selectedItem?.letterStatus === 'sent' && (
+              <MenuItem onClick={handleAcceptOpen} sx={{ py: 1 }}>
+                <ListItemIcon>
+                  <CheckCircleIcon fontSize="small" sx={{ color: '#2e7d32' }} />
+                </ListItemIcon>
+                <ListItemText>Accept Letter</ListItemText>
+              </MenuItem>
+            )}
+
+            {/* If no actions available */}
+            {selectedItem?.letterStatus === 'accepted' && (
+              <MenuItem disabled sx={{ py: 1 }}>
+                <ListItemText secondary="Letter already accepted" />
+              </MenuItem>
+            )}
+          </>
         )}
 
-        {/* Send Letter - Show if status is generated */}
-        {selectedItem?.letterStatus === 'generated' && (
-          <MenuItem onClick={handleSendOpen}>
-            <ListItemIcon>
-              <SendIcon fontSize="small" sx={{ color: '#1976d2' }} />
-            </ListItemIcon>
-            <ListItemText>Send Letter</ListItemText>
-          </MenuItem>
-        )}
-
-        {/* Accept Letter - Show if status is sent */}
-        {selectedItem?.letterStatus === 'sent' && (
-          <MenuItem onClick={handleAcceptOpen}>
-            <ListItemIcon>
-              <CheckCircleIcon fontSize="small" sx={{ color: '#2e7d32' }} />
-            </ListItemIcon>
-            <ListItemText>Accept Letter</ListItemText>
-          </MenuItem>
-        )}
-
-        {/* Download option for all letters with fileUrl */}
-        {selectedItem?.fileUrl && (
-          <MenuItem onClick={() => window.open(selectedItem.fileUrl, '_blank')}>
-            <ListItemIcon>
-              <DownloadIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} />
-            </ListItemIcon>
-            <ListItemText>Download Letter</ListItemText>
-          </MenuItem>
-        )}
-
-        {/* If no actions available */}
-        {selectedItem?.letterStatus === 'accepted' && (
-          <MenuItem disabled>
-            <ListItemText secondary="Letter already accepted" />
+        {!selectedItem && (
+          <MenuItem disabled sx={{ py: 1 }}>
+            <ListItemText secondary="No actions available" />
           </MenuItem>
         )}
       </Menu>
@@ -614,38 +879,35 @@ const AppointmentManagement = () => {
       {/* MODALS */}
       <GenerateAppointmentLetter
         open={openGenerate}
-        onClose={handleGenerateClose}
+        onClose={() => handleGenerateClose()}
         onSubmit={(data) => {
           if (data) {
-            fetchData();
-            showNotification("Appointment letter generated successfully");
+            handleGenerateClose(data);
           }
         }}
       />
 
-      <SendAppointmentLetter
-        open={openSend}
-        onClose={handleSendClose}
-        onSubmit={(data) => {
-          if (data) {
-            fetchData();
-            showNotification("Appointment letter sent successfully");
-          }
-        }}
-        documentData={selectedItem?.appointmentLetter}
-        documentId={selectedItem?.documentId}
-      />
+      
+<SendAppointmentLetter
+  open={openSend}
+  onClose={() => handleSendClose()}
+  onSend={(data) => {
+    if (data) {
+      handleSendClose(data);
+      showNotification('Appointment letter sent successfully', 'success');
+    }
+  }}
+  selectedItem={selectedItem} // Pass the entire selected item
+/>
 
       <AcceptAppointmentLetter
         open={openAccept}
-        onClose={handleAcceptClose}
-        onSubmit={(data) => {
+        onClose={() => handleAcceptClose()}
+        onAccept={(data) => {
           if (data) {
-            fetchData();
-            showNotification("Appointment letter accepted successfully");
+            handleAcceptClose(data);
           }
         }}
-        documentData={selectedItem?.appointmentLetter}
         documentId={selectedItem?.documentId}
       />
 
@@ -656,7 +918,15 @@ const AppointmentManagement = () => {
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
-        <Alert severity={snackbar.severity} variant="filled">
+        <Alert 
+          severity={snackbar.severity} 
+          variant="filled"
+          sx={{ 
+            width: '100%',
+            borderRadius: 1.5,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>

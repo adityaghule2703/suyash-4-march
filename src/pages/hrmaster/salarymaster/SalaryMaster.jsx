@@ -1265,7 +1265,7 @@ const SalaryMaster = () => {
         </Box>
         
         {/* Statistics Cards */}
-        <Stack direction="row" spacing={2}>
+        {/* <Stack direction="row" spacing={2}>
           <Paper sx={{ p: 1.5, px: 2, bgcolor: '#fef3c7', borderRadius: 2 }}>
             <Typography variant="caption" color="#92400e">Pending</Typography>
             <Typography variant="h6" color="#92400e" fontWeight={600}>{statistics.totalPending}</Typography>
@@ -1282,7 +1282,7 @@ const SalaryMaster = () => {
             <Typography variant="caption" color="#fff">Total Amount</Typography>
             <Typography variant="h6" color="#fff" fontWeight={600}>{formatCurrency(statistics.totalAmount)}</Typography>
           </Paper>
-        </Stack>
+        </Stack> */}
       </Box>
 
       {/* ===== ACTION BAR ===== */}
@@ -1312,7 +1312,7 @@ const SalaryMaster = () => {
               }}
             />
 
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               onClick={handleFilterOpen}
@@ -1335,7 +1335,7 @@ const SalaryMaster = () => {
                   sx={{ ml: 1 }}
                 />
               )}
-            </Button>
+            </Button> */}
 
             {/* <IconButton onClick={fetchSalaries} size="small" sx={{ color: '#64748B' }}>
               <RefreshIcon />

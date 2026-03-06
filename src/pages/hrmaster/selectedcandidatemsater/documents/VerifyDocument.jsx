@@ -428,7 +428,7 @@ const VerifyDocument = ({ open, onClose, onComplete, document, candidate }) => {
               />
             )}
 
-            {verificationStatus === 'rejected' && (
+            {/* {verificationStatus === 'rejected' && (
               <Box sx={{
                 p: 1.5,
                 bgcolor: '#FFEBEE',
@@ -444,7 +444,7 @@ const VerifyDocument = ({ open, onClose, onComplete, document, candidate }) => {
                   Rejecting this document will notify the candidate and may require them to re-upload.
                 </Typography>
               </Box>
-            )}
+            )} */}
 
             {/* Show API error details if available */}
             {apiErrorDetails && (

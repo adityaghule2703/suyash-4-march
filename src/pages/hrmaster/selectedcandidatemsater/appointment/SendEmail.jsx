@@ -10,41 +10,27 @@ import {
   Grid,
   Box,
   Paper,
+  TextField,
   Chip,
   Alert,
   CircularProgress,
   IconButton,
   Avatar,
-  Stepper,
-  Step,
-  StepLabel,
-  TextField,
   Divider,
-  Card,
-  CardContent,
-  CardActions,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  FormHelperText,
+  InputAdornment
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
-  Work as WorkIcon,
-  Description as DescriptionIcon,
-  CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
-  Assignment as AssignmentIcon,
-  CalendarToday as CalendarIcon,
   Send as SendIcon,
-  Download as DownloadIcon,
-  Visibility as VisibilityIcon,
-  Schedule as ScheduleIcon,
-  MailOutline as MailIcon
+  Email as EmailIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Info as InfoIcon,
+  Person as PersonIcon,
+  Description as DescriptionIcon,
+  History as HistoryIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
@@ -52,662 +38,626 @@ import BASE_URL from '../../../../config/Config';
 // Color constants
 const PRIMARY_BLUE = '#00B4D8';
 const SUCCESS_COLOR = '#2E7D32';
-const INFO_COLOR = '#0288D1';
-const WARNING_COLOR = '#ED6C02';
+const ERROR_COLOR = '#d32f2f';
+const WARNING_COLOR = '#ed6c02';
 
-const SendAppointmentLetter = ({ open, onClose, onSubmit, documentData, documentId }) => {
-  const [step, setStep] = useState(0);
+const SendAppointmentLetterEmail = ({ 
+  open, 
+  onClose, 
+  documentId, 
+  candidateEmail: propCandidateEmail,
+  candidateName: propCandidateName,
+  onSend 
+}) => {
   const [sending, setSending] = useState(false);
-  const [fetchingDetails, setFetchingDetails] = useState(false);
-  
-  // Data states
-  const [documentDetails, setDocumentDetails] = useState(documentData || null);
-  const [sentDetails, setSentDetails] = useState(null);
-  const [emailAddress, setEmailAddress] = useState('');
-  const [canEditEmail, setCanEditEmail] = useState(true);
-  
-  // Error/Success state
+  const [fetching, setFetching] = useState(false);
+  const [email, setEmail] = useState(propCandidateEmail || '');
+  const [candidateName, setCandidateName] = useState(propCandidateName || '');
+  const [emailError, setEmailError] = useState('');
+  const [sendHistory, setSendHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [sendResult, setSendResult] = useState(null);
+  const [documentInfo, setDocumentInfo] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
-  const steps = ['Review Letter', 'Confirm & Send', 'Sent Confirmation'];
+  // Validate documentId
+  const isValidDocumentId = (id) => {
+    return id && id !== 'undefined' && id !== 'null' && id.trim() !== '';
+  };
 
-  // Fetch document details on open if not provided
-  useEffect(() => {
-    if (open && !documentData && documentId) {
-      fetchDocumentDetails();
-    } else if (documentData) {
-      setDocumentDetails(documentData);
-      // Pre-fill email from candidate data if available
-      if (documentData.candidateEmail) {
-        setEmailAddress(documentData.candidateEmail);
-      }
-    }
-  }, [open, documentData, documentId]);
-
-  // Fetch document details from API
+  // Fetch document details
   const fetchDocumentDetails = async () => {
-    setFetchingDetails(true);
+    if (!isValidDocumentId(documentId)) {
+      setError('Invalid document ID. Please select a valid appointment letter.');
+      return;
+    }
+
+    setFetching(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/documents/${documentId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      
+      const response = await axios.get(
+        `${BASE_URL}/api/appointment-letter/${documentId}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
 
       if (response.data.success) {
-        setDocumentDetails(response.data.data);
-        // Pre-fill email from candidate data if available
-        if (response.data.data.candidateEmail) {
-          setEmailAddress(response.data.data.candidateEmail);
+        const data = response.data.data;
+        setDocumentInfo(data);
+        
+        // Set email from document if available
+        if (data.candidateEmail && !propCandidateEmail) {
+          setEmail(data.candidateEmail);
         }
-      } else {
-        setError('Failed to fetch document details');
+        
+        // Set candidate name from document
+        if (data.candidateName && !propCandidateName) {
+          setCandidateName(data.candidateName);
+        }
+
+        // Validate document status
+        if (data.status === 'accepted') {
+          setValidationErrors(prev => ({
+            ...prev,
+            status: 'This letter has already been accepted and cannot be sent'
+          }));
+        } else if (data.status === 'sent') {
+          setValidationErrors(prev => ({
+            ...prev,
+            status: 'This letter has already been sent. Do you want to send again?'
+          }));
+        }
+        
+        // Fetch send history
+        fetchSendHistory();
       }
     } catch (err) {
       console.error('Error fetching document details:', err);
-      setError(err.response?.data?.message || 'Failed to fetch document details');
+      
+      if (err.response?.status === 404) {
+        setError('Appointment letter not found. Please check the document ID.');
+      } else if (err.response?.status === 400 && err.response?.data?.message?.includes('Cast to ObjectId failed')) {
+        setError('Invalid document ID format. Please select a valid appointment letter.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to fetch document details');
+      }
     } finally {
-      setFetchingDetails(false);
+      setFetching(false);
     }
   };
 
-  // Handle next step
-  const handleNext = () => {
-    if (step === 1 && !emailAddress) {
-      setError('Please enter an email address');
-      return;
+  // Fetch send history for this document
+  const fetchSendHistory = async () => {
+    if (!isValidDocumentId(documentId)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/appointment-letter/history/${documentId}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setSendHistory(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching send history:', err);
+      // Don't show error for history fetch failure
     }
-    if (step === 1 && !isValidEmail(emailAddress)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    setError('');
-    setStep(prev => prev + 1);
   };
 
-  // Handle back step
-  const handleBack = () => {
-    setStep(prev => prev - 1);
-    setError('');
-  };
+  // Load data when dialog opens
+  useEffect(() => {
+    if (open) {
+      // Validate documentId first
+      if (!isValidDocumentId(documentId)) {
+        setError('Invalid document ID. Please select a valid appointment letter from the list.');
+        setFetching(false);
+      } else {
+        setError('');
+        if (!propCandidateEmail) {
+          fetchDocumentDetails();
+        } else {
+          setEmail(propCandidateEmail);
+          setCandidateName(propCandidateName || '');
+          fetchSendHistory();
+        }
+      }
+    }
 
-  // Handle reset
-  const handleReset = () => {
-    setStep(0);
-    setSentDetails(null);
+    // Reset state when dialog closes
+    if (!open) {
+      resetState();
+    }
+  }, [open, documentId, propCandidateEmail, propCandidateName]);
+
+  // Reset state
+  const resetState = () => {
+    setEmail(propCandidateEmail || '');
+    setCandidateName(propCandidateName || '');
+    setEmailError('');
     setError('');
     setSuccess('');
+    setSendResult(null);
+    setShowHistory(false);
+    setDocumentInfo(null);
+    setValidationErrors({});
   };
 
   // Handle close
   const handleClose = () => {
-    handleReset();
-    onClose();
+    if (!sending) {
+      resetState();
+      onClose();
+    }
   };
 
-  // Validate email format
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  // Validate email
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
   };
 
-  // Handle send appointment letter
-  const handleSendLetter = async () => {
-    if (!emailAddress) {
-      setError('Please enter an email address');
+  // Handle email change
+  const handleEmailChange = (e) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    if (newEmail && !validateEmail(newEmail)) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  // Validate before sending
+  const validateBeforeSend = () => {
+    const errors = {};
+
+    if (!isValidDocumentId(documentId)) {
+      errors.documentId = 'Invalid document ID';
+    }
+
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (documentInfo?.status === 'accepted') {
+      errors.status = 'Cannot send an already accepted letter';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle send email
+  const handleSendEmail = async () => {
+    // Validate before sending
+    if (!validateBeforeSend()) {
       return;
     }
-    if (!isValidEmail(emailAddress)) {
-      setError('Please enter a valid email address');
+
+    // Double-check documentId
+    if (!isValidDocumentId(documentId)) {
+      setError('Cannot send email: Invalid document ID');
       return;
     }
 
     setSending(true);
     setError('');
-    
+    setSuccess('');
+    setSendResult(null);
+
     try {
       const token = localStorage.getItem('token');
+      
+      console.log('Sending email with:', {
+        documentId,
+        email
+      });
+
       const response = await axios.post(
         `${BASE_URL}/api/appointment-letter/send/${documentId}`,
-        {}, // Empty body as per API spec
+        { email },
         {
-          headers: { 
+          headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }
       );
 
+      console.log('Send email response:', response.data);
+
       if (response.data.success) {
-        setSentDetails(response.data.data);
+        setSendResult(response.data.data);
         setSuccess(response.data.message || 'Appointment letter sent successfully!');
-        setCanEditEmail(false);
         
-        if (onSubmit) {
-          onSubmit(response.data.data);
+        // Refresh send history
+        fetchSendHistory();
+        
+        if (onSend) {
+          onSend(response.data.data);
         }
-        
-        // Move to confirmation step
-        setStep(2);
+
+        // Auto close after 3 seconds on success
+        setTimeout(() => {
+          if (!sending) {
+            handleClose();
+          }
+        }, 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to send email');
       }
     } catch (err) {
-      console.error('Error sending appointment letter:', err);
-      setError(err.response?.data?.message || 'Failed to send appointment letter');
+      console.error('Error sending email:', err);
+      
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setError('Appointment letter not found. It may have been deleted.');
+      } else if (err.response?.status === 400) {
+        if (err.response?.data?.message?.includes('Cast to ObjectId failed')) {
+          setError('Invalid document ID format. Please select a valid appointment letter.');
+        } else {
+          setError(err.response?.data?.message || 'Invalid request');
+        }
+      } else if (err.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to send email');
+      }
     } finally {
       setSending(false);
-    }
-  };
-
-  // Handle download letter
-  const handleDownloadLetter = () => {
-    if (documentDetails?.fileUrl) {
-      window.open(`${BASE_URL}${documentDetails.fileUrl}`, '_blank');
-    }
-  };
-
-  // Handle view letter
-  const handleViewLetter = () => {
-    if (documentDetails?.fileUrl) {
-      window.open(`${BASE_URL}${documentDetails.fileUrl}`, '_blank');
     }
   };
 
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (!bytes) return 'N/A';
-    const kb = bytes / 1024;
-    if (kb < 1024) {
-      return `${kb.toFixed(2)} KB`;
-    }
-    const mb = kb / 1024;
-    return `${mb.toFixed(2)} MB`;
-  };
-
-  // Render step content
-  const renderStepContent = () => {
-    switch (step) {
-      case 0:
-        return (
-          <Stack spacing={3}>
-            {fetchingDetails ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={40} />
-              </Box>
-            ) : documentDetails ? (
-              <>
-                {/* Document Header Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    📄 Appointment Letter Details
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {documentDetails.documentId || documentDetails._id || 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Status</Typography>
-                      <Box>
-                        <Chip
-                          label={documentDetails.status || 'generated'}
-                          size="small"
-                          sx={{
-                            bgcolor: documentDetails.status === 'sent' ? '#d1fae5' : '#fef3c7',
-                            color: documentDetails.status === 'sent' ? '#065f46' : '#92400e',
-                            fontWeight: 500,
-                            mt: 0.5
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-
-                {/* Candidate Info Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    👤 Candidate Information
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Avatar sx={{ width: 48, height: 48, bgcolor: PRIMARY_BLUE }}>
-                      {documentDetails.candidateName?.charAt(0) || 'C'}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6">
-                        {documentDetails.candidateName || 'N/A'}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {documentDetails.candidateEmail || 'N/A'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Grid container spacing={2}>
-                    {documentDetails.candidateId && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Candidate ID</Typography>
-                        <Typography variant="body2">
-                          {typeof documentDetails.candidateId === 'object' 
-                            ? documentDetails.candidateId?.candidateId || documentDetails.candidateId?._id || 'N/A'
-                            : documentDetails.candidateId}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.offerId && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Offer ID</Typography>
-                        <Typography variant="body2">
-                          {typeof documentDetails.offerId === 'object'
-                            ? documentDetails.offerId?.offerId || documentDetails.offerId?._id || 'N/A'
-                            : documentDetails.offerId}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.offerDesignation && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Designation</Typography>
-                        <Typography variant="body2">{documentDetails.offerDesignation}</Typography>
-                      </Grid>
-                    )}
-                    {documentDetails.joiningDate && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="caption" color="textSecondary">Joining Date</Typography>
-                        <Typography variant="body2">
-                          {new Date(documentDetails.joiningDate).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-
-                {/* Document Details Card */}
-                <Paper sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                    📎 Document Information
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">File Name</Typography>
-                      <Typography variant="body2">{documentDetails.fileName || 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">File Size</Typography>
-                      <Typography variant="body2">{formatFileSize(documentDetails.fileSize)}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Generated At</Typography>
-                      <Typography variant="body2">{formatDate(documentDetails.generatedAt || documentDetails.createdAt)}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Document Type</Typography>
-                      <Typography variant="body2">Appointment Letter</Typography>
-                    </Grid>
-                  </Grid>
-
-                  <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<VisibilityIcon />}
-                      onClick={handleViewLetter}
-                      size="small"
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Preview
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownloadLetter}
-                      size="small"
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Download
-                    </Button>
-                  </Box>
-                </Paper>
-
-                {/* Next Steps */}
-                {documentDetails.nextSteps && documentDetails.nextSteps.length > 0 && (
-                  <Paper sx={{ p: 3, bgcolor: '#F0F7FF', border: '1px solid #90CAF9' }}>
-                    <Typography variant="subtitle2" gutterBottom fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <ScheduleIcon fontSize="small" color="primary" />
-                      Next Steps
-                    </Typography>
-                    <List dense>
-                      {documentDetails.nextSteps.map((step, index) => (
-                        <ListItem key={index}>
-                          <ListItemIcon sx={{ minWidth: 30 }}>
-                            <CheckCircleIcon color="success" fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText primary={step} />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                )}
-              </>
-            ) : (
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                No document details found. Please select an appointment letter to send.
-              </Alert>
-            )}
-          </Stack>
-        );
-
-      case 1:
-        return (
-          <Stack spacing={3}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                ✉️ Send Appointment Letter
-              </Typography>
-
-              {/* Summary Card */}
-              <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Document Summary
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {documentDetails?.documentId || documentDetails?._id || 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Candidate</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {documentDetails?.candidateName || 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">File Name</Typography>
-                    <Typography variant="body2">{documentDetails?.fileName || 'N/A'}</Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-
-              {/* Email Input */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Recipient Email Address
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Enter candidate's email address"
-                  value={emailAddress}
-                  onChange={(e) => setEmailAddress(e.target.value)}
-                  disabled={!canEditEmail || sending}
-                  error={emailAddress && !isValidEmail(emailAddress)}
-                  helperText={emailAddress && !isValidEmail(emailAddress) ? 'Invalid email format' : ''}
-                  InputProps={{
-                    startAdornment: (
-                      <EmailIcon sx={{ mr: 1, color: '#64748B', fontSize: 20 }} />
-                    ),
-                  }}
-                  sx={{ mt: 1 }}
-                />
-                <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                  The appointment letter will be sent to this email address
-                </Typography>
-              </Box>
-
-              {/* Info Alert */}
-              <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
-                <Typography variant="body2">
-                  Please verify the email address before sending. This action cannot be undone.
-                </Typography>
-              </Alert>
-            </Paper>
-          </Stack>
-        );
-
-      case 2:
-        return (
-          <Stack spacing={3}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                ✅ Sent Confirmation
-              </Typography>
-
-              {sentDetails ? (
-                <Card sx={{ mb: 3, border: '1px solid', borderColor: 'success.main' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Avatar sx={{ bgcolor: SUCCESS_COLOR }}>
-                        <CheckCircleIcon />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h6" color="success.main">
-                          Letter Sent Successfully!
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Appointment letter has been sent to the candidate
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="textSecondary">Document ID</Typography>
-                        <Typography variant="body2">{sentDetails.documentId}</Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="textSecondary">Sent To</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <MailIcon fontSize="small" color="primary" />
-                          <Typography variant="body2">{sentDetails.sentTo}</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="textSecondary">Sent At</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <ScheduleIcon fontSize="small" color="primary" />
-                          <Typography variant="body2">{formatDate(sentDetails.sentAt)}</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="textSecondary">Status</Typography>
-                        <Chip
-                          label={sentDetails.status || 'sent'}
-                          size="small"
-                          color="success"
-                          sx={{ height: 20, fontSize: '11px' }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                  <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownloadLetter}
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Download Copy
-                    </Button>
-                  </CardActions>
-                </Card>
-              ) : (
-                <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    No sent information available. The letter may not have been sent yet.
-                  </Typography>
-                </Alert>
-              )}
-
-              {/* Success Message */}
-              {success && !sentDetails && (
-                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-                  {success}
-                </Alert>
-              )}
-            </Paper>
-          </Stack>
-        );
-
-      default:
-        return null;
+    try {
+      return new Date(dateString).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Invalid Date';
     }
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2, maxHeight: '90vh' }
+        sx: { borderRadius: 2 }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: 1, 
-        borderColor: '#E0E0E0', 
+      <DialogTitle sx={{
+        borderBottom: 1,
+        borderColor: '#E0E0E0',
         bgcolor: '#F8FAFC',
         px: 3,
         py: 2,
-        position: 'sticky',
-        top: 0,
-        zIndex: 2
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h6" fontWeight={600}>
-              Send Appointment Letter
-            </Typography>
-            <Typography variant="caption" color="textSecondary">
-              Email appointment letter to candidate
-            </Typography>
-          </Box>
-          <IconButton onClick={handleClose} size="small">
-            <CloseIcon />
-          </IconButton>
+        <Box>
+          <Typography variant="h6" fontWeight={600}>
+            Send Appointment Letter
+          </Typography>
+          <Typography variant="caption" color="textSecondary">
+            Email appointment letter to candidate
+          </Typography>
         </Box>
+        <IconButton onClick={handleClose} size="small" disabled={sending}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3, px: 3, overflowY: 'auto' }}>
-        {/* Error/Success Messages */}
-        {error && (
-          <Alert severity="error" onClose={() => setError('')} sx={{ mb: 3, borderRadius: 2 }}>
+      <DialogContent sx={{ p: 3 }}>
+        {/* Document ID Error */}
+        {!isValidDocumentId(documentId) && !fetching && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            icon={<ErrorIcon />}
+          >
+            <Typography variant="subtitle2" gutterBottom>
+              Invalid Document ID
+            </Typography>
+            <Typography variant="body2">
+              Please select a valid appointment letter from the list before sending.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Loading State */}
+        {fetching && (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <CircularProgress size={40} />
+            <Typography variant="body2" sx={{ mt: 2 }}>
+              Fetching document details...
+            </Typography>
+          </Box>
+        )}
+
+        {/* Error Message */}
+        {error && !fetching && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            onClose={() => setError('')}
+            icon={<ErrorIcon />}
+          >
             {error}
           </Alert>
         )}
-        {success && !sentDetails && (
-          <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 3, borderRadius: 2 }}>
+
+        {/* Success Message */}
+        {success && !fetching && (
+          <Alert 
+            severity="success" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            onClose={() => setSuccess('')}
+            icon={<CheckCircleIcon />}
+          >
             {success}
           </Alert>
         )}
 
-        {/* Stepper */}
-        <Stepper activeStep={step} sx={{ mb: 4, mt: 2 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+        {/* Validation Warnings */}
+        {Object.keys(validationErrors).length > 0 && !fetching && (
+          <Alert 
+            severity="warning" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            icon={<WarningIcon />}
+          >
+            <Typography variant="subtitle2" gutterBottom>
+              Please check the following:
+            </Typography>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {Object.values(validationErrors).map((err, idx) => (
+                <li key={idx}>
+                  <Typography variant="body2">{err}</Typography>
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
 
-        {/* Step Content */}
-        <Box sx={{ minHeight: 400 }}>
-          {renderStepContent()}
-        </Box>
+        {/* Send Result */}
+        {sendResult && !fetching && (
+          <Paper sx={{ p: 2, mb: 3, bgcolor: '#E8F5E9', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: SUCCESS_COLOR }}>
+                <CheckCircleIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Email Sent Successfully
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  To: {sendResult.sentTo}
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Sent at: {formatDate(sendResult.sentAt)}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        )}
+
+        {/* Send History Toggle */}
+        {sendHistory.length > 0 && !fetching && (
+          <Box sx={{ mb: 3 }}>
+            <Button
+              size="small"
+              startIcon={<HistoryIcon />}
+              onClick={() => setShowHistory(!showHistory)}
+              sx={{ color: PRIMARY_BLUE }}
+            >
+              {showHistory ? 'Hide' : 'Show'} Send History ({sendHistory.length})
+            </Button>
+
+            {showHistory && (
+              <Paper sx={{ mt: 2, p: 2, bgcolor: '#F5F5F5', borderRadius: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Previous Sends
+                </Typography>
+                <Stack spacing={1.5}>
+                  {sendHistory.map((item, index) => (
+                    <Box key={index} sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'white', 
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: '#E0E0E0'
+                    }}>
+                      <Grid container spacing={1}>
+                        <Grid item xs={12}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <EmailIcon fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {item.sentTo}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="textSecondary">
+                            {formatDate(item.sentAt)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Chip
+                            label={item.status}
+                            size="small"
+                            color={item.status === 'sent' ? 'success' : 'default'}
+                            sx={{ height: 20, fontSize: '10px' }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+          </Box>
+        )}
+
+        {/* Candidate Info Card */}
+        {candidateName && !fetching && (
+          <Paper sx={{ p: 2, mb: 3, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: PRIMARY_BLUE }}>
+                <PersonIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {candidateName}
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Document ID: {documentId}
+                </Typography>
+                {documentInfo?.status && (
+                  <Chip
+                    label={`Status: ${documentInfo.status}`}
+                    size="small"
+                    sx={{ 
+                      mt: 0.5,
+                      height: 20, 
+                      fontSize: '10px',
+                      bgcolor: documentInfo.status === 'accepted' ? '#d1fae5' : 
+                               documentInfo.status === 'sent' ? '#e3f2fd' : '#f1f5f9',
+                      color: documentInfo.status === 'accepted' ? '#065f46' :
+                             documentInfo.status === 'sent' ? '#1976d2' : '#475569'
+                    }}
+                  />
+                )}
+              </Box>
+            </Box>
+          </Paper>
+        )}
+
+        {/* Email Form */}
+        {!fetching && isValidDocumentId(documentId) && (
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom color={PRIMARY_BLUE}>
+              <EmailIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Email Details
+            </Typography>
+
+            <Stack spacing={3} sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                label="Candidate Email"
+                value={email}
+                onChange={handleEmailChange}
+                error={!!emailError || !!validationErrors.email}
+                helperText={emailError || validationErrors.email}
+                disabled={sending || fetching}
+                placeholder="Enter candidate email address"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailIcon sx={{ color: 'action.active' }} />
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
+                <Typography variant="body2">
+                  The appointment letter will be sent as a PDF attachment to the candidate's email address.
+                </Typography>
+              </Alert>
+
+              <Box sx={{ 
+                p: 2, 
+                bgcolor: '#F5F5F5', 
+                borderRadius: 2,
+                border: '1px dashed',
+                borderColor: '#BDBDBD'
+              }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Email Preview:
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  <strong>Subject:</strong> Appointment Letter from Suyash Enterprises
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  Dear {candidateName || 'Candidate'},
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  Please find attached your appointment letter from Suyash Enterprises. Kindly review the document and follow the instructions to accept your offer.
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  Regards,<br />
+                  HR Department<br />
+                  Suyash Enterprises
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        )}
       </DialogContent>
 
-      <DialogActions sx={{ 
-        px: 3, 
-        py: 2, 
-        borderTop: 1, 
-        borderColor: '#E0E0E0', 
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: 1,
+        borderColor: '#E0E0E0',
         bgcolor: '#F8FAFC',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 2
+        gap: 1
       }}>
-        <Button onClick={handleClose}>
+        <Button
+          onClick={handleClose}
+          disabled={sending}
+        >
           Cancel
         </Button>
-        <Box>
-          <Button
-            disabled={step === 0}
-            onClick={handleBack}
-            sx={{ mr: 1 }}
-          >
-            Back
-          </Button>
-          {step === steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleClose}
-              color="success"
-              startIcon={<CheckCircleIcon />}
-              sx={{ minWidth: 150 }}
-            >
-              Done
-            </Button>
-          ) : step === 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleSendLetter}
-              disabled={sending || !emailAddress || !isValidEmail(emailAddress)}
-              startIcon={sending ? <CircularProgress size={20} /> : <SendIcon />}
-              sx={{
-                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                minWidth: 150,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
-                }
-              }}
-            >
-              {sending ? 'Sending...' : 'Send Letter'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={!documentDetails}
-              sx={{
-                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
-                }
-              }}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
+        <Button
+          variant="contained"
+          onClick={handleSendEmail}
+          disabled={
+            sending || 
+            fetching || 
+            !isValidDocumentId(documentId) || 
+            !email || 
+            !!emailError ||
+            documentInfo?.status === 'accepted'
+          }
+          startIcon={sending ? <CircularProgress size={20} /> : <SendIcon />}
+          sx={{
+            background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+            },
+            '&.Mui-disabled': {
+              background: '#e0e0e0'
+            }
+          }}
+        >
+          {sending ? 'Sending...' : 'Send Email'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default SendAppointmentLetter;
+export default SendAppointmentLetterEmail;

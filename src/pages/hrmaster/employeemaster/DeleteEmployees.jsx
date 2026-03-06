@@ -26,8 +26,8 @@ import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 // Color constants - matching the EmployeeMaster
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
+const HEADER_GRADIENT =
+  "linear-gradient(135deg, #a30f0f 0%, #df2a30 100%)";
 
 const DeleteEmployees = ({ open, onClose, employee, onDelete }) => {
   const [loading, setLoading] = useState(false);

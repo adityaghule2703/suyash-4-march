@@ -1,68 +1,266 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Box,
+  Paper,
+  Grid,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  TextField,
+  Typography,
+  Button,
+  Stack,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  TextField,
-  Stack,
   Alert,
-  Grid,
-  Typography,
-  Stepper,
-  Step,
-  StepLabel,
-  Box,
   FormControlLabel,
-  Switch
+  Switch,
+  Autocomplete,
+  CircularProgress,
+  InputAdornment,
+  styled
 } from '@mui/material';
-import { Edit as EditIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon
+} from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// 🔥 Modern Stepper Connector with Gradient
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 3,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
 const steps = ['Basic Information', 'Rate & Cost Details'];
+
+// Validation helper functions
+const validateMaterialName = (value) => {
+  if (!value?.trim()) {
+    return 'Material name is required';
+  }
+  return '';
+};
+
+const validateGrade = (value) => {
+  if (!value?.trim()) {
+    return 'Grade is required';
+  }
+  return '';
+};
+
+const validateRatePerKG = (value) => {
+  if (!value && value !== 0) {
+    return 'Rate per KG is required';
+  }
+  if (isNaN(value) || value <= 0) {
+    return 'Rate per KG must be greater than 0';
+  }
+  return '';
+};
+
+const validateScrapPercentage = (value) => {
+  if (!value && value !== 0) {
+    return 'Scrap percentage is required';
+  }
+  if (isNaN(value) || value < 0 || value > 100) {
+    return 'Scrap percentage must be between 0 and 100';
+  }
+  return '';
+};
+
+const validateTransportLossPercentage = (value) => {
+  if (!value && value !== 0) {
+    return 'Transport loss percentage is required';
+  }
+  if (isNaN(value) || value < 0 || value > 100) {
+    return 'Transport loss percentage must be between 0 and 100';
+  }
+  return '';
+};
+
+const validateProfileConversionRate = (value) => {
+  if (!value && value !== 0) {
+    return 'Profile conversion rate is required';
+  }
+  if (isNaN(value) || value < 0) {
+    return 'Profile conversion rate must be a positive number';
+  }
+  return '';
+};
+
+const validateDateEffective = (value) => {
+  if (!value) {
+    return 'Date effective is required';
+  }
+  return '';
+};
 
 const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
     MaterialName: '',
     Grade: '',
-    RMSource: '',
-    RMType: '',
     RatePerKG: '',
     ScrapPercentage: '',
+    scrap_rate_per_kg: '',
     TransportLossPercentage: '',
-    FabricationRate: '',
+    transport_rate_per_kg: '',
+    profile_conversion_rate: '',
     DateEffective: new Date().toISOString().split('T')[0],
     IsActive: true
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // State for materials dropdown
+  const [materials, setMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
 
+  // Fetch materials for dropdown
+  useEffect(() => {
+    if (open) {
+      fetchMaterials();
+    }
+  }, [open]);
+
+  // Set form data when material prop changes
   useEffect(() => {
     if (material) {
       setFormData({
         MaterialName: material.MaterialName || '',
         Grade: material.Grade || '',
-        RMSource: material.RMSource || '',
-        RMType: material.RMType || '',
-        RatePerKG: material.RatePerKG || '',
-        ScrapPercentage: material.ScrapPercentage || '',
-        TransportLossPercentage: material.TransportLossPercentage || '',
-        FabricationRate: material.FabricationRate || '',
+        RatePerKG: material.RatePerKG?.toString() || '',
+        ScrapPercentage: material.ScrapPercentage?.toString() || '',
+        scrap_rate_per_kg: material.scrap_rate_per_kg?.toString() || '',
+        TransportLossPercentage: material.TransportLossPercentage?.toString() || '',
+        transport_rate_per_kg: material.transport_rate_per_kg?.toString() || '',
+        profile_conversion_rate: material.profile_conversion_rate?.toString() || '',
         DateEffective: material.DateEffective ? material.DateEffective.split('T')[0] : new Date().toISOString().split('T')[0],
         IsActive: material.IsActive !== undefined ? material.IsActive : true
       });
+
+      // Set selected material if we have the material name
+      if (material.MaterialName && materials.length > 0) {
+        const matchedMaterial = materials.find(m => m.MaterialName === material.MaterialName);
+        if (matchedMaterial) {
+          setSelectedMaterial(matchedMaterial);
+        }
+      }
     }
-  }, [material]);
+  }, [material, materials]);
+
+  const fetchMaterials = async () => {
+    try {
+      setLoadingMaterials(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/materials`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setMaterials(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching materials:', err);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+
+  // Calculate derived rates when base values change
+  useEffect(() => {
+    calculateDerivedRates();
+  }, [formData.RatePerKG, formData.ScrapPercentage, formData.TransportLossPercentage]);
+
+  const calculateDerivedRates = () => {
+    const ratePerKG = parseFloat(formData.RatePerKG) || 0;
+    const scrapPercentage = parseFloat(formData.ScrapPercentage) || 0;
+    const transportPercentage = parseFloat(formData.TransportLossPercentage) || 0;
+
+    const scrapRate = (ratePerKG * scrapPercentage) / 100;
+    const transportRate = (ratePerKG * transportPercentage) / 100;
+
+    setFormData(prev => ({
+      ...prev,
+      scrap_rate_per_kg: scrapRate.toFixed(2),
+      transport_rate_per_kg: transportRate.toFixed(2)
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    
+    // Clear field error when user starts typing
+    setFieldErrors(prev => ({
       ...prev,
-      [name]: value
+      [name]: ''
     }));
+    
+    // Handle numeric fields
+    const numericFields = ['RatePerKG', 'ScrapPercentage', 'TransportLossPercentage', 'profile_conversion_rate'];
+    
+    if (numericFields.includes(name)) {
+      // Allow only numbers and decimal point
+      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleMaterialChange = (event, newValue) => {
+    setSelectedMaterial(newValue);
+    setFieldErrors(prev => ({
+      ...prev,
+      MaterialName: '',
+      Grade: ''
+    }));
+    
+    if (newValue) {
+      setFormData(prev => ({
+        ...prev,
+        MaterialName: newValue.MaterialName,
+        Grade: newValue.Grade || ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        MaterialName: '',
+        Grade: ''
+      }));
+    }
   };
 
   const handleSwitchChange = (e) => {
@@ -72,54 +270,159 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
     }));
   };
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'MaterialName':
+        return validateMaterialName(value);
+      case 'Grade':
+        return validateGrade(value);
+      case 'RatePerKG':
+        return validateRatePerKG(value);
+      case 'ScrapPercentage':
+        return validateScrapPercentage(value);
+      case 'TransportLossPercentage':
+        return validateTransportLossPercentage(value);
+      case 'profile_conversion_rate':
+        return validateProfileConversionRate(value);
+      case 'DateEffective':
+        return validateDateEffective(value);
+      default:
+        return '';
+    }
+  };
+
   const validateStep = (step) => {
+    const errors = {};
+    let isValid = true;
+
     switch (step) {
       case 0: // Basic Information
-        if (!formData.MaterialName.trim()) {
-          setError('Material name is required');
-          return false;
+        // Material Name
+        const materialNameError = validateField('MaterialName', formData.MaterialName);
+        if (materialNameError) {
+          errors.MaterialName = materialNameError;
+          isValid = false;
         }
-        if (!formData.Grade.trim()) {
-          setError('Grade is required');
-          return false;
-        }
-        if (!formData.RMSource.trim()) {
-          setError('RM Source is required');
-          return false;
-        }
-        if (!formData.RMType.trim()) {
-          setError('RM Type is required');
-          return false;
+
+        // Grade
+        const gradeError = validateField('Grade', formData.Grade);
+        if (gradeError) {
+          errors.Grade = gradeError;
+          isValid = false;
         }
         break;
       
       case 1: // Rate & Cost Details
-        if (!formData.RatePerKG || formData.RatePerKG <= 0) {
-          setError('Rate per KG must be greater than 0');
-          return false;
+        // Rate Per KG
+        const rateError = validateField('RatePerKG', formData.RatePerKG);
+        if (rateError) {
+          errors.RatePerKG = rateError;
+          isValid = false;
         }
-        if (!formData.ScrapPercentage || formData.ScrapPercentage < 0) {
-          setError('Scrap percentage is required');
-          return false;
+
+        // Scrap Percentage
+        const scrapError = validateField('ScrapPercentage', formData.ScrapPercentage);
+        if (scrapError) {
+          errors.ScrapPercentage = scrapError;
+          isValid = false;
         }
-        if (!formData.TransportLossPercentage || formData.TransportLossPercentage < 0) {
-          setError('Transport loss percentage is required');
-          return false;
+
+        // Transport Loss Percentage
+        const transportError = validateField('TransportLossPercentage', formData.TransportLossPercentage);
+        if (transportError) {
+          errors.TransportLossPercentage = transportError;
+          isValid = false;
         }
-        if (!formData.FabricationRate || formData.FabricationRate < 0) {
-          setError('Fabrication rate is required');
-          return false;
+
+        // Profile Conversion Rate
+        const profileError = validateField('profile_conversion_rate', formData.profile_conversion_rate);
+        if (profileError) {
+          errors.profile_conversion_rate = profileError;
+          isValid = false;
         }
-        if (!formData.DateEffective) {
-          setError('Date effective is required');
-          return false;
+
+        // Date Effective
+        const dateError = validateField('DateEffective', formData.DateEffective);
+        if (dateError) {
+          errors.DateEffective = dateError;
+          isValid = false;
         }
         break;
       
       default:
         return true;
     }
-    return true;
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in this section');
+    }
+    return isValid;
+  };
+
+  const validateAllFields = () => {
+    const errors = {};
+    let isValid = true;
+
+    // Required fields
+    const requiredFields = [
+      { name: 'MaterialName', label: 'Material name' },
+      { name: 'Grade', label: 'Grade' },
+      { name: 'RatePerKG', label: 'Rate per KG' },
+      { name: 'ScrapPercentage', label: 'Scrap percentage' },
+      { name: 'TransportLossPercentage', label: 'Transport loss percentage' },
+      { name: 'profile_conversion_rate', label: 'Profile conversion rate' },
+      { name: 'DateEffective', label: 'Date effective' }
+    ];
+
+    requiredFields.forEach(field => {
+      if (!formData[field.name] && formData[field.name] !== 0) {
+        errors[field.name] = `${field.label} is required`;
+        isValid = false;
+      }
+    });
+
+    // Validate each field with custom validations
+    if (formData.MaterialName) {
+      const error = validateField('MaterialName', formData.MaterialName);
+      if (error) errors.MaterialName = error;
+    }
+
+    if (formData.Grade) {
+      const error = validateField('Grade', formData.Grade);
+      if (error) errors.Grade = error;
+    }
+
+    if (formData.RatePerKG) {
+      const error = validateField('RatePerKG', formData.RatePerKG);
+      if (error) errors.RatePerKG = error;
+    }
+
+    if (formData.ScrapPercentage !== '') {
+      const error = validateField('ScrapPercentage', formData.ScrapPercentage);
+      if (error) errors.ScrapPercentage = error;
+    }
+
+    if (formData.TransportLossPercentage !== '') {
+      const error = validateField('TransportLossPercentage', formData.TransportLossPercentage);
+      if (error) errors.TransportLossPercentage = error;
+    }
+
+    if (formData.profile_conversion_rate !== '') {
+      const error = validateField('profile_conversion_rate', formData.profile_conversion_rate);
+      if (error) errors.profile_conversion_rate = error;
+    }
+
+    if (formData.DateEffective) {
+      const error = validateField('DateEffective', formData.DateEffective);
+      if (error) errors.DateEffective = error;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix all validation errors');
+    }
+    return isValid;
   };
 
   const handleNext = () => {
@@ -135,7 +438,9 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(activeStep)) return;
+    if (!validateAllFields()) {
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -147,12 +452,12 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
       const requestBody = {
         MaterialName: formData.MaterialName,
         Grade: formData.Grade,
-        RMSource: formData.RMSource,
-        RMType: formData.RMType,
         RatePerKG: parseFloat(formData.RatePerKG),
         ScrapPercentage: parseFloat(formData.ScrapPercentage),
+        scrap_rate_per_kg: parseFloat(formData.scrap_rate_per_kg),
         TransportLossPercentage: parseFloat(formData.TransportLossPercentage),
-        FabricationRate: parseFloat(formData.FabricationRate),
+        transport_rate_per_kg: parseFloat(formData.transport_rate_per_kg),
+        profile_conversion_rate: parseFloat(formData.profile_conversion_rate),
         DateEffective: formData.DateEffective,
         IsActive: formData.IsActive
       };
@@ -166,6 +471,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
 
       if (response.data.success) {
         onUpdate(response.data.data);
+        resetForm();
         onClose();
       } else {
         setError(response.data.message || 'Failed to update raw material');
@@ -178,239 +484,460 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      MaterialName: '',
+      Grade: '',
+      RatePerKG: '',
+      ScrapPercentage: '',
+      scrap_rate_per_kg: '',
+      TransportLossPercentage: '',
+      transport_rate_per_kg: '',
+      profile_conversion_rate: '',
+      DateEffective: new Date().toISOString().split('T')[0],
+      IsActive: true
+    });
+    setFieldErrors({});
+    setSelectedMaterial(null);
+    setActiveStep(0);
+    setError('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const calculateEffectiveRate = () => {
-    if (!formData.RatePerKG || !formData.ScrapPercentage || !formData.TransportLossPercentage) return 0;
-    
     const baseRate = parseFloat(formData.RatePerKG) || 0;
-    const scrap = (baseRate * (parseFloat(formData.ScrapPercentage) || 0) / 100);
-    const transport = (baseRate * (parseFloat(formData.TransportLossPercentage) || 0) / 100);
+    const scrap = parseFloat(formData.scrap_rate_per_kg) || 0;
+    const transport = parseFloat(formData.transport_rate_per_kg) || 0;
+    const profileRate = parseFloat(formData.profile_conversion_rate) || 0;
     
-    return baseRate + scrap + transport;
+    return baseRate + scrap + transport + profileRate;
   };
 
   const renderStepContent = (step) => {
     switch (step) {
-      case 0:
+      case 0: // Basic Information
         return (
-          <Stack spacing={2.5}>
-            <TextField
-              fullWidth
-              label="Material Name *"
-              name="MaterialName"
-              value={formData.MaterialName}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-            />
-            
-            <TextField
-              fullWidth
-              label="Grade *"
-              name="Grade"
-              value={formData.Grade}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-            />
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Material Selection
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12 }}>
+                  <Autocomplete
+                    fullWidth
+                    options={materials}
+                    loading={loadingMaterials}
+                    value={selectedMaterial}
+                    onChange={handleMaterialChange}
+                    getOptionLabel={(option) => 
+                      `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
+                    }
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        label="Select Material *"
+                        required
+                        disabled={loading}
+                        error={!!fieldErrors.MaterialName}
+                        helperText={fieldErrors.MaterialName}
+                        sx={{
+                          '& .MuiOutlinedInput-root': { borderRadius: 1 }
+                        }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {loadingMaterials ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {option.MaterialName}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Material Name *"
+                    name="MaterialName"
+                    value={formData.MaterialName}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    error={!!fieldErrors.MaterialName}
+                    helperText={fieldErrors.MaterialName}
+                    InputProps={{
+                      readOnly: true,
+                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
+                    }}
+                  />
+                </Grid>
+                
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Grade *"
+                    name="Grade"
+                    value={formData.Grade}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    error={!!fieldErrors.Grade}
+                    helperText={fieldErrors.Grade}
+                    InputProps={{
+                      readOnly: true,
+                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
 
-            {/* RM Source - Text Field */}
-            <TextField
-              fullWidth
-              label="RM Source *"
-              name="RMSource"
-              value={formData.RMSource}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-              placeholder="e.g., New India CT, Local Supplier, etc."
-            />
-
-            {/* RM Type - Text Field */}
-            <TextField
-              fullWidth
-              label="RM Type *"
-              name="RMType"
-              value={formData.RMType}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              size="medium"
-              variant="outlined"
-              placeholder="e.g., Strip, Sheet, Rod, etc."
-            />
+            {/* Material Info Summary */}
+            {selectedMaterial && (
+              <Paper sx={{ p: 2, backgroundColor: '#E3F2FD', borderRadius: 1, border: '1px solid #90CAF9' }}>
+                <Typography variant="caption" sx={{ color: '#1976D2', fontWeight: 600, display: 'block', mb: 1 }}>
+                  Material Details
+                </Typography>
+                <Grid container spacing={1}>
+                  <Grid size={{ xs: 4 }}>
+                    <Typography variant="caption" color="textSecondary">Code:</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 8 }}>
+                    <Typography variant="caption" fontWeight={500}>{selectedMaterial.MaterialCode}</Typography>
+                  </Grid>
+                  {selectedMaterial.Density && (
+                    <>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography variant="caption" color="textSecondary">Density:</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 8 }}>
+                        <Typography variant="caption" fontWeight={500}>
+                          {selectedMaterial.Density} {selectedMaterial.Unit || ''}
+                        </Typography>
+                      </Grid>
+                    </>
+                  )}
+                </Grid>
+              </Paper>
+            )}
           </Stack>
         );
       
-      case 1:
+      case 1: // Rate & Cost Details
         return (
-          <Stack spacing={2.5}>
-            {/* Rate, Fabrication Rate and Date Effective */}
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Rate per KG (₹) *"
-                  name="RatePerKG"
-                  type="number"
-                  value={formData.RatePerKG}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  inputProps={{ step: "0.01", min: "0" }}
-                />
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Rate Details
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Rate per KG *"
+                    name="RatePerKG"
+                    value={formData.RatePerKG}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="0.00"
+                    error={!!fieldErrors.RatePerKG}
+                    helperText={fieldErrors.RatePerKG}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                    }}
+                    inputProps={{ 
+                      step: "0.01", 
+                      min: 0,
+                      onWheel: (e) => e.target.blur()
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none',
+                        margin: 0
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Profile Conversion Rate *"
+                    name="profile_conversion_rate"
+                    value={formData.profile_conversion_rate}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="0.00"
+                    error={!!fieldErrors.profile_conversion_rate}
+                    helperText={fieldErrors.profile_conversion_rate}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                    }}
+                    inputProps={{ 
+                      step: "0.01", 
+                      min: 0,
+                      onWheel: (e) => e.target.blur()
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none',
+                        margin: 0
+                      }
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Fabrication Rate (₹) *"
-                  name="FabricationRate"
-                  type="number"
-                  value={formData.FabricationRate}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
-                  }}
-                  inputProps={{ step: "0.01", min: "0" }}
-                />
-              </Grid>
-            </Grid>
+            </Paper>
 
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Date Effective *"
-                  name="DateEffective"
-                  type="date"
-                  value={formData.DateEffective}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                />
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Loss Percentages
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Scrap Percentage *"
+                    name="ScrapPercentage"
+                    value={formData.ScrapPercentage}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="0"
+                    error={!!fieldErrors.ScrapPercentage}
+                    helperText={fieldErrors.ScrapPercentage}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                    }}
+                    inputProps={{ 
+                      step: "0.1", 
+                      min: 0,
+                      max: 100,
+                      onWheel: (e) => e.target.blur()
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none',
+                        margin: 0
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Transport Loss % *"
+                    name="TransportLossPercentage"
+                    value={formData.TransportLossPercentage}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="0"
+                    error={!!fieldErrors.TransportLossPercentage}
+                    helperText={fieldErrors.TransportLossPercentage}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                    }}
+                    inputProps={{ 
+                      step: "0.1", 
+                      min: 0,
+                      max: 100,
+                      onWheel: (e) => e.target.blur()
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none',
+                        margin: 0
+                      }
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.IsActive}
-                      onChange={handleSwitchChange}
-                      color="primary"
-                    />
-                  }
-                  label={formData.IsActive ? 'Active' : 'Inactive'}
-                  sx={{ mt: 1 }}
-                />
+            </Paper>
+
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Calculated Rates (Read Only)
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Scrap Rate per KG"
+                    name="scrap_rate_per_kg"
+                    value={formData.scrap_rate_per_kg}
+                    disabled
+                    InputProps={{
+                      readOnly: true,
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Transport Rate per KG"
+                    name="transport_rate_per_kg"
+                    value={formData.transport_rate_per_kg}
+                    disabled
+                    InputProps={{
+                      readOnly: true,
+                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
+                    }}
+                  />
+                </Grid>
               </Grid>
-            </Grid>
-            
-            {/* Scrap and Transport Loss */}
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Scrap Percentage *"
-                  name="ScrapPercentage"
-                  type="number"
-                  value={formData.ScrapPercentage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>,
-                  }}
-                  inputProps={{ step: "0.1", min: "0" }}
-                />
+            </Paper>
+
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Validity & Status
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Date Effective *"
+                    name="DateEffective"
+                    type="date"
+                    value={formData.DateEffective}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    error={!!fieldErrors.DateEffective}
+                    helperText={fieldErrors.DateEffective}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                </Grid>
+                {/* <Grid size={{ xs: 12, md: 6 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        name="IsActive"
+                        checked={formData.IsActive}
+                        onChange={handleSwitchChange}
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label="Active Material"
+                    sx={{ mt: 1 }}
+                  />
+                </Grid> */}
               </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Transport Loss % *"
-                  name="TransportLossPercentage"
-                  type="number"
-                  value={formData.TransportLossPercentage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  size="medium"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>,
-                  }}
-                  inputProps={{ step: "0.1", min: "0" }}
-                />
-              </Grid>
-            </Grid>
-            
+            </Paper>
+
             {/* Calculation Preview */}
             {formData.RatePerKG && formData.ScrapPercentage && formData.TransportLossPercentage && (
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: '#E8F5E9', 
-                borderRadius: 1,
-                border: '1px solid #C8E6C9'
-              }}>
-                <Typography variant="subtitle2" fontWeight={600} color="#2E7D32" gutterBottom>
+              <Paper sx={{ p: 2, backgroundColor: '#E8F5E9', borderRadius: 1, border: '1px solid #C8E6C9' }}>
+                <Typography variant="subtitle2" sx={{ color: '#2E7D32', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                   Rate Calculation Preview
                 </Typography>
+                
                 <Grid container spacing={1}>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="body2" color="textSecondary">Base Rate:</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="body2" fontWeight={500} align="right">
                       ₹{parseFloat(formData.RatePerKG).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Scrap ({formData.ScrapPercentage}%):</Typography>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="textSecondary">Scrap Rate:</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.ScrapPercentage / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      + ₹{parseFloat(formData.scrap_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Transport Loss ({formData.TransportLossPercentage}%):</Typography>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="textSecondary">Transport Rate:</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
-                      + ₹{(formData.RatePerKG * formData.TransportLossPercentage / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      + ₹{parseFloat(formData.transport_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Typography>
+                  </Grid>
+
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="textSecondary">Profile Conversion Rate:</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
+                      + ₹{parseFloat(formData.profile_conversion_rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <Box sx={{ borderTop: '1px dashed #BDBDBD', pt: 1, mt: 1 }}>
                       <Grid container>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="body1" fontWeight={600} color="textPrimary">
                             Effective Rate:
                           </Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="body1" fontWeight={700} color="success.main" align="right">
                             ₹{calculateEffectiveRate().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
@@ -419,7 +946,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                     </Box>
                   </Grid>
                 </Grid>
-              </Box>
+              </Paper>
             )}
           </Stack>
         );
@@ -430,155 +957,108 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          minHeight: '620px'
+        sx: {
+          borderRadius: 1.5,
+          maxHeight: '95vh'
         }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        paddingBottom: '16px'
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        py: 1.5,
+        px: 2,
+        backgroundColor: '#F8FAFC'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
-          paddingTop: '8px'
-        }}>
+        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010', mb: 1 }}>
           Edit Raw Material
-        </div>
-      </DialogTitle>
-      
-      {error && (
-        <Box sx={{ px: 3, py: 2 }}>
-          <Alert 
-            severity="error"
-            sx={{ 
-              borderRadius: 1,
-              '& .MuiAlert-icon': {
-                alignItems: 'center'
-              }
-            }}
-            onClose={() => setError('')}
-          >
-            {error}
-          </Alert>
-        </Box>
-      )}
-      
-      <Box sx={{ 
-        px: 3, 
-        py: 2,
-        borderBottom: '1px solid #F0F0F0'
-      }}>
-        <Stepper activeStep={activeStep}>
+        </Typography>
+
+        {/* 🔥 Modern Stepper with Gradient Connector */}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ mb: 1, mt: 1 }}
+        >
           {steps.map((label) => (
             <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+              <StepLabel>
+                <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+              </StepLabel>
             </Step>
           ))}
         </Stepper>
-      </Box>
-      
-      <DialogContent sx={{ pt: 3, px: 3, pb: 3 }}>
-        <Box sx={{ minHeight: '380px' }}>
-          {renderStepContent(activeStep)}
-        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+        {renderStepContent(activeStep)}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+        )}
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
+
+      <DialogActions sx={{
+        px: 2,
+        py: 1.5,
         borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'space-between'
       }}>
-        <Stack direction="row" spacing={2} width="100%" justifyContent="space-between">
-          <Box>
-            <Button 
-              onClick={handleBack}
-              disabled={activeStep === 0 || loading}
-              sx={{
-                borderRadius: 1,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                fontWeight: 500,
-                minWidth: '100px'
-              }}
-            >
-              Back
-            </Button>
-          </Box>
-          
-          <Stack direction="row" spacing={2}>
-            <Button 
-              onClick={onClose} 
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          size="small"
+          startIcon={<NavigateBeforeIcon />}
+          sx={{ color: '#666' }}
+        >
+          Back
+        </Button>
+        <Box>
+          <Button
+            onClick={handleClose}
+            disabled={loading}
+            size="small"
+            sx={{ mr: 1, color: '#666' }}
+          >
+            Cancel
+          </Button>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
               disabled={loading}
+              size="small"
+              startIcon={<EditIcon />}
               sx={{
-                borderRadius: 1,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                fontWeight: 500,
-                minWidth: '100px'
+                backgroundColor: '#1976D2',
+                '&:hover': { backgroundColor: '#1565C0' }
               }}
             >
-              Cancel
+              {loading ? 'Updating...' : 'Update Material'}
             </Button>
-            
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading}
-                startIcon={loading ? null : <EditIcon />}
-                sx={{
-                  borderRadius: 1,
-                  px: 3,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  backgroundColor: '#1976D2',
-                  '&:hover': {
-                    backgroundColor: '#1565C0'
-                  },
-                  minWidth: '140px'
-                }}
-              >
-                {loading ? 'Updating...' : 'Update Material'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                sx={{
-                  borderRadius: 1,
-                  px: 3,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  backgroundColor: '#1976D2',
-                  '&:hover': {
-                    backgroundColor: '#1565C0'
-                  },
-                  minWidth: '100px'
-                }}
-              >
-                Next
-              </Button>
-            )}
-          </Stack>
-        </Stack>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading}
+              size="small"
+              endIcon={<NavigateNextIcon />}
+              sx={{
+                backgroundColor: '#1976D2',
+                '&:hover': { backgroundColor: '#1565C0' }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
       </DialogActions>
     </Dialog>
   );

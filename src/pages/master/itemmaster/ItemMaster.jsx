@@ -241,10 +241,10 @@ const ItemMaster = () => {
     setSearchTerm(value);
     
     const filtered = items.filter(item =>
-      item.PartName.toLowerCase().includes(value) ||
-      item.PartNo.toLowerCase().includes(value) ||
-      (item.Description && item.Description.toLowerCase().includes(value)) ||
-      (item.DrawingNo && item.DrawingNo.toLowerCase().includes(value))
+      item.part_no.toLowerCase().includes(value) ||
+      item.part_description.toLowerCase().includes(value) ||
+      (item.drawing_no && item.drawing_no.toLowerCase().includes(value)) ||
+      (item.material && item.material.toLowerCase().includes(value))
     );
     
     setFilteredItems(filtered);
@@ -447,7 +447,7 @@ const ItemMaster = () => {
           {/* Search and Filters */}
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by part no, name, or drawing..."
+              placeholder="Search by part no, description, or drawing..."
               size="small"
               value={searchTerm}
               onChange={handleSearch}
@@ -477,46 +477,6 @@ const ItemMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button> */}
-            {/* <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -539,26 +499,6 @@ const ItemMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -638,7 +578,7 @@ const ItemMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Part Name
+                  Part Description
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -736,43 +676,38 @@ const ItemMaster = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                          {item.PartNo}
+                          {item.part_no}
                         </Typography>
                         <Typography variant="caption" color="#64748B">
-                          Rev: {item.RevisionNo || 'N/A'}
+                          Rev: {item.revision_no || 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
-                          {item.PartName}
+                          {item.part_description}
                         </Typography>
                         <Typography variant="caption" color="#64748B">
-                          {item.Unit || 'No unit'}
+                          {item.unit || 'No unit'} | HSN: {item.hsn_code || 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        {item.MaterialID ? (
-                          <>
-                            <Typography variant="body2" color="#475569" fontWeight={500}>
-                              {item.MaterialID.MaterialCode}
-                            </Typography>
-                            <Typography variant="caption" color="#64748B">
-                              {item.MaterialID.MaterialName}
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="body2" color="#64748B">
-                            No material
-                          </Typography>
-                        )}
+                        <Typography variant="body2" color="#475569" fontWeight={500}>
+                          {item.material || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          Grade: {item.rm_grade || 'N/A'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="#475569">
-                          {item.DrawingNo || 'N/A'}
+                          {item.drawing_no || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B">
+                          {item.strip_size ? `Strip: ${item.strip_size}mm` : ''}
                         </Typography>
                       </TableCell>
                       {/* <TableCell>
-                        {getStatusChip(item.IsActive)}
+                        {getStatusChip(item.is_active)}
                       </TableCell> */}
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 

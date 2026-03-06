@@ -150,6 +150,10 @@ const DesignationMaster = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selected, setSelected] = useState([]);
+
+  // Sorting state
+const [sortField, setSortField] = useState(null);
+const [sortDirection, setSortDirection] = useState('asc');
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -213,6 +217,31 @@ const DesignationMaster = () => {
     setFilteredDesignations(filtered);
     setPage(0);
   };
+
+  const handleSort = (field) => {
+  let direction = 'asc';
+
+  if (sortField === field && sortDirection === 'asc') {
+    direction = 'desc';
+  }
+
+  setSortField(field);
+  setSortDirection(direction);
+
+  const sorted = [...filteredDesignations].sort((a, b) => {
+    let valueA = a[field];
+    let valueB = b[field];
+
+    if (typeof valueA === 'string') valueA = valueA.toLowerCase();
+    if (typeof valueB === 'string') valueB = valueB.toLowerCase();
+
+    if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+    if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  setFilteredDesignations(sorted);
+};
   
   // Handle select all
   const handleSelectAll = (event) => {
@@ -449,46 +478,7 @@ const DesignationMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button>
+            
           </Stack>
 
           {/* Action Buttons */}
@@ -511,26 +501,7 @@ const DesignationMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button>
+            
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -593,28 +564,51 @@ const DesignationMaster = () => {
                     disabled={loading}
                   />
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Designation Name
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Level
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
-                </TableCell>
+                <TableCell
+  onClick={() => handleSort("DesignationName")}
+  sx={{
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "0.875rem",
+    py: 2,
+    color: TEXT_COLOR_HEADER
+  }}
+>
+  <Stack direction="row" alignItems="center" spacing={0.5}>
+    Designation Name
+
+    {sortField === "DesignationName" && sortDirection === "asc" ? (
+      <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER }} />
+    ) : (
+      <ArrowUpwardIcon
+        sx={{
+          fontSize: 14,
+          color: TEXT_COLOR_HEADER,
+          transform: "rotate(180deg)"
+        }}
+      />
+    )}
+  </Stack>
+</TableCell>
+                <TableCell
+  onClick={() => handleSort("Level")}
+  sx={{
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "0.875rem",
+    py: 2,
+    color: TEXT_COLOR_HEADER
+  }}
+>
+  <Stack direction="row" alignItems="center" spacing={0.5}>
+    Level
+    {sortField === "Level" && sortDirection === "asc" ? (
+      <ArrowUpwardIcon sx={{ fontSize: 14 }} />
+    ) : (
+      <ArrowUpwardIcon sx={{ fontSize: 14, transform: "rotate(180deg)" }} />
+    )}
+  </Stack>
+</TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',

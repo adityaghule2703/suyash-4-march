@@ -477,7 +477,7 @@ const MaterialMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -516,7 +516,7 @@ const MaterialMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -539,7 +539,7 @@ const MaterialMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -558,7 +558,7 @@ const MaterialMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

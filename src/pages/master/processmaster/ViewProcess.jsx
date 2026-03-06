@@ -1,43 +1,35 @@
 import React from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
+  Box,
+  Typography,
   Button,
   Stack,
-  Typography,
   Chip,
-  Divider,
-  Box,
+  Paper,
+  Grid,
   Avatar,
-  Grid
+  styled,
 } from '@mui/material';
-import { 
-  Edit as EditIcon, 
+import {
+  Edit as EditIcon,
   AttachMoney as MoneyIcon,
-  Schedule as ScheduleIcon,
   Factory as FactoryIcon,
-  Business as BusinessIcon,
-  CalendarToday,
   CheckCircle,
   Cancel,
   Description as DescriptionIcon,
-  Category
+  Category,
+  Label as LabelIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+
+// Color constants
+const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+const PRIMARY_BLUE = '#00B4D8';
 
 const ViewProcess = ({ open, onClose, process, onEdit }) => {
   if (!process) return null;
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getProcessInitials = (processName) => {
     if (!processName) return 'P';
@@ -50,285 +42,275 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
     return processName.substring(0, 2).toUpperCase();
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+  // Helper function to render field with icon
+  const renderField = (icon, label, value, color = '#0f172a') => (
+    <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
+        {icon}
+      </Box>
+      <Box>
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: '#64748B', 
+            display: 'block', 
+            fontSize: '10px',
+            fontWeight: 500,
+            lineHeight: 1.2,
+            mb: 0.2
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontWeight: 600, 
+            fontSize: '13px',
+            color: color,
+            wordBreak: 'break-word'
+          }}
+        >
+          {value || '-'}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+
+  // Get category chip
+  const renderCategoryChip = (category) => {
+    const colors = {
+      'Core': { bg: '#E0F2FE', color: '#0369A1', border: '#7DD3FC' },
+      'Finishing': { bg: '#FCE7F3', color: '#9D174D', border: '#F9A8D4' },
+      'Packing': { bg: '#D1FAE5', color: '#065F46', border: '#6EE7B7' },
+      'Other': { bg: '#F5F5F5', color: '#616161', border: '#E0E0E0' }
+    };
+    
+    const color = colors[category] || colors['Other'];
+    
+    return (
+      <Chip
+        label={category}
+        size="small"
+        sx={{
+          bgcolor: color.bg,
+          color: color.color,
+          border: `1px solid ${color.border}`,
+          fontWeight: 600,
+          fontSize: '11px',
+          height: '22px',
+        }}
+      />
+    );
+  };
+
+  // Get rate type chip
+  const renderRateTypeChip = (rateType) => {
+    const colors = {
+      'Per Nos': { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' },
+      'Per Kg': { bg: '#DCFCE7', color: '#059669', border: '#86EFAC' },
+      'Per Hour': { bg: '#F0F9FF', color: '#0C4A6E', border: '#BAE6FD' },
+      'Fixed': { bg: '#FEF3C7', color: '#92400E', border: '#FCD34D' }
+    };
+    
+    const color = colors[rateType] || { bg: '#F5F5F5', color: '#616161', border: '#E0E0E0' };
+    
+    return (
+      <Chip
+        label={rateType}
+        size="small"
+        sx={{
+          bgcolor: color.bg,
+          color: color.color,
+          border: `1px solid ${color.border}`,
+          fontWeight: 600,
+          fontSize: '11px',
+          height: '22px',
+        }}
+      />
+    );
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2 }
+        sx: {
+          borderRadius: 1.5,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          height: 'auto',
+          maxHeight: '500px'
+        }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC'
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        background: HEADER_GRADIENT,
+        py: 1.5,
+        px: 2
       }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
-          paddingTop: '8px'
-        }}>
-          Process Details
-        </div>
-      </DialogTitle>
-      
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={3}>
-          {/* Add padding from top for the first field */}
-          <div style={{ marginTop: '16px' }}>
-            <Stack direction="row" spacing={3} alignItems="center">
-              <Avatar sx={{ 
-                width: 80, 
-                height: 80, 
-                bgcolor: '#4F46E5',
-                fontSize: '1.5rem'
-              }}>
-                {getProcessInitials(process.ProcessName)}
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FactoryIcon sx={{ color: '#FFFFFF', fontSize: 20 }} />
+            <Typography variant="subtitle1" sx={{ 
+              fontWeight: 600, 
+              color: '#FFFFFF',
+              fontSize: '1rem'
+            }}>
+              Process Details
+            </Typography>
+          </Stack>
+          <Chip
+            label={`ID: ${process.process_id || '-'}`}
+            size="small"
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: '#FFFFFF',
+              fontWeight: 500,
+              fontSize: '10px',
+              height: '20px',
+              backdropFilter: 'blur(4px)',
+              '& .MuiChip-label': { px: 1 }
+            }}
+          />
+        </Stack>
+      </Box>
+
+      <DialogContent sx={{ 
+        p: 2,
+        '&:last-child': {
+          pb: 2
+        }
+      }}>
+        <Stack spacing={2}>
+          {/* Process Profile */}
+          <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+            <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 2 }}>
+              <Avatar 
+                sx={{ 
+                  width: 70, 
+                  height: 70, 
+                  bgcolor: PRIMARY_BLUE,
+                  fontSize: '1.8rem',
+                  fontWeight: 600,
+                  border: '2px solid #E0E0E0'
+                }}
+              >
+                {getProcessInitials(process.process_name)}
               </Avatar>
               <Box>
-                <Typography variant="h5" fontWeight={600} color="#101010">
-                  {process.ProcessName}
+                <Typography variant="h6" fontWeight={600} color="#101010" sx={{ fontSize: '1.1rem' }}>
+                  {process.process_name}
                 </Typography>
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                  {process.IsActive ? (
-                    <Chip
-                      icon={<CheckCircle />}
-                      label="Active"
-                      size="small"
-                      sx={{
-                        bgcolor: '#E8F5E9',
-                        color: '#2E7D32',
-                        border: 'none',
-                        fontWeight: 500,
-                        '& .MuiChip-icon': {
-                          color: '#2E7D32',
-                          fontSize: 16
-                        }
-                      }}
-                    />
-                  ) : (
-                    <Chip
-                      icon={<Cancel />}
-                      label="Inactive"
-                      size="small"
-                      sx={{
-                        bgcolor: '#FEE2E2',
-                        color: '#991B1B',
-                        border: 'none',
-                        fontWeight: 500,
-                        '& .MuiChip-icon': {
-                          color: '#991B1B',
-                          fontSize: 16
-                        }
-                      }}
-                    />
-                  )}
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
                   <Chip
-                    label={process.VendorOrInhouse}
-                    icon={process.VendorOrInhouse === 'Vendor' ? <BusinessIcon /> : <FactoryIcon />}
+                    icon={process.is_active ? <CheckCircle sx={{ fontSize: 14 }} /> : <Cancel sx={{ fontSize: 14 }} />}
+                    label={process.is_active ? 'Active' : 'Inactive'}
                     size="small"
-                    sx={{ 
-                      fontWeight: 500,
-                      bgcolor: process.VendorOrInhouse === 'Vendor' ? '#FEF3C7' : '#DBEAFE',
-                      color: process.VendorOrInhouse === 'Vendor' ? '#92400E' : '#1E40AF',
-                      border: 'none',
-                      '& .MuiChip-icon': {
-                        color: process.VendorOrInhouse === 'Vendor' ? '#92400E' : '#1E40AF',
-                        fontSize: 16
-                      }
+                    sx={{
+                      bgcolor: process.is_active ? '#dcfce7' : '#fee2e2',
+                      color: process.is_active ? '#166534' : '#991b1b',
+                      border: process.is_active ? '1px solid #86efac' : '1px solid #fca5a5',
+                      fontWeight: 600,
+                      fontSize: '11px',
+                      height: '22px',
+                      '& .MuiChip-icon': { fontSize: 14 }
                     }}
                   />
+                  {renderCategoryChip(process.category)}
+                  {renderRateTypeChip(process.rate_type)}
                 </Stack>
               </Box>
             </Stack>
-          </div>
-          
-          <Divider />
-          
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Stack spacing={2}>
-                <Typography variant="subtitle1" fontWeight={600} color="#101010">
-                  <MoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  Rate Information
-                </Typography>
-                
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      Rate Type
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
-                      {process.RateType}
-                    </Typography>
-                  </Box>
-                  
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      Process Rate
-                    </Typography>
-                    <Typography variant="h4" fontWeight={700} color="#1976D2" sx={{ mt: 0.5 }}>
-                      {formatCurrency(process.Rate)}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
-                      per {process.RateType.toLowerCase().replace('per ', '')}
-                    </Typography>
-                  </Box>
-                  
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      Process Type
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
-                      {process.VendorOrInhouse === 'Vendor' ? 'External Vendor Process' : 'In-house Manufacturing'}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Stack>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Stack spacing={2}>
-                <Typography variant="subtitle1" fontWeight={600} color="#101010">
-                  <DescriptionIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  Description
-                </Typography>
-                
-                <Box sx={{ 
-                  backgroundColor: '#F8FAFC',
-                  p: 2,
-                  borderRadius: 1,
-                  minHeight: '120px'
-                }}>
-                  <Typography variant="body2" color="textPrimary">
-                    {process.Description || 'No description available for this process.'}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-          </Grid>
-          
-          <Divider />
-          
-          <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={600} color="#101010">
-              <Category sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Additional Information
+
+            <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+              Basic Information
             </Typography>
             
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Box>
-                  <Typography variant="caption" color="textSecondary">
-                    Process ID
-                  </Typography>
-                  <Typography variant="body2">
-                    {process._id || 'Not available'}
-                  </Typography>
-                </Box>
+            <Grid container spacing={1}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                {renderField(
+                  <LabelIcon sx={{ fontSize: 16 }} />, 
+                  'Process ID', 
+                  process.process_id
+                )}
               </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <Box>
-                  <Typography variant="caption" color="textSecondary">
-                    Last Modified By
-                  </Typography>
-                  <Typography variant="body2">
-                    {process.UpdatedBy || 'System'}
-                  </Typography>
-                </Box>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                {renderField(
+                  <Category sx={{ fontSize: 16 }} />, 
+                  'Category', 
+                  process.category
+                )}
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                {renderField(
+                  <MoneyIcon sx={{ fontSize: 16 }} />, 
+                  'Rate Type', 
+                  process.rate_type
+                )}
               </Grid>
             </Grid>
-          </Stack>
-          
-          <Divider />
-          
-          <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={600} color="#101010">
-              <CalendarToday sx={{ mr: 1, verticalAlign: 'middle' }} />
-              System Information
+          </Paper>
+
+          {/* Description */}
+          <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+            <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+              <DescriptionIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Description
             </Typography>
             
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Box>
-                  <Typography variant="caption" color="textSecondary">
-                    Created At
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatDate(process.CreatedAt)}
-                  </Typography>
-                </Box>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <Box>
-                  <Typography variant="caption" color="textSecondary">
-                    Last Updated
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatDate(process.UpdatedAt)}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Stack>
+            <Box sx={{ 
+              backgroundColor: '#F8FAFC', 
+              p: 1.5, 
+              borderRadius: 1,
+              border: '1px solid #E0E0E0'
+            }}>
+              <Typography variant="body2" sx={{ fontSize: '13px', color: '#0f172a' }}>
+                {process.description || 'No description available for this process.'}
+              </Typography>
+            </Box>
+          </Paper>
         </Stack>
       </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        borderTop: '1px solid #E0E0E0', 
-        pt: 2,
+
+      {/* Footer Actions */}
+      <Box sx={{
+        px: 2,
+        py: 1.5,
+        borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC'
       }}>
-        <Button 
-          onClick={onClose}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
-          Close
-        </Button>
-        {/* <Button
-          variant="contained"
-          onClick={() => {
-            onClose();
-            onEdit();
-          }}
-          startIcon={<EditIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
-          }}
-        >
-          Edit Process
-        </Button> */}
-      </DialogActions>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Button
+            onClick={onClose}
+            startIcon={<CloseIcon />}
+            size="small"
+            sx={{ color: '#666', fontSize: '0.8rem' }}
+          >
+            Close
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => {
+              onClose();
+              onEdit();
+            }}
+            startIcon={<EditIcon />}
+            size="small"
+            sx={{
+              backgroundColor: PRIMARY_BLUE,
+              fontSize: '0.8rem',
+              '&:hover': { backgroundColor: '#0e7490' }
+            }}
+          >
+            Edit Process
+          </Button>
+        </Stack>
+      </Box>
     </Dialog>
   );
 };

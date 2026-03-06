@@ -879,7 +879,7 @@ const AccidentMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -918,7 +918,7 @@ const AccidentMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           <Stack direction="row" spacing={2} alignItems="center">
@@ -940,7 +940,7 @@ const AccidentMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -959,7 +959,7 @@ const AccidentMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

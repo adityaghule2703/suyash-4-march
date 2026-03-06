@@ -1,3 +1,4 @@
+// src/components/OfferManagement/SubmitForApproval.jsx
 import React, { useState, useEffect } from 'react';
 import {
   // Layout components
@@ -20,10 +21,10 @@ import {
 
   // Form components
   TextField,
-  MenuItem,
   FormControl,
   InputLabel,
   Select,
+  MenuItem,
   Chip,
 
   // Feedback components
@@ -46,9 +47,8 @@ import {
   AttachMoney as AttachMoneyIcon,
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
   Warning as WarningIcon,
-  Padding
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
@@ -108,10 +108,9 @@ const StepIcon = ({ active, completed, icon }) => {
 const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [fetchingOffers, setFetchingOffers] = useState(false);
-  const [offers, setOffers] = useState([]);
+  const [fetchingData, setFetchingData] = useState(false);
+  const [candidateOffers, setCandidateOffers] = useState([]);
   const [selectedOffer, setSelectedOffer] = useState(null);
-  const [offerDetails, setOfferDetails] = useState(null);
   const [candidateInfo, setCandidateInfo] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -119,7 +118,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
   const [remarks, setRemarks] = useState('');
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [stepErrors, setStepErrors] = useState({});
-  
+
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -156,250 +155,189 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
     setRemarks('');
     setConfirmSubmit(false);
     setSelectedOffer(null);
-    setOfferDetails(null);
     setCandidateInfo(null);
-    setOffers([]);
+    setCandidateOffers([]);
     setError('');
     setSuccess('');
     setResponseData(null);
     setStepErrors({});
     setLoading(false);
-    setFetchingOffers(false);
+    setFetchingData(false);
   };
 
-  // Fetch offers when component opens
+  // Fetch candidate details and offers when component opens
   useEffect(() => {
-    if (open) {
-      console.log('Dialog opened, fetching offers...');
-      console.log('Candidate data received:', candidateData);
+    if (open && candidateData) {
+      console.log('Dialog opened with candidate data:', candidateData);
 
       // Reset state first
       resetState();
 
-      // If we have candidate data, fetch offers for that candidate
-      if (candidateData) {
-        setCandidateInfo(candidateData);
-        const candidateId = candidateData.id || candidateData._id || candidateData.candidateId;
-        console.log('Fetching offers for candidate ID:', candidateId);
-        fetchCandidateOffers(candidateId);
-      } else {
-        fetchAllOffers();
-      }
+      // Set candidate info from the passed data
+      setCandidateInfo(candidateData);
+
+      // Fetch offers for this candidate
+      fetchCandidateOffers(candidateData._id || candidateData.id);
     }
   }, [open, candidateData]);
 
-  // Add cleanup effect when component unmounts
-  useEffect(() => {
-    return () => {
-      // Cleanup on unmount
-      resetState();
-    };
-  }, []);
-
-  const fetchAllOffers = async () => {
-    setFetchingOffers(true);
-    setError('');
-    try {
-      const token = getAuthToken();
-      console.log('Fetching all offers from:', `${BASE_URL}/api/offers?status=initiated`);
-
-      const response = await axios.get(`${BASE_URL}/api/offers?status=initiated`, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : ''
-        }
-      });
-
-      console.log('All offers response:', response.data);
-
-      if (response.data.success) {
-        // Handle the nested structure
-        let offersArray = [];
-
-        if (response.data.data?.offers && Array.isArray(response.data.data.offers)) {
-          offersArray = response.data.data.offers;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          offersArray = response.data.data;
-        } else if (Array.isArray(response.data)) {
-          offersArray = response.data;
-        }
-
-        // Since we already filtered by status=initiated in the URL, 
-        // we might not need to filter again, but let's keep it for safety
-        const initiatedOffers = offersArray.filter(offer => {
-          if (!offer) return false;
-          const status = offer.status?.toLowerCase() || '';
-          return status === 'initiated' || status === 'draft';
-        });
-
-        setOffers(initiatedOffers);
-        if (initiatedOffers.length === 0) {
-          showSnackbar('No initiated offers found', 'info');
-        }
-      } else {
-        setOffers([]);
-        showSnackbar('Failed to fetch offers', 'error');
-      }
-    } catch (err) {
-      console.error('Error fetching offers:', err);
-      setError('Failed to fetch offers');
-      setOffers([]);
-      showSnackbar('Error fetching offers: ' + (err.message || 'Unknown error'), 'error');
-    } finally {
-      setFetchingOffers(false);
-    }
-  };
-
-  // Check the specific offer
-  const checkOfferStatus = async (offerId) => {
-    try {
-      const token = getAuthToken();
-      const response = await axios.get(`${BASE_URL}/api/offers/${offerId}`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
-      });
-      console.log('Offer status check:', response.data);
-    } catch (err) {
-      console.error('Error checking offer:', err);
-    }
-  };
-
-  // Call this with your offer ID: "69a2ab088e2ba86f0f681771" or "OFF-2026-00041"
-
-  // In your fetchCandidateOffers function, add more detailed logging
+  // Fetch candidate offers using the correct API endpoint
   const fetchCandidateOffers = async (candidateId) => {
-    setFetchingOffers(true);
+    setFetchingData(true);
     setError('');
+
     try {
       const token = getAuthToken();
-      console.log('Fetching offers for candidate:', `${BASE_URL}/api/offers/${candidateId}`);
 
-      const response = await axios.get(`${BASE_URL}/api/offers/${candidateId}`, {
+      // First, fetch candidate details to get candidate info
+      const candidateApiUrl = `${BASE_URL}/api/candidates?_id=${candidateId}`;
+      console.log('Fetching candidate details from:', candidateApiUrl);
+
+      const candidateResponse = await axios.get(candidateApiUrl, {
         headers: {
-          Authorization: token ? `Bearer ${token}` : ''
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
         }
       });
 
-      console.log('Candidate offers response:', response.data);
+      console.log('Candidate details response:', candidateResponse.data);
 
-      if (response.data.success) {
-        // Handle the nested structure: data.offers is the array
-        let offersArray = [];
+      if (candidateResponse.data && candidateResponse.data.length > 0) {
+        const candidateDetails = candidateResponse.data[0];
+        setCandidateInfo(candidateDetails);
+      }
 
-        // Check different possible structures
-        if (response.data.data?.offers && Array.isArray(response.data.data.offers)) {
-          // Structure: { data: { offers: [...] } }
-          offersArray = response.data.data.offers;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Structure: { data: [...] }
-          offersArray = response.data.data;
-        } else if (Array.isArray(response.data)) {
-          // Structure: direct array
-          offersArray = response.data;
-        }
+      // Now fetch all offers and filter by candidateId
+      // Try different API endpoints to find offers for this candidate
+      let offersArray = [];
 
-        console.log('Raw offers array:', offersArray);
+      // Try 1: Fetch all offers and filter
+      try {
+        const offersApiUrl = `${BASE_URL}/api/offers?candidateId=${candidateId}`;
+        console.log('Fetching offers from:', offersApiUrl);
 
-        // Filter offers with status 'initiated' (case insensitive)
-        const initiatedOffers = offersArray.filter(offer => {
-          if (!offer) return false;
-          const status = offer.status?.toLowerCase() || '';
-          return status === 'initiated' || status === 'draft';
+        const offersResponse = await axios.get(offersApiUrl, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
         });
 
-        console.log('Filtered initiated offers:', initiatedOffers);
-        setOffers(initiatedOffers);
+        console.log('Offers response:', offersResponse.data);
 
-        // If there's exactly one offer, select it automatically
-        if (initiatedOffers.length === 1) {
-          console.log('Auto-selecting the only offer:', initiatedOffers[0]);
-          handleOfferSelect(initiatedOffers[0]);
-          showSnackbar('Offer auto-selected', 'info');
-        } else if (initiatedOffers.length === 0) {
-          console.log('No initiated offers found');
-          showSnackbar('No initiated offers found for this candidate', 'info');
+        if (offersResponse.data.success && offersResponse.data.data) {
+          if (Array.isArray(offersResponse.data.data)) {
+            offersArray = offersResponse.data.data;
+          } else if (offersResponse.data.data.offers) {
+            offersArray = offersResponse.data.data.offers;
+          }
         }
+      } catch (offerErr) {
+        console.log('Error fetching from offers endpoint, trying alternative...', offerErr);
+
+        // Try 2: Alternative endpoint
+        try {
+          const altOffersUrl = `${BASE_URL}/api/offers/candidate/${candidateId}`;
+          console.log('Trying alternative offers endpoint:', altOffersUrl);
+
+          const altResponse = await axios.get(altOffersUrl, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('Alternative offers response:', altResponse.data);
+
+          if (altResponse.data.success && altResponse.data.data) {
+            if (Array.isArray(altResponse.data.data)) {
+              offersArray = altResponse.data.data;
+            } else if (altResponse.data.data.offers) {
+              offersArray = altResponse.data.data.offers;
+            }
+          }
+        } catch (altErr) {
+          console.log('Alternative endpoint also failed', altErr);
+        }
+      }
+
+      console.log('Final offers array:', offersArray);
+
+      // Filter for initiated offers
+      const initiatedOffers = offersArray.filter(offer => {
+        if (!offer) return false;
+        const status = (offer.status || '').toLowerCase();
+       
+        const offerStatus = offer.offerStatus?.toLowerCase() || '';
+        const applicationStatus = offer.applicationStatus?.toLowerCase() || '';
+        const workflowStatus = offer.workflowStatus?.toLowerCase() || '';
+
+          // Check if any of the status fields indicate initiated/draft
+  const isInitiated = 
+    status === 'initiated' || 
+    status === 'draft' ||
+    offerStatus === 'initiated' || 
+    offerStatus === 'draft' ||
+    applicationStatus === 'initiated' || 
+    applicationStatus === 'draft' ||
+    workflowStatus === 'initiated' || 
+    workflowStatus === 'draft';
+
+     // Log for debugging
+  if (offer.offerId || offer._id) {
+    console.log(`Offer ${offer.offerId || offer._id} status check:`, {
+      status,
+      offerStatus,
+      applicationStatus,
+      workflowStatus,
+      isInitiated
+    });
+  }
+  
+  return isInitiated;
+});
+
+console.log('Initiated offers found:', initiatedOffers);
+
+
+      if (initiatedOffers.length > 0) {
+        // Sort by creation date (newest first)
+        const sortedOffers = [...initiatedOffers].sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.createdDate || a.updatedAt || 0);
+          const dateB = new Date(b.createdAt || b.createdDate || b.updatedAt || 0);
+          return dateB - dateA;
+        });
+
+        setCandidateOffers(sortedOffers);
+        setSelectedOffer(sortedOffers[0]);
+        showSnackbar(`Found ${sortedOffers.length} initiated offer(s) for this candidate`, 'success');
       } else {
-        console.log('API returned success: false');
-        setOffers([]);
-        showSnackbar('Failed to fetch offers for this candidate', 'error');
+        setCandidateOffers([]);
+        setSelectedOffer(null);
+        showSnackbar('No initiated offers found for this candidate', 'warning');
+
+        // Log the full offers array for debugging
+        console.log('All offers found:', offersArray);
       }
     } catch (err) {
-      console.error('Error fetching candidate offers:', err);
+      console.error('Error in fetchCandidateOffers:', err);
       setError('Failed to fetch offers for this candidate');
-      setOffers([]);
       showSnackbar('Error fetching offers: ' + (err.message || 'Unknown error'), 'error');
     } finally {
-      setFetchingOffers(false);
+      setFetchingData(false);
     }
   };
-
-
-
-  const fetchOfferDetails = async (offerId) => {
-    setLoading(true);
-    setError('');
-    try {
-      // Since we already have the offers list, find the selected offer in the existing data
-      const selectedOfferData = offers.find(o => (o._id === offerId || o.id === offerId));
-
-      if (selectedOfferData) {
-        console.log('Using existing offer data:', selectedOfferData);
-
-        // Create a response-like structure
-        const mockResponse = {
-          success: true,
-          data: selectedOfferData
-        };
-
-        setOfferDetails(mockResponse);
-
-        // Extract candidate info
-        if (selectedOfferData.candidate) {
-          setCandidateInfo(selectedOfferData.candidate);
-        } else if (selectedOfferData.candidateId) {
-          // Handle case where candidate is nested differently
-          const candidateInfo = {
-            name: selectedOfferData.candidateId?.name ||
-              `${selectedOfferData.firstName || ''} ${selectedOfferData.lastName || ''}`.trim(),
-            email: selectedOfferData.email,
-            phone: selectedOfferData.phone,
-            candidateId: selectedOfferData.candidateId?._id || selectedOfferData.candidateId,
-            position: selectedOfferData.job?.title
-          };
-          setCandidateInfo(candidateInfo);
-        }
-        
-        showSnackbar('Offer details loaded successfully', 'success');
-      } else {
-        setError('Offer details not found');
-        showSnackbar('Offer details not found', 'error');
-      }
-    } catch (err) {
-      console.error('Error processing offer details:', err);
-      setError('Failed to load offer details');
-      showSnackbar('Failed to load offer details', 'error');
-    } finally {
-      setLoading(false);
+  const handleOfferSelect = (offerId) => {
+    const offer = candidateOffers.find(o => o._id === offerId || o.id === offerId);
+    if (offer) {
+      console.log('Selected offer:', offer);
+      setSelectedOffer(offer);
+      showSnackbar(`Offer selected: ${offer.offerId || offer._id}`, 'success');
     }
-  };
-
-  // Update handleOfferSelect to use the existing data
-
-
-  const handleOfferSelect = (offer) => {
-    console.log('Selected offer:', offer);
-    setSelectedOffer(offer);
-    fetchOfferDetails(offer._id || offer.id);
   };
 
   const handleOfferChange = (e) => {
-    const offerId = e.target.value;
-    if (Array.isArray(offers)) {
-      const offer = offers.find(o => (o._id === offerId || o.id === offerId));
-      if (offer) {
-        handleOfferSelect(offer);
-        showSnackbar(`Offer selected: ${offer.offerId || offer._id}`, 'success');
-      }
-    }
+    handleOfferSelect(e.target.value);
   };
 
   // Validate current step
@@ -411,7 +349,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
         errors.offer = 'Please select an offer';
         showSnackbar('Please select an offer to continue', 'warning');
       }
-    } else if (step === 3) {
+    } else if (step === 2) {
       if (!confirmSubmit) {
         errors.confirmSubmit = 'Please confirm before submitting';
         showSnackbar('Please confirm before submitting', 'warning');
@@ -427,8 +365,6 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
       setActiveStep((prevStep) => prevStep + 1);
       setError('');
       showSnackbar(`Moving to step ${activeStep + 2}: ${steps[activeStep + 1]}`, 'info');
-    } else {
-      setError('Please select an offer to continue');
     }
   };
 
@@ -447,13 +383,15 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
     onClose();
   };
 
+  // In SubmitForApproval.jsx, update the handleSubmitForApproval function:
+
   const handleSubmitForApproval = async () => {
-    if (!validateStep(3)) {
+    if (!validateStep(2)) {
       setError('Please confirm before submitting');
       return;
     }
 
-    const offerId = selectedOffer?._id || selectedOffer?.id || selectedOffer?.offerId;
+    const offerId = selectedOffer?._id || selectedOffer?.id;
     if (!offerId) {
       setError('Offer ID is missing');
       showSnackbar('Offer ID is missing', 'error');
@@ -467,9 +405,8 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
     try {
       const token = getAuthToken();
 
-      // Construct the API URL
+      // Construct the API URL: POST {{base_url}}/api/offers/{{offer_id}}/submit-approval
       const apiUrl = `${BASE_URL}/api/offers/${offerId}/submit-approval`;
-
       console.log('Submitting for approval to:', apiUrl);
       console.log('Request body:', { remarks });
 
@@ -478,7 +415,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
         { remarks },
         {
           headers: {
-            Authorization: token ? `Bearer ${token}` : '',
+            'Authorization': token ? `Bearer ${token}` : '',
             'Content-Type': 'application/json'
           }
         }
@@ -491,22 +428,27 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
         setSuccess(response.data.message || 'Offer submitted for approval successfully!');
         showSnackbar(response.data.message || 'Offer submitted for approval successfully!', 'success');
 
-        // Prepare updated data for parent component
+        // Prepare updated data for parent component with the new status
         const updatedData = {
-          id: candidateInfo?.id || candidateInfo?._id || selectedOffer?.candidateId,
-          status: 'Submitted',
-          offerId: response.data.data?.offerId || offerId,
+          _id: offerId,  // Use _id for consistency
+          id: offerId,
+          offerId: response.data.data?.offerId || selectedOffer.offerId,
+          status: 'pending_approval', // Force the status to pending_approval
           approvalFlowId: response.data.data?.approvalFlowId,
-          submittedAt: new Date().toISOString(),
-          remarks: remarks
+          candidateId: candidateInfo?._id || candidateInfo?.id,
+          candidateName: candidateInfo?.name || `${candidateInfo?.firstName || ''} ${candidateInfo?.lastName || ''}`.trim(),
+          updatedAt: new Date().toISOString()
         };
+
+        console.log('Sending updated data to parent:', updatedData);
+
+        // Call onComplete with the updated data
+        if (onComplete) {
+          onComplete(updatedData);
+        }
 
         // Wait a moment to show success message before closing
         setTimeout(() => {
-          if (onComplete) {
-            onComplete(updatedData);
-          }
-          // Reset all state before closing
           resetState();
           onClose();
         }, 2000);
@@ -526,7 +468,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
       } else {
         errorMessage = err.message || 'Failed to submit for approval';
       }
-      
+
       setError(errorMessage);
       showSnackbar(errorMessage, 'error');
       setLoading(false);
@@ -560,153 +502,51 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
     switch (status?.toLowerCase()) {
       case 'draft': return 'default';
       case 'initiated': return 'info';
-      case 'pending':
       case 'pending_approval': return 'warning';
-      case 'submitted': return 'info';
       case 'approved': return 'success';
       case 'rejected': return 'error';
+      case 'generated': return 'secondary';
+      case 'sent': return 'primary';
+      case 'accepted': return 'success';
       default: return 'default';
     }
   };
 
-  // Get data from offer details
-  const getOfferValue = (path, defaultValue = 'N/A') => {
-    if (!offerDetails?.data) return defaultValue;
-
-    const keys = path.split('.');
-    let value = offerDetails.data;
-
-    for (const key of keys) {
-      if (value === null || value === undefined) return defaultValue;
-      value = value[key];
-    }
-
-    return value !== null && value !== undefined ? value : defaultValue;
-  };
-
-  // Get candidate information
-  // Get candidate information
-  const getCandidateName = () => {
-    // First check if we have candidateInfo set
-    if (candidateInfo) {
-      if (candidateInfo.name) return candidateInfo.name;
-      if (candidateInfo.firstName) {
-        return `${candidateInfo.firstName} ${candidateInfo.lastName || ''}`.trim();
-      }
-    }
-
-    // If not, try to get from offerDetails
-    if (offerDetails?.data) {
-      const offer = offerDetails.data;
-
-      // Check for candidate object
-      if (offer.candidate) {
-        return offer.candidate.name ||
-          `${offer.candidate.firstName || ''} ${offer.candidate.lastName || ''}`.trim();
-      }
-
-      // Check for candidateId object with details
-      if (offer.candidateId && typeof offer.candidateId === 'object') {
-        return offer.candidateId.name ||
-          `${offer.candidateId.firstName || ''} ${offer.candidateId.lastName || ''}`.trim();
-      }
-
-      // Check for direct fields
-      if (offer.firstName) {
-        return `${offer.firstName} ${offer.lastName || ''}`.trim();
-      }
-
-      if (offer.name) return offer.name;
-    }
-
-    return 'Candidate Name';
-  };
-
-  const getCandidateId = () => {
-    if (candidateInfo?.candidateId) return candidateInfo.candidateId;
-    if (candidateInfo?.id) return candidateInfo.id;
-
-    if (offerDetails?.data) {
-      const offer = offerDetails.data;
-
-      if (offer.candidate?._id) return offer.candidate._id;
-      if (offer.candidate?.candidateId) return offer.candidate.candidateId;
-      if (offer.candidateId?._id) return offer.candidateId._id;
-      if (offer.candidateId && typeof offer.candidateId === 'string') return offer.candidateId;
-      if (offer._id) return offer._id;
-    }
-
-    return 'CAN-XXX';
-  };
-
-  const getCandidateEmail = () => {
-    if (candidateInfo?.email) return candidateInfo.email;
-
-    if (offerDetails?.data) {
-      const offer = offerDetails.data;
-
-      if (offer.candidate?.email) return offer.candidate.email;
-      if (offer.candidateId?.email) return offer.candidateId.email;
-      if (offer.email) return offer.email;
-    }
-
-    return '';
-  };
-
-  const getCandidatePhone = () => {
-    if (candidateInfo?.phone) return candidateInfo.phone;
-    if (candidateInfo?.mobile) return candidateInfo.mobile;
-
-    if (offerDetails?.data) {
-      const offer = offerDetails.data;
-
-      if (offer.candidate?.phone) return offer.candidate.phone;
-      if (offer.candidate?.mobile) return offer.candidate.mobile;
-      if (offer.candidateId?.phone) return offer.candidateId.phone;
-      if (offer.phone) return offer.phone;
-      if (offer.mobile) return offer.mobile;
-    }
-
-    return '';
-  };
-
-  const getPosition = () => {
-    if (candidateInfo?.position) return candidateInfo.position;
-
-    if (offerDetails?.data) {
-      const offer = offerDetails.data;
-
-      if (offer.job?.title) return offer.job.title;
-      if (offer.candidate?.latestApplication?.jobId?.title) {
-        return offer.candidate.latestApplication.jobId.title;
-      }
-      if (offer.offerDetails?.designation) return offer.offerDetails.designation;
-      if (offer.position) return offer.position;
-    }
-
-    return 'Not Specified';
-  };
-
-  const getJoiningDate = () => {
-    if (offerDetails?.data?.joiningDate) return offerDetails.data.joiningDate;
-    return null;
-  };
-
-  const getReportingTo = () => {
-    if (offerDetails?.data?.reportingTo) return offerDetails.data.reportingTo;
-    if (offerDetails?.data?.offerDetails?.reportingTo) return offerDetails.data.offerDetails.reportingTo;
-    return 'Not Specified';
-  };
-
-  const getProbationPeriod = () => {
-    if (offerDetails?.data?.probationPeriod) return offerDetails.data.probationPeriod;
-    if (offerDetails?.data?.offerDetails?.probationPeriod) return offerDetails.data.offerDetails.probationPeriod;
-    return 6;
-  };
-
+  // Get CTC details from selected offer
   const getCtcDetails = () => {
-    if (offerDetails?.data?.ctcDetails) return offerDetails.data.ctcDetails;
+    if (!selectedOffer) return null;
+
+    // Check different possible paths for CTC details
+    if (selectedOffer.ctcDetails) {
+      return selectedOffer.ctcDetails;
+    } else if (selectedOffer.ctc) {
+      return selectedOffer.ctc;
+    } else if (selectedOffer.compensation) {
+      return selectedOffer.compensation;
+    }
+
     return null;
+  };
+
+  // Get position from selected offer
+  const getPosition = () => {
+    if (!selectedOffer) return 'Not Specified';
+
+    if (selectedOffer.position) return selectedOffer.position;
+    if (selectedOffer.jobTitle) return selectedOffer.jobTitle;
+    if (selectedOffer.designation) return selectedOffer.designation;
+    if (selectedOffer.job?.title) return selectedOffer.job.title;
+
+    return 'Not Specified';
+  };
+
+  // Get joining date from selected offer
+  const getJoiningDate = () => {
+    if (!selectedOffer) return null;
+
+    return selectedOffer.joiningDate ||
+      selectedOffer.offerDetails?.joiningDate ||
+      selectedOffer.expectedJoiningDate;
   };
 
   // Render success response data
@@ -765,6 +605,10 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
   // Render step content
   const renderStepContent = (step) => {
     switch (step) {
+      // Updated Step 0 component for SubmitForApproval.jsx
+
+      // Replace the case 0 in renderStepContent with this:
+
       case 0:
         return (
           <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
@@ -772,291 +616,207 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
               Select Offer for Approval
             </Typography>
 
-            {fetchingOffers ? (
+            {fetchingData ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                 <CircularProgress size={24} />
               </Box>
             ) : (
               <>
-                {/* Offer Selection Dropdown */}
-                {Array.isArray(offers) && offers.length > 0 ? (
-                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                    <InputLabel>Select Offer *</InputLabel>
-                    <Select
+                {/* Candidate Info in one line */}
+                {candidateInfo && (
+                  <Box sx={{
+                    mb: 2,
+                    p: 1.5,
+                    bgcolor: '#F0F7FF',
+                    borderRadius: 1,
+                    border: '1px solid #1976D2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 2
+                  }}>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <PersonIcon fontSize="small" sx={{ color: '#1976D2' }} />
+                      <strong>{candidateInfo.name || `${candidateInfo.firstName || ''} ${candidateInfo.lastName || ''}`.trim()}</strong>
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ color: '#666' }}>|</Typography>
+
+                    <Typography variant="body2" sx={{ color: '#1976D2' }}>
+                      {candidateInfo.email}
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ color: '#666' }}>|</Typography>
+
+                    <Typography variant="body2">
+                      <strong>Position:</strong> {candidateInfo.position || candidateInfo.jobTitle || 'Office Assistant'}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Hidden select field - but we'll show a read-only view instead */}
+                {candidateOffers.length > 0 ? (
+                  <>
+                    {/* Hidden select for form value (not visible to user) */}
+                    <select
+                      style={{ display: 'none' }}
                       value={selectedOffer?._id || selectedOffer?.id || ''}
                       onChange={handleOfferChange}
-                      label="Select Offer *"
-                      error={!!stepErrors.offer}
                     >
-                      {offers.map((offer) => {
-                        if (!offer) return null;
+                      {candidateOffers.map((offer) => (
+                        <option key={offer._id || offer.id} value={offer._id || offer.id}>
+                          {offer.offerId || offer._id}
+                        </option>
+                      ))}
+                    </select>
 
-                        // Try to get candidate name from different possible locations
-                        let candidateName = 'Unknown Candidate';
-                        if (offer.candidateId) {
-                          if (typeof offer.candidateId === 'object') {
-                            candidateName = offer.candidateId.name ||
-                              `${offer.candidateId.firstName || ''} ${offer.candidateId.lastName || ''}`.trim() ||
-                              'Unknown Candidate';
-                          } else {
-                            candidateName = `Candidate ID: ${offer.candidateId}`;
-                          }
-                        }
-
-                        return (
-                          <MenuItem key={offer._id || offer.id} value={offer._id || offer.id}>
-                             {offer.offerId || offer._id} ({offer.status || 'Unknown'})
-                          </MenuItem>
-                        );
-                      })}
-                    </Select>
-                    {stepErrors.offer && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                        {stepErrors.offer}
-                      </Typography>
-                    )}
-                  </FormControl>
+                    {/* Read-only offer selection info */}
+                    {/* <Box sx={{ 
+                mb: 2, 
+                p: 1.5, 
+                bgcolor: '#F5F5F5', 
+                borderRadius: 1,
+                border: '1px solid #E0E0E0'
+              }}>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                  <InfoIcon fontSize="small" sx={{ fontSize: 16 }} />
+                  Latest offer automatically selected (read-only)
+                </Typography>
+                
+                <FormControl fullWidth size="small" disabled>
+                  <InputLabel>Selected Offer</InputLabel>
+                  <Select
+                    value={selectedOffer?._id || selectedOffer?.id || ''}
+                    label="Selected Offer"
+                    disabled
+                  >
+                    {candidateOffers.map((offer) => (
+                      <MenuItem key={offer._id || offer.id} value={offer._id || offer.id}>
+                        {offer.offerId || offer._id} (Created: {formatDate(offer.createdAt)})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box> */}
+                  </>
                 ) : (
-                  !fetchingOffers && (
+                  !fetchingData && (
                     <Alert severity="info" sx={{ borderRadius: 1, mb: 2 }}>
                       No initiated offers found for this candidate.
                     </Alert>
                   )
                 )}
 
-                {/* Selected Offer Preview */}
+                {/* Selected Offer Preview - Read Only */}
                 {selectedOffer && (
-                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1 }}>
-                    <Grid container spacing={4}>
-                      <Grid item xs={6}>
+                  <Box sx={{
+                    p: 2,
+                    bgcolor: '#F8FAFC',
+                    borderRadius: 1,
+                    border: '1px solid #1976D2',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600 }}>
+                      Offer Details
+                    </Typography>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="textSecondary" display="block">
-                          Candidate Name
+                          Offer ID
                         </Typography>
-                        <Typography variant="body2" fontWeight={500}>
-                          {getCandidateName()}
+                        <Typography variant="body2" fontWeight={600}>
+                          {selectedOffer.offerId || selectedOffer._id}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+
+                      <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="textSecondary" display="block">
-                          Candidate ID
+                          Status
+                        </Typography>
+                        <Chip
+                          label={selectedOffer.status || 'Initiated'}
+                          color={getStatusColor(selectedOffer.status)}
+                          size="small"
+                          sx={{
+                            fontWeight: 500,
+                            height: 24,
+                            '& .MuiChip-label': { px: 1 }
+                          }}
+                        />
+                      </Grid>
+
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Total CTC
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600} color="#1976D2">
+                          {getCtcDetails() ? formatCurrency(getCtcDetails().totalCtc) : 'N/A'}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Created Date
                         </Typography>
                         <Typography variant="body2">
-                          {getCandidateId()}
+                          {formatDate(selectedOffer.createdAt || selectedOffer.createdDate)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Email
-                        </Typography>
-                        <Typography variant="body2">{getCandidateEmail()}</Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Phone
-                        </Typography>
-                        <Typography variant="body2">{getCandidatePhone()}</Typography>
-                      </Grid>
+
                       <Grid item xs={6}>
                         <Typography variant="caption" color="textSecondary" display="block">
                           Position
                         </Typography>
-                        <Typography variant="body2">{getPosition()}</Typography>
+                        <Typography variant="body2">
+                          {getPosition()}
+                        </Typography>
                       </Grid>
+
                       <Grid item xs={6}>
                         <Typography variant="caption" color="textSecondary" display="block">
-                          Offer Status
+                          Joining Date
                         </Typography>
-                        <Chip
-                          label={selectedOffer.status || 'Draft'}
-                          color={getStatusColor(selectedOffer.status)}
-                          size="small"
-                          sx={{ fontWeight: 500 }}
-                        />
+                        <Typography variant="body2">
+                          {formatDate(getJoiningDate())}
+                        </Typography>
                       </Grid>
+
+                      {/* {selectedOffer.applicationId && (
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block">
+                      Application ID
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedOffer.applicationId}
+                    </Typography>
+                  </Grid>
+                )} */}
                     </Grid>
+
+                    {/* Show if there are multiple offers */}
+                    {candidateOffers.length > 1 && (
+                      <Box sx={{ mt: 2, pt: 1, borderTop: '1px dashed #E0E0E0' }}>
+                        <Typography variant="caption" color="textSecondary">
+                          {candidateOffers.length} offer(s) available. Latest offer selected automatically.
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 )}
+
+                {/* Hidden field to maintain form data */}
+                <input
+                  type="hidden"
+                  name="offerId"
+                  value={selectedOffer?._id || selectedOffer?.id || ''}
+                />
               </>
             )}
           </Paper>
         );
 
-      //       case 1:
-      // return (
-      //   <Stack spacing={2}>
-      //     <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-      //       <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-      //         📋 Offer Summary
-      //       </Typography>
-
-      //       {loading ? (
-      //         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-      //           <CircularProgress size={24} />
-      //         </Box>
-      //       ) : (
-      //         <Grid container spacing={8} sx={{ pb: -4 }}> {/* Changed from spacing={2} to spacing={1} */}
-      //           <Grid item xs={12}>
-      //             <Box sx={{ mb: 1 }}> {/* Reduced from mb: 1.5 to mb: 1 */}
-      //               <Typography variant="body2" fontWeight={600}>
-      //                 {getCandidateName()}
-      //               </Typography>
-      //               <Typography variant="caption" color="textSecondary">
-      //                 ID: {getCandidateId()} | {getCandidateEmail()} | {getCandidatePhone()}
-      //               </Typography>
-      //             </Box>
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Offer ID
-      //             </Typography>
-      //             <Typography variant="body2" fontWeight={500}>
-      //               {selectedOffer?.offerId || selectedOffer?._id || 'N/A'}
-      //             </Typography>
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Current Status
-      //             </Typography>
-      //             <Chip
-      //               label={getOfferValue('status', 'Draft')}
-      //               color={getStatusColor(getOfferValue('status'))}
-      //               size="small"
-      //               sx={{ fontWeight: 500, mt: 0.5 }}
-      //             />
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Position
-      //             </Typography>
-      //             <Typography variant="body2">
-      //               {getPosition()}
-      //             </Typography>
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Joining Date
-      //             </Typography>
-      //             <Typography variant="body2">
-      //               {formatDate(getJoiningDate())}
-      //             </Typography>
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Reporting To
-      //             </Typography>
-      //             <Typography variant="body2">
-      //               {getReportingTo()}
-      //             </Typography>
-      //           </Grid>
-
-      //           <Grid item xs={12} sm={6}>
-      //             <Typography variant="caption" color="textSecondary" display="block">
-      //               Probation Period
-      //             </Typography>
-      //             <Typography variant="body2">
-      //               {getProbationPeriod()} months
-      //             </Typography>
-      //           </Grid>
-      //         </Grid>
-      //       )}
-      //     </Paper>
-      //   </Stack>
-      // );
-      // case 1:
-      //   return (
-      //     <Stack spacing={2}>
-      //       <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-      //         <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-      //           Offer Summary
-      //         </Typography>
-
-      //         {loading ? (
-      //           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-      //             <CircularProgress size={24} />
-      //           </Box>
-      //         ) : (
-      //           <Grid container spacing={2}>
-
-      //             {/* Row 1: Candidate Name, Offer ID, Current Status */}
-      //             <Grid item xs={12} sm={4}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Candidate Name
-      //               </Typography>
-      //               <Typography variant="body2" fontWeight={500}>
-      //                 {getCandidateName()}
-      //               </Typography>
-      //             </Grid>
-
-      //             <Grid item xs={12} sm={4}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Offer ID
-      //               </Typography>
-      //               <Typography variant="body2" fontWeight={500}>
-      //                 {selectedOffer?.offerId || selectedOffer?._id || 'N/A'}
-      //               </Typography>
-      //             </Grid>
-
-      //             <Grid item xs={12} sm={4}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Current Status
-      //               </Typography>
-      //               <Chip
-      //                 label={getOfferValue('status', 'Draft')}
-      //                 color={getStatusColor(getOfferValue('status'))}
-      //                 size="small"
-      //                 sx={{ fontWeight: 500, mt: 0.5 }}
-      //               />
-      //             </Grid>
-
-      //             {/* Row 2: Position, Joining Date, Reporting To, Probation Period */}
-      //             <Grid item xs={12} sm={3}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Position
-      //               </Typography>
-      //               <Typography variant="body2">
-      //                 {getPosition()}
-      //               </Typography>
-      //             </Grid>
-
-      //             <Grid item xs={12} sm={3}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Joining Date
-      //               </Typography>
-      //               <Typography variant="body2">
-      //                 {formatDate(getJoiningDate())}
-      //               </Typography>
-      //             </Grid>
-
-      //             <Grid item xs={12} sm={3}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Reporting To
-      //               </Typography>
-      //               <Typography variant="body2">
-      //                 {getReportingTo()}
-      //               </Typography>
-      //             </Grid>
-
-      //             <Grid item xs={12} sm={3}>
-      //               <Typography variant="caption" color="textSecondary" display="block">
-      //                 Probation Period
-      //               </Typography>
-      //               <Typography variant="body2">
-      //                 {getProbationPeriod()} months
-      //               </Typography>
-      //             </Grid>
-      //           </Grid>
-      //         )}
-      //       </Paper>
-      //     </Stack>
-      //   );
-     
-        case 1:
-        // Declare at the very beginning
+      case 1:
         const ctcDetails = getCtcDetails();
 
         return (
@@ -1066,11 +826,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
                 Annual CTC Breakdown
               </Typography>
 
-              {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1}}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : ctcDetails ? (
+              {ctcDetails ? (
                 <>
                   {/* Monthly Components Section */}
                   <Typography variant="caption" sx={{ color: '#1976D2', fontWeight: 600, mb: 1, display: 'block' }}>
@@ -1097,7 +853,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
 
                     <Grid item xs={6} sm={4}>
                       <Typography variant="caption" color="textSecondary" display="block">
-                        Conveyance Allowance
+                        Conveyance
                       </Typography>
                       <Typography variant="body2">
                         {formatCurrency(ctcDetails.conveyanceAllowance)}
@@ -1106,7 +862,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
 
                     <Grid item xs={6} sm={4}>
                       <Typography variant="caption" color="textSecondary" display="block">
-                        Medical Allowance
+                        Medical
                       </Typography>
                       <Typography variant="body2">
                         {formatCurrency(ctcDetails.medicalAllowance)}
@@ -1115,7 +871,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
 
                     <Grid item xs={6} sm={4}>
                       <Typography variant="caption" color="textSecondary" display="block">
-                        Special Allowance
+                        Special
                       </Typography>
                       <Typography variant="body2">
                         {formatCurrency(ctcDetails.specialAllowance)}
@@ -1173,51 +929,6 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
                         {formatCurrency(ctcDetails.gratuity)}
                       </Typography>
                     </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Basic + DA (Annual)
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatCurrency(ctcDetails.basic * 12)}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        HRA (Annual)
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatCurrency(ctcDetails.hra * 12)}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Conveyance (Annual)
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatCurrency(ctcDetails.conveyanceAllowance * 12)}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Medical (Annual)
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatCurrency(ctcDetails.medicalAllowance * 12)}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Special (Annual)
-                      </Typography>
-                      <Typography variant="body2">
-                        {formatCurrency(ctcDetails.specialAllowance * 12)}
-                      </Typography>
-                    </Grid>
                   </Grid>
 
                   <Divider />
@@ -1225,257 +936,217 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
                   {/* Total CTC Section */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="subtitle2" color="#1976D2">
-                      Total CTC
+                      Total CTC (Annual)
                     </Typography>
                     <Typography variant="h6" color="#1976D2" fontWeight={700}>
                       {formatCurrency(ctcDetails.totalCtc)}
                     </Typography>
                   </Box>
-
-                  {/* Summary Box */}
-                  <Box sx={{ mt: 1, p: 1.5, bgcolor: '#F0F7FF', borderRadius: 1, border: '1px dashed #1976D2' }}>
-                    <Grid container spacing={8}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Monthly Gross
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600} color="#1976D2">
-                          {formatCurrency(ctcDetails.gross)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Annual Gross
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600} color="#1976D2">
-                          {formatCurrency(ctcDetails.gross * 12)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Monthly CTC
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {formatCurrency(ctcDetails.totalCtc / 12)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Annual CTC
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {formatCurrency(ctcDetails.totalCtc)}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Box>
                 </>
               ) : (
                 <Alert severity="info" sx={{ borderRadius: 1 }}>
-                  CTC details not available
+                  CTC details not available for this offer
                 </Alert>
               )}
             </Paper>
           </Stack>
         );
 
-    case 2:
-  const ctcDetailsForPreview = getCtcDetails();
-  return (
-    <Stack spacing={2}>
+      case 2:
+        const ctcDetailsForPreview = getCtcDetails();
+        return (
+          <Stack spacing={2}>
+            {/* Preview Section */}
+            {selectedOffer && (
+              <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #1976D2' }}>
+                <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                  Submission Preview
+                </Typography>
 
-        {/* Preview Section */}
-      {selectedOffer && (
-        <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #1976D2' }}>
-          <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-             Submission Preview
-          </Typography>
+                <Grid container spacing={6}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Candidate Name
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.9rem' }}>
+                      {candidateInfo?.name || `${candidateInfo?.firstName || ''} ${candidateInfo?.lastName || ''}`.trim()}
+                    </Typography>
+                  </Grid>
 
-          <Grid container spacing={6}>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Candidate Name
-              </Typography>
-              <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.9rem' }}>
-                {getCandidateName()}
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Offer ID
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                {selectedOffer?.offerId || selectedOffer?._id}
-              </Typography>
-            </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Offer ID
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                      {selectedOffer?.offerId || selectedOffer?._id}
+                    </Typography>
+                  </Grid>
 
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Total CTC
-              </Typography>
-              <Typography variant="body2" fontWeight={600} color="#1976D2" sx={{ fontSize: '0.95rem' }}>
-                {ctcDetailsForPreview ? formatCurrency(ctcDetailsForPreview.totalCtc) : 'N/A'}
-              </Typography>
-            </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Total CTC
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600} color="#1976D2" sx={{ fontSize: '0.95rem' }}>
+                      {ctcDetailsForPreview ? formatCurrency(ctcDetailsForPreview.totalCtc) : 'N/A'}
+                    </Typography>
+                  </Grid>
 
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Joining Date
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                {formatDate(getJoiningDate())}
-              </Typography>
-            </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Joining Date
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                      {formatDate(getJoiningDate())}
+                    </Typography>
+                  </Grid>
 
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Position
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                {getPosition()}
-              </Typography>
-            </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Position
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                      {getPosition()}
+                    </Typography>
+                  </Grid>
 
-            <Grid item xs={6}>
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Status
-              </Typography>
-              <Chip
-                label={selectedOffer.status || 'Draft'}
-                color={getStatusColor(selectedOffer.status)}
-                size="small"
-                sx={{ fontWeight: 500, height: 22, fontSize: '0.75rem' }}
-              />
-            </Grid>
-          </Grid>
-        </Paper>
-      )}
-     
- {/* Terms & Conditions Card */}
-      <Paper sx={{ p: 2.5, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-        
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                      Status
+                    </Typography>
+                    <Chip
+                      label={selectedOffer.status || 'Initiated'}
+                      color={getStatusColor(selectedOffer.status)}
+                      size="small"
+                      sx={{ fontWeight: 500, height: 22, fontSize: '0.75rem' }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
 
-        {/* Remarks Section */}
-        <Box sx={{ mb: 2.5 }}>
-          <Typography variant="subtitle2" sx={{ color: '#1976D2', fontWeight: 600, fontSize: '0.9rem' }}>
-          Additiona Remark
-        </Typography>
-        
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            placeholder="Enter any additional remarks or comments..."
-            value={remarks}
-            onChange={handleRemarksChange}
-            size="small"
-            variant="outlined"
-            sx={{
-              '& .MuiOutlinedInput-root': {
+            {/* Terms & Conditions Card */}
+            <Paper sx={{ p: 2.5, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              {/* Remarks Section */}
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="subtitle2" sx={{ color: '#1976D2', fontWeight: 600, fontSize: '0.9rem' }}>
+                  Additional Remarks
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  placeholder="Enter any additional remarks or comments..."
+                  value={remarks}
+                  onChange={handleRemarksChange}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      fontSize: '0.85rem',
+                      backgroundColor: '#FAFAFA'
+                    }
+                  }}
+                />
+              </Box>
+
+              {/* Warning Message */}
+              <Box sx={{
+                p: 1.5,
+                bgcolor: '#FFF8E7',
                 borderRadius: 1,
-                fontSize: '0.85rem',
-                backgroundColor: '#FAFAFA'
-              }
-            }}
-          />
-        </Box>
+                border: '1px solid #FFB74D',
+                mb: 2.5
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <WarningIcon sx={{ color: '#F57C00', fontSize: 18 }} />
+                  <Typography variant="subtitle2" sx={{ color: '#F57C00', fontSize: '0.85rem', fontWeight: 600 }}>
+                    Important Notice
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', ml: 3.5 }}>
+                  Once submitted, this offer will be sent to the approver and cannot be modified until reviewed.
+                  Please ensure all details are accurate before proceeding.
+                </Typography>
+              </Box>
 
-        {/* Warning Message */}
-        <Box sx={{
-          p: 1.5,
-          bgcolor: '#FFF8E7',
-          borderRadius: 1,
-          border: '1px solid #FFB74D',
-          mb: 2.5
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <WarningIcon sx={{ color: '#F57C00', fontSize: 18 }} />
-            <Typography variant="subtitle2" sx={{ color: '#F57C00', fontSize: '0.85rem', fontWeight: 600 }}>
-              Important Notice
-            </Typography>
-          </Box>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block', ml: 3.5 }}>
-            Once submitted, this offer will be sent to the approver and cannot be modified until reviewed.
-            Please ensure all details are accurate before proceeding.
-          </Typography>
-        </Box>
-<Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 2, fontWeight: 600, fontSize: '0.9rem' }}>
-          Terms & Conditions
-        </Typography>
-
-        {/* Confirmation List */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" paragraph sx={{ fontSize: '0.85rem', color: '#424242', mb: 1.5 }}>
-            By submitting this offer for approval, you confirm that:
-          </Typography>
-
-          <Box component="ul" sx={{ pl: 2, mb: 0 }}>
-            {[
-              'All the CTC components have been calculated correctly as per company policy',
-              'The candidate has been properly interviewed and selected for the position',
-              'The offer details have been verified with HR',
-              'Any special approvals required for this CTC range have been obtained',
-              'The joining date has been confirmed with the candidate and is feasible'
-            ].map((item, index) => (
-              <Typography 
-                component="li" 
-                variant="body2" 
-                key={index} 
-                sx={{ 
-                  mb: 0.75, 
-                  fontSize: '0.8rem',
-                  color: '#555',
-                  lineHeight: 1.4
-                }}
-              >
-                {item}
+              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 2, fontWeight: 600, fontSize: '0.9rem' }}>
+                Terms & Conditions
               </Typography>
-            ))}
-          </Box>
-        </Box>
 
-        <Divider />
-        {/* Confirmation Checkbox */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'flex-start', 
-          gap: 1.5,
-          p: 1.5,
-          bgcolor: confirmSubmit ? '#F0F7FF' : 'transparent',
-          borderRadius: 1,
-          transition: 'background-color 0.2s'
-        }}>
-          <input
-            type="checkbox"
-            id="confirmSubmit"
-            checked={confirmSubmit}
-            onChange={(e) => setConfirmSubmit(e.target.checked)}
-            style={{ 
-              width: 18, 
-              height: 18, 
-              cursor: 'pointer',
-              marginTop: 2
-            }}
-          />
-          <Box>
-            <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>
-              I confirm that all the above information is accurate
-            </Typography>
-            <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
-              I understand that this action cannot be undone
-            </Typography>
-          </Box>
-        </Box>
-        {stepErrors.confirmSubmit && (
-          <Typography variant="caption" color="error" sx={{ mt: 1, ml: 3.5, display: 'block' }}>
-            {stepErrors.confirmSubmit}
-          </Typography>
-        )}
-      </Paper>
+              {/* Confirmation List */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" paragraph sx={{ fontSize: '0.85rem', color: '#424242', mb: 1.5 }}>
+                  By submitting this offer for approval, you confirm that:
+                </Typography>
 
-    </Stack>
-  );
+                <Box component="ul" sx={{ pl: 2, mb: 0 }}>
+                  {[
+                    'All the CTC components have been calculated correctly as per company policy',
+                    'The candidate has been properly interviewed and selected for the position',
+                    'The offer details have been verified with HR',
+                    'Any special approvals required for this CTC range have been obtained',
+                    'The joining date has been confirmed with the candidate and is feasible'
+                  ].map((item, index) => (
+                    <Typography
+                      component="li"
+                      variant="body2"
+                      key={index}
+                      sx={{
+                        mb: 0.75,
+                        fontSize: '0.8rem',
+                        color: '#555',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      {item}
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+
+              <Divider />
+
+              {/* Confirmation Checkbox */}
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1.5,
+                p: 1.5,
+                bgcolor: confirmSubmit ? '#F0F7FF' : 'transparent',
+                borderRadius: 1,
+                transition: 'background-color 0.2s'
+              }}>
+                <input
+                  type="checkbox"
+                  id="confirmSubmit"
+                  checked={confirmSubmit}
+                  onChange={(e) => setConfirmSubmit(e.target.checked)}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    cursor: 'pointer',
+                    marginTop: 2
+                  }}
+                />
+                <Box>
+                  <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>
+                    I confirm that all the above information is accurate
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
+                    I understand that this action cannot be undone
+                  </Typography>
+                </Box>
+              </Box>
+              {stepErrors.confirmSubmit && (
+                <Typography variant="caption" color="error" sx={{ mt: 1, ml: 3.5, display: 'block' }}>
+                  {stepErrors.confirmSubmit}
+                </Typography>
+              )}
+            </Paper>
+          </Stack>
+        );
       default:
         return null;
     }
@@ -1505,10 +1176,10 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
           alignItems: 'center'
         }}>
           <Typography
-            variant="body1"  // Changed from subtitle1 to body1
+            variant="body1"
             fontWeight={600}
             sx={{ color: '#101010' }}
-            component="span"  // Explicitly set as span instead of h6
+            component="span"
           >
             Submit Offer for Approval
           </Typography>
@@ -1517,14 +1188,13 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
           </IconButton>
         </DialogTitle>
 
-        {/* 🔥 Modern Stepper with Gradient Connector */}
+        {/* Modern Stepper with Gradient Connector */}
         {!responseData && (
           <Box sx={{ px: 2, pt: 1, backgroundColor: '#F8FAFC' }}>
             <Stepper
               activeStep={activeStep}
               alternativeLabel
               connector={<ColorConnector />}
-              // sx={{ mb: 1 }}
             >
               {steps.map((label) => (
                 <Step key={label}>
@@ -1542,13 +1212,6 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
             renderStepContent(activeStep)
           ) : (
             <Box sx={{ py: 1 }}>
-              {/* <Alert
-                severity="success"
-                icon={<CheckCircleIcon />}
-                sx={{ mb: 2, borderRadius: 1 }}
-              >
-                {success}
-              </Alert> */}
               {renderResponseData()}
             </Box>
           )}
@@ -1594,7 +1257,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
                   <Button
                     variant="contained"
                     onClick={handleSubmitForApproval}
-                    disabled={loading || !confirmSubmit}
+                    disabled={loading || !confirmSubmit || !selectedOffer}
                     size="small"
                     startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
                     sx={{
@@ -1609,7 +1272,7 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
                   <Button
                     variant="contained"
                     onClick={handleNext}
-                    disabled={loading}
+                    disabled={loading || (activeStep === 0 && !selectedOffer)}
                     size="small"
                     endIcon={<NavigateNextIcon />}
                     sx={{
@@ -1647,10 +1310,10 @@ const SubmitForApproval = ({ open, onClose, onComplete, candidateData = null }) 
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity} 
-          sx={{ 
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{
             width: '100%',
             borderRadius: 1,
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)'

@@ -78,7 +78,7 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 const ScheduleInterview = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    applicationId: null,
+    applicationId: '',
     round: '',
     interviewers: [],
     scheduledAt: '',
@@ -131,38 +131,92 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
   ];
 
   // Fetch applications from API
-  const fetchApplications = async (search = '', page = 1) => {
-    setApplicationsLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/candidates`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        params: {
-          page: page,
-          limit: 10,
-          search: search
-        }
-      });
+  // const fetchApplications = async (search = '', page = 1) => {
+  //   setApplicationsLoading(true);
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const response = await axios.get(`${BASE_URL}/api/candidates`, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`
+  //       },
+  //       params: {
+  //         page: page,
+  //         limit: 10,
+  //         search: search
+  //       }
+  //     });
 
-      if (response.data.success) {
-        // Adjust based on your actual API response structure for candidates
-        const newData = response.data.data || response.data.data?.candidates || [];
-        if (page === 1) {
-          setApplications(Array.isArray(newData) ? newData : []);
-        } else {
-          setApplications(prev => Array.isArray(prev) ? [...prev, ...(Array.isArray(newData) ? newData : [])] : []);
+  //     if (response.data.success) {
+  //       // Adjust based on your actual API response structure for candidates
+  //       const newData = response.data.data || response.data.data?.candidates || [];
+  //       if (page === 1) {
+  //         setApplications(Array.isArray(newData) ? newData : []);
+  //       } else {
+  //         setApplications(prev => Array.isArray(prev) ? [...prev, ...(Array.isArray(newData) ? newData : [])] : []);
+  //       }
+  //       setApplicationsTotalPages(response.data.pagination?.totalPages || response.data.data?.pagination?.totalPages || 1);
+  //     }
+  //   } catch (err) {
+  //     console.error('Error fetching applications:', err);
+  //     setApplications([]); // Reset to empty array on error
+  //   } finally {
+  //     setApplicationsLoading(false);
+  //   }
+  // };
+const fetchApplications = async (search = '', page = 1) => {
+  setApplicationsLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    
+    const response = await axios.get(`${BASE_URL}/api/candidates`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      params: {
+       
+        status: ['shortlisted', 'onHold'] // Include relevant statuses
+      },
+      paramsSerializer: params => {
+        const searchParams = new URLSearchParams();
+        if (params.search) searchParams.append('search', params.search);
+        if (params.status) {
+          params.status.forEach(status => searchParams.append('status', status));
         }
-        setApplicationsTotalPages(response.data.pagination?.totalPages || response.data.data?.pagination?.totalPages || 1);
+        return searchParams.toString();
       }
-    } catch (err) {
-      console.error('Error fetching applications:', err);
-      setApplications([]); // Reset to empty array on error
-    } finally {
-      setApplicationsLoading(false);
+    });
+
+    console.log('Candidates API Response:', response.data);
+
+    if (response.data.success) {
+      // Data is directly in response.data.data array
+      const candidatesData = response.data.data || [];
+      
+      // Filter candidates that have a latestApplication (they've applied to a job)
+      const candidatesWithApplication = candidatesData.filter(
+        candidate => candidate.latestApplication && candidate.latestApplication._id
+      );
+      
+      console.log('Candidates with applications:', candidatesWithApplication);
+      
+      if (page === 1) {
+        setApplications(candidatesWithApplication);
+      } else {
+        setApplications(prev => [...prev, ...candidatesWithApplication]);
+      }
+      
+      setApplicationsTotalPages(response.data.pagination?.totalPages || 1);
     }
-  };
+  } catch (err) {
+    console.error('Error fetching candidates:', err);
+    if (err.response) {
+      console.error('Error details:', err.response.data);
+    }
+    setApplications([]);
+  } finally {
+    setApplicationsLoading(false);
+  }
+};
 
   // Fetch interviewers from API
   const fetchInterviewers = async (search = '', page = 1) => {
@@ -402,63 +456,72 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
     setError('');
   };
 
-  const handleSubmit = async () => {
-    if (!validateStep(1)) {
-      setError('Please fill in all required fields correctly');
+const handleSubmit = async () => {
+  if (!validateStep(1)) {
+    setError('Please fill in all required fields correctly');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const token = localStorage.getItem('token');
+
+    // IMPORTANT: Use the application ID from latestApplication._id
+    const applicationId = formData.applicationId?.latestApplication?._id;
+    
+    if (!applicationId) {
+      setError('Invalid application selected. Please select a candidate with a valid application.');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError('');
+    // Prepare data according to API expectations
+    const submitData = {
+      applicationId: applicationId, // This should be the application _id
+      round: formData.round,
+      interviewers: selectedInterviewers.map(interviewer => ({
+        interviewerId: interviewer.interviewerId,
+        name: interviewer.name,
+        email: interviewer.email
+      })),
+      scheduledAt: formData.scheduledAt,
+      duration: parseInt(formData.duration),
+      type: formData.type,
+      meetingLink: formData.meetingLink || '',
+      location: formData.location || '',
+      notes: formData.notes || ''
+    };
 
-    try {
-      const token = localStorage.getItem('token');
+    console.log('Submitting interview data:', submitData);
 
-      // Prepare data according to API expectations
-      const submitData = {
-        applicationId: formData.applicationId?._id || formData.applicationId?.id,
-        round: formData.round,
-        interviewers: selectedInterviewers.map(interviewer => ({
-          interviewerId: interviewer.interviewerId,
-          name: interviewer.name,
-          email: interviewer.email
-        })),
-        scheduledAt: formData.scheduledAt,
-        duration: parseInt(formData.duration),
-        type: formData.type,
-        meetingLink: formData.meetingLink || '',
-        location: formData.location || '',
-        notes: formData.notes || ''
-      };
-
-      console.log('Submitting interview data:', submitData);
-
-      const response = await axios.post(`${BASE_URL}/api/interviews`, submitData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
-        onAdd(response.data.data);
-        resetForm();
-        onClose();
-      } else {
-        setError(response.data.message || 'Failed to schedule interview');
+    const response = await axios.post(`${BASE_URL}/api/interviews`, submitData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (err) {
-      console.error('Error scheduling interview:', err);
-      if (err.response) {
-        console.error('Error response:', err.response.data);
-        setError(err.response.data?.message || 'Failed to schedule interview. Please try again.');
-      } else {
-        setError('Failed to schedule interview. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+    });
+
+    if (response.data.success) {
+      onAdd(response.data.data);
+      resetForm();
+      onClose();
+    } else {
+      setError(response.data.message || 'Failed to schedule interview');
     }
-  };
+  } catch (err) {
+    console.error('Error scheduling interview:', err);
+    if (err.response) {
+      console.error('Error response:', err.response.data);
+      setError(err.response.data?.message || 'Failed to schedule interview. Please try again.');
+    } else {
+      setError('Failed to schedule interview. Please try again.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const resetForm = () => {
     setFormData({

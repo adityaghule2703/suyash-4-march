@@ -344,7 +344,7 @@ const ShiftMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{
@@ -383,7 +383,7 @@ const ShiftMaster = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -406,7 +406,7 @@ const ShiftMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{
@@ -425,7 +425,7 @@ const ShiftMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="outlined"
               onClick={() => setOpenAssignModal(true)}

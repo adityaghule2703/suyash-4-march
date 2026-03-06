@@ -475,7 +475,7 @@ const Users = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -514,7 +514,7 @@ const Users = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -537,7 +537,7 @@ const Users = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -556,7 +556,7 @@ const Users = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

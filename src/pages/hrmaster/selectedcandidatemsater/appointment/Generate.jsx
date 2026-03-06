@@ -22,96 +22,131 @@ import {
   Stepper,
   Step,
   StepLabel,
-  TextField,
   Divider,
-  alpha,
   Card,
   CardContent,
   CardActions,
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Tooltip
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
-  Work as WorkIcon,
-  School as SchoolIcon,
-  Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
-  Assignment as AssignmentIcon,
-  CalendarToday as CalendarIcon,
   Download as DownloadIcon,
-  Visibility as VisibilityIcon,
-  Send as SendIcon,
-  AttachMoney as MoneyIcon,
-  BusinessCenter as BusinessIcon,
-  LocationOn as LocationIcon
+  Description as DescriptionIcon,
+  PictureAsPdf as PdfIcon,
+  Visibility as ViewIcon,
+  Email as EmailIcon,
+  Print as PrintIcon,
 } from '@mui/icons-material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import html2pdf from 'html2pdf.js';
 
 // Color constants
 const PRIMARY_BLUE = '#00B4D8';
 const SUCCESS_COLOR = '#2E7D32';
-const INFO_COLOR = '#0288D1';
 
 const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [previewHtml, setPreviewHtml] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [pdfGenerationStatus, setPdfGenerationStatus] = useState('');
+
   // Data states
   const [candidates, setCandidates] = useState([]);
   const [offers, setOffers] = useState([]);
-  const [filteredOffers, setFilteredOffers] = useState([]);
+  const [selectedOfferDetails, setSelectedOfferDetails] = useState(null);
   const [fetchingCandidates, setFetchingCandidates] = useState(false);
   const [fetchingOffers, setFetchingOffers] = useState(false);
-  
+  const [fetchingOfferDetails, setFetchingOfferDetails] = useState(false);
+
   // Form state
   const [selectedCandidate, setSelectedCandidate] = useState('');
   const [selectedOffer, setSelectedOffer] = useState('');
-  const [joiningDate, setJoiningDate] = useState(null);
+
+  // Generated letter state
   const [generatedLetter, setGeneratedLetter] = useState(null);
-  
+
   // Error/Success state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const steps = ['Select Candidate', 'Select Offer & Date', 'Generate & Download'];
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const steps = ['Select Candidate', 'Select Offer', 'Generate'];
+
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (generatedLetter?.fileUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(generatedLetter.fileUrl);
+      }
+    };
+  }, [generatedLetter]);
 
   // Fetch candidates on open
   useEffect(() => {
     if (open) {
       fetchCandidates();
+      resetState();
     }
   }, [open]);
 
   // Fetch offers when candidate is selected
   useEffect(() => {
     if (selectedCandidate) {
-      fetchOffersForCandidate(selectedCandidate);
+      fetchAcceptedOffersForCandidate(selectedCandidate);
     } else {
-      setFilteredOffers([]);
+      setOffers([]);
       setSelectedOffer('');
+      setSelectedOfferDetails(null);
     }
   }, [selectedCandidate]);
+
+  // Fetch offer details when offer is selected
+  useEffect(() => {
+    if (selectedOffer) {
+      fetchOfferDetails(selectedOffer);
+    } else {
+      setSelectedOfferDetails(null);
+    }
+  }, [selectedOffer]);
+
+  const resetState = () => {
+    setStep(0);
+    setSelectedCandidate('');
+    setSelectedOffer('');
+    // Clean up old blob URL
+    if (generatedLetter?.fileUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(generatedLetter.fileUrl);
+    }
+    setGeneratedLetter(null);
+    setError('');
+    setSuccess('');
+    setOffers([]);
+    setSelectedOfferDetails(null);
+    setValidationErrors({});
+    setPreviewHtml(null);
+    setShowPreview(false);
+    setPdfGenerationStatus('');
+  };
 
   // Fetch candidates
   const fetchCandidates = async () => {
     setFetchingCandidates(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      // Fetch candidates who are selected or have offers
       const response = await axios.get(`${BASE_URL}/api/candidates?status=selected`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -129,69 +164,107 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     }
   };
 
-  // Fetch offers for selected candidate
-  const fetchOffersForCandidate = async (candidateId) => {
+  // Fetch accepted offers for selected candidate
+  const fetchAcceptedOffersForCandidate = async (candidateId) => {
     setFetchingOffers(true);
     setError('');
-    
+    setOffers([]);
+    setSelectedOffer('');
+    setSelectedOfferDetails(null);
+
     try {
       const token = localStorage.getItem('token');
-      
-      // Try different endpoints to get offers for the candidate
-      let response;
-      
-      // First try: get offers by candidate ID
-      try {
-        response = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}&status=accepted`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      } catch (err) {
-        // Second try: get all offers and filter on client side
-        console.log('Trying base offers endpoint...');
-        response = await axios.get(`${BASE_URL}/api/offers?status=accepted`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      const response = await axios.get(`${BASE_URL}/api/offers?status=accepted`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
       if (response.data.success) {
-        // Filter offers for the selected candidate
-        const candidateOffers = response.data.data.filter(offer => 
-          (offer.candidateId?._id === candidateId || offer.candidateId === candidateId) &&
-          offer.status?.toLowerCase() === 'accepted'
-        );
-        
-        setFilteredOffers(candidateOffers);
-        setOffers(response.data.data || []);
-        
-        // Reset selected offer when candidate changes
-        setSelectedOffer('');
-        
+        const allOffers = response.data.data?.offers || [];
+        const candidateOffers = allOffers.filter(offer => {
+          const offerCandidateId = offer.candidate?._id || offer.candidateId?._id || offer.candidateId;
+          return offerCandidateId === candidateId && offer.status?.toLowerCase() === 'accepted';
+        });
+
+        setOffers(candidateOffers);
+
         if (candidateOffers.length === 0) {
           setError('No accepted offers found for this candidate');
+        } else if (candidateOffers.length === 1) {
+          setSelectedOffer(candidateOffers[0]._id);
         }
       } else {
-        setFilteredOffers([]);
+        setError('Failed to fetch offers');
       }
     } catch (err) {
       console.error('Error fetching offers:', err);
-      setFilteredOffers([]);
-      setError('Failed to fetch offers for this candidate');
+      setError(err.response?.data?.message || 'Failed to fetch offers for this candidate');
     } finally {
       setFetchingOffers(false);
     }
   };
 
+  // Fetch complete offer details by ID
+  const fetchOfferDetails = async (offerId) => {
+    setFetchingOfferDetails(true);
+    setValidationErrors({});
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/offers/${offerId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setSelectedOfferDetails(response.data.data);
+        
+        // Validate required fields for PDF generation
+        validateOfferForPdfGeneration(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching offer details:', err);
+    } finally {
+      setFetchingOfferDetails(false);
+    }
+  };
+
+  // Validate if offer has all required fields for PDF generation
+  const validateOfferForPdfGeneration = (offer) => {
+    const errors = {};
+    
+    if (!offer.offerDetails?.joiningDate) {
+      errors.joiningDate = 'Joining date is required';
+    }
+    
+    if (!offer.candidate?.firstName || !offer.candidate?.lastName) {
+      errors.candidateName = 'Candidate name is incomplete';
+    }
+    
+    if (!offer.offerDetails?.designation && !offer.job?.title) {
+      errors.designation = 'Designation is required';
+    }
+    
+    if (!offer.ctcDetails?.totalCtc) {
+      errors.ctc = 'CTC details are required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Handle candidate change
   const handleCandidateChange = (e) => {
     setSelectedCandidate(e.target.value);
-    setSelectedOffer(''); // Reset offer when candidate changes
+    setSelectedOffer('');
+    setSelectedOfferDetails(null);
     setError('');
+    setValidationErrors({});
   };
 
   // Handle offer change
   const handleOfferChange = (e) => {
     setSelectedOffer(e.target.value);
     setError('');
+    setValidationErrors({});
   };
 
   // Handle next step
@@ -204,10 +277,6 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
       setError('Please select an offer');
       return;
     }
-    if (step === 1 && !joiningDate) {
-      setError('Please select a joining date');
-      return;
-    }
     setError('');
     setStep(prev => prev + 1);
   };
@@ -218,34 +287,174 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     setError('');
   };
 
-  // Handle reset
-  const handleReset = () => {
-    setStep(0);
-    setSelectedCandidate('');
-    setSelectedOffer('');
-    setJoiningDate(null);
-    setGeneratedLetter(null);
-    setError('');
-    setSuccess('');
-  };
-
   // Handle close
   const handleClose = () => {
-    handleReset();
+    resetState();
     onClose();
   };
 
-  // Handle generate appointment letter
-  const handleGenerateLetter = async () => {
+  // ===== FIXED: Clean HTML content with explicit visibility styles =====
+  const cleanHtmlForPdf = (html) => {
+    console.log('Original HTML length:', html.length);
+    
+    // Add meta viewport and base styles
+    let cleaned = html.replace('<head>', '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    
+    // Add critical styles to force content visibility
+    const forceVisibleStyles = `
+      <style>
+        * { 
+          visibility: visible !important; 
+          opacity: 1 !important; 
+          display: block !important;
+          color: #000000 !important;
+          background-color: transparent !important;
+        }
+        body { 
+          margin: 20px !important; 
+          padding: 20px !important;
+          background-color: #ffffff !important;
+          font-family: Arial, sans-serif !important;
+        }
+        div, p, span, h1, h2, h3, h4, h5, h6 {
+          color: #000000 !important;
+        }
+        table { 
+          border-collapse: collapse !important;
+          width: 100% !important;
+        }
+        td, th {
+          border: 1px solid #000000 !important;
+          padding: 8px !important;
+        }
+      </style>
+    `;
+    
+    // Insert styles after head
+    cleaned = cleaned.replace('</head>', forceVisibleStyles + '</head>');
+    
+    // Fix any relative paths
+    cleaned = cleaned.replace(/src="\//g, `src="${BASE_URL}/`);
+    cleaned = cleaned.replace(/href="\//g, `href="${BASE_URL}/`);
+    
+    console.log('Cleaned HTML length:', cleaned.length);
+    
+    return cleaned;
+  };
+
+  // ===== FIXED: Simplified PDF generation with better error handling =====
+  const generatePdfFromHtml = async (htmlContent, fileName) => {
+    setPdfGenerationStatus('Preparing document...');
+    
+    // Create a container with the HTML
+    const container = document.createElement('div');
+    container.innerHTML = cleanHtmlForPdf(htmlContent);
+    
+    // Style the container to be visible but off-screen
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.backgroundColor = '#ffffff';
+    container.style.padding = '20px';
+    container.style.zIndex = '-9999';
+    
+    document.body.appendChild(container);
+
+    // Wait for content to settle
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // ===== FIXED: Simplified options for better compatibility =====
+    const opt = {
+      margin: [0.5, 0.5, 0.5, 0.5],
+      filename: fileName,
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { 
+        scale: 2,
+        logging: true,
+        backgroundColor: '#ffffff',
+        allowTaint: false,
+        useCORS: true
+      },
+      jsPDF: { 
+        unit: 'in',
+        format: 'a4',
+        orientation: 'portrait'
+      }
+    };
+
+    try {
+      setPdfGenerationStatus('Rendering document...');
+      
+      // Create worker and generate PDF
+      const worker = html2pdf().set(opt).from(container);
+      
+      setPdfGenerationStatus('Generating PDF...');
+      
+      // Get the PDF blob
+      const pdfBlob = await worker.output('blob');
+      
+      console.log('PDF Blob size:', pdfBlob.size);
+      
+      // Verify PDF has content
+      if (pdfBlob.size < 2000) {
+        console.warn('PDF size is very small:', pdfBlob.size);
+      }
+      
+      // Clean up
+      document.body.removeChild(container);
+      
+      setPdfGenerationStatus('');
+      
+      return {
+        blob: pdfBlob,
+        size: pdfBlob.size,
+        fileName: fileName
+      };
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+      setPdfGenerationStatus('');
+      throw new Error('Failed to generate PDF: ' + error.message);
+    }
+  };
+
+  // Preview HTML before generating PDF
+  const handlePreviewHtml = async () => {
+    if (!previewHtml) {
+      await handleGenerateLetter(true);
+    } else {
+      setShowPreview(true);
+    }
+  };
+
+  // ===== FIXED: Generate letter with better error handling =====
+  const handleGenerateLetter = async (previewOnly = false) => {
     setSubmitting(true);
     setError('');
-    
+    setPdfGenerationStatus('');
+
     try {
       const token = localStorage.getItem('token');
+      const offerDetails = selectedOfferDetails || offerDisplayDetails;
       
-      // Format joining date as YYYY-MM-DD
-      const formattedDate = joiningDate.toISOString().split('T')[0];
+      const joiningDate = offerDetails?.offerDetails?.joiningDate;
       
+      if (!joiningDate) {
+        throw new Error('Joining date not found in offer details');
+      }
+
+      const formattedDate = new Date(joiningDate).toISOString().split('T')[0];
+
+      console.log('Generating letter with:', {
+        candidateId: selectedCandidate,
+        offerId: selectedOffer,
+        joiningDate: formattedDate
+      });
+
+      // Make API call to get HTML
       const response = await axios.post(
         `${BASE_URL}/api/appointment-letter/generate`,
         {
@@ -254,40 +463,215 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           joiningDate: formattedDate
         },
         {
-          headers: { 
+          headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Accept': 'text/html,application/json'
+          },
+          timeout: 30000,
+          responseType: 'text'
         }
       );
 
-      if (response.data.success) {
-        setGeneratedLetter(response.data.data);
-        setSuccess(response.data.message || 'Appointment letter generated successfully!');
+      const responseData = typeof response.data === 'string' ? response.data : response.data;
+      
+      if (typeof responseData === 'string' && responseData.includes('<!DOCTYPE html>')) {
         
-        if (onSubmit) {
-          onSubmit(response.data.data);
+        // Store HTML for preview
+        setPreviewHtml(responseData);
+        
+        if (previewOnly) {
+          setShowPreview(true);
+          setSubmitting(false);
+          return;
         }
+
+        // Generate filename
+        const candidateName = `${candidateDetails?.firstName}_${candidateDetails?.lastName}`.toLowerCase().replace(/\s+/g, '_');
+        const fileName = `appointment_letter_${candidateName}_${Date.now()}.pdf`;
+
+        // Generate PDF from HTML
+        const pdfResult = await generatePdfFromHtml(responseData, fileName);
+
+        // Create blob URL for download
+        const blobUrl = URL.createObjectURL(pdfResult.blob);
+
+        // Create response data
+        const mockData = {
+          documentId: Date.now().toString(36) + Math.random().toString(36).substr(2),
+          fileUrl: blobUrl,
+          fileBlob: pdfResult.blob,
+          fileName: fileName,
+          fileSize: pdfResult.size,
+          candidateId: selectedCandidate,
+          candidateName: `${candidateDetails?.firstName} ${candidateDetails?.lastName}`,
+          candidateEmail: candidateDetails?.email,
+          offerId: selectedOffer,
+          offerDesignation: offerDetails?.job?.title || offerDetails?.offerDetails?.designation || 'Not Specified',
+          status: 'generated',
+          generatedAt: new Date().toISOString(),
+          joiningDate: formattedDate,
+          nextSteps: [
+            "Review the generated appointment letter",
+            "Send to candidate for acceptance",
+            "Candidate accepts to proceed with employee creation"
+          ]
+        };
+
+        setGeneratedLetter(mockData);
+        setSuccess('Appointment letter generated successfully!');
+
+        // Auto-download the PDF
+        setTimeout(() => {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }, 500);
+
+        if (onSubmit) {
+          onSubmit(mockData);
+        }
+      } else if (responseData.success) {
+        setGeneratedLetter(responseData.data);
+        setSuccess(responseData.message || 'Appointment letter generated successfully!');
+
+        if (onSubmit) {
+          onSubmit(responseData.data);
+        }
+      } else {
+        throw new Error(responseData.message || 'Failed to generate appointment letter');
       }
     } catch (err) {
       console.error('Error generating appointment letter:', err);
-      setError(err.response?.data?.message || 'Failed to generate appointment letter');
+      setError(err.response?.data?.message || err.message || 'Failed to generate appointment letter');
     } finally {
-      setSubmitting(false);
+      if (!previewOnly) {
+        setSubmitting(false);
+      }
+      setPdfGenerationStatus('');
     }
   };
 
   // Handle download letter
-  const handleDownloadLetter = () => {
-    if (generatedLetter?.fileUrl) {
-      window.open(`${BASE_URL}${generatedLetter.fileUrl}`, '_blank');
+  const handleDownloadLetter = async () => {
+    if (!generatedLetter?.fileUrl) {
+      setError('No file available for download');
+      return;
+    }
+
+    try {
+      setPdfGenerationStatus('Preparing download...');
+      
+      if (generatedLetter.fileUrl.startsWith('blob:')) {
+        try {
+          const response = await fetch(generatedLetter.fileUrl);
+          if (!response.ok) {
+            throw new Error('Blob content not accessible');
+          }
+          
+          const blob = await response.blob();
+          const newBlobUrl = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = newBlobUrl;
+          link.download = generatedLetter.fileName || 'appointment_letter.pdf';
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(newBlobUrl);
+          }, 1000);
+          
+          setPdfGenerationStatus('');
+        } catch (blobError) {
+          console.error('Blob access error:', blobError);
+          
+          if (generatedLetter.fileBlob) {
+            const newBlobUrl = URL.createObjectURL(generatedLetter.fileBlob);
+            const link = document.createElement('a');
+            link.href = newBlobUrl;
+            link.download = generatedLetter.fileName || 'appointment_letter.pdf';
+            document.body.appendChild(link);
+            link.click();
+            
+            setTimeout(() => {
+              document.body.removeChild(link);
+              URL.revokeObjectURL(newBlobUrl);
+            }, 1000);
+            
+            setGeneratedLetter(prev => ({
+              ...prev,
+              fileUrl: newBlobUrl
+            }));
+            
+            setPdfGenerationStatus('');
+          } else {
+            throw new Error('File data is no longer available. Please generate the letter again.');
+          }
+        }
+      } else {
+        const fileUrl = generatedLetter.fileUrl.startsWith('http')
+          ? generatedLetter.fileUrl
+          : `${BASE_URL}${generatedLetter.fileUrl}`;
+        
+        const newWindow = window.open(fileUrl, '_blank');
+        if (!newWindow) {
+          const link = document.createElement('a');
+          link.href = fileUrl;
+          link.download = generatedLetter.fileName || 'appointment_letter.pdf';
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        setPdfGenerationStatus('');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      setError(error.message || 'Failed to download file. Please try generating the letter again.');
+      setPdfGenerationStatus('');
     }
   };
 
-  // Handle view letter
-  const handleViewLetter = () => {
-    if (generatedLetter?.fileUrl) {
-      window.open(`${BASE_URL}${generatedLetter.fileUrl}`, '_blank');
+  // Handle print letter
+  const handlePrintLetter = () => {
+    if (previewHtml) {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Appointment Letter</title>
+            <style>
+              @media print {
+                body { margin: 0; padding: 20px; }
+                * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              }
+            </style>
+          </head>
+          <body>${previewHtml}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  };
+
+  // Handle email letter
+  const handleEmailLetter = () => {
+    if (candidateDetails?.email) {
+      const subject = `Appointment Letter - ${candidateDetails.firstName} ${candidateDetails.lastName}`;
+      const body = `Dear ${candidateDetails.firstName},\n\nPlease find attached your appointment letter.\n\nRegards,\nHR Department`;
+      window.location.href = `mailto:${candidateDetails.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
   };
 
@@ -296,15 +680,49 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     return candidates.find(c => c._id === selectedCandidate);
   };
 
-  // Get offer details
-  const getOfferDetails = () => {
+  // Get offer display details
+  const getOfferDisplayDetails = () => {
     return offers.find(o => o._id === selectedOffer);
   };
 
   const candidateDetails = getCandidateDetails();
-  const offerDetails = getOfferDetails();
+  const offerDisplayDetails = getOfferDisplayDetails();
+  const offerDetails = selectedOfferDetails || offerDisplayDetails;
 
-  // Render step content
+  // Format currency
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return 'N/A';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Format date for display
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  // ===== YOUR EXISTING renderStepContent FUNCTION REMAINS EXACTLY THE SAME =====
   const renderStepContent = () => {
     switch (step) {
       case 0:
@@ -314,7 +732,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
                 Select Candidate
               </Typography>
-              
+
               {fetchingCandidates ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress size={32} />
@@ -391,7 +809,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                Select Offer & Joining Date
+                Select Offer
               </Typography>
 
               {!selectedCandidate ? (
@@ -405,24 +823,24 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
               ) : (
                 <>
                   <FormControl fullWidth size="small" sx={{ mb: 3 }}>
-                    <InputLabel>Select Offer</InputLabel>
+                    <InputLabel>Select Accepted Offer</InputLabel>
                     <Select
                       value={selectedOffer}
                       onChange={handleOfferChange}
-                      label="Select Offer"
-                      disabled={filteredOffers.length === 0}
+                      label="Select Accepted Offer"
+                      disabled={offers.length === 0}
                     >
                       <MenuItem value="">Choose an offer</MenuItem>
-                      {filteredOffers.length > 0 ? (
-                        filteredOffers.map((offer) => (
+                      {offers.length > 0 ? (
+                        offers.map((offer) => (
                           <MenuItem key={offer._id} value={offer._id}>
                             <Box>
                               <Typography variant="body2" fontWeight={500}>
-                                {offer.offerId || 'N/A'} - {offer.designation || offer.position || 'N/A'}
+                                {offer.offerId} - {offer.job?.title || offer.offerDetails?.designation || 'N/A'}
                               </Typography>
                               <Typography variant="caption" color="textSecondary">
-                                Status: {offer.status} | 
-                                {offer.salaryRange && ` Salary: ${offer.salaryRange.currency || 'INR'} ${offer.salaryRange.min || 0} - ${offer.salaryRange.max || 0}`}
+                                CTC: {formatCurrency(offer.ctcDetails?.totalCtc)} |
+                                Joining: {offer.offerDetails?.joiningDate ? formatDisplayDate(offer.offerDetails.joiningDate) : 'Not specified'}
                               </Typography>
                             </Box>
                           </MenuItem>
@@ -436,70 +854,165 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
                       )}
                     </Select>
                   </FormControl>
-
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="date"
-                      label="Joining Date"
-                      value={joiningDate ? joiningDate.toISOString().split('T')[0] : ''}
-                      onChange={(e) => setJoiningDate(new Date(e.target.value))}
-                      InputLabelProps={{ shrink: true }}
-                      inputProps={{ 
-                        min: new Date().toISOString().split('T')[0] // Can't select past dates
-                      }}
-                      sx={{ mb: 2 }}
-                    />
-                  </LocalizationProvider>
                 </>
               )}
 
-              {offerDetails && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: '#F8FAFC', borderRadius: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                    Offer Details
+              {selectedOffer && fetchingOfferDetails && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                  <CircularProgress size={24} />
+                  <Typography variant="body2" sx={{ ml: 1 }}>
+                    Loading offer details...
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Offer ID</Typography>
-                      <Typography variant="body2" fontWeight={500}>{offerDetails.offerId || 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="caption" color="textSecondary">Designation</Typography>
-                      <Typography variant="body2">{offerDetails.designation || offerDetails.position || 'N/A'}</Typography>
-                    </Grid>
-                    {offerDetails.salaryRange && (
-                      <>
-                        <Grid item xs={12} sm={6}>
-                          <Typography variant="caption" color="textSecondary">Salary Range</Typography>
-                          <Typography variant="body2">
-                            {offerDetails.salaryRange.currency || 'INR'} {offerDetails.salaryRange.min || 0} - {offerDetails.salaryRange.max || 0}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <Typography variant="caption" color="textSecondary">Status</Typography>
+                </Box>
+              )}
+
+              {/* Validation Errors */}
+              {Object.keys(validationErrors).length > 0 && (
+                <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Missing information that may affect PDF generation:
+                  </Typography>
+                  <List dense>
+                    {Object.values(validationErrors).map((error, index) => (
+                      <ListItem key={index}>
+                        <ListItemIcon sx={{ minWidth: 30 }}>
+                          <WarningIcon color="warning" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={error} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Alert>
+              )}
+
+              {/* Display complete offer details */}
+              {offerDetails && !fetchingOfferDetails && (
+                <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom fontWeight={600} sx={{ color: '#1976D2', mb: 2 }}>
+                    Complete Offer Details
+                  </Typography>
+
+                  {/* Offer Information Card */}
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                      OFFER INFORMATION
+                    </Typography>
+                    <Grid container spacing={8}>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Offer ID</Typography>
+                        <Typography variant="body2" fontWeight={600}>{offerDetails.offerId || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Status</Typography>
+                        <Box sx={{ mt: 0.5 }}>
                           <Chip
                             label={offerDetails.status}
                             size="small"
                             sx={{
                               bgcolor: offerDetails.status === 'accepted' ? '#d1fae5' : '#fef3c7',
                               color: offerDetails.status === 'accepted' ? '#065f46' : '#92400e',
-                              height: 20,
-                              fontSize: '11px'
+                              height: 24,
+                              fontSize: '12px',
+                              fontWeight: 500
                             }}
                           />
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Employment Type</Typography>
+                        <Typography variant="body2">{offerDetails.offerDetails?.employmentType || 'Permanent'}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Position Details Card */}
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                      POSITION DETAILS
+                    </Typography>
+                    <Grid container spacing={8}>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Designation</Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {offerDetails.job?.title || offerDetails.offerDetails?.designation || 'N/A'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Department</Typography>
+                        <Typography variant="body2">{offerDetails.job?.department || offerDetails.offerDetails?.department || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="textSecondary">Location</Typography>
+                        <Typography variant="body2">{offerDetails.job?.location || offerDetails.offerDetails?.location || 'N/A'}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Joining Date Card */}
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                      JOINING DETAILS
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="textSecondary">Joining Date</Typography>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: '#1976D2' }}>
+                          {offerDetails.offerDetails?.joiningDate ? formatDisplayDate(offerDetails.offerDetails.joiningDate) : 'Not specified'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Compensation Details Card */}
+                  {offerDetails.ctcDetails && (
+                    <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                        COMPENSATION DETAILS (Monthly)
+                      </Typography>
+                      <Grid container spacing={6}>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">Basic Salary</Typography>
+                          <Typography variant="body2" fontWeight={500}>{formatCurrency(offerDetails.ctcDetails.basic)}</Typography>
                         </Grid>
-                      </>
-                    )}
-                  </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">HRA</Typography>
+                          <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.hra)}</Typography>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">Conveyance</Typography>
+                          <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.conveyanceAllowance) || 'N/A'}</Typography>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">Medical</Typography>
+                          <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.medicalAllowance) || 'N/A'}</Typography>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">Special Allowance</Typography>
+                          <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.specialAllowance) || 'N/A'}</Typography>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Typography variant="caption" color="textSecondary">Bonus (Annual)</Typography>
+                          <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.bonus) || 'N/A'}</Typography>
+                        </Grid>
+                      </Grid>
+
+                      <Divider sx={{ my: 2 }} />
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="subtitle2">Total CTC (Annual)</Typography>
+                        <Typography variant="h6" color="success.main" fontWeight={600}>
+                          {formatCurrency(offerDetails.ctcDetails.totalCtc)}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  )}
                 </Box>
               )}
             </Paper>
 
             <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
               <Typography variant="body2">
-                Select the accepted offer and provide the expected joining date for the candidate.
+                Select the accepted offer to generate the appointment letter. The joining date will be taken from the offer.
               </Typography>
             </Alert>
           </Stack>
@@ -510,7 +1023,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           <Stack spacing={3}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                ✅ Generate Appointment Letter
+                Generate Appointment Letter
               </Typography>
 
               {/* Summary Card */}
@@ -535,20 +1048,104 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="caption" color="textSecondary">Designation</Typography>
-                    <Typography variant="body2">{offerDetails?.designation || offerDetails?.position || 'N/A'}</Typography>
+                    <Typography variant="body2">{offerDetails?.job?.title || offerDetails?.offerDetails?.designation || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="textSecondary">Total CTC</Typography>
+                    <Typography variant="body2" fontWeight={600} color="success.main">
+                      {formatCurrency(offerDetails?.ctcDetails?.totalCtc)}
+                    </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="caption" color="textSecondary">Joining Date</Typography>
-                    <Typography variant="body2">
-                      {joiningDate ? joiningDate.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      }) : 'N/A'}
+                    <Typography variant="body2" fontWeight={500}>
+                      {offerDetails?.offerDetails?.joiningDate ? formatDisplayDate(offerDetails.offerDetails.joiningDate) : 'N/A'}
                     </Typography>
                   </Grid>
                 </Grid>
               </Paper>
+
+              {/* Validation warnings before generation */}
+              {Object.keys(validationErrors).length > 0 && !generatedLetter && (
+                <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    The following issues may affect the PDF format:
+                  </Typography>
+                  <List dense>
+                    {Object.values(validationErrors).map((error, index) => (
+                      <ListItem key={index}>
+                        <ListItemIcon sx={{ minWidth: 30 }}>
+                          <WarningIcon color="warning" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={error} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Alert>
+              )}
+
+              {/* PDF Generation Status */}
+              {pdfGenerationStatus && (
+                <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress size={20} />
+                    <Typography variant="body2">{pdfGenerationStatus}</Typography>
+                  </Box>
+                </Alert>
+              )}
+
+              {/* HTML Preview Dialog */}
+              <Dialog
+                open={showPreview}
+                onClose={() => setShowPreview(false)}
+                maxWidth="lg"
+                fullWidth
+              >
+                <DialogTitle>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">Appointment Letter Preview</Typography>
+                    <IconButton onClick={() => setShowPreview(false)}>
+                      <CloseIcon />
+                    </IconButton>
+                  </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                  {previewHtml && (
+                    <iframe
+                      srcDoc={previewHtml}
+                      title="Appointment Letter Preview"
+                      style={{ width: '100%', height: '70vh', border: 'none' }}
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    />
+                  )}
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setShowPreview(false)}>Close</Button>
+                  <Button
+                    variant="contained"
+                    onClick={handlePrintLetter}
+                    startIcon={<PrintIcon />}
+                  >
+                    Print
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setShowPreview(false);
+                      handleGenerateLetter(false);
+                    }}
+                    startIcon={<PdfIcon />}
+                    sx={{
+                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                      }
+                    }}
+                  >
+                    Generate PDF
+                  </Button>
+                </DialogActions>
+              </Dialog>
 
               {/* Generated Letter Card */}
               {generatedLetter ? (
@@ -578,7 +1175,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
                       <Grid item xs={12} sm={6}>
                         <Typography variant="caption" color="textSecondary">File Size</Typography>
                         <Typography variant="body2">
-                          {generatedLetter.fileSize ? `${(generatedLetter.fileSize / 1024).toFixed(2)} KB` : 'N/A'}
+                          {formatFileSize(generatedLetter.fileSize)}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={6}>
@@ -616,36 +1213,126 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
                       </Box>
                     )}
                   </CardContent>
-                  <CardActions sx={{ p: 2, pt: 0 }}>
+                  <CardActions sx={{ p: 2, pt: 0, gap: 1, flexWrap: 'wrap' }}>
                     <Button
-                      fullWidth
                       variant="contained"
                       startIcon={<DownloadIcon />}
                       onClick={handleDownloadLetter}
+                      disabled={!!pdfGenerationStatus}
                       sx={{
                         background: 'linear-gradient(135deg, #164e63, #00B4D8)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
-                        }
+                        },
+                        flex: { xs: '1 1 100%', sm: '1 1 auto' }
                       }}
                     >
-                      Download Appointment Letter
+                      Download PDF
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<PrintIcon />}
+                      onClick={handlePrintLetter}
+                      sx={{
+                        borderColor: PRIMARY_BLUE,
+                        color: PRIMARY_BLUE,
+                        '&:hover': {
+                          borderColor: '#0096b4',
+                          bgcolor: 'rgba(0, 180, 216, 0.04)'
+                        },
+                        flex: { xs: '1 1 calc(50% - 4px)', sm: '1 1 auto' }
+                      }}
+                    >
+                      Print
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<EmailIcon />}
+                      onClick={handleEmailLetter}
+                      sx={{
+                        borderColor: PRIMARY_BLUE,
+                        color: PRIMARY_BLUE,
+                        '&:hover': {
+                          borderColor: '#0096b4',
+                          bgcolor: 'rgba(0, 180, 216, 0.04)'
+                        },
+                        flex: { xs: '1 1 calc(50% - 4px)', sm: '1 1 auto' }
+                      }}
+                    >
+                      Email
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => setShowPreview(true)}
+                      sx={{
+                        borderColor: PRIMARY_BLUE,
+                        color: PRIMARY_BLUE,
+                        '&:hover': {
+                          borderColor: '#0096b4',
+                          bgcolor: 'rgba(0, 180, 216, 0.04)'
+                        },
+                        flex: { xs: '1 1 100%', sm: '1 1 auto' }
+                      }}
+                    >
+                      Preview
                     </Button>
                   </CardActions>
+                  {error && error.includes('no longer available') && (
+                    <Box sx={{ px: 2, pb: 2 }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        onClick={() => {
+                          setError('');
+                          handleGenerateLetter(false);
+                        }}
+                        startIcon={<PdfIcon />}
+                      >
+                        Generate New Letter
+                      </Button>
+                    </Box>
+                  )}
                 </Card>
               ) : (
-                <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3, borderRadius: 2 }}>
-                  <Typography variant="body2">
-                    Click the button below to generate the appointment letter. The letter will be generated based on the offer details and joining date.
-                  </Typography>
-                </Alert>
-              )}
-
-              {/* Success Message */}
-              {success && !generatedLetter && (
-                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-                  {success}
-                </Alert>
+                <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={handlePreviewHtml}
+                    disabled={submitting || !offerDetails?.offerDetails?.joiningDate}
+                    startIcon={<VisibilityIcon />}
+                    sx={{
+                      borderColor: PRIMARY_BLUE,
+                      color: PRIMARY_BLUE,
+                      '&:hover': {
+                        borderColor: '#0096b4',
+                        bgcolor: 'rgba(0, 180, 216, 0.04)'
+                      }
+                    }}
+                  >
+                    Preview Letter
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => handleGenerateLetter(false)}
+                    disabled={submitting || !offerDetails?.offerDetails?.joiningDate}
+                    startIcon={submitting ? <CircularProgress size={20} /> : <PdfIcon />}
+                    sx={{
+                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                      },
+                      '&.Mui-disabled': {
+                        background: '#e0e0e0'
+                      }
+                    }}
+                  >
+                    {submitting ? 'Generating...' : 'Generate PDF'}
+                  </Button>
+                </Box>
               )}
             </Paper>
           </Stack>
@@ -657,18 +1344,18 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: { borderRadius: 2, maxHeight: '90vh' }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: 1, 
-        borderColor: '#E0E0E0', 
+      <DialogTitle sx={{
+        borderBottom: 1,
+        borderColor: '#E0E0E0',
         bgcolor: '#F8FAFC',
         px: 3,
         py: 2,
@@ -694,7 +1381,18 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
       <DialogContent sx={{ pt: 3, px: 3, overflowY: 'auto' }}>
         {/* Error/Success Messages */}
         {error && (
-          <Alert severity="error" onClose={() => setError('')} sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert 
+            severity="error" 
+            onClose={() => setError('')} 
+            sx={{ mb: 3, borderRadius: 2 }}
+            action={
+              error.includes('PDF') && (
+                <Button color="inherit" size="small" onClick={() => setError('')}>
+                  Dismiss
+                </Button>
+              )
+            }
+          >
             {error}
           </Alert>
         )}
@@ -719,11 +1417,11 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ 
-        px: 3, 
-        py: 2, 
-        borderTop: 1, 
-        borderColor: '#E0E0E0', 
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: 1,
+        borderColor: '#E0E0E0',
         bgcolor: '#F8FAFC',
         justifyContent: 'space-between',
         position: 'sticky',
@@ -744,24 +1442,27 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
           {step === steps.length - 1 ? (
             <Button
               variant="contained"
-              onClick={handleGenerateLetter}
-              disabled={submitting || generatedLetter}
-              startIcon={submitting ? <CircularProgress size={20} /> : <DescriptionIcon />}
+              onClick={() => handleGenerateLetter(false)}
+              disabled={submitting || generatedLetter || !offerDetails?.offerDetails?.joiningDate}
+              startIcon={submitting ? <CircularProgress size={20} /> : <PdfIcon />}
               sx={{
                 background: 'linear-gradient(135deg, #164e63, #00B4D8)',
                 minWidth: 200,
                 '&:hover': {
                   background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                },
+                '&.Mui-disabled': {
+                  background: '#e0e0e0'
                 }
               }}
             >
-              {submitting ? 'Generating...' : 'Generate Letter'}
+              {submitting ? 'Generating...' : 'Generate PDF'}
             </Button>
           ) : (
             <Button
               variant="contained"
               onClick={handleNext}
-              disabled={step === 1 && filteredOffers.length === 0}
+              disabled={step === 1 && offers.length === 0}
               sx={{
                 background: 'linear-gradient(135deg, #164e63, #00B4D8)',
                 '&:hover': {

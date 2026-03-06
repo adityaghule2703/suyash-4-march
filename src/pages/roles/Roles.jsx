@@ -456,7 +456,7 @@ const Roles = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -495,7 +495,7 @@ const Roles = () => {
               disabled={loading}
             >
               Sort
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -518,7 +518,7 @@ const Roles = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -537,7 +537,7 @@ const Roles = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

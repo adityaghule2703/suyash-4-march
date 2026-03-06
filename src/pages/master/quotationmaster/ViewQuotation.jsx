@@ -1,30 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
+  Box,
+  Typography,
   Button,
   Stack,
-  Typography,
   Chip,
-  Divider,
-  Grid,
-  Box,
   Paper,
+  Grid,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Avatar,
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
+  Divider
 } from '@mui/material';
-import { 
+import {
   Edit as EditIcon,
   Description as DescriptionIcon,
   Business as BusinessIcon,
@@ -36,10 +39,76 @@ import {
   MonetizationOn as MoneyIcon,
   Receipt as ReceiptIcon,
   Assignment as AssignmentIcon,
-  LocalShipping as ShippingIcon
+  LocalShipping as ShippingIcon,
+  Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  Info as InfoIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 
+// Color constants
+const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+const PRIMARY_BLUE = '#00B4D8';
+
+// Modern Stepper Connector with Gradient
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling to make numbers white
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? '#00B4D8' : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: '#00B4D8',
+    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: '#00B4D8',
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
+const steps = ['Overview', 'Items', 'Summary & Terms'];
+
 const ViewQuotation = ({ open, onClose, quotation, onEdit }) => {
+  const [activeStep, setActiveStep] = useState(0);
+
   if (!quotation) return null;
 
   const formatCurrency = (amount) => {
@@ -51,6 +120,7 @@ const ViewQuotation = ({ open, onClose, quotation, onEdit }) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -62,462 +132,524 @@ const ViewQuotation = ({ open, onClose, quotation, onEdit }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'Draft': { bg: '#FEF3C7', text: '#92400E', border: '#FBBF24' },
-      'Sent': { bg: '#DBEAFE', text: '#1E40AF', border: '#93C5FD' },
-      'Approved': { bg: '#D1FAE5', text: '#065F46', border: '#34D399' },
-      'Rejected': { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' }
+      'Draft': { bg: '#FEF3C7', color: '#92400E', border: '#FBBF24' },
+      'Sent': { bg: '#DBEAFE', color: '#1E40AF', border: '#93C5FD' },
+      'Approved': { bg: '#D1FAE5', color: '#065F46', border: '#34D399' },
+      'Rejected': { bg: '#FEE2E2', color: '#991B1B', border: '#FCA5A5' }
     };
     return colors[status] || colors.Draft;
   };
 
+  // Helper function to render field with icon
+  const renderField = (icon, label, value, color = '#0f172a') => (
+    <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
+        {icon}
+      </Box>
+      <Box>
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: '#64748B', 
+            display: 'block', 
+            fontSize: '10px',
+            fontWeight: 500,
+            lineHeight: 1.2,
+            mb: 0.2
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontWeight: 600, 
+            fontSize: '13px',
+            color: color,
+            wordBreak: 'break-word'
+          }}
+        >
+          {value || '-'}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
   const statusColors = getStatusColor(quotation.Status);
 
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Overview
+        return (
+          <Stack spacing={1.5} sx={{ pb: 1 }}>
+            {/* Header Info */}
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, fontWeight: 600, fontSize: '0.8rem' }}>
+                    Quotation Information
+                  </Typography>
+                  <Typography variant="h6" fontWeight={600} color="#101010" sx={{ fontSize: '1.1rem', mt: 0.5 }}>
+                    {quotation.QuotationNo}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={quotation.Status}
+                  sx={{
+                    bgcolor: statusColors.bg,
+                    color: statusColors.color,
+                    border: `1px solid ${statusColors.border}`,
+                    fontWeight: 600,
+                    fontSize: '11px',
+                    height: '22px',
+                  }}
+                />
+              </Stack>
+
+              <Grid container spacing={1}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <BusinessIcon sx={{ fontSize: 16 }} />, 
+                    'Company', 
+                    quotation.CompanyName,
+                    PRIMARY_BLUE
+                  )}
+                  <Typography variant="caption" sx={{ color: '#64748B', display: 'block', ml: 3.5, fontSize: '10px' }}>
+                    GSTIN: {quotation.CompanyGSTIN} • State: {quotation.CompanyState}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <BusinessIcon sx={{ fontSize: 16 }} />, 
+                    'Vendor', 
+                    quotation.VendorName
+                  )}
+                  <Typography variant="caption" sx={{ color: '#64748B', display: 'block', ml: 3.5, fontSize: '10px' }}>
+                    GSTIN: {quotation.VendorGSTIN} • PAN: {quotation.VendorPAN}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Vendor Contact */}
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <PersonIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Vendor Contact
+              </Typography>
+              
+              <Grid container spacing={1}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <PersonIcon sx={{ fontSize: 16 }} />, 
+                    'Contact Person', 
+                    quotation.VendorContactPerson
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <PhoneIcon sx={{ fontSize: 16 }} />, 
+                    'Phone', 
+                    quotation.VendorPhone
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <EmailIcon sx={{ fontSize: 16 }} />, 
+                    'Email', 
+                    quotation.VendorEmail
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(
+                    <LocationIcon sx={{ fontSize: 16 }} />, 
+                    'Address', 
+                    `${quotation.VendorAddress}, ${quotation.VendorCity} - ${quotation.VendorPincode}`
+                  )}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Date Information */}
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <DateIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Date Information
+              </Typography>
+              
+              <Grid container spacing={1}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <DateIcon sx={{ fontSize: 16 }} />, 
+                    'Quotation Date', 
+                    formatDate(quotation.QuotationDate)
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <DateIcon sx={{ fontSize: 16 }} />, 
+                    'Valid Till', 
+                    formatDate(quotation.ValidTill)
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <ShippingIcon sx={{ fontSize: 16 }} />, 
+                    'Vendor Type', 
+                    quotation.VendorType
+                  )}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1: // Items
+        return (
+          <Stack spacing={1.5} sx={{ pb: 1 }}>
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <ReceiptIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Items ({quotation.Items?.length || 0})
+              </Typography>
+              
+              <TableContainer component={Paper} sx={{ border: '1px solid #E0E0E0', borderRadius: 1 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+                      <TableCell><Typography variant="caption" fontWeight={600}>#</Typography></TableCell>
+                      <TableCell><Typography variant="caption" fontWeight={600}>Part No</Typography></TableCell>
+                      <TableCell><Typography variant="caption" fontWeight={600}>Part Name</Typography></TableCell>
+                      <TableCell><Typography variant="caption" fontWeight={600}>HSN</Typography></TableCell>
+                      <TableCell><Typography variant="caption" fontWeight={600}>Unit</Typography></TableCell>
+                      <TableCell align="right"><Typography variant="caption" fontWeight={600}>Qty</Typography></TableCell>
+                      <TableCell align="right"><Typography variant="caption" fontWeight={600}>Rate</Typography></TableCell>
+                      <TableCell align="right"><Typography variant="caption" fontWeight={600}>Amount</Typography></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {quotation.Items?.map((item, index) => (
+                      <TableRow key={item._id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                        <TableCell><Typography variant="caption">{index + 1}</Typography></TableCell>
+                        <TableCell><Typography variant="caption" fontWeight={600}>{item.PartNo}</Typography></TableCell>
+                        <TableCell><Typography variant="caption">{item.PartName}</Typography></TableCell>
+                        <TableCell><Typography variant="caption">{item.HSNCode}</Typography></TableCell>
+                        <TableCell><Typography variant="caption">{item.Unit}</Typography></TableCell>
+                        <TableCell align="right"><Typography variant="caption">{item.Quantity}</Typography></TableCell>
+                        <TableCell align="right"><Typography variant="caption">{formatCurrency(item.FinalRate)}</Typography></TableCell>
+                        <TableCell align="right"><Typography variant="caption" fontWeight={600}>{formatCurrency(item.Amount)}</Typography></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+
+            {/* Remarks */}
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <DescriptionIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Remarks
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 0.5, fontWeight: 500 }}>
+                      Internal Remarks
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '12px' }}>
+                      {quotation.InternalRemarks || 'No internal remarks'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 0.5, fontWeight: 500 }}>
+                      Vendor Remarks
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '12px' }}>
+                      {quotation.VendorRemarks || 'No vendor remarks'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 2: // Summary & Terms
+        return (
+          <Stack spacing={1.5} sx={{ pb: 1 }}>
+            {/* Amount Summary */}
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <MoneyIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Amount Summary
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="caption" sx={{ color: '#64748B' }}>Sub Total:</Typography>
+                        <Typography variant="caption" fontWeight={600}>{formatCurrency(quotation.SubTotal)}</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="caption" sx={{ color: '#64748B' }}>GST ({quotation.GSTPercentage}%):</Typography>
+                        <Typography variant="caption" fontWeight={600} sx={{ color: '#D32F2F' }}>{formatCurrency(quotation.GSTAmount)}</Typography>
+                      </Stack>
+                      <Divider />
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" fontWeight={600}>Grand Total:</Typography>
+                        <Typography variant="body1" fontWeight={700} sx={{ color: '#2E7D32' }}>{formatCurrency(quotation.GrandTotal)}</Typography>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F0F9FF', borderRadius: 1, border: '1px solid #BAE6FD', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 0.5, fontWeight: 500 }}>
+                      Amount in Words
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '12px', fontStyle: 'italic', color: '#0369A1' }}>
+                      {quotation.AmountInWords}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Terms & Conditions */}
+            {quotation.TermsConditions?.length > 0 && (
+              <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+                  <AssignmentIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Terms & Conditions
+                </Typography>
+                
+                <List dense disablePadding>
+                  {quotation.TermsConditions.map((term, index) => (
+                    <ListItem key={term._id} alignItems="flex-start" disableGutters sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 24 }}>
+                        <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
+                          {term.Sequence}.
+                        </Typography>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Typography variant="caption" fontWeight={600} sx={{ color: '#0f172a' }}>
+                            {term.Title}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>
+                            {term.Description}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Paper>
+            )}
+
+            {/* System Information */}
+            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <InfoIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> System Information
+              </Typography>
+              
+              <Grid container spacing={1}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <InfoIcon sx={{ fontSize: 16 }} />, 
+                    'GST Type', 
+                    quotation.GSTType
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <DateIcon sx={{ fontSize: 16 }} />, 
+                    'Created At', 
+                    formatDate(quotation.createdAt)
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <DateIcon sx={{ fontSize: 16 }} />, 
+                    'Last Updated', 
+                    formatDate(quotation.updatedAt)
+                  )}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="lg" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
       fullWidth
       PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          maxHeight: '90vh'
+        sx: {
+          borderRadius: 1.5,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          height: 'auto',
+          maxHeight: '680px'
         }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
-        pt: 3,
-        px: 3
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        background: HEADER_GRADIENT,
+        py: 1,
+        px: 2
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <div style={{ 
-              fontSize: '20px', 
-              fontWeight: '600', 
-              color: '#101010'
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <DescriptionIcon sx={{ color: '#FFFFFF', fontSize: 18 }} />
+            <Typography variant="subtitle2" sx={{ 
+              fontWeight: 600, 
+              color: '#FFFFFF',
+              fontSize: '0.9rem'
             }}>
               Quotation Details
-            </div>
-            <Typography variant="body2" color="textSecondary">
-              {quotation.QuotationNo}
             </Typography>
-          </Box>
+          </Stack>
           <Chip
-            label={quotation.Status}
+            label={`${quotation.QuotationNo || ''}`}
+            size="small"
             sx={{
-              bgcolor: statusColors.bg,
-              color: statusColors.text,
-              border: `1px solid ${statusColors.border}`,
-              fontWeight: 600,
-              fontSize: '0.875rem'
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: '#FFFFFF',
+              fontWeight: 500,
+              fontSize: '10px',
+              height: '20px',
+              backdropFilter: 'blur(4px)',
+              '& .MuiChip-label': { px: 1 }
             }}
           />
         </Stack>
-      </DialogTitle>
-      
-      <DialogContent sx={{ 
-        pt: 4,
-        px: 3,
-        pb: 2,
-        overflow: 'auto'
-      }}>
-        <Stack spacing={4}>
-          {/* Header Section */}
-          <Paper sx={{ p: 3, bgcolor: '#F8FAFC', borderRadius: 2 }}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Stack spacing={2}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <BusinessIcon color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Company
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {quotation.CompanyName}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        GSTIN: {quotation.CompanyGSTIN} • State: {quotation.CompanyState} ({quotation.CompanyStateCode})
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Stack spacing={2}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <BusinessIcon color="primary" />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary">
-                        Vendor
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {quotation.VendorName}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        GSTIN: {quotation.VendorGSTIN} • PAN: {quotation.VendorPAN}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Paper>
 
-          {/* Vendor Details */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              Vendor Contact Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <PersonIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Contact Person
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2">
-                    {quotation.VendorContactPerson}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <PhoneIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Phone
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2">
-                    {quotation.VendorPhone}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <EmailIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Email
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2">
-                    {quotation.VendorEmail}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <LocationIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Address
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2">
-                    {quotation.VendorAddress}, {quotation.VendorCity} - {quotation.VendorPincode}
-                  </Typography>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Date Information */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              Date Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <DateIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Quotation Date
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatDate(quotation.QuotationDate)}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <DateIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Valid Till
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatDate(quotation.ValidTill)}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <ShippingIcon sx={{ fontSize: 16, color: '#64748B' }} />
-                    <Typography variant="caption" color="textSecondary">
-                      Vendor Type
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2" fontWeight={500}>
-                    {quotation.VendorType}
-                  </Typography>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Items Table */}
-          <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-            <Box sx={{ p: 3, borderBottom: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Items ({quotation.Items?.length || 0})
-              </Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#F8FAFC' }}>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Sr. No</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Part No</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Part Name</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Description</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>HSN Code</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Unit</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Quantity</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Rate</Typography></TableCell>
-                    <TableCell><Typography variant="caption" fontWeight={600}>Amount</Typography></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {quotation.Items?.map((item, index) => (
-                    <TableRow key={item._id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
-                          {item.PartNo}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{item.PartName}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem' }}>
-                          {item.Description}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{item.HSNCode}</TableCell>
-                      <TableCell>{item.Unit}</TableCell>
-                      <TableCell>{item.Quantity}</TableCell>
-                      <TableCell>{formatCurrency(item.FinalRate)}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {formatCurrency(item.Amount)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-
-          {/* Amount Summary */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              Amount Summary
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2">Sub Total:</Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {formatCurrency(quotation.SubTotal)}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2">GST ({quotation.GSTPercentage}%):</Typography>
-                    <Typography variant="body2" fontWeight={600} color="error.main">
-                      {formatCurrency(quotation.GSTAmount)}
-                    </Typography>
-                  </Stack>
-                  <Divider />
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body1" fontWeight={600}>Grand Total:</Typography>
-                    <Typography variant="h6" fontWeight={700} color="success.main">
-                      {formatCurrency(quotation.GrandTotal)}
-                    </Typography>
-                  </Stack>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Paper sx={{ p: 2, bgcolor: '#F0F9FF', height: '100%' }}>
-                  <Typography variant="caption" color="textSecondary">
-                    Amount in Words:
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-                    {quotation.AmountInWords}
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Terms & Conditions */}
-          {quotation.TermsConditions?.length > 0 && (
-            <Paper sx={{ p: 3, borderRadius: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                Terms & Conditions
-              </Typography>
-              <List dense>
-                {quotation.TermsConditions.map((term, index) => (
-                  <ListItem key={term._id} alignItems="flex-start">
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <Typography variant="caption" sx={{ color: '#64748B' }}>
-                        {term.Sequence}.
-                      </Typography>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle2" fontWeight={600}>
-                          {term.Title}
-                        </Typography>
-                      }
-                      secondary={
-                        <Typography variant="body2" color="textSecondary">
-                          {term.Description}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
-
-          {/* Remarks */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              Remarks
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    Internal Remarks
-                  </Typography>
-                  <Paper sx={{ p: 2, bgcolor: '#F8FAFC', minHeight: 80 }}>
-                    <Typography variant="body2">
-                      {quotation.InternalRemarks || 'No internal remarks'}
-                    </Typography>
-                  </Paper>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    Vendor Remarks
-                  </Typography>
-                  <Paper sx={{ p: 2, bgcolor: '#F8FAFC', minHeight: 80 }}>
-                    <Typography variant="body2">
-                      {quotation.VendorRemarks || 'No vendor remarks'}
-                    </Typography>
-                  </Paper>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* System Information */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              System Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    Created At
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatDate(quotation.createdAt)}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    Last Updated
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatDate(quotation.updatedAt)}
-                  </Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="textSecondary">
-                    GST Type
-                  </Typography>
-                  <Typography variant="body2">
-                    {quotation.GSTType}
-                  </Typography>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Stack>
-      </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        pt: 2,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
-      }}>
-        <Button 
-          onClick={onClose}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500
-          }}
-        >
-          Close
-        </Button>
-        {/* <Button
-          variant="contained"
-          onClick={() => {
-            onClose();
-            onEdit();
-          }}
-          startIcon={<EditIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
+        {/* Stepper - 3 Steps */}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ 
+            mt: 0.5,
+            '& .MuiStepLabel-label': {
+              color: '#FFFFFF !important',
+              opacity: 0.8,
+              '&.Mui-active': {
+                color: '#FFFFFF !important',
+                opacity: 1,
+                fontWeight: 600
+              },
+              '&.Mui-completed': {
+                color: '#FFFFFF !important',
+                opacity: 1
+              }
             }
           }}
         >
-          Edit Quotation
-        </Button> */}
-      </DialogActions>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      <DialogContent sx={{ 
+        p: 1.5, 
+        overflow: 'auto',
+        height: '480px',
+        '&:last-child': {
+          pb: 1.5
+        }
+      }}>
+        {renderStepContent(activeStep)}
+      </DialogContent>
+
+      {/* Footer Actions */}
+      <Box sx={{
+        px: 2,
+        py: 1,
+        borderTop: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC'
+      }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Button
+            onClick={onClose}
+            startIcon={<CloseIcon />}
+            size="small"
+            sx={{ color: '#666', fontSize: '0.8rem' }}
+          >
+            Close
+          </Button>
+
+          <Stack direction="row" spacing={1}>
+            {activeStep > 0 && (
+              <Button
+                onClick={handleBack}
+                size="small"
+                startIcon={<NavigateBeforeIcon />}
+                sx={{ color: '#666', fontSize: '0.8rem' }}
+              >
+                Back
+              </Button>
+            )}
+            
+            {activeStep < steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                size="small"
+                endIcon={<NavigateNextIcon />}
+                sx={{
+                  backgroundColor: PRIMARY_BLUE,
+                  fontSize: '0.8rem',
+                  '&:hover': { backgroundColor: '#0e7490' }
+                }}
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={() => {
+                  onClose();
+                  onEdit && onEdit();
+                }}
+                startIcon={<EditIcon />}
+                size="small"
+                sx={{
+                  backgroundColor: PRIMARY_BLUE,
+                  fontSize: '0.8rem',
+                  '&:hover': { backgroundColor: '#0e7490' }
+                }}
+              >
+                Edit Quotation
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Box>
     </Dialog>
   );
 };

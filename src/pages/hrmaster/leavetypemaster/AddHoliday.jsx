@@ -17,6 +17,10 @@ import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+const HEADER_GRADIENT =
+  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+
+
 const AddHoliday = ({ open, onClose, onAdd }) => {
     const [formData, setFormData] = useState({
         Name: '',
@@ -155,7 +159,7 @@ const AddHoliday = ({ open, onClose, onAdd }) => {
                         required
                         disabled={loading}
                     />
-
+<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <TextField
                         fullWidth
                         type="date"
@@ -192,7 +196,7 @@ const AddHoliday = ({ open, onClose, onAdd }) => {
                         onChange={handleChange}
                         disabled={loading}
                     />
-
+</Stack>
                     <TextField
                         fullWidth
                         label="Description"

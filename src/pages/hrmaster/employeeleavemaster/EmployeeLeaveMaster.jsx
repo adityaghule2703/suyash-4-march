@@ -36,7 +36,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Checkbox,
+  alpha
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -53,7 +55,10 @@ import {
   CheckCircle as CheckCircleIcon,
   Pending as PendingIcon,
   Refresh as RefreshIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  Download as DownloadIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -67,48 +72,37 @@ import ViewHoliday from './ViewHoliday';
 import EditLeave from './EditLeave';
 import DeleteLeave from './DeleteLeave';
 
+// Color constants - EXACT SAME as Employee Master
 const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+const STRIPE_COLOR_ODD = '#FFFFFF';
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
+const PRIMARY_BLUE = '#00B4D8';
+const TEXT_COLOR_HEADER = '#FFFFFF';
+const TEXT_COLOR_MAIN = '#0f172a';
 
 // ==================== DATE FORMATTING UTILITIES ====================
-// These functions ensure dates are displayed correctly without timezone shifting
-
-/**
- * Formats date from API response for display
- * Handles ISO strings like "2026-03-14T23:59:59.999Z" correctly
- * Extracts the date part and formats without timezone shifting
- */
 const formatDisplayDate = (dateString) => {
   if (!dateString) return 'N/A';
   
   try {
-    // If it's an ISO string with time (like from API)
     if (dateString.includes('T')) {
-      // Extract just the date part (YYYY-MM-DD)
       const datePart = dateString.split('T')[0];
-      
-      // Parse the date parts
       const [year, month, day] = datePart.split('-').map(Number);
-      
-      // Format as DD MMM YYYY (e.g., "14 Mar 2026")
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${day.toString().padStart(2, '0')} ${months[month - 1]} ${year}`;
     }
     
-    // If it's already a date string without time
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, '0');
     const month = date.toLocaleString('default', { month: 'short' });
     const year = date.getFullYear();
     return `${day} ${month} ${year}`;
   } catch (error) {
-    console.error('Error formatting date:', error);
     return dateString;
   }
 };
 
-/**
- * Formats date with time for display (for Applied On column)
- */
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
   
@@ -126,23 +120,97 @@ const formatDateTime = (dateString) => {
   }
 };
 
-/**
- * Formats date for internal use (returns YYYY-MM-DD)
- */
-const formatDateForFilter = (date) => {
-  if (!date) return null;
-  
-  try {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  } catch (error) {
-    return null;
-  }
-};
-
 // ==================== STYLED COMPONENTS ====================
+
+// Action Menu Component
+const ActionMenu = ({ leave, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+  return (
+    <>
+      <Tooltip title="Actions">
+        <IconButton
+          size="small"
+          onClick={onOpen}
+          sx={{
+            color: '#64748b',
+            '&:hover': {
+              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+            }
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={onClose}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1,
+            minWidth: 180,
+            borderRadius: 2,
+            border: '1px solid #e2e8f0'
+          }
+        }}
+      >
+        <MenuItem 
+          onClick={() => {
+            onView(leave);
+            onClose();
+          }}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+            <ViewIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>View Details</Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        {leave?.Status === 'Pending' && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(leave);
+              onClose();
+            }}
+            sx={{ py: 1 }}
+          >
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500}>Edit</Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {leave?.Status === 'Pending' && (
+          <>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem 
+              onClick={() => {
+                onDelete(leave);
+                onClose();
+              }}
+              sx={{ py: 1 }}
+            >
+              <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+                <DeleteIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>
+                <Typography variant="body2" fontWeight={500} color="#EF4444">
+                  Delete
+                </Typography>
+              </ListItemText>
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+    </>
+  );
+};
 
 // Styled Status Chip
 const StatusChip = ({ status }) => {
@@ -184,70 +252,6 @@ const StatusChip = ({ status }) => {
   );
 };
 
-// Leave Balance Card Component
-const LeaveBalanceCard = ({ balance }) => {
-  const percentage = balance.utilizationPercentage || 0;
-
-  const getProgressColor = (percent) => {
-    if (percent >= 80) return '#d32f2f';
-    if (percent >= 60) return '#ed6c02';
-    if (percent >= 30) return '#1976d2';
-    return '#4caf50';
-  };
-
-  return (
-    <Card variant="outlined" sx={{ borderRadius: 2 }}>
-      <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-          <Typography variant="subtitle2" fontWeight="600">
-            {balance.leaveTypeName}
-          </Typography>
-          <Chip
-            label={`${balance.usedDays}/${balance.maxDaysPerYear}`}
-            size="small"
-            sx={{
-              backgroundColor: getProgressColor(percentage) + '20',
-              color: getProgressColor(percentage),
-              fontWeight: 500,
-              fontSize: '0.7rem'
-            }}
-          />
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Box sx={{ flex: 1 }}>
-            <LinearProgress
-              variant="determinate"
-              value={Math.min(percentage, 100)}
-              sx={{
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: '#e0e0e0',
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: getProgressColor(percentage),
-                  borderRadius: 3,
-                }
-              }}
-            />
-          </Box>
-          <Typography variant="caption" color="text.secondary">
-            {percentage.toFixed(0)}%
-          </Typography>
-        </Box>
-
-        <Box display="flex" justifyContent="space-between">
-          <Typography variant="caption" color="text.secondary">
-            Used: {balance.usedDays}
-          </Typography>
-          <Typography variant="caption" color="success.main" fontWeight="500">
-            Remaining: {balance.remainingDays}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
 // ==================== VIEW LEAVE DETAILS MODAL ====================
 const ViewLeaveDetails = ({ open, onClose, leave }) => {
   if (!leave) return null;
@@ -269,14 +273,12 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
   const calculateDaysDifference = (startDate, endDate) => {
     if (!startDate || !endDate) return 0;
     
-    // Extract date parts to avoid timezone issues
     const startDatePart = startDate.split('T')[0];
     const endDatePart = endDate.split('T')[0];
     
     const [startYear, startMonth, startDay] = startDatePart.split('-').map(Number);
     const [endYear, endMonth, endDay] = endDatePart.split('-').map(Number);
     
-    // Create dates at UTC noon to avoid timezone shifts
     const start = new Date(Date.UTC(startYear, startMonth - 1, startDay, 12, 0, 0));
     const end = new Date(Date.UTC(endYear, endMonth - 1, endDay, 12, 0, 0));
     
@@ -294,18 +296,17 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
       fullWidth
       PaperProps={{ sx: { borderRadius: 2 } }}
     >
-      {/* Header */}
       <DialogTitle
         sx={{
           borderBottom: "1px solid #E0E0E0",
-          py: 1,
+          py: 1.5,
           backgroundColor: "#F8FAFC",
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}
       >
-        <Typography fontSize={18} fontWeight={600} color="#101010">
+        <Typography fontSize={18} fontWeight={600} color={TEXT_COLOR_MAIN}>
           Leave Application Details
         </Typography>
         <IconButton onClick={onClose} size="small">
@@ -313,207 +314,90 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
         </IconButton>
       </DialogTitle>
 
-      {/* Content */}
-      <DialogContent sx={{ pt: 1.5, pb: 1 }}>
+      <DialogContent sx={{ pt: 2, pb: 1 }}>
         <Stack spacing={2}>
-          {/* Employee Info */}
           <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar
+            {/* <Avatar
               sx={{
                 width: 48,
                 height: 48,
-                bgcolor: "#00B4D8",
+                bgcolor: PRIMARY_BLUE,
                 fontSize: "1.2rem",
               }}
             >
               {getAvatarInitials(leave)}
-            </Avatar>
+            </Avatar> */}
             <Box>
-              <Typography fontWeight={600}>
+              <Typography fontWeight={600} color={TEXT_COLOR_MAIN}>
                 {getEmployeeName(leave)}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="#64748B">
                 ID: {leave.EmployeeID?.EmployeeID}
               </Typography>
-              {leave.EmployeeID?.DesignationID && (
-                <Typography variant="caption" color="text.secondary" display="block">
-                  {leave.EmployeeID.DesignationID?.DesignationName || 'No Designation'}
-                </Typography>
-              )}
             </Box>
           </Stack>
 
           <Divider />
 
-          {/* Leave Details - FIXED DATE DISPLAY */}
-          <Stack spacing={1.5}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Leave Details
-            </Typography>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
-              <Box flex={1} minWidth={150}>
-                <Typography variant="caption" color="text.secondary">
-                  Leave Type
-                </Typography>
-                <Typography fontWeight={600}>
-                  {leave.LeaveTypeID?.Name || 'N/A'}
-                </Typography>
-                {leave.LeaveTypeID?.Description && (
-                  <Typography variant="caption" color="text.secondary">
-                    {leave.LeaveTypeID.Description}
-                  </Typography>
-                )}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="caption" color="#64748B">Leave Type</Typography>
+              <Typography fontWeight={600} color={TEXT_COLOR_MAIN}>
+                {leave.LeaveTypeID?.Name || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="caption" color="#64748B">Status</Typography>
+              <Box mt={0.5}>
+                <StatusChip status={leave.Status} />
               </Box>
-
-              <Box flex={1} minWidth={120}>
-                <Typography variant="caption" color="text.secondary">
-                  Status
-                </Typography>
-                <Box mt={0.5}>
-                  <Chip
-                    label={leave.Status}
-                    size="small"
-                    color={
-                      leave.Status?.toLowerCase() === 'approved' ? 'success' :
-                        leave.Status?.toLowerCase() === 'rejected' ? 'error' : 'warning'
-                    }
-                    sx={{ fontWeight: 500 }}
-                  />
-                </Box>
-              </Box>
-
-              {/* FIXED: Use formatDisplayDate for correct date display */}
-              <Box flex={1} minWidth={150}>
-                <Typography variant="caption" color="text.secondary">
-                  Duration
-                </Typography>
-                <Typography variant="body2">
-                  {formatDisplayDate(leave.StartDate)} - {formatDisplayDate(leave.EndDate)}
-                </Typography>
-              </Box>
-
-              <Box flex={1} minWidth={100}>
-                <Typography variant="caption" color="text.secondary">
-                  Days
-                </Typography>
-                <Typography fontWeight={600}>
-                  {leave.NumberOfDays ||
-                    calculateDaysDifference(
-                      leave.StartDate,
-                      leave.EndDate
-                    )} {leave.NumberOfDays === 1 ? 'day' : 'days'}
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="caption" color="#64748B">Duration</Typography>
+              <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                {formatDisplayDate(leave.StartDate)} - {formatDisplayDate(leave.EndDate)}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="caption" color="#64748B">Days</Typography>
+              <Chip
+                label={`${leave.NumberOfDays || calculateDaysDifference(leave.StartDate, leave.EndDate)} days`}
+                size="small"
+                sx={{ fontWeight: 500, backgroundColor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #bae6fd', mt: 0.5 }}
+              />
+            </Grid>
+          </Grid>
 
           <Divider />
 
-          {/* Contact Info */}
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Contact Information
-            </Typography>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-              <Box flex={1}>
-                <Typography variant="caption" color="text.secondary">
-                  Contact Number
-                </Typography>
-                <Typography variant="body2" fontWeight={500}>
-                  {leave.ContactNumber || "Not provided"}
-                </Typography>
-              </Box>
-
-              <Box flex={2}>
-                <Typography variant="caption" color="text.secondary">
-                  Address During Leave
-                </Typography>
-                <Typography variant="body2">
-                  {leave.AddressDuringLeave || "Not specified"}
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
-
-          <Divider />
-
-          {/* Reason */}
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Reason for Leave
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                backgroundColor: "#F8FAFC",
-                p: 1.5,
-                borderRadius: 1,
-                minHeight: 60,
-                lineHeight: 1.5,
-                border: '1px solid #E0E0E0'
-              }}
-            >
-              {leave.Reason || "No reason provided"}
-            </Typography>
-          </Stack>
-
-          <Divider />
-
-          {/* System Info */}
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              System Information
-            </Typography>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-              <Box flex={1}>
-                <Typography variant="caption" color="text.secondary">
-                  Applied On
-                </Typography>
-                <Typography variant="body2" fontWeight={500}>
-                  {formatDateTime(leave.AppliedOn || leave.CreatedAt)}
-                </Typography>
-              </Box>
-
-              <Box flex={1}>
-                <Typography variant="caption" color="text.secondary">
-                  Last Updated
-                </Typography>
-                <Typography variant="body2">
-                  {formatDateTime(leave.UpdatedAt || leave.CreatedAt)}
-                </Typography>
-              </Box>
-
-              {leave.ProcessedOn && (
-                <Box flex={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    Processed On
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatDateTime(leave.ProcessedOn)}
-                  </Typography>
-                </Box>
-              )}
-            </Stack>
-          </Stack>
+          <Typography variant="subtitle2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+            Reason for Leave
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              backgroundColor: "#F8FAFC",
+              p: 1.5,
+              borderRadius: 1,
+              border: '1px solid #E0E0E0',
+              color: TEXT_COLOR_MAIN
+            }}
+          >
+            {leave.Reason || "No reason provided"}
+          </Typography>
         </Stack>
       </DialogContent>
 
-      {/* Footer */}
       <DialogActions sx={{ p: 2, borderTop: "1px solid #E0E0E0" }}>
         <Button
           variant="contained"
           onClick={onClose}
           startIcon={<CloseIcon />}
           sx={{
-            borderRadius: 1,
+            borderRadius: 1.5,
             textTransform: "none",
-            backgroundColor: "#1976D2",
-            "&:hover": {
-              backgroundColor: "#1565C0",
-            },
+            background: HEADER_GRADIENT,
+            '&:hover': { opacity: 0.9, background: HEADER_GRADIENT }
           }}
         >
           Close
@@ -525,12 +409,10 @@ const ViewLeaveDetails = ({ open, onClose, leave }) => {
 
 // ==================== MAIN COMPONENT ====================
 const EmployeeLeaveMaster = () => {
-  // State for employees dropdown
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [employeeDetails, setEmployeeDetails] = useState(null);
 
-  // State for leaves
   const [leaves, setLeaves] = useState([]);
   const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState([]);
@@ -540,39 +422,36 @@ const EmployeeLeaveMaster = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Checkbox selection state
+  const [selected, setSelected] = useState([]);
 
-  // Modal states
   const [openApplyLeave, setOpenApplyLeave] = useState(false);
   const [openViewHoliday, setOpenViewHoliday] = useState(false);
   const [openViewLeave, setOpenViewLeave] = useState(false);
   const [openEditLeave, setOpenEditLeave] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 
-  // Action menu
   const [actionAnchor, setActionAnchor] = useState(null);
   const [selectedLeave, setSelectedLeave] = useState(null);
 
-  // Snackbar
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
   });
 
-  // Filter states
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState({
-    start: null,
-    end: null
-  });
+  const [dateRangeFilter, setDateRangeFilter] = useState({ start: null, end: null });
   const [showFilters, setShowFilters] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ field: 'AppliedOn', direction: 'desc' });
 
-  // Fetch employees on component mount
+  const [defaultEmployee, setDefaultEmployee] = useState(null);
+
   useEffect(() => {
     fetchEmployees();
   }, []);
 
-  // Fetch leaves when employee is selected
   useEffect(() => {
     if (selectedEmployee) {
       fetchEmployeeLeaves(selectedEmployee);
@@ -581,7 +460,6 @@ const EmployeeLeaveMaster = () => {
     }
   }, [selectedEmployee]);
 
-  // Apply filters when leaves, statusFilter, searchTerm, or dateRangeFilter changes
   useEffect(() => {
     applyFilters();
   }, [leaves, statusFilter, searchTerm, dateRangeFilter.start, dateRangeFilter.end]);
@@ -597,6 +475,9 @@ const EmployeeLeaveMaster = () => {
       if (response.data.success) {
         const employeesData = response.data.data || [];
         setEmployees(employeesData);
+        
+        // Set default employee after employees are loaded
+        setDefaultEmployeeIfAvailable(employeesData);
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -606,22 +487,33 @@ const EmployeeLeaveMaster = () => {
     }
   };
 
+  const setDefaultEmployeeIfAvailable = (employeesList) => {
+    const savedEmployeeId = localStorage.getItem('defaultSelectedEmployee');
+    
+    if (savedEmployeeId && employeesList.some(emp => emp._id === savedEmployeeId)) {
+      setSelectedEmployee(savedEmployeeId);
+      setDefaultEmployee(savedEmployeeId);
+    } else if (employeesList.length > 0) {
+      // Select the first employee by default
+      setSelectedEmployee(employeesList[0]._id);
+      setDefaultEmployee(employeesList[0]._id);
+      localStorage.setItem('defaultSelectedEmployee', employeesList[0]._id);
+    }
+  };
+
   const fetchEmployeeLeaves = async (employeeId) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      // Find selected employee details
       const employee = employees.find(emp => emp._id === employeeId);
       setEmployeeDetails(employee);
 
-      // Fetch leaves for specific employee
       const response = await axios.get(`${BASE_URL}/api/leaves/employee/${employeeId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        // Extract data from the response structure
         const leavesData = response.data.data || [];
         const summaryData = response.data.summary || null;
         const balanceData = response.data.leaveBalance || [];
@@ -630,6 +522,7 @@ const EmployeeLeaveMaster = () => {
         setFilteredLeaves(leavesData);
         setSummary(summaryData);
         setLeaveBalance(balanceData);
+        setSelected([]);
 
         return response.data;
       }
@@ -651,13 +544,41 @@ const EmployeeLeaveMaster = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateRangeFilter({ start: null, end: null });
+    setSelected([]);
   };
 
-  // Filter function with proper date handling
+  // Handle select all
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelected(paginatedLeaves.map(leave => leave._id));
+    } else {
+      setSelected([]);
+    }
+  };
+
+  // Handle single selection
+  const handleSelect = (id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+    
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else {
+      newSelected = selected.filter(item => item !== id);
+    }
+    
+    setSelected(newSelected);
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selected.length === 0) return;
+    showNotification(`Bulk delete for ${selected.length} items - API implementation required`, 'warning');
+  };
+
   const applyFilters = () => {
     let filtered = [...leaves];
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(leave =>
         leave.LeaveTypeID?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -665,27 +586,22 @@ const EmployeeLeaveMaster = () => {
       );
     }
 
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(leave => leave.Status === statusFilter);
     }
 
-    // Apply date range filter - using date parts to avoid timezone issues
     if (dateRangeFilter.start || dateRangeFilter.end) {
       filtered = filtered.filter(leave => {
-        // Extract date parts from ISO strings
         const leaveStartPart = leave.StartDate.split('T')[0];
         const leaveEndPart = leave.EndDate.split('T')[0];
         
         const [startYear, startMonth, startDay] = leaveStartPart.split('-').map(Number);
         const [endYear, endMonth, endDay] = leaveEndPart.split('-').map(Number);
         
-        // Create date objects at noon to avoid timezone issues
         const leaveStart = new Date(Date.UTC(startYear, startMonth - 1, startDay, 12, 0, 0));
         const leaveEnd = new Date(Date.UTC(endYear, endMonth - 1, endDay, 12, 0, 0));
 
         if (dateRangeFilter.start && dateRangeFilter.end) {
-          // If both dates are selected
           const filterStartDate = new Date(dateRangeFilter.start);
           const filterEndDate = new Date(dateRangeFilter.end);
           
@@ -702,11 +618,9 @@ const EmployeeLeaveMaster = () => {
             12, 0, 0
           ));
 
-          // Check if leave period overlaps with filter period
           return leaveStart <= filterEnd && leaveEnd >= filterStart;
         }
         else if (dateRangeFilter.start) {
-          // Only start date selected
           const filterStartDate = new Date(dateRangeFilter.start);
           const filterStart = new Date(Date.UTC(
             filterStartDate.getFullYear(),
@@ -717,7 +631,6 @@ const EmployeeLeaveMaster = () => {
           return leaveEnd >= filterStart;
         }
         else if (dateRangeFilter.end) {
-          // Only end date selected
           const filterEndDate = new Date(dateRangeFilter.end);
           const filterEnd = new Date(Date.UTC(
             filterEndDate.getFullYear(),
@@ -734,6 +647,35 @@ const EmployeeLeaveMaster = () => {
 
     setFilteredLeaves(filtered);
     setPage(0);
+    setSelected([]);
+  };
+
+  const handleSort = (field) => {
+    const direction = sortConfig.field === field && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ field, direction });
+    
+    const sorted = [...filteredLeaves].sort((a, b) => {
+      let aValue = a[field];
+      let bValue = b[field];
+
+      if (field === 'LeaveTypeID') {
+        aValue = a.LeaveTypeID?.Name || '';
+        bValue = b.LeaveTypeID?.Name || '';
+      }
+
+      if (field === 'StartDate' || field === 'EndDate' || field === 'AppliedOn' || field === 'CreatedAt') {
+        aValue = aValue ? new Date(aValue).getTime() : 0;
+        bValue = bValue ? new Date(bValue).getTime() : 0;
+      }
+
+      if (direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredLeaves(sorted);
   };
 
   const showNotification = (message, severity = 'success') => {
@@ -742,6 +684,12 @@ const EmployeeLeaveMaster = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
+    setSelected([]);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSelected([]);
   };
 
   const handleActionOpen = (e, leave) => {
@@ -770,57 +718,33 @@ const EmployeeLeaveMaster = () => {
 
   const handleApplyLeaveClose = (success = false) => {
     setOpenApplyLeave(false);
-
     if (success && selectedEmployee) {
       setLoading(true);
       fetchEmployeeLeaves(selectedEmployee)
-        .then(() => {
-          showNotification('Leave applied successfully');
-        })
-        .catch(() => {
-          showNotification('Leave applied but failed to refresh list', 'warning');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+        .then(() => showNotification('Leave applied successfully'))
+        .finally(() => setLoading(false));
     }
   };
 
   const handleEditLeaveClose = (success = false) => {
     setOpenEditLeave(false);
     setSelectedLeave(null);
-
     if (success && selectedEmployee) {
       setLoading(true);
       fetchEmployeeLeaves(selectedEmployee)
-        .then(() => {
-          showNotification('Leave updated successfully');
-        })
-        .catch(() => {
-          showNotification('Leave updated but failed to refresh list', 'warning');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+        .then(() => showNotification('Leave updated successfully'))
+        .finally(() => setLoading(false));
     }
   };
 
   const handleDeleteLeaveClose = (deleted = false) => {
     setOpenDeleteDialog(false);
     setSelectedLeave(null);
-
     if (deleted && selectedEmployee) {
       setLoading(true);
       fetchEmployeeLeaves(selectedEmployee)
-        .then(() => {
-          showNotification('Leave deleted successfully');
-        })
-        .catch(() => {
-          showNotification('Leave deleted but failed to refresh list', 'warning');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+        .then(() => showNotification('Leave deleted successfully'))
+        .finally(() => setLoading(false));
     }
   };
 
@@ -833,12 +757,8 @@ const EmployeeLeaveMaster = () => {
     if (selectedEmployee) {
       setLoading(true);
       fetchEmployeeLeaves(selectedEmployee)
-        .then(() => {
-          showNotification('Data refreshed successfully');
-        })
-        .catch(() => {
-          showNotification('Failed to refresh data', 'error');
-        });
+        .then(() => showNotification('Data refreshed successfully'))
+        .catch(() => showNotification('Failed to refresh data', 'error'));
     }
   };
 
@@ -846,12 +766,20 @@ const EmployeeLeaveMaster = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateRangeFilter({ start: null, end: null });
+    setSelected([]);
   };
 
   const handleEmployeeChange = (event) => {
-    setSelectedEmployee(event.target.value);
+    const employeeId = event.target.value;
+    setSelectedEmployee(employeeId);
     setPage(0);
     handleClearFilters();
+    
+    if (employeeId) {
+      localStorage.setItem('defaultSelectedEmployee', employeeId);
+    } else {
+      localStorage.removeItem('defaultSelectedEmployee');
+    }
   };
 
   const getEmployeeName = (employee) => {
@@ -871,7 +799,8 @@ const EmployeeLeaveMaster = () => {
     page * rowsPerPage + rowsPerPage
   );
 
-  // Calculate stats
+  const isFilterActive = searchTerm || statusFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end;
+
   const pendingCount = summary?.Pending?.count || leaves.filter(l => l.Status === 'Pending').length;
   const pendingDays = summary?.Pending?.totalDays || 0;
   const approvedCount = summary?.Approved?.count || leaves.filter(l => l.Status === 'Approved').length;
@@ -916,52 +845,49 @@ const EmployeeLeaveMaster = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 1 }}>
+      <Box sx={{ p: 3 }}>
         {/* Header */}
-        <Box sx={{ mb: 1 }}>
+        <Box sx={{ mb: 3 }}>
           <Typography
             variant="h5"
-            fontWeight={600}
+            component="h1"
+            fontWeight="600"
             sx={{
               background: HEADER_GRADIENT,
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              mb: 1
+              display: 'inline-block'
             }}
           >
             Employee Leave Management
           </Typography>
-          <Typography variant="body1" color="#64748B">
+          <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
             View and manage leave applications for employees
           </Typography>
         </Box>
 
         {/* Employee Selection Card */}
         <Paper sx={{
-          p: 1.5,
-          mb: 2,
+          p: 2,
+          mb: 3,
           borderRadius: 2,
           border: '1px solid #e2e8f0',
-          background: 'linear-gradient(to right, #f8fafc, #ffffff)'
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
         }}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6} sx={{ width: "400px" }}>
+            <Grid item xs={12} md={6}>
               <FormControl fullWidth variant="outlined" size="small">
-                <InputLabel id="employee-select-label" sx={{ fontSize: '0.9rem' }}>Select Employee</InputLabel>
+                <InputLabel>Select Employee</InputLabel>
                 <Select
-                  labelId="employee-select-label"
                   value={selectedEmployee}
                   onChange={handleEmployeeChange}
                   label="Select Employee"
                   disabled={loadingEmployees}
-                  size="medium"
                   sx={{
                     borderRadius: 1.5,
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e2e8f0',
-                    },
-                    '& .MuiSelect-select': {
-                      py: 1,
+                    width: 250,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: PRIMARY_BLUE,
                     }
                   }}
                 >
@@ -971,55 +897,43 @@ const EmployeeLeaveMaster = () => {
                   {employees.map((emp) => (
                     <MenuItem key={emp._id} value={emp._id}>
                       <Stack direction="row" spacing={1.5} alignItems="center">
+                        {/* <Avatar sx={{ width: 32, height: 32, bgcolor: PRIMARY_BLUE, fontSize: '0.875rem' }}>
+                          {getAvatarInitials(emp)}
+                        </Avatar> */}
                         <Box>
-                          <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.2 }}>
+                          <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
                             {getEmployeeName(emp)}
                           </Typography>
+                          {/* <Typography variant="caption" color="#64748B">
+                            {emp.EmployeeID} • {emp.DepartmentID?.DepartmentName || 'No Dept'}
+                          </Typography> */}
                         </Box>
                       </Stack>
                     </MenuItem>
                   ))}
                 </Select>
-                {!loadingEmployees && employees.length === 0 && (
-                  <FormHelperText error sx={{ mt: 0.5 }}>No employees found</FormHelperText>
-                )}
               </FormControl>
             </Grid>
 
             {employeeDetails && (
               <Grid item xs={12} md={6}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    divider={<Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />}
-                    sx={{ mt: 0.25 }}
-                  >
-                    <Avatar
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        bgcolor: '#00B4D8',
-                        fontSize: '1rem'
-                      }}
-                    >
-                      {getAvatarInitials(employeeDetails)}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
-                        {getEmployeeName(employeeDetails)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar sx={{ width: 48, height: 48, bgcolor: PRIMARY_BLUE, fontSize: '1.2rem' }}>
+                    {getAvatarInitials(employeeDetails)}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                      {getEmployeeName(employeeDetails)}
+                    </Typography>
+                    <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
+                      <Typography variant="caption" color="#64748B">
                         ID: {employeeDetails.EmployeeID}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      <Typography variant="caption" color="#64748B">
                         {employeeDetails.DepartmentID?.DepartmentName || 'No Dept'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                        {employeeDetails.DesignationID?.DesignationName || 'No Desig'}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                    </Stack>
+                  </Box>
                 </Stack>
               </Grid>
             )}
@@ -1028,53 +942,93 @@ const EmployeeLeaveMaster = () => {
 
         {selectedEmployee && (
           <>
+            {/* Statistics Cards */}
+            {/* <Grid container spacing={2} sx={{ mb: 3 }}>
+              {stats.map((stat, index) => (
+                <Grid item xs={12} sm={6} md={3} key={index}>
+                  <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', transition: 'all 0.2s', '&:hover': { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', transform: 'translateY(-2px)' } }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Box>
+                        <Typography variant="caption" color="#64748B">{stat.label}</Typography>
+                        <Typography variant="h4" fontWeight={600} color={TEXT_COLOR_MAIN} sx={{ lineHeight: 1.2, mt: 0.5 }}>
+                          {stat.value}
+                        </Typography>
+                        {stat.subValue && (
+                          <Typography variant="caption" fontWeight={500} color={stat.color} sx={{ mt: 0.5, display: 'block' }}>
+                            {stat.subValue}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Avatar sx={{ bgcolor: stat.bg, color: stat.color, width: 48, height: 48 }}>
+                        {stat.icon}
+                      </Avatar>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid> */}
+
             {/* Action Bar */}
             <Paper sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={2}
-                justifyContent="space-between"
-                alignItems={{ xs: 'stretch', sm: 'center' }}
-              >
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flex={1}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
                   <TextField
                     placeholder="Search leaves..."
                     size="small"
                     value={searchTerm}
                     onChange={handleSearch}
-                    sx={{ width: { xs: '100%', sm: 250 } }}
+                    sx={{ width: { xs: '100%', sm: 300 }, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon sx={{ color: '#64748B' }} />
+                      startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: '#64748B' }} /></InputAdornment>,
+                      endAdornment: searchTerm && (
+                        <InputAdornment position="end">
+                          <IconButton size="small" onClick={handleClearSearch} edge="end">
+                            <ClearIcon fontSize="small" sx={{ color: '#64748B' }} />
+                          </IconButton>
                         </InputAdornment>
-                      )
+                      ),
+                      sx: { height: 40, bgcolor: '#f8fafc' }
                     }}
                   />
+                  
+                  {/* <Button
+                    variant="outlined"
+                    startIcon={<FilterIcon />}
+                    onClick={() => setShowFilters(!showFilters)}
+                    sx={{ height: 40, borderRadius: 1.5, borderColor: '#cbd5e1', color: '#475569', textTransform: 'none' }}
+                  >
+                    Filters
+                  </Button> */}
 
-                  {(statusFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end || searchTerm) && (
-                    <Button
-                      variant="text"
-                      startIcon={<CloseIcon />}
-                      onClick={handleClearFilters}
-                      size="small"
-                    >
-                      Clear
+                  {isFilterActive && (
+                    <Button variant="text" startIcon={<CloseIcon />} onClick={handleClearFilters} sx={{ height: 40, borderRadius: 1.5 }}>
+                      Clear Filters
                     </Button>
                   )}
                 </Stack>
 
                 <Stack direction="row" spacing={2}>
+                  {selected.length > 0 && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleBulkDelete}
+                      sx={{ height: 40, borderRadius: 1.5, borderColor: '#EF4444', color: '#EF4444' }}
+                    >
+                      Delete ({selected.length})
+                    </Button>
+                  )}
+                  
+                  {/* <Button variant="outlined" startIcon={<RefreshIcon />} onClick={handleRefresh} sx={{ height: 40, borderRadius: 1.5 }}>
+                    Refresh
+                  </Button> */}
+
                   <Button
                     variant="contained"
                     startIcon={<CelebrationIcon />}
                     onClick={() => setOpenViewHoliday(true)}
-                    sx={{
-                      background: HEADER_GRADIENT,
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #0e7490 0%, #00B4D8 50%, #164e63 100%)'
-                      }
-                    }}
+                    sx={{ height: 40, borderRadius: 1.5, background: HEADER_GRADIENT, textTransform: 'none' }}
                   >
                     Holidays
                   </Button>
@@ -1083,12 +1037,7 @@ const EmployeeLeaveMaster = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => setOpenApplyLeave(true)}
-                    sx={{
-                      background: HEADER_GRADIENT,
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #0e7490 0%, #00B4D8 50%, #164e63 100%)'
-                      }
-                    }}
+                    sx={{ height: 40, borderRadius: 1.5, background: HEADER_GRADIENT, textTransform: 'none' }}
                   >
                     Apply Leave
                   </Button>
@@ -1098,15 +1047,11 @@ const EmployeeLeaveMaster = () => {
               {/* Filter Panel */}
               {showFilters && (
                 <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
-                  <Grid container spacing={2} alignItems="center">
+                  <Grid container spacing={2}>
                     <Grid item xs={12} sm={4}>
                       <FormControl fullWidth size="small">
-                        <InputLabel>Status Filter</InputLabel>
-                        <Select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                          label="Status Filter"
-                        >
+                        <InputLabel>Status</InputLabel>
+                        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} label="Status" sx={{ borderRadius: 1.5 }}>
                           <MenuItem value="all">All Status</MenuItem>
                           <MenuItem value="Pending">Pending</MenuItem>
                           <MenuItem value="Approved">Approved</MenuItem>
@@ -1119,7 +1064,7 @@ const EmployeeLeaveMaster = () => {
                         label="From Date"
                         value={dateRangeFilter.start}
                         onChange={(date) => setDateRangeFilter({ ...dateRangeFilter, start: date })}
-                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                        slotProps={{ textField: { size: 'small', fullWidth: true, sx: { borderRadius: 1.5 } } }}
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
@@ -1127,7 +1072,7 @@ const EmployeeLeaveMaster = () => {
                         label="To Date"
                         value={dateRangeFilter.end}
                         onChange={(date) => setDateRangeFilter({ ...dateRangeFilter, end: date })}
-                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                        slotProps={{ textField: { size: 'small', fullWidth: true, sx: { borderRadius: 1.5 } } }}
                       />
                     </Grid>
                   </Grid>
@@ -1141,78 +1086,140 @@ const EmployeeLeaveMaster = () => {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ background: HEADER_GRADIENT }}>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>Leave Type</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>From Date</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>To Date</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>Days</TableCell>
+                      <TableCell padding="checkbox" sx={{ width: 60 }}>
+                        <Checkbox
+                          indeterminate={selected.length > 0 && selected.length < paginatedLeaves.length}
+                          checked={paginatedLeaves.length > 0 && selected.length === paginatedLeaves.length}
+                          onChange={handleSelectAll}
+                          sx={{ color: TEXT_COLOR_HEADER, '&.Mui-checked': { color: TEXT_COLOR_HEADER } }}
+                          disabled={loading || paginatedLeaves.length === 0}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('LeaveTypeID')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          Leave Type
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'LeaveTypeID' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('StartDate')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          From Date
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'StartDate' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('EndDate')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          To Date
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'EndDate' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('NumberOfDays')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          Days
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'NumberOfDays' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 600 }}>Reason</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600 }}>Applied On</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('Status')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          Status
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'Status' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleSort('AppliedOn')}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          Applied On
+                          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'white', opacity: sortConfig.field === 'AppliedOn' ? 1 : 0.5 }} />
+                        </Stack>
+                      </TableCell>
                       <TableCell align="center" sx={{ color: 'white', fontWeight: 600 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} sx={{ p: 0 }}>
-                          <LinearProgress />
+                        <TableCell colSpan={9} sx={{ p: 0 }}>
+                          <LinearProgress sx={{ height: 2, bgcolor: alpha(PRIMARY_BLUE, 0.2), '& .MuiLinearProgress-bar': { bgcolor: PRIMARY_BLUE } }} />
                         </TableCell>
                       </TableRow>
                     ) : paginatedLeaves.length > 0 ? (
-                      paginatedLeaves.map((leave) => (
-                        <TableRow key={leave._id} hover>
-                          <TableCell>
-                            <Typography fontWeight={500}>
-                              {leave.LeaveTypeID?.Name || 'N/A'}
-                            </Typography>
-                          </TableCell>
-                          {/* FIXED: Use formatDisplayDate for correct date display */}
-                          <TableCell>{formatDisplayDate(leave.StartDate)}</TableCell>
-                          <TableCell>{formatDisplayDate(leave.EndDate)}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={leave.NumberOfDays}
-                              size="small"
-                              sx={{
-                                bgcolor: '#f1f5f9',
-                                fontWeight: 500,
-                                minWidth: 40
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip title={leave.Reason || ''}>
-                              <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                {leave.Reason || 'No reason provided'}
+                      paginatedLeaves.map((leave, index) => {
+                        const isSelected = selected.includes(leave._id);
+                        const isOddRow = index % 2 === 0;
+                        const isActionMenuOpen = Boolean(actionAnchor) && selectedLeave?._id === leave._id;
+
+                        return (
+                          <TableRow
+                            key={leave._id}
+                            hover
+                            selected={isSelected}
+                            sx={{ 
+                              bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                              '&:hover': { bgcolor: HOVER_COLOR },
+                              '&.Mui-selected': { bgcolor: alpha(PRIMARY_BLUE, 0.08) }
+                            }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => handleSelect(leave._id)}
+                                sx={{ color: PRIMARY_BLUE, '&.Mui-checked': { color: PRIMARY_BLUE } }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography fontWeight={500} color={TEXT_COLOR_MAIN}>
+                                {leave.LeaveTypeID?.Name || 'N/A'}
                               </Typography>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>
-                            <StatusChip status={leave.Status} />
-                          </TableCell>
-                          <TableCell>{formatDateTime(leave.AppliedOn || leave.CreatedAt)}</TableCell>
-                          <TableCell align="center">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleActionOpen(e, leave)}
-                              sx={{ color: '#64748b' }}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>
+                              <Typography color={TEXT_COLOR_MAIN}>{formatDisplayDate(leave.StartDate)}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography color={TEXT_COLOR_MAIN}>{formatDisplayDate(leave.EndDate)}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={leave.NumberOfDays}
+                                size="small"
+                                sx={{ bgcolor: '#e0f2fe', color: '#0c4a6e', fontWeight: 500, minWidth: 40, border: '1px solid #bae6fd' }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Tooltip title={leave.Reason || ''}>
+                                <Typography noWrap sx={{ maxWidth: 200, color: TEXT_COLOR_MAIN }}>
+                                  {leave.Reason || 'No reason provided'}
+                                </Typography>
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                              <StatusChip status={leave.Status} />
+                            </TableCell>
+                            <TableCell>
+                              <Typography color={TEXT_COLOR_MAIN}>{formatDateTime(leave.AppliedOn || leave.CreatedAt)}</Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <ActionMenu 
+                                leave={leave}
+                                onView={handleViewLeave}
+                                onEdit={handleEditLeave}
+                                onDelete={handleDeleteClick}
+                                anchorEl={isActionMenuOpen ? actionAnchor : null}
+                                onClose={handleActionClose}
+                                onOpen={(e) => handleActionOpen(e, leave)}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                        <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                           <EventIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                          <Typography variant="h6" color="textSecondary" gutterBottom>
+                          <Typography variant="body1" color="#64748B" fontWeight={500}>
                             No Leave Applications Found
                           </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            {searchTerm || statusFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end
-                              ? 'Try adjusting your filters'
-                              : 'This employee hasn\'t applied for any leave yet'}
+                          <Typography variant="body2" color="#94A3B8">
+                            {isFilterActive ? 'Try adjusting your filters' : 'This employee hasn\'t applied for any leave yet'}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -1228,11 +1235,9 @@ const EmployeeLeaveMaster = () => {
                   count={filteredLeaves.length}
                   rowsPerPage={rowsPerPage}
                   page={page}
-                  onPageChange={(e, newPage) => setPage(newPage)}
-                  onRowsPerPageChange={(e) => {
-                    setRowsPerPage(parseInt(e.target.value, 10));
-                    setPage(0);
-                  }}
+                  onPageChange={(e, newPage) => { setPage(newPage); setSelected([]); }}
+                  onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); setSelected([]); }}
+                  sx={{ borderTop: '1px solid #e2e8f0', '& .MuiTablePagination-actions button': { color: PRIMARY_BLUE } }}
                 />
               )}
             </Paper>
@@ -1240,99 +1245,53 @@ const EmployeeLeaveMaster = () => {
         )}
 
         {!selectedEmployee && (
-          <Paper sx={{ p: 8, textAlign: 'center', borderRadius: 2 }}>
+          <Paper sx={{ p: 8, textAlign: 'center', borderRadius: 2, border: '1px solid #e2e8f0' }}>
             <PersonIcon sx={{ fontSize: 64, color: '#94a3b8', mb: 2 }} />
-            <Typography variant="h5" color="textSecondary" gutterBottom>
+            <Typography variant="h6" color="#64748B" fontWeight={500} gutterBottom>
               No Employee Selected
             </Typography>
-            <Typography variant="body1" color="textSecondary">
+            <Typography variant="body2" color="#94A3B8">
               Please select an employee from the dropdown above to view their leave information
             </Typography>
           </Paper>
         )}
 
         {/* Action Menu */}
-        <Menu
-          anchorEl={actionAnchor}
-          open={Boolean(actionAnchor)}
-          onClose={handleActionClose}
-        >
+        <Menu anchorEl={actionAnchor} open={Boolean(actionAnchor)} onClose={handleActionClose}>
           <MenuItem onClick={handleViewLeave}>
-            <ListItemIcon>
-              <ViewIcon fontSize="small" sx={{ color: '#00B4D8' }} />
-            </ListItemIcon>
+            <ListItemIcon><ViewIcon fontSize="small" sx={{ color: PRIMARY_BLUE }} /></ListItemIcon>
             <ListItemText>View Details</ListItemText>
           </MenuItem>
-
           {selectedLeave?.Status === 'Pending' && (
-            <MenuItem onClick={handleEditLeave}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" sx={{ color: '#10B981' }} />
-              </ListItemIcon>
-              <ListItemText>Edit Leave</ListItemText>
-            </MenuItem>
-          )}
-
-          {selectedLeave?.Status === 'Pending' && (
-            <MenuItem onClick={handleDeleteClick}>
-              <ListItemIcon>
-                <DeleteIcon fontSize="small" color="error" />
-              </ListItemIcon>
-              <ListItemText primary="Delete Leave" sx={{ color: '#d32f2f' }} />
-            </MenuItem>
+            <>
+              <MenuItem onClick={handleEditLeave}>
+                <ListItemIcon><EditIcon fontSize="small" sx={{ color: '#10B981' }} /></ListItemIcon>
+                <ListItemText>Edit Leave</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleDeleteClick}>
+                <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                <ListItemText primary="Delete Leave" sx={{ color: '#d32f2f' }} />
+              </MenuItem>
+            </>
           )}
         </Menu>
 
         {/* Modals */}
         {selectedEmployee && (
           <>
-            <ApplyLeave
-              open={openApplyLeave}
-              handleClose={handleApplyLeaveClose}
-              onSuccess={handleApplyLeaveClose}
-              employeeId={selectedEmployee}
-              employeeDetails={employeeDetails}
-            />
-
-            <EditLeave
-              open={openEditLeave}
-              onClose={handleEditLeaveClose}
-              leaveData={selectedLeave}
-              onUpdate={handleEditLeaveClose}
-            />
-
-            <DeleteLeave
-              open={openDeleteDialog}
-              onClose={handleDeleteLeaveClose}
-              leaveData={selectedLeave}
-              onDelete={handleDeleteLeaveClose}
-            />
+            <ApplyLeave open={openApplyLeave} handleClose={handleApplyLeaveClose} onSuccess={handleApplyLeaveClose} employeeId={selectedEmployee} employeeDetails={employeeDetails} />
+            <EditLeave open={openEditLeave} onClose={handleEditLeaveClose} leaveData={selectedLeave} onUpdate={handleEditLeaveClose} />
+            <DeleteLeave open={openDeleteDialog} onClose={handleDeleteLeaveClose} leaveData={selectedLeave} onDelete={handleDeleteLeaveClose} />
           </>
         )}
 
-        <ViewHoliday
-          open={openViewHoliday}
-          onClose={() => setOpenViewHoliday(false)}
-        />
-
-        <ViewLeaveDetails
-          open={openViewLeave}
-          onClose={handleViewLeaveClose}
-          leave={selectedLeave}
-        />
+        <ViewHoliday open={openViewHoliday} onClose={() => setOpenViewHoliday(false)} />
+        <ViewLeaveDetails open={openViewLeave} onClose={handleViewLeaveClose} leave={selectedLeave} />
 
         {/* Snackbar */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={4000}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        >
-          <Alert
-            severity={snackbar.severity}
-            variant="filled"
-            onClose={() => setSnackbar({ ...snackbar, open: false })}
-          >
+        <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+          <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar({ ...snackbar, open: false })} sx={{ borderRadius: 1.5 }}>
             {snackbar.message}
           </Alert>
         </Snackbar>

@@ -15,6 +15,10 @@ import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+const HEADER_GRADIENT =
+  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+
+
 const AddLeaveTypes = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     Name: '',
@@ -108,7 +112,7 @@ const AddLeaveTypes = ({ open, onClose, onAdd }) => {
       Name: '',
       MaxDaysPerYear: '',
       Description: '',
-      IsActive: true
+      // IsActive: true
     });
     setError('');
   };
@@ -128,20 +132,19 @@ const AddLeaveTypes = ({ open, onClose, onAdd }) => {
         sx: { borderRadius: 2 }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC'
-      }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
-          paddingTop: '8px'
-        }}>
-          Add New Leave Type
-        </div>
-      </DialogTitle>
+      {/* Header */}
+            <DialogTitle
+              sx={{
+                fontWeight: 600,
+                fontSize: 20,
+                color: "#fff",
+                px: 3,
+                py: 2,
+                background: HEADER_GRADIENT
+              }}
+            >
+              Add New Leave Type
+            </DialogTitle>
       
       <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
@@ -242,7 +245,7 @@ const AddLeaveTypes = ({ open, onClose, onAdd }) => {
       
       <DialogActions sx={{ 
         px: 3, 
-        pb: 3, 
+        pb: 1.5, 
         borderTop: '1px solid #E0E0E0', 
         pt: 2,
         backgroundColor: '#F8FAFC'
@@ -253,7 +256,7 @@ const AddLeaveTypes = ({ open, onClose, onAdd }) => {
           sx={{
             borderRadius: 1,
             px: 3,
-            py: 1,
+            py: 1.5,
             textTransform: 'none',
             fontWeight: 500
           }}
@@ -261,24 +264,24 @@ const AddLeaveTypes = ({ open, onClose, onAdd }) => {
           Cancel
         </Button>
         <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading ? null : <AddIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
-          }}
-        >
-          {loading ? 'Adding...' : 'Add Leave Type'}
-        </Button>
+                  variant="contained"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  startIcon={loading ? null : <AddIcon />}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 500,
+                    borderRadius: 1.5,
+                    px: 3,
+                    background: HEADER_GRADIENT,
+                    "&:hover": {
+                      opacity: 0.9,
+                      background: HEADER_GRADIENT
+                    }
+                  }}
+                >
+                  {loading ? "Adding..." : "Add New Leave Type"}
+                </Button>
       </DialogActions>
     </Dialog>
   );

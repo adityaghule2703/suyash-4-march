@@ -1,149 +1,275 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  Stack,
   Typography,
+  Grid,
+  Paper,
+  Stack,
+  IconButton,
+  Box,
   Divider
-} from '@mui/material';
-import { Edit as EditIcon } from '@mui/icons-material';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
-const ViewDepartments = ({ open, onClose, department, onEdit }) => {
+const HEADER_GRADIENT =
+  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+
+const ViewDepartments = ({ open, onClose, department }) => {
   if (!department) return null;
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   };
 
+  const formatSimpleDate = (dateString) => {
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  };
+
+  const Field = ({ label, value, inline = false }) => (
+    <Box sx={{ mb: 1 }}>
+      {inline ? (
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              color: "#475569",
+              minWidth: 120
+            }}
+          >
+            {label}:
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              color: "#1e293b"
+            }}
+          >
+            {value}
+          </Typography>
+        </Box>
+      ) : (
+        <Stack spacing={0.5}>
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              color: "#475569"
+            }}
+          >
+            {label}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              color: "#1e293b"
+            }}
+          >
+            {value}
+          </Typography>
+        </Stack>
+      )}
+    </Box>
+  );
+
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2 }
+        sx: { borderRadius: 3 }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC'
-      }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
-          paddingTop: '8px'
-        }}>
-          Department Details
-        </div>
+      {/* Header */}
+      <DialogTitle
+        sx={{
+          fontWeight: 600,
+          fontSize: 24,
+          color: "#fff",
+          px: 4,
+          py: 1.5,
+          background: HEADER_GRADIENT,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}
+      >
+        Department Details
+
+        <IconButton onClick={onClose} sx={{ color: "#fff" }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
-      
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={3}>
-          {/* Add padding from top for the first field */}
-          <div style={{ marginTop: '16px' }}>
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Department Name
-              </Typography>
-              <Typography variant="body1" fontWeight={500} sx={{ fontSize: '1rem' }}>
-                {department.DepartmentName}
-              </Typography>
-            </Stack>
-          </div>
-          
-          <Divider />
-          
-          <Stack spacing={1}>
-            <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-              Description
-            </Typography>
-            <Typography variant="body1" color="textPrimary" sx={{ 
-              fontSize: '0.875rem',
-              backgroundColor: '#F8FAFC',
-              p: 2,
-              borderRadius: 1,
-              minHeight: '80px'
-            }}>
-              {department.Description || 'No description provided'}
-            </Typography>
-          </Stack>
-          
-          <Divider />
-          
-          <Stack spacing={2}>
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Created At
-              </Typography>
-              <Typography variant="body2" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                {formatDate(department.CreatedAt)}
-              </Typography>
-            </Stack>
-            
-            <Stack spacing={1}>
-              <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                Last Updated
-              </Typography>
-              <Typography variant="body2" color="textPrimary" sx={{ fontSize: '0.875rem' }}>
-                {formatDate(department.UpdatedAt)}
-              </Typography>
-            </Stack>
-          </Stack>
-        </Stack>
-      </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        borderTop: '1px solid #E0E0E0', 
-        pt: 2,
-        backgroundColor: '#F8FAFC'
-      }}>
-        <Button 
-          onClick={onClose}
+
+      {/* Content */}
+      <DialogContent sx={{ mt: 3 }}>
+        <Paper
+          elevation={0}
           sx={{
-            borderRadius: 1,
-            px: 3,
+            p: 4,
+            borderRadius: 3,
+            border: "1px solid #e2e8f0"
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: 600,
+              mb: 3,
+              color: "#2563EB",
+              fontSize: "1.2rem"
+            }}
+          >
+            Basic Information
+          </Typography>
+
+          {/* Department Name and Created At row */}
+          <Box sx={{ display: "flex", gap: 4, mb: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Field
+                label="Department Name"
+                value={department.DepartmentName}
+                inline
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Field
+                label="Description"
+                value={department.Description || "ASDFGHJKL"}
+                inline
+              />
+            </Box>
+          </Box>
+
+          {/* Last Updated and Description row */}
+          <Box sx={{ display: "flex", gap: 4, mb: -2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Field
+                label="Last Updated"
+                value={formatSimpleDate(department.UpdatedAt)}
+                inline
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Field
+                label="Created At"
+                value={formatDate(department.CreatedAt)}
+                inline
+              />
+            </Box>
+          </Box>
+
+          {/* Additional departments list */}
+          {/* <Divider sx={{ my: 3 }} /> */}
+          
+          {/* <Typography
+            sx={{
+              fontWeight: 600,
+              mb: 2,
+              color: "#2563EB",
+              fontSize: "1.1rem"
+            }}
+          >
+            Other Departments
+          </Typography> */}
+{/* 
+          <Grid container spacing={2}>
+            {["Test Department", "Random", "asdfg"].map((dept, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.5,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 2,
+                    textAlign: "center",
+                    cursor: "pointer",
+                    "&:hover": {
+                      background: "#f8fafc",
+                      borderColor: "#2563EB"
+                    }
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 500, color: "#1e293b" }}>
+                    {dept}
+                  </Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid> */}
+
+          {/* <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="outlined"
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                borderColor: "#2563EB",
+                color: "#2563EB",
+                "&:hover": {
+                  borderColor: "#1da1b9",
+                  background: "#f0f9ff"
+                }
+              }}
+            >
+              Add Department
+            </Button>
+          </Box> */}
+        </Paper>
+      </DialogContent>
+
+      {/* Footer */}
+      <DialogActions
+        sx={{
+          px: 4,
+          pb: 1.5,
+          pt: 1.5,
+          borderTop: "1px solid #e2e8f0",
+          background: "#f8fafc",
+          justifyContent: "space-between"
+        }}
+      >
+        <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
+          {/* XCV • Last updated: {formatSimpleDate(department.UpdatedAt)} */}
+        </Typography>
+        
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            textTransform: "none",
+            fontWeight: 600,
+            fontSize: "0.95rem",
+            borderRadius: 2,
+            px: 4,
             py: 1,
-            textTransform: 'none',
-            fontWeight: 500
+            background: HEADER_GRADIENT,
+            "&:hover": {
+              opacity: 0.9,
+              background: HEADER_GRADIENT
+            }
           }}
         >
           Close
         </Button>
-        {/* <Button
-          variant="contained"
-          onClick={() => {
-            onClose();
-            onEdit();
-          }}
-          startIcon={<EditIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
-          }}
-        >
-          Edit Department
-        </Button> */}
       </DialogActions>
     </Dialog>
   );

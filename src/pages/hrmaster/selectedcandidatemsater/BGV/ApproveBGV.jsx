@@ -218,14 +218,14 @@ const ApproveBGV = ({ open, onClose, onSubmit, bgvData, bgvId }) => {
               <Paper >
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>Confirm Decision</Typography>
                 <Paper sx={{ p: 2, bgcolor: '#F8FAFC', mb: 2 }}>
-                  <Grid container spacing={8}>
+                  <Grid container spacing={10}>
                     <Grid item xs={12}><Typography variant="caption">BGV ID</Typography><Typography>{bgv.bgvId}</Typography></Grid>
                     <Grid item xs={12}><Typography variant="caption">Candidate</Typography><Typography>{candidateName}</Typography></Grid>
-                    <Grid item xs={12}><Typography variant="caption">Decision</Typography>
+                    <Grid item xs={12}><Typography variant="caption" sx={{marginRight: "15px"}}>Decision</Typography>
                       <Chip icon={decision === 'approve' ? <CheckCircleIcon /> : <CancelIcon />}
                         label={decision === 'approve' ? 'Approve' : 'Reject'} color={decision === 'approve' ? 'success' : 'error'} />
                     </Grid>
-                    <Grid item xs={12}><Typography variant="caption">Remarks</Typography><Paper sx={{ p: 1, bgcolor: '#FFF' }}>{remarks}</Paper></Grid>
+                    <Grid item xs={12}><Typography variant="caption">Remarks</Typography><Paper sx={{ p: 1, bgcolor: '#FFF' , gap: 2}}>{remarks}</Paper></Grid>
                   </Grid>
                 </Paper>
                 <Alert severity={decision === 'approve' ? 'warning' : 'error'} icon={<WarningIcon />}>

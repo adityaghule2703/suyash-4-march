@@ -752,7 +752,7 @@ const QuotationMaster = () => {
               color="primary"
               invisible={!hasActiveFilters()}
             >
-              <Button
+              {/* <Button
                 variant="outlined"
                 startIcon={<FilterIcon />}
                 onClick={() => setShowFilters(!showFilters)}
@@ -772,7 +772,7 @@ const QuotationMaster = () => {
                 disabled={loading}
               >
                 Filter
-              </Button>
+              </Button> */}
             </Badge>
             {hasActiveFilters() && (
               <Button
@@ -811,7 +811,7 @@ const QuotationMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{ 
@@ -830,7 +830,7 @@ const QuotationMaster = () => {
               disabled={loading}
             >
               Export
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
               startIcon={<AddIcon />}

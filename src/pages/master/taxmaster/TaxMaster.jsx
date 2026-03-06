@@ -480,7 +480,7 @@ const TaxMaster = () => {
               }}
               disabled={loading}
             />
-            <Button
+            {/* <Button
               variant="outlined"
               startIcon={<FilterIcon />}
               sx={{ 
@@ -499,7 +499,7 @@ const TaxMaster = () => {
               disabled={loading}
             >
               Filter
-            </Button>
+            </Button> */}
           </Stack>
 
           {/* Action Buttons */}

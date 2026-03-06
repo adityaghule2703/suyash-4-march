@@ -466,7 +466,7 @@ const fetchOffersForCandidate = async (candidateId) => {
                   <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                     Offer Details
                   </Typography>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={8}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="textSecondary">Offer ID</Typography>
                       <Typography variant="body2" fontWeight={500}>{offerDetails.offerId || 'N/A'}</Typography>
@@ -504,9 +504,9 @@ const fetchOffersForCandidate = async (candidateId) => {
       case 2:
         return (
           <Stack spacing={3}>
-            <Paper sx={{ p: 3 }}>
+            <Paper sx={{ p: 1 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
-                ✅ Confirm & Initiate
+                Confirm & Initiate
               </Typography>
 
               {/* Summary Card */}
@@ -514,7 +514,7 @@ const fetchOffersForCandidate = async (candidateId) => {
                 <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                   Summary
                 </Typography>
-                <Grid container spacing={2}>
+                <Grid container spacing={12}>
                   <Grid item xs={12}>
                     <Typography variant="caption" color="textSecondary">Candidate</Typography>
                     <Typography variant="body1" fontWeight={500}>
@@ -573,12 +573,12 @@ const fetchOffersForCandidate = async (candidateId) => {
               )}
 
               {/* Info Alert */}
-              <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
+              {/* <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
                 <Typography variant="body2">
                   This will initiate background verification for the selected candidate.
                   The process may take 3-5 business days to complete.
                 </Typography>
-              </Alert>
+              </Alert> */}
             </Paper>
           </Stack>
         );

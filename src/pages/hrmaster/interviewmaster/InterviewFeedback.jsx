@@ -215,9 +215,7 @@ const decisions = [
 
       if (!formData.comments.trim()) {
         errors.comments = 'Comments are required';
-      } else if (formData.comments.trim().length < 20) {
-        errors.comments = 'Comments must be at least 20 characters';
-      }
+      } 
 
       if (!formData.strengths.trim()) {
         errors.strengths = 'Strengths are required';

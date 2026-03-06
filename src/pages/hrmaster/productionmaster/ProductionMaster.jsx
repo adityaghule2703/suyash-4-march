@@ -332,7 +332,7 @@ const ProductionMaster = () => {
       </Box>
 
       {/* ===== SUMMARY CARDS ===== */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ bgcolor: "#e3f2fd", borderRadius: 2 }}>
             <CardContent>
@@ -397,7 +397,7 @@ const ProductionMaster = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* ===== FILTERS AND ACTIONS ===== */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
@@ -429,7 +429,7 @@ const ProductionMaster = () => {
               }}
             />
 
-            <TextField
+            {/* <TextField
               size="small"
               type="date"
               label="From Date"
@@ -447,7 +447,7 @@ const ProductionMaster = () => {
               onChange={handleToDateChange}
               InputLabelProps={{ shrink: true }}
               sx={{ width: 150 }}
-            />
+            /> */}
 
             {(search || fromDate || toDate) && (
               <Button size="small" onClick={clearFilters} variant="outlined">

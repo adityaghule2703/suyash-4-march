@@ -13,6 +13,9 @@ import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+const HEADER_GRADIENT =
+  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+
 const AddDesignations = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     DesignationName: '',
@@ -227,20 +230,18 @@ const AddDesignations = ({ open, onClose, onAdd }) => {
         sx: { borderRadius: 2 }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC'
-      }}>
-        <div style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          color: '#101010',
-          paddingTop: '8px'
-        }}>
-          Add New Designation
-        </div>
-      </DialogTitle>
+      <DialogTitle
+              sx={{
+                fontWeight: 600,
+                fontSize: 20,
+                color: "#fff",
+                px: 3,
+                py: 1.5,
+                background: HEADER_GRADIENT
+              }}
+            >
+              Add New Designation
+            </DialogTitle>
       
       <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
@@ -297,7 +298,7 @@ const AddDesignations = ({ open, onClose, onAdd }) => {
             name="Description"
             value={formData.Description}
             onChange={handleChange}
-            multiline
+            //multiline
             rows={4}
             error={hasFieldError('Description')}
             helperText={getFieldError('Description')}
@@ -331,9 +332,9 @@ const AddDesignations = ({ open, onClose, onAdd }) => {
       
       <DialogActions sx={{ 
         px: 3, 
-        pb: 3, 
+        pb: 1.5, 
         borderTop: '1px solid #E0E0E0', 
-        pt: 2,
+        pt: 1.5,
         backgroundColor: '#F8FAFC'
       }}>
         <Button 
@@ -350,24 +351,24 @@ const AddDesignations = ({ open, onClose, onAdd }) => {
           Cancel
         </Button>
         <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading ? null : <AddIcon />}
-          sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            backgroundColor: '#1976D2',
-            '&:hover': {
-              backgroundColor: '#1565C0'
-            }
-          }}
-        >
-          {loading ? 'Adding...' : 'Add Designation'}
-        </Button>
+                  variant="contained"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  startIcon={loading ? null : <AddIcon />}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 500,
+                    borderRadius: 1.5,
+                    px: 3,
+                    background: HEADER_GRADIENT,
+                    "&:hover": {
+                      opacity: 0.9,
+                      background: HEADER_GRADIENT
+                    }
+                  }}
+                >
+                  {loading ? "Adding..." : "Add Designation"}
+                </Button>
       </DialogActions>
     </Dialog>
   );

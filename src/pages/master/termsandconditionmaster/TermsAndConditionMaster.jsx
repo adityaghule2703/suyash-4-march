@@ -223,13 +223,13 @@ const TermsAndConditionMaster = () => {
             }}
           />
 
-          <Button variant="outlined" startIcon={<FilterList />}>
+          {/* <Button variant="outlined" startIcon={<FilterList />}>
             Filter
           </Button>
 
           <Button variant="outlined" startIcon={<Sort />}>
             Sort
-          </Button>
+          </Button> */}
         </Box>
 
         <Box sx={{ display: "flex", gap: 2 }}>
@@ -244,7 +244,7 @@ const TermsAndConditionMaster = () => {
             </Button>
           )}
 
-          <Button variant="outlined">Export</Button>
+          {/* <Button variant="outlined">Export</Button> */}
 
           <Button
             variant="contained"

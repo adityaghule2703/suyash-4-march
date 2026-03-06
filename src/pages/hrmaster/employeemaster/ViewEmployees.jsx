@@ -910,261 +910,273 @@ const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="lg" 
-      fullWidth
-      PaperProps={{
-        sx: { borderRadius: 2, maxHeight: '90vh' }
+   <Dialog
+  open={open}
+  onClose={onClose}
+  maxWidth="md"
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      maxHeight: "92vh",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.15)"
+    }
+  }}
+>
+  <DialogTitle
+    sx={{
+      borderBottom: "1px solid #e2e8f0",
+      py: 2,
+      px: 3,
+      background: HEADER_GRADIENT,
+      color: "#fff"
+    }}
+  >
+    <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Stack direction="row" spacing={1} alignItems="center">
+        <ReceiptIcon />
+        <Typography variant="h6" fontWeight={600}>
+          Employee Details
+        </Typography>
+      </Stack>
+
+      <Chip
+        label={`ID: ${employee.EmployeeID || "N/A"}`}
+        size="small"
+        sx={{
+          bgcolor: "rgba(255,255,255,0.15)",
+          color: "#fff",
+          fontWeight: 500
+        }}
+      />
+    </Stack>
+  </DialogTitle>
+
+  <DialogContent
+    sx={{
+      pt: 3,
+      px: 4,
+      mt: 2,
+      overflowY: "auto",
+      background: "#f8fafc"
+    }}
+  >
+    <Stack spacing={2}>
+      {/* Avatar + Name */}
+      <Paper
+  elevation={0}
+  sx={{
+    p: 2,
+    borderRadius: 2,
+    border: "1px solid #e2e8f0",
+    bgcolor: "#fff"
+  }}
+>
+  <Grid container alignItems="center" spacing={4}>
+    
+    {/* Avatar */}
+    <Grid item>
+      <Avatar
+        sx={{
+          width: 60,
+          height: 60,
+          fontSize: "1.5rem",
+          fontWeight: 700,
+          bgcolor:
+            employee.Gender === "M"
+              ? "#164e63"
+              : employee.Gender === "F"
+              ? "#be185d"
+              : "#7c3aed",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+        }}
+      >
+        {getAvatarInitials(employee.FirstName, employee.LastName)}
+      </Avatar>
+    </Grid>
+
+    {/* Name + ID */}
+    <Grid item xs>
+      <Typography variant="h6" fontWeight={600} color="#164e63">
+        {employee.FirstName} {employee.LastName}
+      </Typography>
+
+      <Typography variant="body2" color="#64748B">
+        Employee ID: {employee.EmployeeID || "N/A"}
+      </Typography>
+    </Grid>
+
+    {/* Status Chips */}
+    <Grid item>
+      <Stack direction="row" spacing={3}>
+        <Chip
+          label={getStatusText(employee.EmploymentStatus)}
+          size="small"
+          color={getStatusColor(employee.EmploymentStatus)}
+        />
+
+        <Chip
+          label={getGenderText(employee.Gender)}
+          size="small"
+          variant="outlined"
+        />
+
+        <Chip
+          label={getEmploymentTypeText(employee.EmploymentType)}
+          size="small"
+          sx={{
+            bgcolor: "#e0f2fe",
+            color: "#075985",
+            fontWeight: 500
+          }}
+        />
+      </Stack>
+    </Grid>
+
+  </Grid>
+</Paper>
+
+      {/* Stepper */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          border: "1px solid #e2e8f0",
+          bgcolor: "#fff"
+        }}
+      >
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>
+                <Typography variant="caption" fontWeight={600}>
+                  {label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Paper>
+
+      {/* Step Content */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          borderRadius: 2,
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+          minHeight: 300
+        }}
+      >
+        {renderStepContent()}
+      </Paper>
+
+      {/* System Info */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          border: "1px solid #e2e8f0",
+          bgcolor: "#f1f5f9"
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={5}>
+            <Typography variant="caption" color="#64748B">
+              Created: {formatDate(employee.CreatedAt)}
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12} sm={5}>
+            <Typography variant="caption" color="#64748B">
+              Updated: {formatDate(employee.UpdatedAt)}
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12} sm={2}>
+            <Tooltip title="Internal ID">
+              <Chip
+                label="System Info"
+                size="small"
+                icon={<InfoIcon />}
+                variant="outlined"
+              />
+            </Tooltip>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Stack>
+  </DialogContent>
+
+  <DialogActions
+  sx={{
+    px: 3,
+    py: 2,
+    borderTop: "1px solid #e2e8f0",
+    backgroundColor: "#f8fafc",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}
+>
+  {/* BACK BUTTON */}
+  <Button
+    onClick={handleBack}
+    disabled={activeStep === 0}
+    startIcon={<ArrowBackIcon />}
+    sx={{
+      textTransform: "none",
+      fontWeight: 500,
+      color: activeStep === 0 ? "#cbd5e1" : "#475569"
+    }}
+  >
+    BACK
+  </Button>
+
+  {/* RIGHT SIDE BUTTONS */}
+  <Stack direction="row" spacing={2}>
+    
+    <Button
+      onClick={onClose}
+      sx={{
+        textTransform: "none",
+        fontWeight: 500,
+        color: "#475569"
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
+      CLOSE
+    </Button>
+
+    <Button
+      variant="contained"
+      onClick={handleNext}
+      disabled={activeStep === steps.length - 1}
+      endIcon={<ArrowForwardIcon />}
+      sx={{
+        textTransform: "none",
+        fontWeight: 500,
+        px: 3,
+        borderRadius: 1,
         background: HEADER_GRADIENT,
-        color: '#fff'
-      }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Stack direction="row" spacing={1} alignItems="center">
-            <ReceiptIcon />
-            <Typography variant="h6" fontWeight={600}>
-              Employee Details
-            </Typography>
-          </Stack>
-          <Chip 
-            label={`ID: ${employee.EmployeeID || 'N/A'}`}
-            size="small"
-            sx={{ 
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              color: '#fff',
-              fontWeight: 500
-            }}
-          />
-        </Stack>
-      </DialogTitle>
-      
-      <DialogContent sx={{ pt: 3, overflowY: 'auto' }}>
-        <Stack spacing={3}>
-          {/* Header Section with Avatar and Basic Info */}
-          <div style={{ marginTop: '8px' }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }}>
-              <Avatar sx={{ 
-                width: 100, 
-                height: 100, 
-                bgcolor: employee.Gender === 'M' ? '#164e63' : employee.Gender === 'F' ? '#be185d' : '#7c3aed',
-                fontSize: '2rem',
-                fontWeight: 600
-              }}>
-                {getAvatarInitials(employee.FirstName, employee.LastName)}
-              </Avatar>
-              <Box flex={1}>
-                <Typography variant="h5" fontWeight={600} color="#164e63" gutterBottom>
-                  {employee.FirstName} {employee.LastName}
-                </Typography>
-                <Typography variant="body1" color="textSecondary" gutterBottom>
-                  Employee ID: {employee.EmployeeID || 'N/A'}
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                  <Chip
-                    label={getStatusText(employee.EmploymentStatus)}
-                    size="small"
-                    color={getStatusColor(employee.EmploymentStatus)}
-                    sx={{ 
-                      fontWeight: 500,
-                      '&.MuiChip-colorSuccess': {
-                        bgcolor: '#E8F5E9',
-                        color: '#2E7D32'
-                      },
-                      '&.MuiChip-colorWarning': {
-                        bgcolor: '#FFF3E0',
-                        color: '#F57C00'
-                      },
-                      '&.MuiChip-colorError': {
-                        bgcolor: '#FFEBEE',
-                        color: '#D32F2F'
-                      },
-                      '&.MuiChip-colorDefault': {
-                        bgcolor: '#F5F5F5',
-                        color: '#616161'
-                      }
-                    }}
-                  />
-                  <Chip
-                    label={getGenderText(employee.Gender)}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={getEmploymentTypeText(employee.EmploymentType)}
-                    size="small"
-                    sx={{
-                      bgcolor: '#dbeafe',
-                      color: '#1e40af',
-                      border: '1px solid #bfdbfe'
-                    }}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
-          </div>
-          
-          <Divider />
-          
-          {/* Stepper */}
-          <Box sx={{ width: '100%', mb: 2 }}>
-            <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>
-                    <Typography variant="caption" fontWeight={500}>
-                      {label}
-                    </Typography>
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-          </Box>
+        "&:hover": {
+          opacity: 0.9,
+          background: HEADER_GRADIENT
+        }
+      }}
+    >
+      NEXT
+    </Button>
 
-          {/* Step Content */}
-          <Paper elevation={0} sx={{ p: 3, backgroundColor: '#F9F9F9', borderRadius: 2, minHeight: 300 }}>
-            {renderStepContent()}
-
-            {/* If no data in current step */}
-            {activeStep === 0 && !employee.DateOfBirth && !employee.Email && !employee.Phone && !employee.Address && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <InfoIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                <Typography color="#64748B">No personal information available</Typography>
-              </Box>
-            )}
-
-            {activeStep === 1 && !employee.DepartmentID && !employee.DesignationID && !employee.DateOfJoining && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <InfoIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                <Typography color="#64748B">No employment information available</Typography>
-              </Box>
-            )}
-
-            {activeStep === 2 && !employee.SkillLevel && !employee.WorkStation && !employee.LineNumber && 
-             !employee.PAN && !employee.AadharNumber && !employee.PFNumber && !employee.UAN && !employee.ESINumber && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <InfoIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                <Typography color="#64748B">No work or tax information available</Typography>
-              </Box>
-            )}
-
-            {activeStep === 3 && (!employee.BankDetails || Object.keys(employee.BankDetails).length === 0) && 
-             (!employee.EmergencyContact || Object.keys(employee.EmergencyContact).length === 0) && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <InfoIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                <Typography color="#64748B">No bank or emergency contact information available</Typography>
-              </Box>
-            )}
-          </Paper>
-
-          {/* System Information - Always visible at bottom */}
-          <Paper elevation={0} sx={{ p: 2, backgroundColor: '#F1F5F9', borderRadius: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={5}>
-                <Typography variant="caption" color="#64748B" display="block">
-                  Created: {formatDate(employee.CreatedAt)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={5}>
-                <Typography variant="caption" color="#64748B" display="block">
-                  Updated: {formatDate(employee.UpdatedAt)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={2}>
-                <Tooltip title="Internal ID">
-                  <Chip
-                    label="System Info"
-                    size="small"
-                    icon={<InfoIcon />}
-                    variant="outlined"
-                    sx={{ borderColor: '#cbd5e1', color: '#475569' }}
-                  />
-                </Tooltip>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Stack>
-      </DialogContent>
-      
-      <DialogActions sx={{ 
-        px: 3, 
-        pb: 3, 
-        borderTop: '1px solid #E0E0E0', 
-        pt: 2,
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
-      }}>
-        <Button 
-          onClick={onClose}
-          sx={{
-            borderRadius: 1.5,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            border: '1px solid #cbd5e1',
-            color: '#475569'
-          }}
-        >
-          Close
-        </Button>
-        
-        <Stack direction="row" spacing={2}>
-          <IconButton 
-            onClick={handleBack}
-            disabled={activeStep === 0}
-            sx={{ 
-              color: activeStep === 0 ? '#cbd5e1' : PRIMARY_BLUE,
-              '&:hover': { 
-                bgcolor: activeStep === 0 ? 'transparent' : alpha(PRIMARY_BLUE, 0.1)
-              }
-            }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          
-          <IconButton 
-            onClick={handleNext}
-            disabled={activeStep === steps.length - 1}
-            sx={{ 
-              color: activeStep === steps.length - 1 ? '#cbd5e1' : PRIMARY_BLUE,
-              '&:hover': { 
-                bgcolor: activeStep === steps.length - 1 ? 'transparent' : alpha(PRIMARY_BLUE, 0.1)
-              }
-            }}
-          >
-            <ArrowForwardIcon />
-          </IconButton>
-          
-          {/* <Button
-            variant="contained"
-            onClick={() => {
-              onClose();
-              onEdit(employee);
-            }}
-            startIcon={<EditIcon />}
-            sx={{
-              borderRadius: 1.5,
-              px: 3,
-              py: 1,
-              textTransform: 'none',
-              fontWeight: 500,
-              background: HEADER_GRADIENT,
-              '&:hover': {
-                opacity: 0.9
-              }
-            }}
-          >
-            Edit Employee
-          </Button> */}
-        </Stack>
-      </DialogActions>
-    </Dialog>
+  </Stack>
+</DialogActions>
+</Dialog>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -15,7 +15,19 @@ import {
   CircularProgress,
   Alert,
   Avatar,
-  Button
+  Button,
+  Stack,
+  TextField,
+  InputAdornment,
+  TablePagination,
+  Snackbar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Checkbox,
+  alpha
 } from '@mui/material';
 import {
   Assignment as InitiateIcon,
@@ -26,7 +38,13 @@ import {
   Visibility as ViewIcon,
   Check as AcceptIcon,
   Person as PersonIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Clear as ClearIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  MoreVert as MoreVertIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 
 // Import all offer management components
@@ -39,14 +57,119 @@ import ViewOffer from './ViewOffer';
 import AcceptOffer from './AcceptOffer';
 import BASE_URL from '../../../../config/Config';
 
+// Color constants
+const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+const STRIPE_COLOR_ODD = '#FFFFFF';
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
+const PRIMARY_BLUE = '#00B4D8';
+const TEXT_COLOR_HEADER = '#FFFFFF';
+const TEXT_COLOR_MAIN = '#0f172a';
+
+// Status color mapping
+const getStatusColor = (status) => {
+  const colors = {
+    'Initiated': 'info',
+    'Submitted': 'warning',
+    'Approved': 'success',
+    'Generated': 'secondary',
+    'Sent': 'primary',
+    'Viewed': 'default',
+    'Accepted': 'success',
+    'Rejected': 'error',
+    'Pending': 'default'
+  };
+  return colors[status] || 'default';
+};
+
+// Status chip styling
+const getStatusStyle = (status) => {
+  const styles = {
+    'Initiated': { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' },
+    'Submitted': { bg: '#fff3e0', color: '#ed6c02', border: '#ffb74d' },
+    'Approved': { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+    'Generated': { bg: '#f3e8ff', color: '#7e22ce', border: '#d8b4fe' },
+    'Sent': { bg: '#e0f2fe', color: '#0284c7', border: '#bae6fd' },
+    'Viewed': { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' },
+    'Accepted': { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+    'Rejected': { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+    'Pending': { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
+  };
+  return styles[status] || styles['Pending'];
+};
+
+// Status mapping function - maps API status to display status
+const getOfferStatus = (applicationStatus) => {
+  const statusMap = {
+    // Selected candidates (initial state)
+    'selected': 'Initiated',
+    
+    // Initiate Offer
+    'initiated': 'Initiated',
+    
+    // Submit for Approval
+    'pending_approval': 'Submitted',
+    'submitted': 'Submitted',
+    
+    // Approve Offer
+    'accepted': 'Approved',
+    'approved': 'Approved',
+    
+    // Reject Offer
+    'rejected': 'Rejected',
+    
+    // Generate Offer Letter
+    'generated': 'Generated',
+    
+    // Send Offer Letter
+    'sent': 'Sent',
+    
+    // Candidate Acceptance
+    'accepted_by_candidate': 'Accepted',
+    
+    // Default
+    'pending': 'Pending',
+    '': 'Pending',
+    null: 'Pending',
+    undefined: 'Pending'
+  };
+  
+  const mappedStatus = statusMap[applicationStatus] || 'Pending';
+  console.log(` Mapping status: ${applicationStatus} -> ${mappedStatus}`);
+  return mappedStatus;
+};
+
 const OfferManagement = () => {
-  const [selectedCandidates, setSelectedCandidates] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [apiDetails, setApiDetails] = useState({
-    endpoint: `${BASE_URL}/api/candidates?status=selected`,
-    lastAttempt: null
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Selection state
+  const [selected, setSelected] = useState([]);
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState({
+    field: 'name',
+    direction: 'asc'
   });
+
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Action menu state
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [selectedCandidateForAction, setSelectedCandidateForAction] = useState(null);
+
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [actionInProgress, setActionInProgress] = useState(false);
+
+  // Track completed actions in frontend (no backend update needed)
+  const [completedActions, setCompletedActions] = useState({});
 
   // State for dialog visibility
   const [dialogState, setDialogState] = useState({
@@ -55,27 +178,90 @@ const OfferManagement = () => {
     approveOffer: { open: false, candidate: null },
     generateOffer: { open: false, candidate: null },
     sendOffer: { open: false, candidate: null },
-    // viewOffer: { open: false, candidate: null },
+    viewOffer: { open: false, candidate: null },
     acceptOffer: { open: false, candidate: null }
   });
 
-  // Get auth token from localStorage or your auth context
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  // Check if action is enabled based on current status OR completed actions
+  const isActionEnabled = (action, candidate) => {
+    if (!candidate) return false;
+    
+    const status = candidate.status;
+    const applicationStatus = candidate.applicationStatus;
+    
+    // Check if this action was already completed in the current session
+    const actionCompleted = completedActions[`${candidate.id}_${action}`];
+    
+    console.log(`🔍 Checking action ${action} for ${candidate.name}:`, { 
+      status, 
+      applicationStatus,
+      actionCompleted
+    });
+    
+    // Define allowed statuses for each action
+    const actionStatusMap = {
+      initiateOffer: ['Pending', 'Rejected', 'selected', null, undefined],
+      submitForApproval: ['Initiated', 'initiated'],
+      approveOffer: ['Submitted', 'pending_approval', 'submitted'],
+      generateOffer: ['Approved', 'approved', 'accepted'],
+      sendOffer: ['Generated', 'generated'],
+      viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated', 'Approved', 'Submitted', 'Initiated', 
+                  'sent', 'viewed', 'accepted', 'generated', 'approved', 'submitted', 'initiated'],
+      acceptOffer: ['Sent', 'Viewed', 'sent', 'viewed']
+    };
+
+    // For sendOffer action, also check if generateOffer was completed in frontend
+    if (action === 'sendOffer') {
+      const generateCompleted = completedActions[`${candidate.id}_generateOffer`];
+      if (generateCompleted) {
+        console.log(`🔍 Generate was completed in frontend, enabling sendOffer`);
+        return true;
+      }
+      // Also enable if status is Generated
+      if (status === 'Generated' || applicationStatus === 'generated') {
+        return true;
+      }
+    }
+
+    // For acceptOffer action, also check if sendOffer was completed in frontend
+    if (action === 'acceptOffer') {
+      const sendCompleted = completedActions[`${candidate.id}_sendOffer`];
+      if (sendCompleted) {
+        console.log(`🔍 Send was completed in frontend, enabling acceptOffer`);
+        return true;
+      }
+      // Also enable if status is Sent
+      if (status === 'Sent' || applicationStatus === 'sent') {
+        return true;
+      }
+    }
+
+    // Check if candidate's status matches any allowed status for the action
+    const statusCheck = actionStatusMap[action]?.some(s => 
+      status === s || applicationStatus === s
+    ) || false;
+
+    console.log(`🔍 Action ${action} is ${statusCheck ? 'enabled' : 'disabled'}`);
+    
+    return statusCheck;
+  };
+
+  // Get auth token
   const getAuthToken = () => {
     return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
   };
 
-  // Fetch selected candidates on component mount
-  useEffect(() => {
-    fetchSelectedCandidates();
-  }, []);
-
-  const fetchSelectedCandidates = async () => {
+  // Fetch selected candidates
+  const fetchSelectedCandidates = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setApiDetails(prev => ({
-      ...prev,
-      lastAttempt: new Date().toLocaleString()
-    }));
 
     try {
       const token = getAuthToken();
@@ -118,34 +304,107 @@ const OfferManagement = () => {
 
       if (result.success) {
         // Transform the data to include required fields for offer management
-        const transformedData = result.data.map(candidate => ({
-          id: candidate._id,
-          candidateId: candidate.candidateId,
-          name: `${candidate.firstName} ${candidate.lastName}`,
-          firstName: candidate.firstName,
-          lastName: candidate.lastName,
-          email: candidate.email,
-          phone: candidate.phone,
-          position: candidate.latestApplication?.jobId?.title || 'Not Assigned',
-          jobId: candidate.latestApplication?.jobId || null,
-          department: 'To be assigned',
-          experience: formatExperience(candidate.experience),
-          status: getOfferStatus(candidate.latestApplication?.status),
-          applicationId: candidate.latestApplication?._id,
-          applicationStatus: candidate.latestApplication?.status,
-          education: candidate.education,
-          skills: candidate.skills || [],
-          address: candidate.address,
-          dateOfBirth: candidate.dateOfBirth,
-          gender: candidate.gender,
-          offerId: candidate.latestApplication?.offerId, // Add this to track offer ID
-          offerDetails: {
-            salary: null,
-            joiningDate: null,
-            offerLetter: null
+        const transformedData = await Promise.all(result.data.map(async (candidate) => {
+          // Fetch all offers for this candidate to find the latest one
+          let latestOffer = null;
+          let offerStatus = 'selected';
+          let offerId = null;
+          
+          try {
+            // Fetch offers for this specific candidate
+            const offersUrl = `${BASE_URL}/api/offers?candidateId=${candidate._id}`;
+            const offersResponse = await fetch(offersUrl, {
+              headers: {
+                'Authorization': token ? `Bearer ${token}` : '',
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (offersResponse.ok) {
+              const offersData = await offersResponse.json();
+              console.log(`Offers for candidate ${candidate.firstName}:`, offersData);
+              
+              if (offersData.success && offersData.data) {
+                let offers = [];
+                
+                // Extract offers array based on response structure
+                if (offersData.data.offers) {
+                  offers = offersData.data.offers;
+                } else if (Array.isArray(offersData.data)) {
+                  offers = offersData.data;
+                }
+                
+                // If there are offers, find the latest one
+                if (offers.length > 0) {
+                  // Sort by creation date (newest first)
+                  const sortedOffers = offers.sort((a, b) => {
+                    const dateA = new Date(a.createdAt || a.createdDate || 0);
+                    const dateB = new Date(b.createdAt || b.createdDate || 0);
+                    return dateB - dateA;
+                  });
+                  
+                  // Get the latest offer
+                  latestOffer = sortedOffers[0];
+                  console.log(`Latest offer for ${candidate.firstName}:`, latestOffer);
+                  
+                  // Determine status from latest offer
+                  if (latestOffer.status) {
+                    offerStatus = latestOffer.status;
+                  } else if (latestOffer.offerStatus) {
+                    offerStatus = latestOffer.offerStatus;
+                  } else if (latestOffer.applicationStatus) {
+                    offerStatus = latestOffer.applicationStatus;
+                  }
+                  
+                  offerId = latestOffer.offerId || latestOffer._id;
+                }
+              }
+            }
+          } catch (offerError) {
+            console.error('Error fetching offers for candidate:', candidate._id, offerError);
+            // Continue with default status if offers fetch fails
           }
+
+          // Return transformed candidate data with latest offer info
+          return {
+            id: candidate._id,
+            candidateId: candidate.candidateId,
+            name: `${candidate.firstName} ${candidate.lastName}`,
+            firstName: candidate.firstName,
+            lastName: candidate.lastName,
+            email: candidate.email,
+            phone: candidate.phone,
+            position: candidate.latestApplication?.jobId?.title || 'Not Assigned',
+            jobId: candidate.latestApplication?.jobId || null,
+            department: 'To be assigned',
+            experience: formatExperience(candidate.experience),
+            status: getOfferStatus(offerStatus), // Display status from latest offer
+            applicationStatus: offerStatus, // Raw API status from latest offer
+            applicationId: candidate.latestApplication?._id,
+            education: candidate.education,
+            skills: candidate.skills || [],
+            address: candidate.address,
+            dateOfBirth: candidate.dateOfBirth,
+            gender: candidate.gender,
+            offerId: offerId,
+            offerDetails: latestOffer ? {
+              salary: latestOffer.ctcDetails?.totalCtc || null,
+              joiningDate: latestOffer.joiningDate || null,
+              offerLetter: latestOffer.offerLetter || null,
+              ctcDetails: latestOffer.ctcDetails || null
+            } : {
+              salary: null,
+              joiningDate: null,
+              offerLetter: null
+            },
+            latestOffer: latestOffer // Store the complete latest offer data
+          };
         }));
-        setSelectedCandidates(transformedData);
+        
+        console.log('Transformed data with latest offers:', transformedData);
+        setCandidates(transformedData);
+        setFilteredCandidates(transformedData);
+        setSelected([]);
         setError(null);
       } else {
         setError(result.message || 'Failed to fetch candidates');
@@ -156,6 +415,76 @@ const OfferManagement = () => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Add this temporarily to debug status changes
+  useEffect(() => {
+    console.log('📊 Current candidates state:', candidates.map(c => ({
+      name: c.name,
+      status: c.status,
+      appStatus: c.applicationStatus
+    })));
+  }, [candidates]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup any pending requests if needed
+      setCandidates([]);
+      setFilteredCandidates([]);
+    };
+  }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSelectedCandidates();
+  }, [fetchSelectedCandidates]);
+
+  // Apply filters when dependencies change
+  useEffect(() => {
+    applyFilters();
+  }, [candidates, searchTerm, statusFilter, sortConfig]);
+
+  const applyFilters = () => {
+    let filtered = [...candidates];
+
+    // Apply search
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(candidate =>
+        candidate.name.toLowerCase().includes(term) ||
+        candidate.email.toLowerCase().includes(term) ||
+        candidate.candidateId.toLowerCase().includes(term) ||
+        candidate.position.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(candidate => candidate.status === statusFilter);
+    }
+
+    // Apply sorting
+    if (sortConfig.field) {
+      filtered.sort((a, b) => {
+        let aValue = a[sortConfig.field];
+        let bValue = b[sortConfig.field];
+
+        if (sortConfig.field === 'name') {
+          aValue = a.name;
+          bValue = b.name;
+        }
+
+        if (sortConfig.direction === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
+    }
+
+    setFilteredCandidates(filtered);
+    setPage(0);
+    setSelected([]);
   };
 
   // Helper function to format experience
@@ -180,34 +509,70 @@ const OfferManagement = () => {
     return `${totalExperience} ${totalExperience === 1 ? 'year' : 'years'}`;
   };
 
-  
-
-  // Color constants
-  const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-  const TEXT_COLOR_MAIN = '#0f172a';
-
-  // Status color mapping
-  const getStatusColor = (status) => {
-    const colors = {
-      'Initiated': 'info',
-      'Submitted': 'warning',
-      'Approved': 'success',
-      'Generated': 'primary',
-      'Sent': 'secondary',
-      'Viewed': 'default',
-      'Accepted': 'success',
-      'Rejected': 'error',
-      'Pending': 'default'
-    };
-    return colors[status] || 'default';
+  // Handle search
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    setSelected([]);
   };
 
-  // Action handlers
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSelected([]);
+  };
+
+  // Handle sort
+  const handleSort = (field) => {
+    const direction = sortConfig.field === field && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ field, direction });
+  };
+
+  // Handle select all
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelected(paginatedCandidates.map(c => c.id));
+    } else {
+      setSelected([]);
+    }
+  };
+
+  // Handle single selection
+  const handleSelect = (id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+    
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else {
+      newSelected = selected.filter(item => item !== id);
+    }
+    
+    setSelected(newSelected);
+  };
+
+  // Handle bulk delete (if needed)
+  const handleBulkDelete = () => {
+    if (selected.length === 0) return;
+    showNotification(`Bulk action for ${selected.length} items - API implementation required`, 'warning');
+  };
+
+  // Handle action menu
+  const handleActionMenuOpen = (event, candidate) => {
+    setActionMenuAnchor(event.currentTarget);
+    setSelectedCandidateForAction(candidate);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionMenuAnchor(null);
+    setSelectedCandidateForAction(null);
+  };
+
+  // Dialog handlers
   const handleOpenDialog = (action, candidate) => {
     setDialogState(prev => ({
       ...prev,
       [action]: { open: true, candidate }
     }));
+    handleActionMenuClose();
   };
 
   const handleCloseDialog = (action) => {
@@ -217,263 +582,177 @@ const OfferManagement = () => {
     }));
   };
 
-// // Update the handleActionComplete function
-// const handleActionComplete = async (action, updatedData) => {
-//   console.log('Action completed:', action, updatedData);
-  
-//   // Update candidate status based on action
-//   setSelectedCandidates(prevCandidates =>
-//     prevCandidates.map(candidate => {
-//       if (candidate.id === updatedData.id || candidate.id === updatedData.candidateId) {
-//         // Determine new status based on action
-//         let newStatus = candidate.status;
-//         let newApplicationStatus = candidate.applicationStatus;
-        
-//         switch (action) {
-//           case 'initiateOffer':
-//             newStatus = 'Initiated';
-//             newApplicationStatus = 'initiated';
-//             break;
-//           case 'submitForApproval':
-//             newStatus = 'Submitted';
-//             newApplicationStatus = 'pending_approval'; // Change from 'submitted' to 'pending_approval'
-//             break;
-//           case 'approveOffer':
-//             newStatus = 'Approved';
-//             newApplicationStatus = 'approved'; // Make sure this is set correctly
-//             break;
-//           case 'rejectOffer': // If you have a reject action
-//             newStatus = 'Rejected';
-//             newApplicationStatus = 'rejected';
-//             break;
-//           case 'generateOffer':
-//             newStatus = 'Generated';
-//             newApplicationStatus = 'generated';
-//             break;
-//           case 'sendOffer':
-//             newStatus = 'Sent';
-//             newApplicationStatus = 'sent';
-//             break;
-//           case 'acceptOffer':
-//             newStatus = 'Accepted';
-//             newApplicationStatus = 'accepted';
-//             break;
-//           default:
-//             break;
-//         }
-        
-//         console.log(`Updating candidate ${candidate.id} status from ${candidate.applicationStatus} to ${newApplicationStatus}`);
-        
-//         return { 
-//           ...candidate, 
-//           status: newStatus,
-//           applicationStatus: newApplicationStatus,
-//           offerId: updatedData.offerId || candidate.offerId // Store offer ID if returned
-//         };
-//       }
-//       return candidate;
-//     })
-//   );
-
-//   handleCloseDialog(action);
-  
-//   // Optionally refresh the data from server to ensure consistency
-//    fetchSelectedCandidates();
-// };
-
-// // Update the status mapping to include 'approved'
-// const getOfferStatus = (applicationStatus) => {
-//   const statusMap = {
-//     'selected': 'Initiated',
-//     'initiated': 'Initiated',
-//     'pending_approval': 'Submitted', // Changed from 'Submitted' to map correctly
-//     'submitted': 'Submitted', // Keep for backward compatibility
-//     'accepted': 'Approved',
-//     'approved': 'Approved',
-//     'rejected': 'Rejected',
-//     'generated': 'Generated',
-//     'sent': 'Sent',
-//     'accepted': 'Accepted',
-//     'declined': 'Declined',
-//     'expired': 'Expired',
-//     'pending': 'Pending'
-//   };
-  
-//   // Log the mapping for debugging
-//   console.log(`Mapping status: ${applicationStatus} -> ${statusMap[applicationStatus] || 'Pending'}`);
-  
-//   return statusMap[applicationStatus] || 'Pending';
-// };
-// // Update the action status map in isActionEnabled
-// const isActionEnabled = (action, candidate) => {
-//   const status = candidate.status;
-//   const applicationStatus = candidate.applicationStatus;
-  
-//   // Define allowed statuses for each action using the exact enum values
-//   const actionStatusMap = {
-//     initiateOffer: ['Pending', 'Rejected', 'selected', null, undefined],
-//     submitForApproval: ['Initiated', 'initiated'],
-//     approveOffer: ['Submitted', 'pending_approval', 'submitted'], // Add all possible pending states
-//     generateOffer: ['Approved', 'approved'],
-//     sendOffer: ['Generated', 'generated'],
-//     viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated', 'Approved', 'Submitted', 'Initiated', 
-//                 'sent', 'viewed', 'accepted', 'generated', 'approved', 'submitted', 'initiated'],
-//     acceptOffer: ['Sent', 'Viewed', 'sent', 'viewed']
-//   };
-
-//   // Check if candidate's status matches any allowed status for the action
-//   const statusCheck = actionStatusMap[action]?.some(s => 
-//     status === s || applicationStatus === s
-//   ) || false;
-
-//   // Log for debugging
-//   console.log(`Action ${action} for candidate ${candidate.id}:`, {
-//     status,
-//     applicationStatus,
-//     allowed: actionStatusMap[action],
-//     enabled: statusCheck
-//   });
-
-//   // Additional checks for specific actions
-//   if (action === 'generateOffer') {
-//     // Generate offer requires the candidate to have an offerId
-//     return statusCheck && !!candidate.offerId;
-//   }
-
-//   return statusCheck;
-// };
-
-
-// Update the getOfferStatus function to handle all possible status values
-const getOfferStatus = (applicationStatus) => {
-  const statusMap = {
-    'selected': 'Initiated',
-    'initiated': 'Initiated',
-    'pending_approval': 'Submitted', // Changed from 'Submitted' to 'pending_approval' mapping
-    'submitted': 'Submitted', // Keep for backward compatibility
-    'accepted': 'Approved', // API returns 'accepted' for approved offers
-    'approved': 'Approved',
-    'rejected': 'Rejected',
-    'generated': 'Generated',
-    'sent': 'Sent',
-    'accepted_by_candidate': 'Accepted', // If this is used for candidate acceptance
-    'accepted': 'Accepted', // If same status used for candidate acceptance
-    'declined': 'Declined',
-    'expired': 'Expired',
-    'pending': 'Pending'
+  // Show notification
+  const showNotification = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
   };
-  
-  // Log the mapping for debugging
-  console.log(`Mapping status: ${applicationStatus} -> ${statusMap[applicationStatus] || 'Pending'}`);
-  
-  return statusMap[applicationStatus] || 'Pending';
-};
 
-// Update the handleActionComplete function
-const handleActionComplete = async (action, updatedData) => {
-  console.log('Action completed:', action, updatedData);
-  
-  // Update candidate status based on action
-  setSelectedCandidates(prevCandidates =>
-    prevCandidates.map(candidate => {
-      if (candidate.id === updatedData.id || candidate.id === updatedData.candidateId) {
-        // Determine new status based on action and the actual API response
-        let newStatus = candidate.status;
-        let newApplicationStatus = candidate.applicationStatus;
-        
-        // Use the actual status from the API if available in updatedData
-        if (updatedData.status) {
-          newApplicationStatus = updatedData.status;
-        } else if (updatedData.applicationStatus) {
-          newApplicationStatus = updatedData.applicationStatus;
-        } else {
-          // Fallback to action-based mapping if no status provided
-          switch (action) {
-            case 'initiateOffer':
-              newApplicationStatus = 'initiated';
-              break;
-            case 'submitForApproval':
-              newApplicationStatus = 'pending_approval'; // Changed from 'submitted' to 'pending_approval'
-              break;
-            case 'approveOffer':
-              newApplicationStatus = updatedData.approvalStatus === 'completed' ? 'accepted' : 'pending_approval';
-              break;
-            case 'rejectOffer':
-              newApplicationStatus = 'rejected';
-              break;
-            case 'generateOffer':
-              newApplicationStatus = 'generated';
-              break;
-            case 'sendOffer':
-              newApplicationStatus = 'sent';
-              break;
-            case 'acceptOffer':
-              newApplicationStatus = 'accepted_by_candidate';
-              break;
-            default:
-              break;
-          }
-        }
-        
-        // Map the application status to display status
-        newStatus = getOfferStatus(newApplicationStatus);
-        
-        console.log(`Updating candidate ${candidate.id} status from ${candidate.applicationStatus} to ${newApplicationStatus} (display: ${newStatus})`);
-        
-        return { 
-          ...candidate, 
-          status: newStatus,
-          applicationStatus: newApplicationStatus,
-          offerId: updatedData.offerId || candidate.offerId,
-          approvalStatus: updatedData.approvalStatus // Store approval status if needed
-        };
+  // Handle action completion - UPDATE STATUS AND TRACK COMPLETED ACTIONS
+  const handleActionComplete = async (action, updatedData) => {
+    try {
+      console.log(`🟢 Action ${action} completed with data:`, updatedData);
+      
+      setActionInProgress(true);
+      
+      // Show success message
+      const actionName = action.replace(/([A-Z])/g, ' $1').toLowerCase();
+      showNotification(`Offer ${actionName} completed successfully`, 'success');
+      
+      // Close the dialog
+      handleCloseDialog(action);
+      
+      // Find the candidate ID to update
+      const candidateIdToUpdate = updatedData?.candidateId || 
+                                   updatedData?.id || 
+                                   (selectedCandidateForAction?.id);
+      
+      // Determine the new status based on the action
+      let newDisplayStatus = '';
+      let newAppStatus = '';
+      
+      switch(action) {
+        case 'initiateOffer':
+          newDisplayStatus = 'Initiated';
+          newAppStatus = 'initiated';
+          break;
+        case 'submitForApproval':
+          newDisplayStatus = 'Submitted';
+          newAppStatus = 'pending_approval';
+          break;
+        case 'approveOffer':
+          newDisplayStatus = 'Approved';
+          newAppStatus = 'approved';
+          break;
+        case 'generateOffer':
+          newDisplayStatus = 'Generated';
+          newAppStatus = 'generated';
+          break;
+        case 'sendOffer':
+          newDisplayStatus = 'Sent';
+          newAppStatus = 'sent';
+          break;
+        case 'acceptOffer':
+          newDisplayStatus = 'Accepted';
+          newAppStatus = 'accepted_by_candidate';
+          break;
+        default:
+          newDisplayStatus = updatedData?.status || 'Pending';
+          newAppStatus = updatedData?.applicationStatus || 'pending';
       }
-      return candidate;
-    })
-  );
-
-  handleCloseDialog(action);
-};
-
-// Update the isActionEnabled function to handle the correct statuses
-const isActionEnabled = (action, candidate) => {
-  const status = candidate.status;
-  const applicationStatus = candidate.applicationStatus;
-  
-  // Define allowed statuses for each action using the exact enum values from the API
-  const actionStatusMap = {
-    initiateOffer: ['Pending', 'Rejected', 'selected', null, undefined],
-    submitForApproval: ['Initiated', 'initiated'],
-    approveOffer: ['Submitted', 'pending_approval', 'submitted'], // Add 'pending_approval'
-    generateOffer: ['Approved', 'approved', 'accepted'], // Add 'accepted' since API returns that
-    sendOffer: ['Generated', 'generated'],
-    viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated', 'Approved', 'Submitted', 'Initiated', 
-                'sent', 'viewed', 'accepted', 'generated', 'approved', 'submitted', 'initiated'],
-    acceptOffer: ['Sent', 'Viewed', 'sent', 'viewed']
+      
+      console.log('🔄 Updating candidate ID:', candidateIdToUpdate, 'to status:', newDisplayStatus);
+      
+      // Update candidates state with the new status
+      setCandidates(prevCandidates => {
+        const updated = prevCandidates.map(candidate => {
+          const matches = candidate.id === candidateIdToUpdate || 
+                         candidate.candidateId === candidateIdToUpdate ||
+                         candidate._id === candidateIdToUpdate;
+          
+          if (matches) {
+            console.log(`🔄 Updating candidate ${candidate.name} from ${candidate.status} to ${newDisplayStatus}`);
+            
+            return {
+              ...candidate,
+              status: newDisplayStatus,
+              applicationStatus: newAppStatus,
+              offerId: updatedData?.offerId || candidate.offerId,
+              approvalFlowId: updatedData?.approvalFlowId,
+              updatedAt: new Date().toISOString(),
+              offerDetails: {
+                ...candidate.offerDetails,
+                ...(updatedData?.offerDetails || {})
+              }
+            };
+          }
+          return candidate;
+        });
+        
+        return updated;
+      });
+      
+      // Also update filtered candidates
+      setFilteredCandidates(prev => {
+        const updated = prev.map(candidate => {
+          const matches = candidate.id === candidateIdToUpdate || 
+                         candidate.candidateId === candidateIdToUpdate ||
+                         candidate._id === candidateIdToUpdate;
+          
+          if (matches) {
+            return {
+              ...candidate,
+              status: newDisplayStatus,
+              applicationStatus: newAppStatus,
+              offerId: updatedData?.offerId || candidate.offerId,
+              approvalFlowId: updatedData?.approvalFlowId,
+              updatedAt: new Date().toISOString(),
+              offerDetails: {
+                ...candidate.offerDetails,
+                ...(updatedData?.offerDetails || {})
+              }
+            };
+          }
+          return candidate;
+        });
+        
+        return updated;
+      });
+      
+      // TRACK COMPLETED ACTIONS IN FRONTEND (no backend update needed)
+      if (candidateIdToUpdate) {
+        setCompletedActions(prev => ({
+          ...prev,
+          [`${candidateIdToUpdate}_${action}`]: true,
+          [`${candidateIdToUpdate}_lastAction`]: action,
+          [`${candidateIdToUpdate}_lastUpdate`]: new Date().toISOString()
+        }));
+      }
+      
+      // Force a re-render
+      setRefreshTrigger(prev => prev + 1);
+      
+      setActionInProgress(false);
+      
+    } catch (error) {
+      console.error('🔴 Error in handleActionComplete:', error);
+      showNotification('Action completed but failed to refresh data', 'warning');
+      setActionInProgress(false);
+    }
   };
 
-  // Check if candidate's status matches any allowed status for the action
-  const statusCheck = actionStatusMap[action]?.some(s => 
-    status === s || applicationStatus === s
-  ) || false;
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchSelectedCandidates();
+    showNotification('Data refreshed', 'info');
+  };
 
-  // Log for debugging
-  console.log(`Action ${action} for candidate ${candidate.id}:`, {
-    status,
-    applicationStatus,
-    allowed: actionStatusMap[action],
-    enabled: statusCheck
-  });
-
-  return statusCheck;
-};
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setSortConfig({ field: 'name', direction: 'asc' });
+    setSelected([]);
+  };
 
   // Get candidate initials for avatar
   const getInitials = (firstName, lastName) => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
-  if (loading) {
+  // Paginated candidates
+  const paginatedCandidates = filteredCandidates.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  // Check if filters are active
+  const isFilterActive = searchTerm || statusFilter !== 'all';
+
+  if (loading && candidates.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
         <CircularProgress />
@@ -482,37 +761,231 @@ const isActionEnabled = (action, candidate) => {
   }
 
   return (
-    <Box sx={{ p: 3, mt: -8}}>
-      <Box>
+    <Box sx={{ p: 3, mt: -8 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
         <Typography
           variant="h5"
           component="h1"
           fontWeight="600"
           sx={{
-            color: TEXT_COLOR_MAIN,
             background: HEADER_GRADIENT,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
             display: 'inline-block',
           }}
         >
           Offer Management
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5, mb: 2 }}>
-          View and manage offers for candidates
+        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+          Manage and track offers for selected candidates
         </Typography>
-        {/* <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchSelectedCandidates}
-          sx={{ mb: 2 }}
-        >
-          Refresh
-        </Button> */}
       </Box>
 
-      {error ? (
+      {/* Action Bar */}
+      <Paper sx={{ 
+        p: 2, 
+        mb: 3, 
+        borderRadius: 2,
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0'
+      }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+          {/* Search and Filters */}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+            <TextField
+              placeholder="Search by name, email, or ID..."
+              size="small"
+              value={searchTerm}
+              onChange={handleSearch}
+              sx={{ 
+                width: { xs: '100%', sm: 320 },
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  '&:hover fieldset': {
+                    borderColor: PRIMARY_BLUE,
+                  },
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#64748B' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" sx={{ color: '#64748B' }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: { 
+                  height: 40,
+                  bgcolor: '#f8fafc',
+                  '& input': {
+                    padding: '8px 12px',
+                    fontSize: '0.875rem'
+                  }
+                }
+              }}
+              disabled={loading}
+            />
+{/* 
+            <Button
+              variant="outlined"
+              startIcon={<FilterIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                borderColor: '#cbd5e1',
+                color: '#475569',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
+              disabled={loading}
+            >
+              Filters
+            </Button> */}
+
+            {isFilterActive && (
+              <Button
+                variant="text"
+                startIcon={<ClearIcon />}
+                onClick={handleClearFilters}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  color: '#475569',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                  }
+                }}
+                disabled={loading}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </Stack>
+
+          {/* Action Buttons */}
+          <Stack direction="row" spacing={2}>
+            {selected.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  borderColor: '#EF4444',
+                  color: '#EF4444',
+                  '&:hover': {
+                    borderColor: '#DC2626',
+                    bgcolor: alpha('#EF4444', 0.04)
+                  }
+                }}
+                disabled={loading}
+              >
+                Action ({selected.length})
+              </Button>
+            )}
+
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={loading}
+              sx={{ 
+                height: 40,
+                borderRadius: 1.5,
+                borderColor: '#cbd5e1',
+                color: '#475569',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: PRIMARY_BLUE,
+                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
+                }
+              }}
+            >
+              Refresh
+            </Button>
+          </Stack>
+        </Stack>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <TextField
+                select
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setSelected([]);
+                }}
+                size="small"
+                sx={{ 
+                  minWidth: 200,
+                  '& .MuiOutlinedInput-root': { 
+                    borderRadius: 1.5,
+                    bgcolor: '#f8fafc'
+                  }
+                }}
+              >
+                <MenuItem value="all">All Status</MenuItem>
+                <MenuItem value="Initiated">Initiated</MenuItem>
+                <MenuItem value="Submitted">Submitted</MenuItem>
+                <MenuItem value="Approved">Approved</MenuItem>
+                <MenuItem value="Generated">Generated</MenuItem>
+                <MenuItem value="Sent">Sent</MenuItem>
+                <MenuItem value="Accepted">Accepted</MenuItem>
+                <MenuItem value="Rejected">Rejected</MenuItem>
+              </TextField>
+
+              <Button
+                variant="outlined"
+                startIcon={<ArrowUpwardIcon />}
+                onClick={() => setSortConfig(prev => ({
+                  ...prev,
+                  direction: prev.direction === 'asc' ? 'desc' : 'asc'
+                }))}
+                sx={{ 
+                  height: 40,
+                  borderRadius: 1.5,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  textTransform: 'none'
+                }}
+              >
+                {sortConfig.direction === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
+              </Button>
+            </Stack>
+          </Box>
+        )}
+      </Paper>
+
+      {/* Error Alert */}
+      {error && (
         <Box sx={{ mb: 3 }}>
           <Alert
             severity="error"
@@ -521,191 +994,358 @@ const isActionEnabled = (action, candidate) => {
                 Retry
               </Button>
             }
+            sx={{ borderRadius: 2 }}
           >
             {error}
           </Alert>
         </Box>
-      ) : selectedCandidates.length === 0 ? (
-        <Alert severity="info">No selected candidates found</Alert>
+      )}
+
+      {/* Table */}
+      {filteredCandidates.length === 0 && !loading ? (
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          No candidates found
+        </Alert>
       ) : (
-        <TableContainer component={Paper} elevation={3} sx={{ mt: 2 }}>
-          <Table sx={{ minWidth: 650 }} aria-label="offer management table">
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                <TableCell><strong>Candidate</strong></TableCell>
-                <TableCell><strong>Contact</strong></TableCell>
-                <TableCell><strong>Position</strong></TableCell>
-                <TableCell><strong>Experience</strong></TableCell>
-                <TableCell><strong>Skills</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
-                <TableCell align="center"><strong>Actions</strong></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {selectedCandidates.map((candidate) => (
-                <TableRow key={candidate.id} hover>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                        {getInitials(candidate.firstName, candidate.lastName) || <PersonIcon />}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {candidate.name}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          ID: {candidate.candidateId}
-                        </Typography>
-                        {candidate.offerId && (
-                          <Typography variant="caption" color="primary" display="block">
-                            Offer: {candidate.offerId}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{candidate.email}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {candidate.phone}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{candidate.position}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{candidate.experience}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {candidate.skills?.slice(0, 3).map((skill, index) => (
-                        <Chip key={index} label={skill} size="small" variant="outlined" />
-                      ))}
-                      {candidate.skills?.length > 3 && (
-                        <Chip label={`+${candidate.skills.length - 3}`} size="small" />
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={candidate.status}
-                      color={getStatusColor(candidate.status)}
-                      size="small"
+        <Paper sx={{ 
+          width: '100%', 
+          borderRadius: 2, 
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0'
+        }}>
+          <TableContainer component={Paper} key={refreshTrigger}>
+            <Table sx={{ minWidth: 650 }} aria-label="offer management table">
+              <TableHead>
+                <TableRow sx={{ 
+                  background: HEADER_GRADIENT,
+                  '& .MuiTableCell-root': {
+                    borderBottom: 'none',
+                    color: TEXT_COLOR_HEADER,
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    py: 2
+                  }
+                }}>
+                  <TableCell padding="checkbox" sx={{ width: 60 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedCandidates.length}
+                      checked={paginatedCandidates.length > 0 && selected.length === paginatedCandidates.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: TEXT_COLOR_HEADER,
+                        '&.Mui-checked': { color: TEXT_COLOR_HEADER },
+                        '&.MuiCheckbox-indeterminate': { color: TEXT_COLOR_HEADER }
+                      }}
+                      disabled={loading || paginatedCandidates.length === 0}
                     />
                   </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                      {/* Initiate Offer */}
-                      <Tooltip title="Initiate Offer">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => handleOpenDialog('initiateOffer', candidate)}
-                            disabled={!isActionEnabled('initiateOffer', candidate)}
-                          >
-                            <InitiateIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {/* Submit for Approval */}
-                      <Tooltip title="Submit for Approval">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="warning"
-                            onClick={() => handleOpenDialog('submitForApproval', candidate)}
-                            disabled={!isActionEnabled('submitForApproval', candidate)}
-                          >
-                            <SendIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {/* Approve Offer */}
-                      <Tooltip title="Approve Offer">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => handleOpenDialog('approveOffer', candidate)}
-                            disabled={!isActionEnabled('approveOffer', candidate)}
-                          >
-                            <ApproveIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {/* Generate Offer Letter */}
-                      <Tooltip title="Generate Offer Letter">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="secondary"
-                            onClick={() => handleOpenDialog('generateOffer', candidate)}
-                            disabled={!isActionEnabled('generateOffer', candidate)}
-                            sx={{
-                              opacity: isActionEnabled('generateOffer', candidate) ? 1 : 0.5,
-                              '&:hover': {
-                                backgroundColor: isActionEnabled('generateOffer', candidate) ? 'rgba(156, 39, 176, 0.04)' : 'transparent'
-                              }
-                            }}
-                          >
-                            <GenerateIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {/* Send to Candidate */}
-                      <Tooltip title="Send to Candidate">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="info"
-                            onClick={() => handleOpenDialog('sendOffer', candidate)}
-                            disabled={!isActionEnabled('sendOffer', candidate)}
-                          >
-                            <EmailIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {/* View Offer */}
-                      {/* <Tooltip title="View Offer">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="default"
-                            onClick={() => handleOpenDialog('viewOffer', candidate)}
-                            disabled={!isActionEnabled('viewOffer', candidate)}
-                          >
-                            <ViewIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip> */}
-
-                      {/* Accept Offer */}
-                      <Tooltip title="Accept Offer">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => handleOpenDialog('acceptOffer', candidate)}
-                            disabled={!isActionEnabled('acceptOffer', candidate)}
-                          >
-                            <AcceptIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </Box>
+                  <TableCell 
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort('name')}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Candidate
+                      <ArrowUpwardIcon 
+                        sx={{ 
+                          fontSize: 14, 
+                          color: TEXT_COLOR_HEADER, 
+                          opacity: sortConfig.field === 'name' ? 1 : 0.5,
+                          transform: sortConfig.direction === "desc" && sortConfig.field === 'name' ? 'rotate(180deg)' : 'none'
+                        }} 
+                      />
+                    </Stack>
                   </TableCell>
+                  <TableCell>Contact</TableCell>
+                  <TableCell 
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort('position')}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Position
+                      <ArrowUpwardIcon 
+                        sx={{ 
+                          fontSize: 14, 
+                          color: TEXT_COLOR_HEADER, 
+                          opacity: sortConfig.field === 'position' ? 1 : 0.5,
+                          transform: sortConfig.direction === "desc" && sortConfig.field === 'position' ? 'rotate(180deg)' : 'none'
+                        }} 
+                      />
+                    </Stack>
+                  </TableCell>
+                  <TableCell>Experience</TableCell>
+                  <TableCell>Skills</TableCell>
+                  <TableCell 
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleSort('status')}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      Status
+                      <ArrowUpwardIcon 
+                        sx={{ 
+                          fontSize: 14, 
+                          color: TEXT_COLOR_HEADER, 
+                          opacity: sortConfig.field === 'status' ? 1 : 0.5,
+                          transform: sortConfig.direction === "desc" && sortConfig.field === 'status' ? 'rotate(180deg)' : 'none'
+                        }} 
+                      />
+                    </Stack>
+                  </TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                      <CircularProgress size={40} />
+                      <Typography variant="body2" color="#64748B" sx={{ mt: 2 }}>
+                        Loading candidates...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+                
+                {!loading && paginatedCandidates.map((candidate, index) => {
+                  const isSelected = selected.includes(candidate.id);
+                  const isOddRow = index % 2 === 0;
+                  const statusStyle = getStatusStyle(candidate.status);
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                    selectedCandidateForAction?.id === candidate.id;
+
+                  return (
+                    <TableRow
+                      key={candidate.id}
+                      hover
+                      selected={isSelected}
+                      sx={{ 
+                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        '&:hover': {
+                          bgcolor: HOVER_COLOR
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                          }
+                        }
+                      }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => handleSelect(candidate.id)}
+                          sx={{
+                            color: PRIMARY_BLUE,
+                            '&.Mui-checked': { color: PRIMARY_BLUE }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Avatar sx={{ mr: 2, bgcolor: PRIMARY_BLUE, width: 40, height: 40 }}>
+                            {getInitials(candidate.firstName, candidate.lastName) || <PersonIcon />}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold" color={TEXT_COLOR_MAIN}>
+                              {candidate.name}
+                            </Typography>
+                            <Typography variant="caption" color="#64748B">
+                              ID: {candidate.candidateId}
+                            </Typography>
+                            {candidate.offerId && (
+                              <Typography variant="caption" color={PRIMARY_BLUE} display="block">
+                                Offer: {candidate.offerId}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>{candidate.email}</Typography>
+                        <Typography variant="caption" color="#64748B">
+                          {candidate.phone}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>{candidate.position}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>{candidate.experience}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {candidate.skills?.slice(0, 3).map((skill, index) => (
+                            <Chip key={index} label={skill} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                          ))}
+                          {candidate.skills?.length > 3 && (
+                            <Chip label={`+${candidate.skills.length - 3}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={candidate.applicationStatus}
+                          size="small"
+                          sx={{
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color,
+                            border: `1px solid ${statusStyle.border}`,
+                            fontWeight: 500
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={(e) => handleActionMenuOpen(e, candidate)}
+                          sx={{
+                            color: '#64748b',
+                            '&:hover': {
+                              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+                            }
+                          }}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination */}
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={filteredCandidates.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(e, newPage) => {
+              setPage(newPage);
+              setSelected([]);
+            }}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+              setSelected([]);
+            }}
+            sx={{
+              borderTop: '1px solid #e2e8f0',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.875rem',
+                color: '#64748B'
+              },
+              '& .MuiTablePagination-actions button': {
+                color: PRIMARY_BLUE,
+              }
+            }}
+          />
+        </Paper>
       )}
+
+      {/* Action Menu */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleActionMenuClose}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            borderRadius: 2,
+            border: '1px solid #e2e8f0'
+          }
+        }}
+      >
+        {/* Initiate Offer */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('initiateOffer', selectedCandidateForAction)}
+          disabled={!isActionEnabled('initiateOffer', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+            <InitiateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Initiate Offer</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {/* Submit for Approval */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('submitForApproval', selectedCandidateForAction)}
+          disabled={!isActionEnabled('submitForApproval', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#ed6c02', minWidth: 36 }}>
+            <SendIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Submit for Approval</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {/* Approve Offer */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('approveOffer', selectedCandidateForAction)}
+          disabled={!isActionEnabled('approveOffer', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#2e7d32', minWidth: 36 }}>
+            <ApproveIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Approve Offer</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        <Divider sx={{ my: 0.5 }} />
+
+        {/* Generate Offer Letter */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('generateOffer', selectedCandidateForAction)}
+          disabled={!isActionEnabled('generateOffer', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#7e22ce', minWidth: 36 }}>
+            <GenerateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Generate Offer Letter</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {/* Send to Candidate */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('sendOffer', selectedCandidateForAction)}
+          disabled={!isActionEnabled('sendOffer', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#0284c7', minWidth: 36 }}>
+            <EmailIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Send to Candidate</Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {/* Accept Offer */}
+        <MenuItem 
+          onClick={() => selectedCandidateForAction && handleOpenDialog('acceptOffer', selectedCandidateForAction)}
+          disabled={!isActionEnabled('acceptOffer', selectedCandidateForAction)}
+          sx={{ py: 1 }}
+        >
+          <ListItemIcon sx={{ color: '#2e7d32', minWidth: 36 }}>
+            <AcceptIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500}>Accept Offer</Typography>
+          </ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Action Dialogs */}
       <InitiateOffer
@@ -718,8 +1358,9 @@ const isActionEnabled = (action, candidate) => {
       <SubmitForApproval
         open={dialogState.submitForApproval.open}
         onClose={() => handleCloseDialog('submitForApproval')}
-        candidate={dialogState.submitForApproval.candidate}
+        candidateData={dialogState.submitForApproval.candidate}
         onComplete={(updatedData) => handleActionComplete('submitForApproval', updatedData)}
+        selectedCandidateForAction={selectedCandidateForAction} 
       />
 
       <ApproveOffer
@@ -743,18 +1384,33 @@ const isActionEnabled = (action, candidate) => {
         onComplete={(updatedData) => handleActionComplete('sendOffer', updatedData)}
       />
 
-      {/* <ViewOffer
-        open={dialogState.viewOffer.open}
-        onClose={() => handleCloseDialog('viewOffer')}
-        candidate={dialogState.viewOffer.candidate}
-      /> */}
-
       <AcceptOffer
         open={dialogState.acceptOffer.open}
         onClose={() => handleCloseDialog('acceptOffer')}
         candidate={dialogState.acceptOffer.candidate}
         onComplete={(updatedData) => handleActionComplete('acceptOffer', updatedData)}
       />
+
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({...snackbar, open: false})} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ 
+            width: '100%',
+            borderRadius: 1.5,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

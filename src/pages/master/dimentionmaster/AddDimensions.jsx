@@ -26,10 +26,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
     Thickness: '',
     Width: '',
     Length: '',
-    Density: '',
-    Pitch: '',
-    NoOfCavity: '',
-    StripSize: ''
+    Density: ''
   });
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,18 +70,18 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
   };
 
   const handleSelectChange = (e) => {
-    const { name, value } = e.target;
+    const { value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      PartNo: value
     }));
     
     // If an item is selected, auto-fill density from the item's material
-    const selectedItem = items.find(item => item.PartNo === value);
-    if (selectedItem && selectedItem.MaterialID) {
+    const selectedItem = items.find(item => item.part_no === value);
+    if (selectedItem && selectedItem.density) {
       setFormData(prev => ({
         ...prev,
-        Density: selectedItem.MaterialID.Density || ''
+        Density: selectedItem.density.toString() || ''
       }));
     }
   };
@@ -126,18 +123,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
       setError('Density must be greater than 0');
       return;
     }
-    if (!formData.Pitch || parseFloat(formData.Pitch) <= 0) {
-      setError('Pitch must be greater than 0');
-      return;
-    }
-    if (!formData.NoOfCavity || parseInt(formData.NoOfCavity) <= 0) {
-      setError('Number of Cavities must be greater than 0');
-      return;
-    }
-    if (!formData.StripSize || parseFloat(formData.StripSize) <= 0) {
-      setError('Strip Size must be greater than 0');
-      return;
-    }
+  
 
     setLoading(true);
     setError('');
@@ -150,9 +136,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
         Width: parseFloat(formData.Width),
         Length: parseFloat(formData.Length),
         Density: parseFloat(formData.Density),
-        Pitch: parseFloat(formData.Pitch),
-        NoOfCavity: parseInt(formData.NoOfCavity),
-        StripSize: parseFloat(formData.StripSize)
+       
       }, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -181,10 +165,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
       Thickness: '',
       Width: '',
       Length: '',
-      Density: '',
-      Pitch: '',
-      NoOfCavity: '',
-      StripSize: ''
+      Density: ''
     });
     setError('');
   };
@@ -240,11 +221,11 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
                 <em>Select a Part No</em>
               </MenuItem>
               {items.map((item) => (
-                <MenuItem key={item._id} value={item.PartNo}>
+                <MenuItem key={item._id} value={item.part_no}>
                   <Box>
-                    <Typography variant="body1">{item.PartNo}</Typography>
+                    <Typography variant="body1">{item.part_no}</Typography>
                     <Typography variant="caption" color="textSecondary">
-                      {item.PartName}
+                      {item.part_description}
                     </Typography>
                   </Box>
                 </MenuItem>
@@ -326,7 +307,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
 
           {/* New Fields: Pitch, NoOfCavity, StripSize */}
           <Grid container spacing={2}>
-            <Grid item xs={4}>
+            {/* <Grid item xs={4}>
               <TextField
                 fullWidth
                 label="Pitch *"
@@ -370,7 +351,7 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
                   inputProps: { min: 0, step: 0.01 }
                 }}
               />
-            </Grid>
+            </Grid> */}
           </Grid>
 
           {/* Weight Preview */}

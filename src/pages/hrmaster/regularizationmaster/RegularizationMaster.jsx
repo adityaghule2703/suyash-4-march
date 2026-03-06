@@ -368,7 +368,7 @@ const RegularizationMaster = () => {
         open={openAdd}
         onClose={() => setOpenAdd(false)}
         onAdd={(newRecord) => {
-          setRecords((prev) => [newRecord, ...prev]);
+          fetchRecords(); // auto refresh data
           showNotification("Request Submitted", "success");
         }}
       />

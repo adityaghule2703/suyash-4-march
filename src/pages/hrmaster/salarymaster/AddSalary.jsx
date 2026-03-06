@@ -1776,7 +1776,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Special Allowance"
                           name="special"
@@ -1786,8 +1786,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Dearness Allowance"
                           name="da"
@@ -1797,8 +1797,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Arrears"
                           name="arrears"
@@ -1808,8 +1808,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Overtime"
                           name="overtime"
@@ -1819,8 +1819,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Performance Bonus"
                           name="performanceBonus"
@@ -1830,8 +1830,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Attendance Bonus"
                           name="attendanceBonus"
@@ -1841,8 +1841,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Shift Allowance"
                           name="shiftAllowance"
@@ -1852,8 +1852,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Production Incentive"
                           name="productionIncentive"
@@ -1863,7 +1863,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
+                      </Grid> */}
                       <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Other Allowances"
@@ -1920,7 +1920,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Telephone"
                           name="telephone"
@@ -1930,7 +1930,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
+                      </Grid> */}
                       <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Fuel"
@@ -1942,7 +1942,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Medical"
                           name="medicalReimbursement"
@@ -1952,8 +1952,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Education"
                           name="education"
@@ -1963,8 +1963,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="LTA"
                           name="lta"
@@ -1974,8 +1974,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Uniform"
                           name="uniform"
@@ -1985,8 +1985,8 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                      </Grid> */}
+                      {/* <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Newspaper"
                           name="newspaper"
@@ -1996,7 +1996,7 @@ const AddSalary = ({ open, onClose, onAdd }) => {
                           onChange={handleNumberChange}
                           InputProps={{ sx: { borderRadius: 1.5 } }}
                         />
-                      </Grid>
+                      </Grid> */}
                       <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Other"

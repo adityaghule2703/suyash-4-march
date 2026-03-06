@@ -34,7 +34,9 @@ import {
   Grid,
   Menu,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Checkbox,
+  alpha
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -47,14 +49,24 @@ import {
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
   Description as DescriptionIcon,
-   MoreVert as MoreVertIcon,
+  MoreVert as MoreVertIcon,
   Visibility as ViewIcon,
-  CloseSharp
+  CloseSharp,
+  ArrowUpward as ArrowUpwardIcon,
+  Clear as ClearIcon,
+  Delete as DeleteIcon
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 
+// Color constants
 const HEADER_GRADIENT = "linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)";
+const STRIPE_COLOR_ODD = '#FFFFFF';
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
+const PRIMARY_BLUE = '#00B4D8';
+const TEXT_COLOR_HEADER = '#FFFFFF';
+const TEXT_COLOR_MAIN = '#0f172a';
 
 const AdminLeaveApproval = () => {
   const token = localStorage.getItem("token");
@@ -68,6 +80,9 @@ const AdminLeaveApproval = () => {
     approved: 0,
     rejected: 0
   });
+
+  // Checkbox selection state
+  const [selected, setSelected] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Pending");
@@ -85,8 +100,6 @@ const AdminLeaveApproval = () => {
   const [processing, setProcessing] = useState(false);
 
   const [actionAnchor, setActionAnchor] = useState(null);
-
-
 
   // View details dialog
   const [openViewDialog, setOpenViewDialog] = useState(false);
@@ -119,6 +132,7 @@ const AdminLeaveApproval = () => {
       // Extract data from the response structure
       const leavesData = response.data.data || [];
       setLeaves(leavesData);
+      setSelected([]); // Clear selections when data changes
       
       // Update stats
       setStats({
@@ -194,6 +208,43 @@ const AdminLeaveApproval = () => {
     });
 
     setFilteredLeaves(data);
+    setSelected([]); // Clear selections on filter
+  };
+
+  // Handle select all
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelected(paginatedData.map(leave => leave._id));
+    } else {
+      setSelected([]);
+    }
+  };
+
+  // Handle single selection
+  const handleSelect = (id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+    
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else {
+      newSelected = selected.filter(item => item !== id);
+    }
+    
+    setSelected(newSelected);
+  };
+
+  // Handle bulk action
+  const handleBulkAction = (action) => {
+    if (selected.length === 0) return;
+    
+    if (action === 'approve') {
+      // Handle bulk approve
+      showSnackbar(`Bulk approve for ${selected.length} items - API implementation required`, 'warning');
+    } else if (action === 'reject') {
+      // Handle bulk reject
+      showSnackbar(`Bulk reject for ${selected.length} items - API implementation required`, 'warning');
+    }
   };
 
   const handleProcessClick = (leave, action) => {
@@ -208,15 +259,14 @@ const AdminLeaveApproval = () => {
     setOpenViewDialog(true);
   };
 
-
   const handleActionOpen = (event, leave) => {
-  setActionAnchor(event.currentTarget);
-  setSelectedLeave(leave);
-};
+    setActionAnchor(event.currentTarget);
+    setSelectedLeave(leave);
+  };
 
-const handleActionClose = () => {
-  setActionAnchor(null);
-};
+  const handleActionClose = () => {
+    setActionAnchor(null);
+  };
 
   const handleProcessConfirm = async () => {
     if (!selectedLeave || !actionType) return;
@@ -321,6 +371,11 @@ const handleActionClose = () => {
     setSnackbar({ open: true, message, severity });
   };
 
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setSelected([]);
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'approved': return 'success';
@@ -381,110 +436,99 @@ const handleActionClose = () => {
     page * rowsPerPage + rowsPerPage
   );
 
-  return (
-    <Box >
-      {/* Header */}
-      <Typography
-        variant="h5"
-        fontWeight={600}
-        sx={{
-          background: HEADER_GRADIENT,
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          mb: 1
-        }}
-      >
-        Admin Leave Approval
-      </Typography>
+  const isFilterActive = searchTerm || statusFilter !== 'All';
 
-      <Typography variant="body1" color="#64748B" sx={{ mb: 3 }}>
-        Review and process employee leave applications
-      </Typography>
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h5"
+          component="h1"
+          fontWeight="600"
+          sx={{
+            background: HEADER_GRADIENT,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: 'inline-block'
+          }}
+        >
+          Admin Leave Approval
+        </Typography>
+        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+          Review and process employee leave applications
+        </Typography>
+      </Box>
 
       {/* Stats Cards */}
-      {/* <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(5, 1fr)' },
-          gap: 2,
-          mb: 3
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            borderRadius: 2,
-            border: '1px solid #e2e8f0',
-            bgcolor: '#fff3e0'
-          }}
-        >
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Pending Approvals
-          </Typography>
-          <Typography variant="h5" fontWeight={600} sx={{ color: '#ed6c02' }}>
-            {stats.pending}
-          </Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            borderRadius: 2,
-            border: '1px solid #e2e8f0',
-            bgcolor: '#e8f5e9'
-          }}
-        >
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Approved Today
-          </Typography>
-          <Typography variant="h5" fontWeight={600} sx={{ color: '#2e7d32' }}>
-            {stats.approved}
-          </Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            borderRadius: 2,
-            border: '1px solid #e2e8f0',
-            bgcolor: '#ffebee'
-          }}
-        >
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Rejected Today
-          </Typography>
-          <Typography variant="h5" fontWeight={600} sx={{ color: '#d32f2f' }}>
-            {stats.rejected}
-          </Typography>
-        </Paper>
-      </Box> */}
+      {/* <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#fff3e0' }}>
+            <Typography variant="body2" color="#64748B">Pending Approvals</Typography>
+            <Typography variant="h4" fontWeight={600} sx={{ color: '#ed6c02', mt: 1 }}>
+              {stats.pending}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#e8f5e9' }}>
+            <Typography variant="body2" color="#64748B">Approved Today</Typography>
+            <Typography variant="h4" fontWeight={600} sx={{ color: '#2e7d32', mt: 1 }}>
+              {stats.approved}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#ffebee' }}>
+            <Typography variant="body2" color="#64748B">Rejected Today</Typography>
+            <Typography variant="h4" fontWeight={600} sx={{ color: '#d32f2f', mt: 1 }}>
+              {stats.rejected}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid> */}
 
       {/* Action Bar */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between">
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flex={1}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
             <TextField
               size="small"
               placeholder="Search employee, leave type..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: { xs: '100%', sm: 500 } }}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setSelected([]);
+              }}
+              sx={{ 
+                width: { xs: '100%', sm: 400 },
+                '& .MuiOutlinedInput-root': { borderRadius: 1.5 }
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ color: '#64748B' }} />
                   </InputAdornment>
-                )
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" sx={{ color: '#64748B' }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: { height: 40, bgcolor: '#f8fafc' }
               }}
             />
 
             {/* <FormControl size="small" sx={{ minWidth: 150 }}>
               <Select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setSelected([]);
+                }}
+                sx={{ borderRadius: 1.5, height: 40 }}
               >
                 <MenuItem value="All">All Status</MenuItem>
                 <MenuItem value="Pending">Pending</MenuItem>
@@ -496,7 +540,11 @@ const handleActionClose = () => {
             {/* <FormControl size="small" sx={{ minWidth: 150 }}>
               <Select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setSelected([]);
+                }}
+                sx={{ borderRadius: 1.5, height: 40 }}
               >
                 <MenuItem value="AppliedOn">Sort by Applied Date</MenuItem>
                 <MenuItem value="StartDate">Sort by Start Date</MenuItem>
@@ -509,35 +557,76 @@ const handleActionClose = () => {
               variant="outlined"
               startIcon={<SortIcon />}
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              sx={{ height: 40, borderRadius: 1.5, borderColor: '#cbd5e1', color: '#475569', textTransform: 'none' }}
             >
               {sortOrder === "asc" ? "Ascending ↑" : "Descending ↓"}
             </Button> */}
+
+            {isFilterActive && (
+              <Button
+                variant="text"
+                startIcon={<ClearIcon />}
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("All");
+                  setSelected([]);
+                }}
+                sx={{ height: 40, borderRadius: 1.5 }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </Stack>
 
           <Stack direction="row" spacing={2}>
+            {selected.length > 0 && (
+              <>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  startIcon={<ApproveIcon />}
+                  onClick={() => handleBulkAction('approve')}
+                  sx={{ height: 40, borderRadius: 1.5 }}
+                >
+                  Approve ({selected.length})
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<RejectIcon />}
+                  onClick={() => handleBulkAction('reject')}
+                  sx={{ height: 40, borderRadius: 1.5 }}
+                >
+                  Reject ({selected.length})
+                </Button>
+              </>
+            )}
+
             {/* <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
               onClick={exportCSV}
               disabled={filteredLeaves.length === 0}
+              sx={{ height: 40, borderRadius: 1.5 }}
             >
               Export
             </Button> */}
-{/*             
+            
             <Button
               variant="contained"
               startIcon={<RefreshIcon />}
               onClick={fetchPendingLeaves}
               disabled={loading}
               sx={{
+                height: 40,
+                borderRadius: 1.5,
                 background: HEADER_GRADIENT,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0e7490 0%, #00B4D8 50%, #164e63 100%)'
-                }
+                textTransform: 'none',
+                '&:hover': { opacity: 0.9, background: HEADER_GRADIENT }
               }}
             >
               Refresh
-            </Button> */}
+            </Button>
           </Stack>
         </Stack>
       </Paper>
@@ -548,12 +637,23 @@ const handleActionClose = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ background: HEADER_GRADIENT }}>
+                <TableCell padding="checkbox" sx={{ width: 60 }}>
+                  <Checkbox
+                    indeterminate={selected.length > 0 && selected.length < paginatedData.length}
+                    checked={paginatedData.length > 0 && selected.length === paginatedData.length}
+                    onChange={handleSelectAll}
+                    sx={{
+                      color: TEXT_COLOR_HEADER,
+                      '&.Mui-checked': { color: TEXT_COLOR_HEADER },
+                      '&.MuiCheckbox-indeterminate': { color: TEXT_COLOR_HEADER }
+                    }}
+                    disabled={loading || paginatedData.length === 0}
+                  />
+                </TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Employee</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Leave Type</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Duration</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Days</TableCell>
-                {/* <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Reason</TableCell> */}
-                {/* <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Contact</TableCell> */}
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Applied On</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Status</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }} align="center">
@@ -573,119 +673,126 @@ const handleActionClose = () => {
                   </TableCell>
                 </TableRow>
               ) : paginatedData.length > 0 ? (
-                paginatedData.map((leave) => (
-                  <TableRow 
-                    key={leave._id} 
-                    hover
-                    sx={{ '&:hover': { bgcolor: '#f8fafc' } }}
-                  >
-                    <TableCell>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Avatar 
-                          sx={{ 
-                            width: 36, 
-                            height: 36, 
-                            bgcolor: '#00B4D8',
-                            fontSize: '0.875rem',
-                            fontWeight: 600
-                          }}
-                        >
-                          {getAvatarInitials(leave)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" fontWeight={500}>
-                            {getEmployeeName(leave)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {leave.EmployeeID?.EmployeeID} • {leave.EmployeeID?.DepartmentID?.DepartmentName || 'No Dept'}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={leave.LeaveTypeID?.Name || 'Unknown Type'}
-                        size="small"
-                        sx={{ 
-                          bgcolor: '#e0f2fe',
-                          color: '#0369a1',
-                          fontWeight: 500
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary">
-                          From: {formatDate(leave.StartDate)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          To: {formatDate(leave.EndDate)}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={leave.NumberOfDays || calculateDaysDifference(leave.StartDate, leave.EndDate)}
-                        size="small"
-                        sx={{ 
-                          bgcolor: '#f1f5f9',
-                          fontWeight: 600,
-                          minWidth: 40
-                        }}
-                      />
-                    </TableCell>
-                    {/* <TableCell>
-                      <Tooltip title={leave.Reason || 'No reason provided'}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            maxWidth: 150,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {leave.Reason || 'No reason provided'}
-                        </Typography>
-                      </Tooltip>
-                    </TableCell> */}
-                    {/* <TableCell>
-                      <Stack spacing={0.5}>
-                        <Typography variant="caption" display="flex" alignItems="center" gap={0.5}>
-                          <PhoneIcon sx={{ fontSize: 14, color: '#64748b' }} />
-                          {leave.ContactNumber || 'N/A'}
-                        </Typography>
-                      </Stack>
-                    </TableCell> */}
-                    <TableCell>
-                      <Typography variant="caption">
-                        {formatDateTime(leave.AppliedOn || leave.CreatedAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={leave.Status || 'Pending'}
-                        color={getStatusColor(leave.Status)}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-<TableCell align="center">
-  <IconButton onClick={(e) => handleActionOpen(e, leave)}>
-    <MoreVertIcon />
-  </IconButton>
-</TableCell>
+                paginatedData.map((leave, index) => {
+                  const isSelected = selected.includes(leave._id);
+                  const isOddRow = index % 2 === 0;
 
-                  </TableRow>
-                ))
+                  return (
+                    <TableRow 
+                      key={leave._id} 
+                      hover
+                      selected={isSelected}
+                      sx={{ 
+                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        '&:hover': { bgcolor: HOVER_COLOR },
+                        '&.Mui-selected': {
+                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          '&:hover': { bgcolor: alpha(PRIMARY_BLUE, 0.12) }
+                        }
+                      }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => handleSelect(leave._id)}
+                          sx={{
+                            color: PRIMARY_BLUE,
+                            '&.Mui-checked': { color: PRIMARY_BLUE }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Avatar 
+                            sx={{ 
+                              width: 36, 
+                              height: 36, 
+                              bgcolor: PRIMARY_BLUE,
+                              fontSize: '0.875rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            {getAvatarInitials(leave)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                              {getEmployeeName(leave)}
+                            </Typography>
+                            <Typography variant="caption" color="#64748B">
+                              {leave.EmployeeID?.EmployeeID} • {leave.EmployeeID?.DepartmentID?.DepartmentName || 'No Dept'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={leave.LeaveTypeID?.Name || 'Unknown Type'}
+                          size="small"
+                          sx={{ 
+                            bgcolor: '#e0f2fe',
+                            color: '#0369a1',
+                            fontWeight: 500
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Stack spacing={0.5}>
+                          <Typography variant="caption" color="#64748B">
+                            From: {formatDate(leave.StartDate)}
+                          </Typography>
+                          <Typography variant="caption" color="#64748B">
+                            To: {formatDate(leave.EndDate)}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={leave.NumberOfDays || calculateDaysDifference(leave.StartDate, leave.EndDate)}
+                          size="small"
+                          sx={{ 
+                            bgcolor: '#f1f5f9',
+                            color: TEXT_COLOR_MAIN,
+                            fontWeight: 600,
+                            minWidth: 40
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="#64748B">
+                          {formatDateTime(leave.AppliedOn || leave.CreatedAt)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={leave.Status || 'Pending'}
+                          color={getStatusColor(leave.Status)}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontWeight: 500 }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton 
+                          onClick={(e) => handleActionOpen(e, leave)}
+                          sx={{
+                            color: '#64748b',
+                            '&:hover': { bgcolor: alpha(PRIMARY_BLUE, 0.1) }
+                          }}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                     <EventIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 2 }} />
-                    <Typography variant="h6" color="textSecondary" gutterBottom>
+                    <Typography variant="body1" color="#64748B" fontWeight={500} gutterBottom>
                       No Pending Leave Applications
                     </Typography>
-                    <Typography variant="body2" color="textSecondary">
+                    <Typography variant="body2" color="#94A3B8">
                       {searchTerm || statusFilter !== 'All' 
                         ? 'Try adjusting your filters' 
                         : 'All leave requests have been processed'}
@@ -698,51 +805,68 @@ const handleActionClose = () => {
         </TableContainer>
 
         <Menu
-  anchorEl={actionAnchor}
-  open={Boolean(actionAnchor)}
-  onClose={handleActionClose}
->
-  <MenuItem
-    onClick={() => {
-      handleViewDetails(selectedLeave);
-      handleActionClose();
-    }}
-  >
-    <ListItemIcon>
-      <ViewIcon fontSize="small" />
-    </ListItemIcon>
-    <ListItemText>View</ListItemText>
-  </MenuItem>
+          anchorEl={actionAnchor}
+          open={Boolean(actionAnchor)}
+          onClose={handleActionClose}
+          PaperProps={{
+            elevation: 3,
+            sx: { mt: 1, minWidth: 180, borderRadius: 2, border: '1px solid #e2e8f0' }
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              handleViewDetails(selectedLeave);
+              handleActionClose();
+            }}
+            sx={{ py: 1 }}
+          >
+            <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500}>View Details</Typography>
+            </ListItemText>
+          </MenuItem>
 
-  {selectedLeave?.Status === "Pending" && (
-    <>
-      <MenuItem
-        onClick={() => {
-          handleProcessClick(selectedLeave, "Approved");
-          handleActionClose();
-        }}
-      >
-        <ListItemIcon>
-          <ApproveIcon fontSize="small" color="success" />
-        </ListItemIcon>
-        <ListItemText>Approve</ListItemText>
-      </MenuItem>
+          {selectedLeave?.Status === "Pending" && (
+            <>
+              <Divider sx={{ my: 0.5 }} />
+              <MenuItem
+                onClick={() => {
+                  handleProcessClick(selectedLeave, "Approved");
+                  handleActionClose();
+                }}
+                sx={{ py: 1 }}
+              >
+                <ListItemIcon sx={{ color: '#2e7d32', minWidth: 36 }}>
+                  <ApproveIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} color="#2e7d32">
+                    Approve
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
 
-      <MenuItem
-        onClick={() => {
-          handleProcessClick(selectedLeave, "Rejected");
-          handleActionClose();
-        }}
-      >
-        <ListItemIcon>
-          <RejectIcon fontSize="small" color="error" />
-        </ListItemIcon>
-        <ListItemText>Reject</ListItemText>
-      </MenuItem>
-    </>
-  )}
-</Menu>
-
+              <MenuItem
+                onClick={() => {
+                  handleProcessClick(selectedLeave, "Rejected");
+                  handleActionClose();
+                }}
+                sx={{ py: 1 }}
+              >
+                <ListItemIcon sx={{ color: '#d32f2f', minWidth: 36 }}>
+                  <RejectIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} color="#d32f2f">
+                    Reject
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            </>
+          )}
+        </Menu>
 
         {filteredLeaves.length > 0 && (
           <TablePagination
@@ -751,10 +875,18 @@ const handleActionClose = () => {
             count={filteredLeaves.length}
             rowsPerPage={rowsPerPage}
             page={page}
-            onPageChange={(e, newPage) => setPage(newPage)}
+            onPageChange={(e, newPage) => {
+              setPage(newPage);
+              setSelected([]);
+            }}
             onRowsPerPageChange={(e) => {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
+              setSelected([]);
+            }}
+            sx={{
+              borderTop: '1px solid #e2e8f0',
+              '& .MuiTablePagination-actions button': { color: PRIMARY_BLUE }
             }}
           />
         )}
@@ -766,9 +898,7 @@ const handleActionClose = () => {
         onClose={handleCloseDialog}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: 2 }
-        }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
         <DialogTitle sx={{ 
           background: actionType === 'Approved' ? '#2e7d32' : '#d32f2f',
@@ -780,38 +910,41 @@ const handleActionClose = () => {
         </DialogTitle>
         <DialogContent sx={{ mt: 3 }}>
           {selectedLeave && (
-            <Card variant="outlined" sx={{ mb: 3, bgcolor: '#f8fafc' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="subtitle2" gutterBottom color="primary">
+            <Card variant="outlined" sx={{ mb: 3, bgcolor: '#f8fafc', borderRadius: 2 }}>
+              <CardContent sx={{ p: 2 }}>
+                <Typography variant="subtitle2" gutterBottom color={PRIMARY_BLUE} fontWeight={600}>
                   Leave Details
                 </Typography>
-                <Stack spacing={1.5} >
-                  <Stack spacing={21} direction="row"> 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Employee</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {getEmployeeName(selectedLeave)} ({selectedLeave.EmployeeID?.EmployeeID})
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="#64748B">Employee</Typography>
+                    <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                      {getEmployeeName(selectedLeave)}
                     </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Leave Type</Typography>
-                    <Typography variant="body2">{selectedLeave.LeaveTypeID?.Name}</Typography>
-                  </Box>
-                  </Stack>
-                  <Stack spacing={10} direction="row"> 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Duration</Typography>
-                    <Typography variant="body2">
+                    <Typography variant="caption" color="#64748B">
+                      ID: {selectedLeave.EmployeeID?.EmployeeID}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="#64748B">Leave Type</Typography>
+                    <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                      {selectedLeave.LeaveTypeID?.Name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="#64748B">Duration</Typography>
+                    <Typography variant="body2" color={TEXT_COLOR_MAIN}>
                       {formatDate(selectedLeave.StartDate)} to {formatDate(selectedLeave.EndDate)}
                       {' '}({selectedLeave.NumberOfDays || calculateDaysDifference(selectedLeave.StartDate, selectedLeave.EndDate)} days)
                     </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Reason</Typography>
-                    <Typography variant="body2">{selectedLeave.Reason || 'No reason provided'}</Typography>
-                  </Box>
-                  </Stack>
-                </Stack>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="#64748B">Reason</Typography>
+                    <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                      {selectedLeave.Reason || 'No reason provided'}
+                    </Typography>
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
           )}
@@ -819,17 +952,22 @@ const handleActionClose = () => {
           <TextField
             label="Remarks"
             multiline
-            rows={2}
+            rows={3}
             fullWidth
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             placeholder={`Add remarks for ${actionType?.toLowerCase()} request...`}
             variant="outlined"
             size="small"
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={handleCloseDialog} disabled={processing}>
+          <Button 
+            onClick={handleCloseDialog} 
+            disabled={processing}
+            sx={{ borderRadius: 1.5, textTransform: 'none' }}
+          >
             Cancel
           </Button>
           <Button
@@ -838,6 +976,7 @@ const handleActionClose = () => {
             onClick={handleProcessConfirm}
             disabled={processing}
             startIcon={processing ? <CircularProgress size={20} /> : null}
+            sx={{ borderRadius: 1.5, textTransform: 'none' }}
           >
             {processing ? 'Processing...' : `Confirm ${actionType}`}
           </Button>
@@ -845,232 +984,181 @@ const handleActionClose = () => {
       </Dialog>
 
       {/* View Details Dialog */}
-     {/* View Details Dialog */}
-<Dialog
-  open={openViewDialog}
-  onClose={() => setOpenViewDialog(false)}
-  maxWidth="sm"
-  fullWidth
-  PaperProps={{ sx: { borderRadius: 2 } }}
->
-  {/* Header */}
-  <DialogTitle
-    sx={{
-      borderBottom: "1px solid #E0E0E0",
-      py: 1,
-      backgroundColor: "#F8FAFC",
-    }}
-  >
-    <Typography fontSize={18} fontWeight={600} color="#101010">
-      Leave Application Details
-    </Typography>
-  </DialogTitle>
+      <Dialog
+        open={openViewDialog}
+        onClose={() => setOpenViewDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle
+          sx={{
+            borderBottom: "1px solid #E0E0E0",
+            py: 1.5,
+            backgroundColor: "#F8FAFC",
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <Typography fontSize={18} fontWeight={600} color={TEXT_COLOR_MAIN}>
+            Leave Application Details
+          </Typography>
+          <IconButton onClick={() => setOpenViewDialog(false)} size="small">
+            <CloseSharp />
+          </IconButton>
+        </DialogTitle>
 
-  {/* Content */}
-  <DialogContent sx={{ pt: 1.5, pb: 1 }}>
-    {selectedLeave && (
-      <Stack spacing={2}>
-        {/* Employee Info */}
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar
+        <DialogContent sx={{ pt: 2, pb: 1 }}>
+          {selectedLeave && (
+            <Stack spacing={2}>
+              {/* Employee Info */}
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: PRIMARY_BLUE,
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  {getAvatarInitials(selectedLeave)}
+                </Avatar>
+                <Box>
+                  <Typography fontWeight={600} color={TEXT_COLOR_MAIN}>
+                    {getEmployeeName(selectedLeave)}
+                  </Typography>
+                  <Typography variant="caption" color="#64748B">
+                    ID: {selectedLeave.EmployeeID?.EmployeeID}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Divider />
+
+              {/* Leave Details */}
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="#64748B">Leave Type</Typography>
+                  <Typography fontWeight={600} color={TEXT_COLOR_MAIN}>
+                    {selectedLeave.LeaveTypeID?.Name}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="#64748B">Status</Typography>
+                  <Box mt={0.5}>
+                    <Chip
+                      label={selectedLeave.Status}
+                      size="small"
+                      color={getStatusColor(selectedLeave.Status)}
+                      sx={{ fontWeight: 500 }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="#64748B">Duration</Typography>
+                  <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                    {formatDate(selectedLeave.StartDate)} - {formatDate(selectedLeave.EndDate)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="#64748B">Days</Typography>
+                  <Chip
+                    label={`${selectedLeave.NumberOfDays || calculateDaysDifference(selectedLeave.StartDate, selectedLeave.EndDate)} days`}
+                    size="small"
+                    sx={{ fontWeight: 500, bgcolor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #bae6fd', mt: 0.5 }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Divider />
+
+              {/* Contact Info */}
+              <Stack spacing={1}>
+                <Typography variant="subtitle2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  Contact Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="#64748B">Contact Number</Typography>
+                    <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                      {selectedLeave.ContactNumber || "Not provided"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={8}>
+                    <Typography variant="caption" color="#64748B">Address During Leave</Typography>
+                    <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                      {selectedLeave.AddressDuringLeave || "Not specified"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Stack>
+
+              <Divider />
+
+              {/* Reason */}
+              <Stack spacing={1}>
+                <Typography variant="subtitle2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  Reason
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    backgroundColor: "#F8FAFC",
+                    p: 1.5,
+                    borderRadius: 1,
+                    minHeight: 60,
+                    lineHeight: 1.5,
+                    border: '1px solid #E0E0E0',
+                    color: TEXT_COLOR_MAIN
+                  }}
+                >
+                  {selectedLeave.Reason || "No reason provided"}
+                </Typography>
+              </Stack>
+
+              <Divider />
+
+              {/* System Info */}
+              <Stack spacing={1}>
+                <Typography variant="subtitle2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                  System Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="#64748B">Applied On</Typography>
+                    <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                      {formatDateTime(selectedLeave.AppliedOn)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="#64748B">Last Updated</Typography>
+                    <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                      {formatDateTime(selectedLeave.UpdatedAt)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Stack>
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, borderTop: "1px solid #E0E0E0" }}>
+          <Button
+            variant="contained"
+            onClick={() => setOpenViewDialog(false)}
+            startIcon={<CloseSharp />}
             sx={{
-              width: 48,
-              height: 48,
-              bgcolor: "#00B4D8",
-              fontSize: "1.2rem",
+              borderRadius: 1.5,
+              textTransform: "none",
+              background: HEADER_GRADIENT,
+              '&:hover': { opacity: 0.9, background: HEADER_GRADIENT }
             }}
           >
-            {getAvatarInitials(selectedLeave)}
-          </Avatar>
-          <Box>
-            <Typography fontWeight={600}>
-              {getEmployeeName(selectedLeave)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              ID: {selectedLeave.EmployeeID?.EmployeeID}
-            </Typography>
-          </Box>
-        </Stack>
-
-        <Divider />
-
-        {/* Leave Details */}
-        <Stack spacing={1.5}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            Leave Details
-          </Typography>
-
-          <Stack direction="row" spacing={2}>
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Leave Type
-              </Typography>
-              <Typography fontWeight={600}>
-                {selectedLeave.LeaveTypeID?.Name}
-              </Typography>
-            </Box>
-
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Status
-              </Typography><br></br>
-              <Chip
-                label={selectedLeave.Status}
-                size="small"
-                color={getStatusColor(selectedLeave.Status)}
-              />
-            </Box>
-
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Duration
-              </Typography>
-              <Typography>
-                {formatDate(selectedLeave.StartDate)} {" "}
-                {formatDate(selectedLeave.EndDate)}
-              </Typography>
-            </Box>
-
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Days
-              </Typography>
-              <Typography fontWeight={600}>
-                {selectedLeave.NumberOfDays ||
-                  calculateDaysDifference(
-                    selectedLeave.StartDate,
-                    selectedLeave.EndDate
-                  )}{" "}
-                days
-              </Typography>
-            </Box>
-          </Stack>
-
-          <Stack direction="row" spacing={2}>
-            
-
-            
-          </Stack>
-        </Stack>
-
-        <Divider />
-
-        {/* Contact Info */}
-        <Stack spacing={1}  >
-          <Typography variant="subtitle2" fontWeight={600}>
-            Contact Information
-          </Typography>
-
-                  <Stack direction="row" spacing={10}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Contact Number
-            </Typography>
-            <Typography>
-              {selectedLeave.ContactNumber || "Not provided"}
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Address During Leave
-            </Typography>
-            <Typography>
-              {selectedLeave.AddressDuringLeave || "Not specified"}
-            </Typography>
-          </Box>
-          </Stack>
-        </Stack>
-
-        <Divider />
-
-        {/* Reason */}
-        <Stack spacing={1}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            Reason
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              backgroundColor: "#F8FAFC",
-              p: 1,
-              borderRadius: 1,
-              minHeight: 50,
-              lineHeight: 1.4,
-            }}
-          >
-            {selectedLeave.Reason || "No reason provided"}
-          </Typography>
-        </Stack>
-
-        <Divider />
-
-        {/* System Info */}
-        <Stack spacing={1}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            System Information
-          </Typography>
-
-          <Stack direction="row" spacing={2}>
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Applied On
-              </Typography>
-              <Typography variant="body2">
-                {formatDateTime(selectedLeave.AppliedOn)}
-              </Typography>
-            </Box>
-
-            <Box flex={1}>
-              <Typography variant="caption" color="text.secondary">
-                Last Updated
-              </Typography>
-              <Typography variant="body2">
-                {formatDateTime(selectedLeave.UpdatedAt)}
-              </Typography>
-            </Box>
-          </Stack>
-
-          {/* <Box>
-            <Typography variant="caption" color="text.secondary">
-              Application ID
-            </Typography>
-            <Typography variant="body2">{selectedLeave._id}</Typography>
-          </Box> */}
-        </Stack>
-      </Stack>
-    )}
-  </DialogContent>
-
-  {/* Actions */}
-  <DialogActions
-    sx={{
-      px: 3,
-      pb: 2,
-      pt: 2,
-      borderTop: "1px solid #E0E0E0",
-      backgroundColor: "#F8FAFC",
-    }}
-  >
-    <Button
-      variant="contained"
-      onClick={() => setOpenViewDialog(false)}
-      startIcon={<CloseSharp />}
-      sx={{
-        borderRadius: 1,
-        px: 3,
-        py: 1,
-        textTransform: "none",
-        fontWeight: 500,
-        backgroundColor: "#1976D2",
-        "&:hover": { backgroundColor: "#1565C0" },
-      }}
-    >
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
-
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar
@@ -1079,7 +1167,11 @@ const handleActionClose = () => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+        <Alert 
+          severity={snackbar.severity} 
+          variant="filled" 
+          sx={{ width: '100%', borderRadius: 1.5 }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>

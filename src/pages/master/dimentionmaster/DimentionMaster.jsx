@@ -42,7 +42,9 @@ import {
   Scale as ScaleIcon,
   MoreVert as MoreVertIcon,
   Visibility as ViewIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  CalendarToday as CalendarIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -225,12 +227,13 @@ const DimensionMaster = () => {
     setSearchTerm(value);
     
     const filtered = dimensions.filter(dimension =>
-      dimension.PartNo.toLowerCase().includes(value) ||
-      (dimension.Item?.PartName?.toLowerCase() || '').includes(value) ||
-      dimension.WeightInKG.toString().includes(value) ||
-      dimension.Thickness.toString().includes(value) ||
-      dimension.Width.toString().includes(value) ||
-      dimension.Length.toString().includes(value)
+      dimension.PartNo?.toLowerCase().includes(value) ||
+      dimension.Thickness?.toString().includes(value) ||
+      dimension.Width?.toString().includes(value) ||
+      dimension.Length?.toString().includes(value) ||
+      dimension.Density?.toString().includes(value) ||
+      dimension.WeightInKG?.toString().includes(value) ||
+      (dimension.DimensionsFormatted?.toLowerCase() || '').includes(value)
     );
     
     setFilteredDimensions(filtered);
@@ -402,7 +405,7 @@ const DimensionMaster = () => {
           {/* Search and Filters */}
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by Part No, Item name, or dimensions..."
+              placeholder="Search by Part No, dimensions, or weight..."
               size="small"
               value={searchTerm}
               onChange={handleSearch}
@@ -454,26 +457,6 @@ const DimensionMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -553,22 +536,14 @@ const DimensionMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Part Name
+                  Dimensions
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
-                  Drawing No.
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                }} align="center">
                   Thickness (mm)
                 </TableCell>
                 <TableCell sx={{ 
@@ -576,7 +551,7 @@ const DimensionMaster = () => {
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
+                }} align="center">
                   Width (mm)
                 </TableCell>
                 <TableCell sx={{ 
@@ -584,7 +559,7 @@ const DimensionMaster = () => {
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
+                }} align="center">
                   Length (mm)
                 </TableCell>
                 <TableCell sx={{ 
@@ -592,7 +567,7 @@ const DimensionMaster = () => {
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
+                }} align="center">
                   Density (g/cm³)
                 </TableCell>
                 <TableCell sx={{ 
@@ -600,16 +575,24 @@ const DimensionMaster = () => {
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
-                  Material
+                }} align="center">
+                  Volume (mm³)
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
-                }}>
+                }} align="center">
                   Weight (kg)
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '0.875rem',
+                  py: 2,
+                  color: TEXT_COLOR_HEADER
+                }} align="center">
+                  Created
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -698,60 +681,50 @@ const DimensionMaster = () => {
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
-                          {dimension.Item?.PartName || 'N/A'}
+                        <Typography variant="body2" color="#475569" sx={{ fontFamily: 'monospace' }}>
+                          {dimension.DimensionsFormatted || `T: ${dimension.Thickness}mm × W: ${dimension.Width}mm × L: ${dimension.Length}mm`}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {dimension.Item?.DrawingNo || 'N/A'}
-                        </Typography>
-                        {dimension.Item?.RevisionNo && (
-                          <Typography variant="caption" color="#64748B" display="block">
-                            Rev: {dimension.Item.RevisionNo}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <TableCell align="center">
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                           <HeightIcon fontSize="small" sx={{ color: '#4F46E5' }} />
                           <Typography variant="body2" fontWeight={500} color="#4F46E5">
                             {dimension.Thickness}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <TableCell align="center">
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                           <WidthIcon fontSize="small" sx={{ color: '#10B981' }} />
                           <Typography variant="body2" fontWeight={500} color="#10B981">
                             {dimension.Width}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <TableCell align="center">
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                           <StraightenIcon fontSize="small" sx={{ color: '#F59E0B' }} />
                           <Typography variant="body2" fontWeight={500} color="#F59E0B">
                             {dimension.Length}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <TableCell align="center">
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                           <ScaleIcon fontSize="small" sx={{ color: '#EF4444' }} />
                           <Typography variant="body2" fontWeight={500} color="#EF4444">
                             {dimension.Density}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {dimension.Item?.MaterialID?.MaterialName || 'N/A'}
+                      <TableCell align="center">
+                        <Typography variant="body2" color="#475569" fontWeight={500}>
+                          {dimension.VolumeMM3?.toLocaleString() || 'N/A'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <Chip
-                          label={`${dimension.WeightInKG} kg`}
+                          label={dimension.WeightFormatted || `${dimension.WeightInKG} kg`}
                           size="small"
                           sx={{
                             bgcolor: '#f0fdf4',
@@ -762,6 +735,16 @@ const DimensionMaster = () => {
                             minWidth: 70
                           }}
                         />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title={`Created: ${formatDate(dimension.createdAt)}`}>
+                          <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                            <CalendarIcon sx={{ fontSize: 14, color: '#64748B' }} />
+                            <Typography variant="caption" color="#64748B">
+                              {formatDate(dimension.createdAt)}
+                            </Typography>
+                          </Stack>
+                        </Tooltip>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 100 }}>
                         <ActionMenu 

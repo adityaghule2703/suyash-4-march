@@ -48,7 +48,8 @@ import {
   Description as DescriptionIcon,
   CalendarToday as CalendarIcon,
   Update as UpdateIcon,
-  Category as CategoryIcon
+  Category as CategoryIcon,
+  Label as LabelIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -231,11 +232,11 @@ const ProcessMaster = () => {
     setSearchTerm(value);
     
     const filtered = processes.filter(process =>
-      process.ProcessName.toLowerCase().includes(value) ||
-      process.ProcessType.toLowerCase().includes(value) ||
-      process.RateType.toLowerCase().includes(value) ||
-      process.VendorOrInhouse.toLowerCase().includes(value) ||
-      (process.Description && process.Description.toLowerCase().includes(value))
+      process.process_id?.toLowerCase().includes(value) ||
+      process.process_name?.toLowerCase().includes(value) ||
+      process.category?.toLowerCase().includes(value) ||
+      process.rate_type?.toLowerCase().includes(value) ||
+      (process.description && process.description.toLowerCase().includes(value))
     );
     
     setFilteredProcesses(filtered);
@@ -407,29 +408,6 @@ const ProcessMaster = () => {
     );
   };
   
-  // Get vendor/inhouse chip
-  const getVendorInhouseChip = (type) => {
-    const isVendor = type === 'Vendor';
-    return (
-      <Chip
-        label={type}
-        size="small"
-        icon={isVendor ? <BusinessIcon /> : <FactoryIcon />}
-        sx={{
-          bgcolor: isVendor ? '#FEF3C7' : '#DBEAFE',
-          color: isVendor ? '#92400E' : '#1E40AF',
-          border: '1px solid',
-          borderColor: isVendor ? '#FCD34D' : '#93C5FD',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: isVendor ? '#92400E' : '#1E40AF',
-            fontSize: 14
-          }
-        }}
-      />
-    );
-  };
-  
   // Get rate type chip
   const getRateTypeChip = (rateType) => {
     const colors = {
@@ -457,36 +435,30 @@ const ProcessMaster = () => {
     );
   };
 
-  // Get process type chip
-  const getProcessTypeChip = (processType) => {
-    return processType === 'Main' ? (
+  // Get category chip
+  const getCategoryChip = (category) => {
+    const colors = {
+      'Core': { bg: '#E0F2FE', color: '#0369A1', border: '#7DD3FC' },
+      'Finishing': { bg: '#FCE7F3', color: '#9D174D', border: '#F9A8D4' },
+      'Packing': { bg: '#D1FAE5', color: '#065F46', border: '#6EE7B7' },
+      'Other': { bg: '#F5F5F5', color: '#616161', border: '#E0E0E0' }
+    };
+    
+    const color = colors[category] || { bg: '#F5F5F5', color: '#616161', border: '#E0E0E0' };
+    
+    return (
       <Chip
-        label="Main"
+        label={category}
         size="small"
         icon={<CategoryIcon />}
         sx={{
-          bgcolor: '#E0F2FE',
-          color: '#0369A1',
-          border: '1px solid #7DD3FC',
+          bgcolor: color.bg,
+          color: color.color,
+          border: '1px solid',
+          borderColor: color.border,
           fontWeight: 500,
           '& .MuiChip-icon': {
-            color: '#0369A1',
-            fontSize: 14
-          }
-        }}
-      />
-    ) : (
-      <Chip
-        label="Finishing"
-        size="small"
-        icon={<CategoryIcon />}
-        sx={{
-          bgcolor: '#FCE7F3',
-          color: '#9D174D',
-          border: '1px solid #F9A8D4',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: '#9D174D',
+            color: color.color,
             fontSize: 14
           }
         }}
@@ -520,7 +492,7 @@ const ProcessMaster = () => {
           Process Master
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage manufacturing processes, types, rates, and vendor information
+          Manage manufacturing processes, categories, rates, and process IDs
         </Typography>
       </Box>
 
@@ -537,12 +509,12 @@ const ProcessMaster = () => {
           {/* Search and Filters */}
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by process name, type, rate type, or vendor..."
+              placeholder="Search by Process ID, Name, Category, or Rate Type..."
               size="small"
               value={searchTerm}
               onChange={handleSearch}
               sx={{ 
-                width: { xs: '100%', sm: 400 },
+                width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   '&:hover fieldset': {
@@ -589,26 +561,6 @@ const ProcessMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -678,7 +630,7 @@ const ProcessMaster = () => {
                   color: TEXT_COLOR_HEADER
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Process Name
+                    Process Details
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
@@ -688,7 +640,7 @@ const ProcessMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Process Type
+                  Process ID
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -696,7 +648,7 @@ const ProcessMaster = () => {
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Description
+                  Category
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 700, 
@@ -706,14 +658,14 @@ const ProcessMaster = () => {
                 }}>
                   Rate Type
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
                   py: 2,
                   color: TEXT_COLOR_HEADER
                 }}>
-                  Vendor/Inhouse
-                </TableCell>
+                  Status
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 700, 
                   fontSize: '0.875rem',
@@ -809,32 +761,53 @@ const ProcessMaster = () => {
                             fontSize: '0.75rem',
                             fontWeight: 500
                           }}>
-                            {getProcessInitials(process.ProcessName)}
+                            {getProcessInitials(process.process_name)}
                           </Avatar>
-                          <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                            {process.ProcessName}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                              {process.process_name}
+                            </Typography>
+                            {process.description && (
+                              <Typography variant="caption" color="#64748B" sx={{ display: 'block', mt: 0.5 }}>
+                                {process.description.length > 30 
+                                  ? `${process.description.substring(0, 30)}...` 
+                                  : process.description}
+                              </Typography>
+                            )}
+                          </Box>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        {getProcessTypeChip(process.ProcessType)}
+                        <Chip
+                          label={process.process_id}
+                          size="small"
+                          icon={<LabelIcon />}
+                          sx={{
+                            bgcolor: '#F1F5F9',
+                            color: '#334155',
+                            border: '1px solid #CBD5E1',
+                            fontWeight: 500,
+                            '& .MuiChip-icon': {
+                              color: '#475569',
+                              fontSize: 14
+                            }
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={TEXT_COLOR_MAIN} sx={{ maxWidth: 200 }}>
-                          {process.Description || '—'}
-                        </Typography>
+                        {getCategoryChip(process.category)}
                       </TableCell>
                       <TableCell>
-                        {getRateTypeChip(process.RateType)}
+                        {getRateTypeChip(process.rate_type)}
                       </TableCell>
-                      <TableCell>
-                        {getVendorInhouseChip(process.VendorOrInhouse)}
-                      </TableCell>
+                      {/* <TableCell>
+                        {getStatusChip(process.is_active)}
+                      </TableCell> */}
                       <TableCell>
                         <Stack direction="row" spacing={0.5} alignItems="center">
                           <CalendarIcon sx={{ fontSize: 14, color: '#64748B' }} />
                           <Typography variant="body2" color={TEXT_COLOR_MAIN}>
-                            {formatDate(process.CreatedAt)}
+                            {formatDate(process.createdAt)}
                           </Typography>
                         </Stack>
                       </TableCell>
@@ -842,7 +815,7 @@ const ProcessMaster = () => {
                         <Stack direction="row" spacing={0.5} alignItems="center">
                           <UpdateIcon sx={{ fontSize: 14, color: '#64748B' }} />
                           <Typography variant="body2" color={TEXT_COLOR_MAIN}>
-                            {formatDate(process.UpdatedAt)}
+                            {formatDate(process.updatedAt)}
                           </Typography>
                         </Stack>
                       </TableCell>

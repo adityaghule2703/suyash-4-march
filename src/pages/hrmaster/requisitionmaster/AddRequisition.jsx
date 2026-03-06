@@ -108,7 +108,7 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
     employmentType: '',
     reasonForHire: '',
     education: '',
-    experienceYears: '',
+    experienceYears: '', // Changed to empty string instead of empty array
     skills: [],
     budgetMin: '',
     budgetMax: '',
@@ -233,6 +233,22 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
     }
   };
 
+  // Handle text change for experience (no validation)
+  const handleTextChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
   const handleAddSkill = () => {
     if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
       setFormData(prev => ({
@@ -288,11 +304,9 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
       if (!formData.education.trim()) {
         errors.education = 'Education requirement is required';
       }
-      if (!formData.experienceYears) {
-        errors.experienceYears = 'Experience years is required';
-      } else if (parseInt(formData.experienceYears) < 0) {
-        errors.experienceYears = 'Experience years cannot be negative';
-      }
+      
+      // Experience field validation removed - it's now optional
+      
       if (!formData.budgetMin) {
         errors.budgetMin = 'Minimum budget is required';
       }
@@ -350,7 +364,7 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
         employmentType: formData.employmentType,
         reasonForHire: formData.reasonForHire,
         education: formData.education,
-        experienceYears: parseInt(formData.experienceYears),
+        experienceYears: formData.experienceYears, // Send as string, no conversion
         skills: formData.skills,
         budgetMin: parseInt(formData.budgetMin),
         budgetMax: parseInt(formData.budgetMax),
@@ -749,16 +763,14 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
                   <TextField
                     fullWidth
                     size="small"
-                    label="Experience (Years)"
+                    label="Experience"
                     name="experienceYears"
                     value={formData.experienceYears}
-                    onChange={handleNumberChange}
-                    required
-                    type="number"
-                    inputProps={{ min: 0 }}
+                    onChange={handleTextChange} // Using text change handler
+                    type="text"
                     error={!!fieldErrors.experienceYears}
-                    helperText={fieldErrors.experienceYears}
-                    placeholder="e.g., 3"
+                    helperText={fieldErrors.experienceYears || 'Optional - e.g., 3 years, Fresher, 5+ years'}
+                    placeholder="e.g., 3 years, Fresher, 5+ years"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
                   />
                 </Grid>
@@ -883,7 +895,7 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Experience</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{formData.experienceYears || '0'} years</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{formData.experienceYears || 'Not specified'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Budget Range</Typography>

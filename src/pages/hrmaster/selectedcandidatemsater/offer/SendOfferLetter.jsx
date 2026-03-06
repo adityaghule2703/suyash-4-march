@@ -15,10 +15,10 @@ import {
   TextField,
   Divider,
   Grid,
-  FormControlLabel,
-  Checkbox,
   Snackbar,
-  Tooltip
+  Tooltip,
+  Avatar,
+  Stack
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -29,26 +29,30 @@ import {
   Error as ErrorIcon,
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
-  Link as LinkIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Person as PersonIcon,
+  Lock as LockIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
 
 const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   const [loading, setLoading] = useState(false);
+  const [fetchingOffer, setFetchingOffer] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [sendResult, setSendResult] = useState(null);
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [candidateInfo, setCandidateInfo] = useState(null);
   
   // Email form state
   const [emailData, setEmailData] = useState({
     to: '',
     cc: '',
     bcc: '',
-    subject: `Offer Letter - ${candidate?.name || 'Candidate'}`,
-    message: `Dear ${candidate?.name || 'Candidate'},\n\nWe are pleased to offer you the position of ${candidate?.position || 'the position'} at our company. Please find attached your offer letter.\n\nYou can view and accept your offer using the secure links below.\n\nBest regards,\nHR Team`,
+    subject: '',
+    message: '',
     sendCopy: true,
     includeViewLink: true,
     includeAcceptLink: true
@@ -70,9 +74,11 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   // Reset state when dialog opens with new candidate
   useEffect(() => {
     if (open && candidate) {
-      setError(null);
-      setSuccess(false);
-      setSendResult(null);
+      console.log('🔵 SendOfferLetter opened for candidate:', candidate);
+      resetState();
+      
+      // Set candidate info immediately from props
+      setCandidateInfo(candidate);
       
       // Pre-fill email with candidate data
       setEmailData({
@@ -85,20 +91,134 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
         includeViewLink: true,
         includeAcceptLink: true
       });
-
-      // Validate if candidate has offerId
-      if (!candidate.offerId) {
-        setError('No offer ID found for this candidate');
-        showSnackbar('No offer ID found for this candidate', 'error');
-      }
-
-      // Validate if candidate has email
-      if (!candidate.email) {
-        setError('No email address found for this candidate');
-        showSnackbar('No email address found for this candidate', 'error');
-      }
+      
+      // Fetch the latest offer for this specific candidate
+      fetchLatestOfferForCandidate(candidate);
     }
   }, [open, candidate]);
+
+  const resetState = () => {
+    setError(null);
+    setSuccess(false);
+    setSendResult(null);
+    setSelectedOffer(null);
+    setFetchingOffer(false);
+    setSending(false);
+  };
+
+  // Fetch the latest offer for the candidate (any status that can be sent)
+  const fetchLatestOfferForCandidate = async (candidateData) => {
+    if (!candidateData) {
+      setError('No candidate data provided');
+      showSnackbar('No candidate data provided', 'error');
+      return;
+    }
+
+    setFetchingOffer(true);
+    setError(null);
+
+    try {
+      const token = getAuthToken();
+      const candidateId = candidateData.id || candidateData._id || candidateData.candidateId;
+      
+      console.log('🔵 Fetching offer for candidate ID:', candidateId);
+      console.log('🔵 Candidate data:', candidateData);
+
+      if (!candidateId) {
+        throw new Error('Invalid candidate ID');
+      }
+
+      // Fetch offers specifically for this candidate
+      console.log('🔵 Fetching offers for candidate ID:', candidateId);
+      
+      let offersArray = [];
+      
+      // Get offers with candidateId filter
+      try {
+        const offersResponse = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('🔵 Offers API Response:', offersResponse.data);
+        
+        if (offersResponse.data.success) {
+          if (offersResponse.data.data?.offers) {
+            offersArray = offersResponse.data.data.offers;
+          } else if (Array.isArray(offersResponse.data.data)) {
+            offersArray = offersResponse.data.data;
+          }
+        }
+      } catch (err) {
+        console.log('🔵 Failed to fetch offers:', err.message);
+        if (err.response?.status === 401) {
+          setError('Authentication failed. Please log in again.');
+          showSnackbar('Authentication failed. Please log in again.', 'error');
+          setFetchingOffer(false);
+          return;
+        }
+      }
+      
+      console.log('🔵 All offers for candidate:', offersArray);
+      
+      if (offersArray.length === 0) {
+        setError(`No offers found for candidate ${candidateData.name || candidateId}`);
+        showSnackbar(`No offers found for candidate ${candidateData.name || candidateId}`, 'warning');
+        setFetchingOffer(false);
+        return;
+      }
+      
+      // Filter for offers that can be sent (approved, generated, or sent)
+      const sendableOffers = offersArray.filter(offer => {
+        if (!offer) return false;
+        
+        const status = (offer.status || '').toLowerCase();
+        const offerStatus = (offer.offerStatus || '').toLowerCase();
+        const appStatus = (offer.applicationStatus || '').toLowerCase();
+        
+        return status === 'approved' || 
+               status === 'generated' || 
+               status === 'sent' ||
+               offerStatus === 'approved' || 
+               offerStatus === 'generated' || 
+               offerStatus === 'sent' ||
+               appStatus === 'approved' || 
+               appStatus === 'generated' || 
+               appStatus === 'sent';
+      });
+      
+      console.log('🔵 Sendable offers (approved/generated/sent):', sendableOffers);
+      
+      if (sendableOffers.length === 0) {
+        setError(`No approved or generated offers found for ${candidateData.name || 'this candidate'}. Please approve the offer first.`);
+        showSnackbar(`No approved offers found. Please approve the offer first.`, 'warning');
+        setFetchingOffer(false);
+        return;
+      }
+      
+      // Sort by creation date (newest first)
+      const sortedOffers = sendableOffers.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.createdDate || a.offerDate || a.updatedAt || 0);
+        const dateB = new Date(b.createdAt || b.createdDate || b.offerDate || b.updatedAt || 0);
+        return dateB - dateA;
+      });
+      
+      // Set the latest offer
+      const latestOffer = sortedOffers[0];
+      console.log('🔵 Latest offer selected:', latestOffer);
+      
+      setSelectedOffer(latestOffer);
+      
+    } catch (err) {
+      console.error('🔴 Error fetching offer:', err);
+      setError(`Error fetching offer details: ${err.message}`);
+      showSnackbar(`Error: ${err.message}`, 'error');
+    } finally {
+      setFetchingOffer(false);
+    }
+  };
 
   // Show snackbar message
   const showSnackbar = (message, severity = 'success') => {
@@ -131,7 +251,6 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   // Save token to localStorage
   const saveTokenToLocalStorage = (offerId, tokenData) => {
     try {
-      // Save the complete token data
       localStorage.setItem(`offer_token_${offerId}`, JSON.stringify({
         token: tokenData.token,
         tokenExpiry: tokenData.tokenExpiry,
@@ -145,9 +264,45 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     }
   };
 
+  // Handle view offer
+  const handleViewOffer = () => {
+    if (!sendResult?.viewUrl) {
+      showSnackbar('View URL not available', 'error');
+      return;
+    }
+    
+    console.log('Opening view URL:', sendResult.viewUrl);
+    
+    const newWindow = window.open(sendResult.viewUrl, '_blank');
+    
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      showSnackbar('Popup was blocked. Please allow popups for this site.', 'warning');
+    } else {
+      showSnackbar('Opening view link in new tab...', 'info');
+    }
+  };
+
+  // Handle accept offer
+  const handleAcceptOffer = () => {
+    if (!sendResult?.acceptUrl) {
+      showSnackbar('Accept URL not available', 'error');
+      return;
+    }
+    
+    console.log('Opening accept URL:', sendResult.acceptUrl);
+    
+    const newWindow = window.open(sendResult.acceptUrl, '_blank');
+    
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      showSnackbar('Popup was blocked. Please allow popups for this site.', 'warning');
+    } else {
+      showSnackbar('Opening accept link in new tab...', 'info');
+    }
+  };
+
   // Send offer letter via email
   const handleSendEmail = async () => {
-    if (!candidate?.offerId) {
+    if (!selectedOffer?._id && !selectedOffer?.id) {
       showSnackbar('No offer ID found', 'error');
       return;
     }
@@ -162,22 +317,16 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
 
     try {
       const token = getAuthToken();
-      console.log(`Sending offer letter for offer ID: ${candidate.offerId}`);
+      const offerId = selectedOffer._id || selectedOffer.id;
+      
+      console.log(`Sending offer letter for offer ID: ${offerId}`);
+      console.log(`Sending to: ${emailData.to}`);
       
       showSnackbar('Sending offer letter...', 'info');
       
       const response = await axios.post(
-        `${BASE_URL}/api/offers/${candidate.offerId}/send`,
-        {
-          to: emailData.to,
-          cc: emailData.cc ? emailData.cc.split(',').map(email => email.trim()) : [],
-          bcc: emailData.bcc ? emailData.bcc.split(',').map(email => email.trim()) : [],
-          subject: emailData.subject,
-          message: emailData.message,
-          sendCopy: emailData.sendCopy,
-          includeViewLink: emailData.includeViewLink,
-          includeAcceptLink: emailData.includeAcceptLink
-        },
+        `${BASE_URL}/api/offers/${offerId}/send`,
+        {},
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -189,9 +338,8 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
       console.log('Send email response:', response.data);
 
       if (response.data.success) {
-        // Save the token data to localStorage
         if (response.data.data && response.data.data.token) {
-          saveTokenToLocalStorage(candidate.offerId, response.data.data);
+          saveTokenToLocalStorage(offerId, response.data.data);
         }
         
         setSuccess(true);
@@ -242,19 +390,18 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   const handleMarkSent = () => {
     if (onComplete) {
       onComplete({
-        id: candidate?.id,
-        candidateId: candidate?.candidateId,
-        offerId: candidate?.offerId,
+        id: candidate?.id || candidateInfo?.id,
+        candidateId: candidate?.candidateId || candidateInfo?.candidateId,
+        offerId: selectedOffer?.offerId || candidate?.offerId,
         status: 'sent',
         applicationStatus: 'sent',
         emailSent: true,
         sentDate: new Date().toISOString(),
-        tokenData: sendResult // Include token data in the completion callback
+        tokenData: sendResult
       });
       
-      showSnackbar('Offer marked as sent successfully! Token saved.', 'success');
+      showSnackbar('Offer marked as sent successfully!', 'success');
       
-      // Close dialog after a short delay
       setTimeout(() => {
         onClose();
       }, 500);
@@ -279,6 +426,26 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     } catch {
       return 'Invalid date';
     }
+  };
+
+  // Get candidate initials for avatar
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+  };
+
+  const isLoading = fetchingOffer || sending;
+  
+  const displayCandidate = candidateInfo || candidate;
+  const candidateName = displayCandidate?.name || 'Unknown';
+  const candidateEmail = displayCandidate?.email || '';
+  const candidatePhone = displayCandidate?.phone || '';
+  const candidatePosition = displayCandidate?.position || 'N/A';
+  const offerId = selectedOffer?.offerId || displayCandidate?.offerId;
+
+  const getStatusDisplay = () => {
+    if (!selectedOffer) return 'N/A';
+    const status = selectedOffer.status || 'approved';
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
@@ -307,11 +474,11 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <EmailIcon sx={{ color: '#1976D2' }} />
             <Typography variant="subtitle1" fontWeight={600}>
-              Send Offer Letter via Email
+              Send Offer Letter
             </Typography>
-            {candidate && (
+            {candidateName && (
               <Chip 
-                label={candidate.name}
+                label={candidateName}
                 size="small"
                 color="primary"
                 variant="outlined"
@@ -319,13 +486,18 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
               />
             )}
           </Box>
-          <IconButton onClick={onClose} size="small" disabled={sending}>
+          <IconButton onClick={onClose} size="small" disabled={isLoading}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
 
         <DialogContent sx={{ p: 2, bgcolor: '#F5F7FA', overflow: 'auto' }}>
-          {error && !success && (
+          {fetchingOffer ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={40} />
+              <Typography sx={{ ml: 2 }}>Fetching latest offer for {candidateName}...</Typography>
+            </Box>
+          ) : error && !success ? (
             <Alert 
               severity="error" 
               sx={{ mb: 2, borderRadius: 1 }}
@@ -333,37 +505,104 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
             >
               {error}
             </Alert>
-          )}
-
-          {!candidate?.offerId ? (
+          ) : !selectedOffer ? (
             <Alert severity="warning" sx={{ borderRadius: 1 }}>
-              This candidate does not have an offer ID. Please generate an offer letter first.
+              No approved or generated offers found for {candidateName}. Please approve the offer first.
             </Alert>
           ) : !success ? (
             <>
-              {/* Offer Info Card */}
-              <Paper sx={{ p: 2, mb: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-                <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                  Offer Information
-                </Typography>
+              {/* Offer Info Card - Read Only */}
+              <Paper sx={{ p: 2, mb: 2, bgcolor: '#F0F7FF', borderRadius: 1, border: '1px solid #1976D2' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <LockIcon fontSize="small" sx={{ color: '#1976D2' }} />
+                  <Typography variant="subtitle2" sx={{ color: '#1976D2', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Offer Details (Read Only) - {candidateName}
+                  </Typography>
+                </Box>
+
+                {/* Candidate Info */}
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  mb: 2,
+                  p: 1.5,
+                  bgcolor: '#FFFFFF',
+                  borderRadius: 1,
+                  border: '1px solid #E0E0E0'
+                }}>
+                  <Avatar sx={{ bgcolor: '#1976D2', width: 48, height: 48 }}>
+                    {getInitials(displayCandidate?.firstName, displayCandidate?.lastName) || <PersonIcon />}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      {candidateName}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {candidateEmail} {candidatePhone && ` | ${candidatePhone}`}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Offer Information */}
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary" display="block">Candidate</Typography>
-                    <Typography variant="body2" fontWeight={500}>{candidate?.name}</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
                     <Typography variant="caption" color="textSecondary" display="block">Offer ID</Typography>
-                    <Typography variant="body2">{candidate?.offerId}</Typography>
+                    <Typography variant="body2" fontWeight={500}>{offerId || 'N/A'}</Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="caption" color="textSecondary" display="block">Position</Typography>
-                    <Typography variant="body2">{candidate?.position}</Typography>
+                    <Typography variant="body2">{candidatePosition}</Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary" display="block">Email</Typography>
-                    <Typography variant="body2">{candidate?.email || 'Not provided'}</Typography>
+                    <Typography variant="caption" color="textSecondary" display="block">Status</Typography>
+                    <Chip 
+                      label={getStatusDisplay()} 
+                      size="small" 
+                      color={selectedOffer?.status === 'approved' ? 'success' : 'secondary'}
+                      sx={{ fontWeight: 500 }}
+                    />
                   </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block">Recipient Email</Typography>
+                    <Typography variant="body2">{candidateEmail || 'Not provided'}</Typography>
+                  </Grid>
+                  {selectedOffer?.offerDate && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">Offer Date</Typography>
+                      <Typography variant="body2">{new Date(selectedOffer.offerDate).toLocaleDateString()}</Typography>
+                    </Grid>
+                  )}
+                  {selectedOffer?.expiryDate && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">Expiry Date</Typography>
+                      <Typography variant="body2">{new Date(selectedOffer.expiryDate).toLocaleDateString()}</Typography>
+                    </Grid>
+                  )}
                 </Grid>
+
+                {/* CTC Summary if available */}
+                {selectedOffer?.ctcDetails && (
+                  <Box sx={{ mt: 2, p: 1.5, bgcolor: '#FFFFFF', borderRadius: 1 }}>
+                    <Typography variant="caption" color="#1976D2" fontWeight={600} display="block" gutterBottom>
+                      CTC Summary
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">Monthly Gross</Typography>
+                        <Typography variant="body2">
+                          ₹{selectedOffer.ctcDetails.gross?.toLocaleString() || 'N/A'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">Annual CTC</Typography>
+                        <Typography variant="body2" fontWeight={600} color="#1976D2">
+                          ₹{selectedOffer.ctcDetails.totalCtc?.toLocaleString() || 'N/A'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
               </Paper>
 
               {/* Email Form */}
@@ -389,34 +628,6 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                     />
                   </Grid>
                   
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="CC"
-                      name="cc"
-                      value={emailData.cc}
-                      onChange={handleInputChange}
-                      size="small"
-                      placeholder="cc@example.com, another@example.com"
-                      helperText="Separate multiple emails with commas"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="BCC"
-                      name="bcc"
-                      value={emailData.bcc}
-                      onChange={handleInputChange}
-                      size="small"
-                      placeholder="bcc@example.com"
-                      helperText="Separate multiple emails with commas"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
-                  </Grid>
-                  
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
@@ -438,50 +649,11 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                       value={emailData.message}
                       onChange={handleInputChange}
                       multiline
-                      rows={5}
+                      rows={4}
                       size="small"
                       placeholder="Enter your message here..."
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
                     />
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            name="sendCopy"
-                            checked={emailData.sendCopy}
-                            onChange={handleInputChange}
-                            size="small"
-                          />
-                        }
-                        label="Send me a copy"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            name="includeViewLink"
-                            checked={emailData.includeViewLink}
-                            onChange={handleInputChange}
-                            size="small"
-                          />
-                        }
-                        label="Include secure view link in email"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            name="includeAcceptLink"
-                            checked={emailData.includeAcceptLink}
-                            onChange={handleInputChange}
-                            size="small"
-                          />
-                        }
-                        label="Include secure accept link in email"
-                      />
-                    </Box>
                   </Grid>
                 </Grid>
               </Paper>
@@ -495,109 +667,72 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                 <Typography variant="body2" color="textSecondary">
                   The offer letter has been sent to {emailData.to}
                 </Typography>
-                {sendResult?.token && (
-                  <Chip 
-                    label="Token Saved Locally"
-                    color="success"
-                    size="small"
-                    sx={{ mt: 1 }}
-                    icon={<CheckCircleIcon />}
-                  />
-                )}
               </Box>
 
               {sendResult && (
                 <>
-                  <Divider sx={{ my: 2 }} />
+                  {/* <Divider sx={{ my: 2 }} /> */}
                   
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#1976D2' }}>
-                    Secure Links (Valid until {formatExpiryDate(sendResult.tokenExpiry)})
+                  {/* <Typography variant="subtitle2" gutterBottom sx={{ color: '#1976D2', mb: 2 }}>
+                    Secure Actions (Valid until {formatExpiryDate(sendResult.tokenExpiry)})
                   </Typography>
                   
-                  {sendResult.viewUrl && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        View Offer URL:
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            flex: 1, 
-                            bgcolor: '#F5F5F5', 
-                            p: 1, 
-                            borderRadius: 1,
-                            fontFamily: 'monospace',
-                            fontSize: '0.75rem',
-                            wordBreak: 'break-all'
-                          }}
-                        >
-                          {sendResult.viewUrl}
-                        </Typography>
-                        <Tooltip title="Copy to clipboard">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleCopyToClipboard(sendResult.viewUrl, 'View URL')}
-                          >
-                            <CopyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                  )}
+                  <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
+                    {sendResult.viewUrl && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<ViewIcon />}
+                        onClick={handleViewOffer}
+                        sx={{ 
+                          minWidth: 140,
+                          py: 1.5,
+                          backgroundColor: '#1976D2',
+                          '&:hover': { backgroundColor: '#1565C0' }
+                        }}
+                      >
+                        View Offer
+                      </Button>
+                    )}
+                    
+                    {sendResult.acceptUrl && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={handleAcceptOffer}
+                        sx={{ 
+                          minWidth: 140,
+                          py: 1.5,
+                          backgroundColor: '#4CAF50',
+                          '&:hover': { backgroundColor: '#45a049' }
+                        }}
+                      >
+                        Accept Offer
+                      </Button>
+                    )}
+                  </Stack> */}
 
-                  {sendResult.acceptUrl && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                        Accept Offer URL:
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            flex: 1, 
-                            bgcolor: '#F5F5F5', 
-                            p: 1, 
-                            borderRadius: 1,
-                            fontFamily: 'monospace',
-                            fontSize: '0.75rem',
-                            wordBreak: 'break-all'
-                          }}
-                        >
-                          {sendResult.acceptUrl}
-                        </Typography>
-                        <Tooltip title="Copy to clipboard">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleCopyToClipboard(sendResult.acceptUrl, 'Accept URL')}
-                          >
-                            <CopyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                  )}
-
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: '#E3F2FD', 
-                    borderRadius: 1, 
-                    border: '1px solid #90CAF9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
-                    <InfoIcon sx={{ color: '#1976D2', fontSize: 20 }} />
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Token: <strong>{sendResult.token}</strong>
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        These links are unique and secure. They will expire on {formatExpiryDate(sendResult.tokenExpiry)}.
-                      </Typography>
-                    </Box>
-                  </Box>
+                  {/* <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 1 }}>
+                    <Tooltip title="Copy View URL">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleCopyToClipboard(sendResult.viewUrl, 'View URL')}
+                        sx={{ color: '#1976D2' }}
+                      >
+                        <CopyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Copy Accept URL">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleCopyToClipboard(sendResult.acceptUrl, 'Accept URL')}
+                        sx={{ color: '#4CAF50' }}
+                      >
+                        <CopyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box> */}
                 </>
               )}
             </Paper>
@@ -624,7 +759,7 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                 <Button
                   variant="contained"
                   onClick={handleSendEmail}
-                  disabled={!emailData.to || !candidate?.offerId || sending}
+                  disabled={!emailData.to || !selectedOffer || sending}
                   size="small"
                   startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
                   sx={{

@@ -74,13 +74,15 @@ const AddTermination = ({ open, onClose, onAdd }) => {
     setLoading(true);
     setError("");
 
-    const payload = {
-      employeeId: formData.employeeId,
-      reason: formData.reason,
-      lastWorkingDay: formData.lastWorkingDay.toISOString().split("T")[0],
-      terminationType: formData.terminationType,
-      initiatorType: formData.initiatorType,
-    };
+    const date = formData.lastWorkingDay;
+
+const payload = {
+  employeeId: formData.employeeId,
+  reason: formData.reason,
+  lastWorkingDay: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+  terminationType: formData.terminationType,
+  initiatorType: formData.initiatorType,
+};
 
     try {
       const token = localStorage.getItem("token");

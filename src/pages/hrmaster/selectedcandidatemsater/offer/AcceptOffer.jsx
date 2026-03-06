@@ -26,7 +26,8 @@ import {
   StepConnector,
   stepConnectorClasses,
   Snackbar,
-  Avatar
+  Avatar,
+  Checkbox
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -37,11 +38,10 @@ import {
   Edit as EditIcon,
   Verified as VerifiedIcon,
   Assignment as AssignmentIcon,
-  Work as WorkIcon,
-  AttachMoney as AttachMoneyIcon,
   Check as AcceptIcon,
   ThumbUp as ThumbUpIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Lock as LockIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
@@ -71,8 +71,7 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 const StepIcon = ({ active, completed, icon }) => {
   const getIcon = () => {
     if (icon === 1) return <AssignmentIcon fontSize="small" />;
-    if (icon === 2) return <PersonIcon fontSize="small" />;
-    if (icon === 3) return <ThumbUpIcon fontSize="small" />;
+    if (icon === 2) return <ThumbUpIcon fontSize="small" />;
     return icon;
   };
 
@@ -99,11 +98,12 @@ const StepIcon = ({ active, completed, icon }) => {
   );
 };
 
-const steps = ['Verify Offer', 'Acceptance', 'Confirmation'];
+const steps = ['Accept Offer', 'Confirmation'];
 
 const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [fetchingOffer, setFetchingOffer] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -115,14 +115,12 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
   const [signatureFile, setSignatureFile] = useState(null);
   const [signatureFileName, setSignatureFileName] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [offerDetails, setOfferDetails] = useState(null);
-  const [offerToken, setOfferToken] = useState(null);
-  const [tokenExpiry, setTokenExpiry] = useState(null);
   
-  // Token validation state
-  const [tokenValid, setTokenValid] = useState(false);
-  const [tokenError, setTokenError] = useState(null);
-  const [fetchingToken, setFetchingToken] = useState(false);
+  // Offer data state
+  const [offerDetails, setOfferDetails] = useState(null);
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [candidateInfo, setCandidateInfo] = useState(null);
+  const [offerFound, setOfferFound] = useState(false);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -138,15 +136,14 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
   // Reset state when dialog opens with new candidate
   useEffect(() => {
     if (open && candidate) {
+      console.log('🔵 AcceptOffer opened for candidate:', candidate);
       resetState();
       
-      // If candidate has offerId, check for token in localStorage
-      if (candidate.offerId) {
-        checkForOfferToken(candidate.offerId);
-      } else {
-        setTokenError('No offer ID found for this candidate');
-        showSnackbar('No offer ID found for this candidate', 'error');
-      }
+      // Set candidate info from props
+      setCandidateInfo(candidate);
+      
+      // Fetch the latest offer for this specific candidate
+      fetchLatestOfferForCandidate(candidate);
     }
   }, [open, candidate]);
 
@@ -161,10 +158,10 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
     setSignatureFileName('');
     setTermsAccepted(false);
     setOfferDetails(null);
-    setOfferToken(null);
-    setTokenExpiry(null);
-    setTokenValid(false);
-    setTokenError(null);
+    setSelectedOffer(null);
+    setOfferFound(false);
+    setFetchingOffer(false);
+    setAccepting(false);
   };
 
   // Show snackbar message
@@ -182,111 +179,113 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  // Check for offer token in localStorage (saved from send offer response)
-  const checkForOfferToken = (offerId) => {
-    setFetchingToken(true);
-    setTokenError(null);
-
-    try {
-      console.log(`Checking for token for offer ID: ${offerId}`);
-      
-      // Check if token exists in localStorage (saved from send offer)
-      const savedTokenData = localStorage.getItem(`offer_token_${offerId}`);
-      
-      if (savedTokenData) {
-        try {
-          const tokenData = JSON.parse(savedTokenData);
-          console.log('Found token data:', tokenData);
-          
-          setOfferToken(tokenData.token);
-          setTokenExpiry(tokenData.tokenExpiry);
-          
-          // Check if token is expired
-          if (tokenData.tokenExpiry) {
-            const expiryDate = new Date(tokenData.tokenExpiry);
-            const now = new Date();
-            
-            if (expiryDate < now) {
-              setTokenError('Offer token has expired. Please send the offer again.');
-              showSnackbar('Offer token has expired', 'error');
-              setTokenValid(false);
-            } else {
-              setTokenValid(true);
-              // Also fetch offer details
-              fetchOfferDetails(offerId);
-            }
-          } else {
-            setTokenValid(true);
-            fetchOfferDetails(offerId);
-          }
-        } catch (e) {
-          console.error('Error parsing token data:', e);
-          setTokenError('Invalid token data stored');
-          showSnackbar('Invalid token data', 'error');
-        }
-      } else {
-        setTokenError('No offer token found. Please ensure the offer has been sent to the candidate.');
-        showSnackbar('No offer token found', 'error');
-      }
-    } catch (err) {
-      console.error('Error checking token:', err);
-      setTokenError('Failed to check offer token');
-      showSnackbar('Failed to check offer token', 'error');
-    } finally {
-      setFetchingToken(false);
+  // Fetch the latest offer for the candidate
+  const fetchLatestOfferForCandidate = async (candidateData) => {
+    if (!candidateData) {
+      setError('No candidate data provided');
+      showSnackbar('No candidate data provided', 'error');
+      return;
     }
-  };
 
-  // Fetch offer details
-  const fetchOfferDetails = async (offerId) => {
+    setFetchingOffer(true);
+    setError(null);
+
     try {
       const token = getAuthToken();
-      console.log(`Fetching offer details for ID: ${offerId}`);
+      const candidateId = candidateData.id || candidateData._id || candidateData.candidateId;
       
-      const response = await axios.get(
-        `${BASE_URL}/api/offers/${offerId}`,
-        {
-          headers: {
+      console.log('🔵 Fetching offer for candidate ID:', candidateId);
+      console.log('🔵 Candidate data:', candidateData);
+
+      if (!candidateId) {
+        throw new Error('Invalid candidate ID');
+      }
+
+      // Fetch offers specifically for this candidate
+      console.log('🔵 Fetching offers for candidate ID:', candidateId);
+      
+      let offersArray = [];
+      
+      // Get offers with candidateId filter
+      try {
+        const offersResponse = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}`, {
+          headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
+        });
+        
+        console.log('🔵 Offers API Response:', offersResponse.data);
+        
+        if (offersResponse.data.success) {
+          if (offersResponse.data.data?.offers) {
+            offersArray = offersResponse.data.data.offers;
+          } else if (Array.isArray(offersResponse.data.data)) {
+            offersArray = offersResponse.data.data;
+          }
         }
-      );
-
-      console.log('Offer details response:', response.data);
-
-      if (response.data.success) {
-        const offerData = response.data.data;
-        setOfferDetails(offerData);
-        showSnackbar('Offer details loaded successfully!', 'success');
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch offer details');
+      } catch (err) {
+        console.log('🔵 Failed to fetch offers:', err.message);
+        if (err.response?.status === 401) {
+          setError('Authentication failed. Please log in again.');
+          showSnackbar('Authentication failed. Please log in again.', 'error');
+          setFetchingOffer(false);
+          return;
+        }
       }
+      
+      console.log('🔵 All offers for candidate:', offersArray);
+      
+      if (offersArray.length === 0) {
+        setError(`No offers found for candidate ${candidateData.name || candidateId}`);
+        showSnackbar(`No offers found for candidate ${candidateData.name || candidateId}`, 'warning');
+        setFetchingOffer(false);
+        return;
+      }
+      
+      // Filter for offers that are sent (ready for acceptance)
+      const sentOffers = offersArray.filter(offer => {
+        if (!offer) return false;
+        
+        const status = (offer.status || '').toLowerCase();
+        const offerStatus = (offer.offerStatus || '').toLowerCase();
+        const appStatus = (offer.applicationStatus || '').toLowerCase();
+        
+        return status === 'sent' || 
+               offerStatus === 'sent' || 
+               appStatus === 'sent';
+      });
+      
+      console.log('🔵 Sent offers:', sentOffers);
+      
+      if (sentOffers.length === 0) {
+        setError(`No sent offers found for ${candidateData.name || 'this candidate'}. Please send the offer first.`);
+        showSnackbar(`No sent offers found. Please send the offer first.`, 'warning');
+        setFetchingOffer(false);
+        return;
+      }
+      
+      // Sort by creation date (newest first)
+      const sortedOffers = sentOffers.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.createdDate || a.offerDate || a.updatedAt || 0);
+        const dateB = new Date(b.createdAt || b.createdDate || b.offerDate || b.updatedAt || 0);
+        return dateB - dateA;
+      });
+      
+      // Set the latest offer
+      const latestOffer = sortedOffers[0];
+      console.log('🔵 Latest offer selected:', latestOffer);
+      
+      setSelectedOffer(latestOffer);
+      setOfferDetails(latestOffer);
+      setOfferFound(true);
+      
     } catch (err) {
-      console.error('Error fetching offer details:', err);
-      
-      // For development, create mock offer details
-      const mockOfferDetails = {
-        _id: offerId,
-        offerId: offerId,
-        candidateId: candidate?.candidateId,
-        candidate: {
-          name: candidate?.name,
-          email: candidate?.email
-        },
-        job: {
-          title: candidate?.position || 'Software Developer'
-        },
-        offerDetails: {
-          joiningDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        ctcDetails: {
-          totalCtc: 1200000
-        }
-      };
-      
-      setOfferDetails(mockOfferDetails);
-      showSnackbar('Offer details loaded (demo mode)', 'info');
+      console.error('🔴 Error fetching offer:', err);
+      setError(`Error fetching offer details: ${err.message}`);
+      showSnackbar(`Error: ${err.message}`, 'error');
+    } finally {
+      setFetchingOffer(false);
     }
   };
 
@@ -330,14 +329,10 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
   // Validate current step
   const validateStep = (step) => {
     if (step === 0) {
-      if (!tokenValid) {
+      if (!offerFound || !selectedOffer) {
         setError('Please verify the offer first');
         return false;
       }
-      return true;
-    }
-    
-    if (step === 1) {
       if (signatureType === 'text' && !signature.trim()) {
         setError('Please enter your full name as signature');
         return false;
@@ -346,6 +341,10 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
         setError('Please upload your signature image');
         return false;
       }
+      return true;
+    }
+    
+    if (step === 1) {
       if (!termsAccepted) {
         setError('Please accept the terms and conditions');
         return false;
@@ -356,14 +355,14 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
     return true;
   };
 
-  // Handle accept offer - UPDATED to use correct endpoint
+  // Handle accept offer
   const handleAcceptOffer = async () => {
-    if (!candidate?.offerId || !offerToken) {
-      showSnackbar('Missing offer ID or token', 'error');
+    if (!selectedOffer?._id && !selectedOffer?.id) {
+      showSnackbar('No offer ID found', 'error');
       return;
     }
 
-    if (!validateStep(1)) {
+    if (!validateStep(0)) {
       return;
     }
 
@@ -372,18 +371,25 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
 
     try {
       const token = getAuthToken();
-      console.log(`Accepting offer for ID: ${candidate.offerId}`);
-      console.log(`Using token: ${offerToken}`);
+      const offerId = selectedOffer._id || selectedOffer.id;
+      
+      console.log(`🔵 Accepting offer for ID: ${offerId}`);
+      console.log(`🔵 Signature: ${signatureType === 'text' ? signature : '[Image uploaded]'}`);
+      console.log(`🔵 Signature type: ${signatureType}`);
       
       showSnackbar('Accepting offer...', 'info');
       
-      // CORRECTED: Using accept-offer endpoint with token as query parameter
+      // Prepare request body based on signature type
+      const requestBody = {
+        signature: signatureType === 'text' ? signature : signature,
+        signatureType: signatureType
+      };
+      
+      console.log('🔵 Request body:', requestBody);
+      
       const response = await axios.post(
-        `${BASE_URL}/api/offers/${candidate.offerId}/accept-offer?token=${offerToken}`,
-        {
-          signature: signatureType === 'text' ? signature : signature,
-          signatureType: signatureType
-        },
+        `${BASE_URL}/api/offers/${offerId}/accept`,
+        requestBody,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -392,34 +398,37 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
         }
       );
 
-      console.log('Accept offer response:', response.data);
+      console.log('🔵 Accept offer response:', response.data);
 
       if (response.data.success) {
+        setAcceptResult({
+          offerId: response.data.data.offerId || offerId,
+          candidateName: response.data.data.candidateName || candidateInfo?.name || candidate?.name || 'Candidate',
+          position: response.data.data.position || candidateInfo?.position || candidate?.position || 'Position',
+          joiningDate: response.data.data.joiningDate || new Date().toISOString(),
+          status: response.data.data.status || 'accepted'
+        });
+        
         setSuccess(true);
-        setAcceptResult(response.data.data);
-        
-        // Clear stored token after successful acceptance
-        localStorage.removeItem(`offer_token_${candidate.offerId}`);
-        
         showSnackbar('✅ Offer accepted successfully!', 'success');
         
-        // Move to confirmation step
-        setActiveStep(2);
+        // Move to confirmation step (Step 1)
+        setActiveStep(1);
       } else {
         throw new Error(response.data.message || 'Failed to accept offer');
       }
     } catch (err) {
-      console.error('Error accepting offer:', err);
+      console.error('🔴 Error accepting offer:', err);
       
       let errorMessage = 'Failed to accept offer';
       
       if (err.response) {
         if (err.response.status === 400) {
-          errorMessage = err.response.data.message || 'Invalid token or request';
+          errorMessage = err.response.data.message || 'Invalid request';
         } else if (err.response.status === 401) {
           errorMessage = 'Authentication failed. Please log in again.';
         } else if (err.response.status === 404) {
-          errorMessage = 'Offer not found or accept endpoint not found';
+          errorMessage = 'Offer not found';
         } else if (err.response.data) {
           errorMessage = err.response.data.message || errorMessage;
         }
@@ -440,14 +449,14 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
   const handleComplete = () => {
     if (onComplete) {
       onComplete({
-        id: candidate?.id,
-        candidateId: candidate?.candidateId,
-        offerId: candidate?.offerId || acceptResult?.offerId,
+        id: candidate?.id || candidateInfo?.id,
+        candidateId: candidate?.candidateId || candidateInfo?.candidateId,
+        offerId: acceptResult?.offerId || selectedOffer?.offerId || candidate?.offerId,
         status: 'accepted',
-        applicationStatus: 'accepted_by_candidate',
+        applicationStatus: 'accepted',
         acceptedDate: new Date().toISOString(),
-        joiningDate: acceptResult?.joiningDate,
-        candidateName: acceptResult?.candidateName
+        joiningDate: acceptResult?.joiningDate || candidate?.joiningDate,
+        candidateName: acceptResult?.candidateName || candidate?.name
       });
     }
     
@@ -465,17 +474,6 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
     onClose();
   };
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    if (!amount && amount !== 0) return '₹0';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'Not Set';
@@ -490,13 +488,14 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
     }
   };
 
-  // Check if token is expired
-  const isTokenExpired = () => {
-    if (!tokenExpiry) return false;
-    return new Date(tokenExpiry) < new Date();
-  };
-
-  const isLoading = loading || fetchingToken;
+  const isLoading = fetchingOffer || accepting;
+  
+  // Get candidate name and details
+  const candidateName = candidateInfo?.name || candidate?.name || 'Unknown';
+  const candidateEmail = candidateInfo?.email || candidate?.email || '';
+  const candidatePhone = candidateInfo?.phone || candidate?.phone || '';
+  const candidatePosition = candidateInfo?.position || candidate?.position || 'N/A';
+  const offerId = selectedOffer?.offerId || candidate?.offerId;
 
   return (
     <>
@@ -508,7 +507,8 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
         PaperProps={{
           sx: {
             borderRadius: 1.5,
-            maxHeight: '95vh'
+            maxHeight: '90vh',
+            minHeight: '600px'
           }
         }}
       >
@@ -526,9 +526,9 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
             <Typography variant="subtitle1" fontWeight={600}>
               Candidate Accept Offer
             </Typography>
-            {candidate && (
+            {candidateName && (
               <Chip 
-                label={candidate.name}
+                label={candidateName}
                 size="small"
                 color="success"
                 variant="outlined"
@@ -541,8 +541,8 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
           </IconButton>
         </DialogTitle>
 
-        {/* Stepper */}
-        {!success && activeStep < 2 && (
+        {/* Stepper - Only 2 steps */}
+        {!success && activeStep < 1 && (
           <Box sx={{ px: 2, pt: 2, backgroundColor: '#F8FAFC' }}>
             <Stepper 
               activeStep={activeStep} 
@@ -561,58 +561,40 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
           </Box>
         )}
 
-        <DialogContent sx={{ p: 2, bgcolor: '#F5F7FA', overflow: 'auto' }}>
-          {/* Step 0: Verify Offer */}
-          {activeStep === 0 && (
-            <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 2, fontWeight: 600, fontSize: '0.9rem' }}>
-                Verify Offer Details
-              </Typography>
-
-              {isLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                  <CircularProgress size={32} />
-                </Box>
-              ) : tokenError ? (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  {tokenError}
-                  <Box sx={{ mt: 1 }}>
-                    <Button 
-                      size="small" 
-                      variant="outlined" 
-                      onClick={() => candidate?.offerId && checkForOfferToken(candidate.offerId)}
-                      startIcon={<RefreshIcon />}
-                    >
-                      Retry
-                    </Button>
-                  </Box>
-                </Alert>
-              ) : tokenValid ? (
-                <>
-                  {/* Token Info */}
-                  {tokenExpiry && (
-                    <Box sx={{ 
-                      mb: 2, 
-                      p: 1.5, 
-                      bgcolor: isTokenExpired() ? '#FFEBEE' : '#E8F5E9', 
-                      borderRadius: 1,
-                      border: `1px solid ${isTokenExpired() ? '#EF5350' : '#81C784'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
-                    }}>
-                      {isTokenExpired() ? (
-                        <ErrorIcon sx={{ color: '#EF5350' }} />
-                      ) : (
-                        <VerifiedIcon sx={{ color: '#4CAF50' }} />
-                      )}
-                      <Typography variant="body2">
-                        {isTokenExpired() 
-                          ? 'Offer token has expired. Please send the offer again.' 
-                          : `Token valid until: ${formatDate(tokenExpiry)}`}
-                      </Typography>
-                    </Box>
-                  )}
+        <DialogContent sx={{ 
+          p: 2, 
+          bgcolor: '#F5F7FA', 
+          overflow: 'auto',
+          minHeight: '400px'
+        }}>
+          {fetchingOffer ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: 4, minHeight: '300px' }}>
+              <CircularProgress size={40} />
+              <Typography sx={{ mt: 2 }}>Fetching offer for {candidateName}...</Typography>
+            </Box>
+          ) : !selectedOffer ? (
+            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                No sent offer found for {candidateName}. Please send the offer first.
+              </Alert>
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <Button 
+                  variant="outlined" 
+                  onClick={() => candidate && fetchLatestOfferForCandidate(candidate)}
+                  startIcon={<RefreshIcon />}
+                >
+                  Retry
+                </Button>
+              </Box>
+            </Paper>
+          ) : (
+            <>
+              {/* Step 0: Accept Offer - Combined Verify + Signature */}
+              {activeStep === 0 && (
+                <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                  <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 2, fontWeight: 600, fontSize: '0.9rem' }}>
+                    Accept Offer
+                  </Typography>
 
                   {/* Candidate Info Card */}
                   <Box sx={{ 
@@ -630,16 +612,16 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
                     </Avatar>
                     <Box>
                       <Typography variant="subtitle1" fontWeight={600}>
-                        {candidate?.name}
+                        {candidateName}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        {candidate?.email} | {candidate?.phone}
+                        {candidateEmail} | {candidatePhone}
                       </Typography>
                     </Box>
                   </Box>
 
                   {/* Offer Summary */}
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
                     <Grid item xs={12}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
                         Offer Summary
@@ -651,7 +633,7 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
                         Offer ID
                       </Typography>
                       <Typography variant="body2" fontWeight={500}>
-                        {candidate?.offerId}
+                        {offerId || selectedOffer?._id || 'N/A'}
                       </Typography>
                     </Grid>
                     
@@ -660,304 +642,263 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
                         Position
                       </Typography>
                       <Typography variant="body2" fontWeight={500}>
-                        {candidate?.position}
+                        {candidatePosition}
                       </Typography>
                     </Grid>
                     
-                    {offerDetails && (
-                      <>
-                        {offerDetails.offerDetails?.joiningDate && (
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="textSecondary" display="block">
-                              Joining Date
-                            </Typography>
-                            <Typography variant="body2">
-                              {formatDate(offerDetails.offerDetails.joiningDate)}
-                            </Typography>
-                          </Grid>
-                        )}
-                        
-                        {offerDetails.ctcDetails?.totalCtc && (
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="textSecondary" display="block">
-                              Total CTC
-                            </Typography>
-                            <Typography variant="body2" color="success.main" fontWeight={600}>
-                              {formatCurrency(offerDetails.ctcDetails.totalCtc)}
-                            </Typography>
-                          </Grid>
-                        )}
-                      </>
+                    {selectedOffer?.createdAt && (
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Offer Date
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatDate(selectedOffer.createdAt)}
+                        </Typography>
+                      </Grid>
+                    )}
+                    
+                    {selectedOffer?.expiryDate && (
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Expiry Date
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatDate(selectedOffer.expiryDate)}
+                        </Typography>
+                      </Grid>
                     )}
                   </Grid>
 
-                  <Box sx={{ 
-                    mt: 2, 
-                    p: 1.5, 
-                    bgcolor: '#E8F5E9', 
-                    borderRadius: 1,
-                    border: '1px solid #81C784',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <VerifiedIcon sx={{ color: '#4CAF50' }} />
-                    <Typography variant="body2">
-                      Offer has been verified and is valid for acceptance
-                    </Typography>
-                  </Box>
-                </>
-              ) : (
-                <Alert severity="info">
-                  No offer token found. Please ensure the offer has been sent to the candidate.
-                </Alert>
-              )}
-            </Paper>
-          )}
+                  <Divider sx={{ my: 2 }} />
 
-          {/* Step 1: Acceptance */}
-          {activeStep === 1 && (
-            <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 2, fontWeight: 600, fontSize: '0.9rem' }}>
-                Accept Offer
-              </Typography>
-
-              {/* Signature Type Selection */}
-              <FormControl component="fieldset" sx={{ mb: 2 }}>
-                <FormLabel component="legend" sx={{ fontSize: '0.85rem', mb: 1 }}>
-                  Signature Type
-                </FormLabel>
-                <RadioGroup
-                  row
-                  value={signatureType}
-                  onChange={(e) => setSignatureType(e.target.value)}
-                >
-                  <FormControlLabel 
-                    value="text" 
-                    control={<Radio size="small" />} 
-                    label="Text Signature" 
-                  />
-                  <FormControlLabel 
-                    value="upload" 
-                    control={<Radio size="small" />} 
-                    label="Upload Signature" 
-                  />
-                </RadioGroup>
-              </FormControl>
-
-              {/* Signature Input */}
-              {signatureType === 'text' ? (
-                <TextField
-                  fullWidth
-                  label="Your Full Name *"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Enter your full name as signature"
-                  size="small"
-                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  helperText="This will be used as your digital signature"
-                />
-              ) : (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                    Upload Signature Image *
-                  </Typography>
-                  
-                  {!signatureFile ? (
-                    <Box
-                      sx={{
-                        // border: '2px dashed #E0E0E0',
-                        // borderRadius: 1,
-                        // p: 2,
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        // bgcolor: '#F9F9F9',
-                        '&:hover': {
-                          bgcolor: '#F0F0F0'
-                        }
-                      }}
-                      component="label"
+                  {/* Signature Type Selection */}
+                  <FormControl component="fieldset" sx={{ mb: 2 }}>
+                    <FormLabel component="legend" sx={{ fontSize: '0.85rem', mb: 1 }}>
+                      Signature Type *
+                    </FormLabel>
+                    <RadioGroup
+                      row
+                      value={signatureType}
+                      onChange={(e) => setSignatureType(e.target.value)}
                     >
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleSignatureUpload}
-                        style={{ display: 'none' }}
-                        disabled={accepting}
+                      <FormControlLabel 
+                        value="text" 
+                        control={<Radio size="small" />} 
+                        label="Text Signature" 
                       />
-                      {/* <EditIcon sx={{ color: '#1976D2', mb: 1, fontSize: 28 }} /> */}
-                      <Typography variant="body2">Click to upload signature image</Typography>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        Supported formats: PNG, JPG, JPEG
-                      </Typography>
-                    </Box>
+                      <FormControlLabel 
+                        value="upload" 
+                        control={<Radio size="small" />} 
+                        label="Upload Signature" 
+                      />
+                    </RadioGroup>
+                  </FormControl>
+
+                  {/* Signature Input */}
+                  {signatureType === 'text' ? (
+                    <TextField
+                      fullWidth
+                      label="Your Full Name *"
+                      value={signature}
+                      onChange={(e) => setSignature(e.target.value)}
+                      placeholder="Enter your full name as signature"
+                      size="small"
+                      sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                      helperText="This will be used as your digital signature"
+                    />
                   ) : (
-                    <Box sx={{
-                      p: 1.5,
-                      bgcolor: '#F0F7FF',
-                      borderRadius: 1,
-                      border: '1px solid #1976D2',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 20 }} />
-                        <Typography variant="body2">{signatureFileName}</Typography>
-                      </Box>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={clearSignature}
-                        disabled={accepting}
-                      >
-                        Remove
-                      </Button>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                        Upload Signature Image *
+                      </Typography>
+                      
+                      {!signatureFile ? (
+                        <Box
+                          sx={{
+                            border: '2px dashed #E0E0E0',
+                            borderRadius: 1,
+                            p: 2,
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            bgcolor: '#F9F9F9',
+                            '&:hover': {
+                              bgcolor: '#F0F0F0'
+                            }
+                          }}
+                          component="label"
+                        >
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSignatureUpload}
+                            style={{ display: 'none' }}
+                            disabled={accepting}
+                          />
+                          <EditIcon sx={{ color: '#1976D2', mb: 1, fontSize: 28 }} />
+                          <Typography variant="body2">Click to upload signature image</Typography>
+                          <Typography variant="caption" color="textSecondary" display="block">
+                            Supported formats: PNG, JPG, JPEG
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{
+                          p: 1.5,
+                          bgcolor: '#F0F7FF',
+                          borderRadius: 1,
+                          border: '1px solid #1976D2',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 20 }} />
+                            <Typography variant="body2">{signatureFileName}</Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={clearSignature}
+                            disabled={accepting}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+                      )}
                     </Box>
                   )}
-                </Box>
+
+                  {/* Preview Section */}
+                  <Paper sx={{ p: 1.5, bgcolor: '#F0F7FF', borderRadius: 1 }}>
+                    <Typography variant="caption" color="#1976D2" display="block" gutterBottom>
+                      Preview
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary">Candidate</Typography>
+                        <Typography variant="body2">{candidateName}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary">Position</Typography>
+                        <Typography variant="body2">{candidatePosition}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="textSecondary">Signature</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: signatureType === 'text' ? 'cursive' : 'inherit' }}>
+                          {signatureType === 'text' ? signature || '[Not provided]' : '[Signature uploaded]'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Paper>
               )}
 
-              {/* Terms and Conditions */}
-              <Divider sx={{ my: 2 }} />
-              
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.85rem' }}>
-                  Terms and Conditions
-                </Typography>
-                <Paper sx={{ p: 1.5, bgcolor: '#F8FAFC', maxHeight: 150, overflow: 'auto' }}>
-                  <Typography variant="caption" component="div" sx={{ color: '#666' }}>
-                    <strong>1.</strong> I confirm that all information provided is true and correct.<br/>
-                    <strong>2.</strong> I accept the terms and conditions of employment as outlined in the offer letter.<br/>
-                    <strong>3.</strong> I understand that this offer is contingent upon background verification.<br/>
-                    <strong>4.</strong> I agree to join on the specified joining date or will provide prior notice.<br/>
-                    <strong>5.</strong> I acknowledge that this is a legally binding acceptance of the offer.
-                  </Typography>
-                </Paper>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <input
-                  type="checkbox"
-                  id="termsAccepted"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  disabled={accepting}
-                  style={{ width: 16, height: 16, cursor: 'pointer' }}
-                />
-                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                  I have read and agree to the terms and conditions
-                </Typography>
-              </Box>
-
-              {/* Preview Section */}
-              <Paper sx={{ p: 1.5, bgcolor: '#F0F7FF', borderRadius: 1 }}>
-                <Typography variant="caption" color="#1976D2" display="block" gutterBottom>
-                  Acceptance Preview
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">Candidate</Typography>
-                    <Typography variant="body2">{candidate?.name}</Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="textSecondary">Position</Typography>
-                    <Typography variant="body2">{candidate?.position}</Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary">Signature</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: signatureType === 'text' ? 'cursive' : 'inherit' }}>
-                      {signatureType === 'text' ? signature || '[Not provided]' : '[Signature uploaded]'}
+              {/* Step 1: Confirmation with Terms */}
+              {activeStep === 1 && acceptResult && (
+                <Paper sx={{ 
+                  p: 3, 
+                  bgcolor: '#FFFFFF', 
+                  borderRadius: 1, 
+                  border: '1px solid #4CAF50',
+                  maxHeight: '500px',
+                  overflow: 'auto'
+                }}>
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <CheckCircleIcon sx={{ fontSize: 50, color: '#4CAF50', mb: 1 }} />
+                    <Typography variant="h6" gutterBottom>Offer Accepted Successfully!</Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Please review and accept the terms and conditions below to complete the process.
                     </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 1.5 }} />
+                  
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Offer ID
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {acceptResult.offerId}
+                      </Typography>
+                    </Grid>
+                    
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Candidate
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {acceptResult.candidateName}
+                      </Typography>
+                    </Grid>
+                    
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Position
+                      </Typography>
+                      <Typography variant="body2">
+                        {acceptResult.position}
+                      </Typography>
+                    </Grid>
+                    
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Joining Date
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500} color="success.main">
+                        {formatDate(acceptResult.joiningDate)}
+                      </Typography>
+                    </Grid>
                   </Grid>
-                </Grid>
-              </Paper>
-            </Paper>
-          )}
 
-          {/* Step 2: Confirmation */}
-          {activeStep === 2 && acceptResult && (
-            <Paper sx={{ p: 3, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #4CAF50' }}>
-              <Box sx={{ textAlign: 'center', mb: 3 }}>
-                <CheckCircleIcon sx={{ fontSize: 60, color: '#4CAF50', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>Offer Accepted Successfully!</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Thank you for accepting the offer. We look forward to welcoming you to the team!
-                </Typography>
-              </Box>
+                  {/* Terms and Conditions */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.9rem', color: '#1976D2', fontWeight: 600 }}>
+                      Terms and Conditions *
+                    </Typography>
+                    <Paper sx={{ 
+                      p: 1.5, 
+                      bgcolor: '#F8FAFC', 
+                      maxHeight: 180, 
+                      overflow: 'auto', 
+                      mb: 1.5,
+                      border: '1px solid #E0E0E0'
+                    }}>
+                      <Typography variant="body2" component="div" sx={{ color: '#666', lineHeight: 1.6 }}>
+                        <strong>1.</strong> I confirm that all information provided is true and correct.<br/>
+                        <strong>2.</strong> I accept the terms and conditions of employment as outlined in the offer letter.<br/>
+                        <strong>3.</strong> I understand that this offer is contingent upon background verification.<br/>
+                        <strong>4.</strong> I agree to join on the specified joining date or will provide prior notice.<br/>
+                        <strong>5.</strong> I acknowledge that this is a legally binding acceptance of the offer.
+                      </Typography>
+                    </Paper>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Checkbox
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.5 }}
+                      />
+                      <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                        I have read and agree to the terms and conditions
+                      </Typography>
+                    </Box>
+                    
+                    {error && activeStep === 1 && (
+                      <Alert severity="error" sx={{ mt: 1, mb: 1 }} onClose={() => setError(null)}>
+                        {error}
+                      </Alert>
+                    )}
+                  </Box>
 
-              <Divider sx={{ my: 2 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Offer ID
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {acceptResult.offerId}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Candidate
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {acceptResult.candidateName}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Position
-                  </Typography>
-                  <Typography variant="body2">
-                    {acceptResult.position}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Joining Date
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500} color="success.main">
-                    {formatDate(acceptResult.joiningDate)}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="textSecondary" display="block">
-                    Status
-                  </Typography>
-                  <Chip 
-                    label={acceptResult.status || 'Accepted'} 
-                    color="success"
-                    size="small"
-                    sx={{ fontWeight: 500 }}
-                  />
-                </Grid>
-              </Grid>
-
-              <Box sx={{ 
-                mt: 2, 
-                p: 1.5, 
-                bgcolor: '#E8F5E9', 
-                borderRadius: 1,
-                border: '1px solid #81C784',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 20 }} />
-                <Typography variant="body2" color="textSecondary">
-                  A confirmation email has been sent to your registered email address.
-                </Typography>
-              </Box>
-            </Paper>
+                  
+                </Paper>
+              )}
+            </>
           )}
 
           {/* Error Display */}
-          {error && activeStep !== 2 && (
+          {error && activeStep !== 1 && (
             <Alert 
               severity="error" 
               sx={{ mt: 2, borderRadius: 1 }}
@@ -974,7 +915,7 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
           bgcolor: '#F8FAFC', 
           justifyContent: 'space-between' 
         }}>
-          {activeStep === 2 ? (
+          {activeStep === 1 ? (
             <>
               <Button 
                 onClick={handleClose} 
@@ -986,6 +927,7 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
               <Button
                 variant="contained"
                 onClick={handleComplete}
+                disabled={!termsAccepted}
                 size="small"
                 startIcon={<CheckCircleIcon />}
                 sx={{
@@ -993,14 +935,14 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
                   '&:hover': { backgroundColor: '#45a049' }
                 }}
               >
-                Done
+                Finalize Acceptance
               </Button>
             </>
           ) : (
             <>
               <Button
                 onClick={handleBack}
-                disabled={activeStep === 0 || accepting}
+                disabled={activeStep === 0 || accepting || !selectedOffer}
                 size="small"
                 sx={{ color: '#666' }}
               >
@@ -1015,35 +957,20 @@ const AcceptOffer = ({ open, onClose, onComplete, candidate }) => {
                 >
                   Cancel
                 </Button>
-                {activeStep === steps.length - 1 ? (
-                  <Button
-                    variant="contained"
-                    onClick={handleAcceptOffer}
-                    disabled={accepting || !termsAccepted || (signatureType === 'text' && !signature) || (signatureType === 'upload' && !signatureFile) || isTokenExpired()}
-                    size="small"
-                    startIcon={accepting ? <CircularProgress size={16} color="inherit" /> : <AcceptIcon />}
-                    sx={{
-                      backgroundColor: '#4CAF50',
-                      '&:hover': { backgroundColor: '#45a049' },
-                      minWidth: 100
-                    }}
-                  >
-                    {accepting ? 'Accepting...' : 'Accept Offer'}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="contained"
-                    onClick={handleNext}
-                    disabled={activeStep === 0 && (!tokenValid || isLoading)}
-                    size="small"
-                    sx={{
-                      backgroundColor: '#1976D2',
-                      '&:hover': { backgroundColor: '#1565C0' }
-                    }}
-                  >
-                    Next
-                  </Button>
-                )}
+                <Button
+                  variant="contained"
+                  onClick={handleAcceptOffer}
+                  disabled={accepting || (signatureType === 'text' && !signature) || (signatureType === 'upload' && !signatureFile)}
+                  size="small"
+                  startIcon={accepting ? <CircularProgress size={16} color="inherit" /> : <AcceptIcon />}
+                  sx={{
+                    backgroundColor: '#4CAF50',
+                    '&:hover': { backgroundColor: '#45a049' },
+                    minWidth: 100
+                  }}
+                >
+                  {accepting ? 'Accepting...' : 'Accept Offer'}
+                </Button>
               </Box>
             </>
           )}

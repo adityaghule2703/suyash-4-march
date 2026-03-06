@@ -229,7 +229,7 @@ const ActionMenu = ({
 
         <Divider sx={{ my: 0.5 }} />
 
-        <MenuItem
+        {/* <MenuItem
           onClick={() => {
             onShortlist(candidate);
             onClose();
@@ -242,7 +242,7 @@ const ActionMenu = ({
           <ListItemText>
             <Typography variant="body2" fontWeight={500}>Shortlist</Typography>
           </ListItemText>
-        </MenuItem>
+        </MenuItem> */}
 
         <MenuItem
           onClick={() => {
@@ -873,7 +873,7 @@ const handleCandidateUpdate = (updatedCandidate) => {
               disabled={loading}
             />
 
-            <FilterBar
+            {/* <FilterBar
               filters={filters}
               onFilterChange={handleFilterChange}
               onApplyFilters={handleApplyFilters}
@@ -899,7 +899,7 @@ const handleCandidateUpdate = (updatedCandidate) => {
                   <RefreshIcon />
                 </IconButton>
               </span>
-            </Tooltip>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}

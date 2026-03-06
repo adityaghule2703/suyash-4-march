@@ -24,7 +24,11 @@ import {
   Stepper,
   Step,
   StepLabel,
-  InputAdornment
+  InputAdornment,
+  FormHelperText,
+  Checkbox,
+  FormControlLabel,
+  Autocomplete
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -90,6 +94,90 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
   const [candidate, setCandidate] = useState(candidateData || null);
   const [availableJobs, setAvailableJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [touched, setTouched] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [skillInput, setSkillInput] = useState('');
+  const [skillInputError, setSkillInputError] = useState('');
+  const [tagInput, setTagInput] = useState('');
+  const [tagInputError, setTagInputError] = useState('');
+
+  // Validation rules (copied from AddCandidate)
+  const validationRules = {
+    firstName: {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'First name should only contain letters and spaces'
+    },
+    lastName: {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'Last name should only contain letters and spaces'
+    },
+    email: {
+      required: true,
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'Please enter a valid email address'
+    },
+    phone: {
+      required: true,
+      pattern: /^\d{10}$/,
+      message: 'Phone number must be exactly 10 digits'
+    },
+    alternativePhone: {
+      required: false,
+      pattern: /^\d{10}$/,
+      message: 'Alternative phone number must be exactly 10 digits'
+    },
+    dateOfBirth: {
+      required: false,
+      validate: (value) => {
+        if (!value) return true;
+        const dob = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+          return age - 1 >= 18 && age - 1 <= 70;
+        }
+        return age >= 18 && age <= 70;
+      },
+      message: 'Age must be between 18 and 70 years'
+    },
+    'address.street': {
+      required: false,
+      minLength: 5,
+      maxLength: 200,
+      message: 'Street address must be at least 5 characters'
+    },
+    'address.city': {
+      required: false,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'City should only contain letters and spaces'
+    },
+    'address.state': {
+      required: false,
+      minLength: 2,
+      maxLength: 50,
+      pattern: /^[A-Za-z\s]+$/,
+      message: 'State should only contain letters and spaces'
+    },
+    'address.pincode': {
+      required: false,
+      pattern: /^\d{6}$/,
+      message: 'Pincode must be exactly 6 digits'
+    },
+    source: {
+      required: true,
+      message: 'Source is required'
+    }
+  };
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -126,6 +214,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     percentage: '',
     specialization: ''
   });
+  const [newEducationErrors, setNewEducationErrors] = useState({});
+
   const [newExperience, setNewExperience] = useState({
     company: '',
     position: '',
@@ -134,8 +224,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     current: false,
     description: ''
   });
-  const [newSkill, setNewSkill] = useState('');
-  const [newTag, setNewTag] = useState('');
+  const [newExperienceErrors, setNewExperienceErrors] = useState({});
 
   const steps = [
     'Personal Info',
@@ -145,6 +234,148 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     'Skills & Source',
     'Status & Job'
   ];
+
+  // Validation helper functions
+  const getFieldLabel = (fieldPath) => {
+    const labels = {
+      firstName: 'First name',
+      lastName: 'Last name',
+      email: 'Email',
+      phone: 'Phone number',
+      alternativePhone: 'Alternative phone',
+      dateOfBirth: 'Date of birth',
+      'address.street': 'Street address',
+      'address.city': 'City',
+      'address.state': 'State',
+      'address.pincode': 'Pincode',
+      source: 'Source'
+    };
+    return labels[fieldPath] || fieldPath;
+  };
+
+  const validateField = (fieldPath, value, allValues = formData) => {
+    const rules = validationRules[fieldPath];
+    if (!rules) return '';
+
+    if (rules.required && (!value || value.toString().trim() === '')) {
+      return `${getFieldLabel(fieldPath)} is required`;
+    }
+
+    if (value && rules.minLength && value.length < rules.minLength) {
+      return `${getFieldLabel(fieldPath)} must be at least ${rules.minLength} characters`;
+    }
+
+    if (value && rules.maxLength && value.length > rules.maxLength) {
+      return `${getFieldLabel(fieldPath)} must not exceed ${rules.maxLength} characters`;
+    }
+
+    if (value && rules.pattern && !rules.pattern.test(value)) {
+      return rules.message || `Invalid ${getFieldLabel(fieldPath).toLowerCase()}`;
+    }
+
+    if (rules.validate && !rules.validate(value, allValues)) {
+      return rules.message || `Invalid ${getFieldLabel(fieldPath).toLowerCase()}`;
+    }
+
+    return '';
+  };
+
+  const getStepFields = (step) => {
+    switch (step) {
+      case 0: return ['firstName', 'lastName', 'email', 'phone', 'alternativePhone', 'dateOfBirth'];
+      case 1: return ['address.street', 'address.city', 'address.state', 'address.pincode'];
+      case 2: return [];
+      case 3: return [];
+      case 4: return ['source'];
+      case 5: return [];
+      default: return [];
+    }
+  };
+
+  const validateStep = () => {
+    const errors = {};
+    const stepFields = getStepFields(activeStep);
+
+    stepFields.forEach(field => {
+      let value;
+      if (field.includes('.')) {
+        const [parent, child] = field.split('.');
+        value = formData[parent]?.[child];
+      } else {
+        value = formData[field];
+      }
+
+      const error = validateField(field, value);
+      if (error) {
+        errors[field] = error;
+      }
+    });
+
+    // Additional validations for specific steps
+    if (activeStep === 2) {
+      // Validate existing education entries
+      if (formData.education.length === 0) {
+        errors['education'] = 'At least one education entry is recommended';
+      } else {
+        formData.education.forEach((edu, index) => {
+          if (!edu.degree) errors[`education[${index}].degree`] = 'Degree is required';
+          if (!edu.institution) errors[`education[${index}].institution`] = 'Institution is required';
+          if (edu.yearOfPassing) {
+            const year = parseInt(edu.yearOfPassing);
+            if (year < 1900 || year > new Date().getFullYear()) {
+              errors[`education[${index}].yearOfPassing`] = 'Please enter a valid year';
+            }
+          }
+        });
+      }
+    }
+
+    if (activeStep === 3) {
+      // Validate existing experience entries
+      formData.experience.forEach((exp, index) => {
+        if (exp.company && (!exp.fromDate || !exp.position)) {
+          errors[`experience[${index}].details`] = 'Please fill all experience details';
+        }
+        if (exp.fromDate && exp.toDate && !exp.current) {
+          if (new Date(exp.toDate) < new Date(exp.fromDate)) {
+            errors[`experience[${index}].date`] = 'To date must be after from date';
+          }
+        }
+      });
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+
+    let value;
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      value = formData[parent]?.[child];
+    } else {
+      value = formData[field];
+    }
+
+    const error = validateField(field, value);
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  const getErrorProps = (field) => {
+    const hasError = touched[field] && fieldErrors[field];
+    return {
+      error: !!hasError,
+      helperText: hasError || ''
+    };
+  };
+
+  // Reset errors when step changes
+  useEffect(() => {
+    setFieldErrors({});
+    setError('');
+  }, [activeStep]);
 
   // Fetch candidate details if not provided
   useEffect(() => {
@@ -158,6 +389,14 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
       }
     }
   }, [open, candidateData, candidateId]);
+
+  // Set selected job when jobs are loaded
+  useEffect(() => {
+    if (formData.jobId && availableJobs.length > 0) {
+      const job = availableJobs.find(j => j._id === formData.jobId);
+      setSelectedJob(job || null);
+    }
+  }, [formData.jobId, availableJobs]);
 
   const fetchCandidateDetails = async () => {
     setFetchLoading(true);
@@ -242,17 +481,56 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
           [child]: value
         }
       }));
+      
+      // Clear error for this field
+      const fieldPath = `${parent}.${child}`;
+      if (fieldErrors[fieldPath]) {
+        setFieldErrors(prev => ({ ...prev, [fieldPath]: '' }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
+      
+      // Clear error for this field
+      if (fieldErrors[name]) {
+        setFieldErrors(prev => ({ ...prev, [name]: '' }));
+      }
     }
+    setError('');
   };
 
-  // Education handlers
+  const handleJobChange = (event, newValue) => {
+    setSelectedJob(newValue);
+    setFormData(prev => ({
+      ...prev,
+      jobId: newValue?._id || ''
+    }));
+  };
+
+  // Education handlers with validation
+  const validateNewEducation = () => {
+    const errors = {};
+    if (!newEducation.degree) errors.degree = 'Degree is required';
+    if (!newEducation.institution) errors.institution = 'Institution is required';
+    if (newEducation.yearOfPassing) {
+      const year = parseInt(newEducation.yearOfPassing);
+      if (year < 1900 || year > new Date().getFullYear()) {
+        errors.yearOfPassing = 'Please enter a valid year (1900-current year)';
+      }
+    }
+    if (newEducation.percentage && (newEducation.percentage < 0 || newEducation.percentage > 100)) {
+      errors.percentage = 'Percentage must be between 0 and 100';
+    }
+    return errors;
+  };
+
   const handleAddEducation = () => {
-    if (newEducation.degree && newEducation.institution) {
+    const errors = validateNewEducation();
+    setNewEducationErrors(errors);
+
+    if (Object.keys(errors).length === 0 && newEducation.degree && newEducation.institution) {
       setFormData(prev => ({
         ...prev,
         education: [...prev.education, { ...newEducation, _id: Date.now().toString() }]
@@ -264,6 +542,12 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
         percentage: '',
         specialization: ''
       });
+      setNewEducationErrors({});
+      
+      // Clear education error
+      if (fieldErrors.education) {
+        setFieldErrors(prev => ({ ...prev, education: '' }));
+      }
     }
   };
 
@@ -274,9 +558,25 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     }));
   };
 
-  // Experience handlers
+  // Experience handlers with validation
+  const validateNewExperience = () => {
+    const errors = {};
+    if (!newExperience.company) errors.company = 'Company is required';
+    if (!newExperience.position) errors.position = 'Position is required';
+    
+    if (newExperience.fromDate && newExperience.toDate && !newExperience.current) {
+      if (new Date(newExperience.toDate) < new Date(newExperience.fromDate)) {
+        errors.date = 'To date must be after from date';
+      }
+    }
+    return errors;
+  };
+
   const handleAddExperience = () => {
-    if (newExperience.company && newExperience.position) {
+    const errors = validateNewExperience();
+    setNewExperienceErrors(errors);
+
+    if (Object.keys(errors).length === 0 && newExperience.company && newExperience.position) {
       setFormData(prev => ({
         ...prev,
         experience: [...prev.experience, { ...newExperience, _id: Date.now().toString() }]
@@ -289,6 +589,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
         current: false,
         description: ''
       });
+      setNewExperienceErrors({});
     }
   };
 
@@ -299,15 +600,48 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     }));
   };
 
+  const handleExperienceChange = (field, value) => {
+    setNewExperience(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Handle current checkbox
+      if (field === 'current' && value === true) {
+        updated.toDate = '';
+      }
+      
+      return updated;
+    });
+
+    // Clear specific errors
+    if (field === 'company' || field === 'position') {
+      setNewExperienceErrors(prev => ({ ...prev, [field]: '', date: '' }));
+    }
+  };
+
   // Skills handlers
   const handleAddSkill = () => {
-    if (newSkill.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        skills: [...prev.skills, newSkill.trim()]
-      }));
-      setNewSkill('');
+    setSkillInputError('');
+
+    if (!skillInput.trim()) {
+      setSkillInputError('Please enter a skill');
+      return;
     }
+
+    if (formData.skills.includes(skillInput.trim())) {
+      setSkillInputError('This skill has already been added');
+      return;
+    }
+
+    if (skillInput.trim().length > 50) {
+      setSkillInputError('Skill name cannot exceed 50 characters');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      skills: [...prev.skills, skillInput.trim()]
+    }));
+    setSkillInput('');
   };
 
   const handleRemoveSkill = (index) => {
@@ -319,13 +653,28 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
 
   // Tags handlers
   const handleAddTag = () => {
-    if (newTag.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
-      setNewTag('');
+    setTagInputError('');
+
+    if (!tagInput.trim()) {
+      setTagInputError('Please enter a tag');
+      return;
     }
+
+    if (formData.tags.includes(tagInput.trim())) {
+      setTagInputError('This tag has already been added');
+      return;
+    }
+
+    if (tagInput.trim().length > 30) {
+      setTagInputError('Tag cannot exceed 30 characters');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      tags: [...prev.tags, tagInput.trim()]
+    }));
+    setTagInput('');
   };
 
   const handleRemoveTag = (index) => {
@@ -336,15 +685,49 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
   };
 
   const validateForm = () => {
-    if (!formData.firstName) return 'First name is required';
-    if (!formData.lastName) return 'Last name is required';
-    if (!formData.email) return 'Email is required';
-    if (!formData.phone) return 'Phone is required';
-    if (!formData.source) return 'Source is required';
+    // Validate all required fields
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'source'];
+    for (const field of requiredFields) {
+      if (!formData[field]) {
+        return `${getFieldLabel(field)} is required`;
+      }
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      return 'Please enter a valid email address';
+    }
+
+    // Validate phone format
+    if (!/^\d{10}$/.test(formData.phone)) {
+      return 'Phone number must be exactly 10 digits';
+    }
+
+    // Validate alternative phone if provided
+    if (formData.alternativePhone && !/^\d{10}$/.test(formData.alternativePhone)) {
+      return 'Alternative phone number must be exactly 10 digits';
+    }
+
+    // Validate date of birth if provided
+    if (formData.dateOfBirth) {
+      const dob = new Date(formData.dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - dob.getFullYear();
+      if (age < 18 || age > 70) {
+        return 'Age must be between 18 and 70 years';
+      }
+    }
+
     return null;
   };
 
   const handleSubmit = async () => {
+    // Validate final step
+    if (!validateStep()) {
+      setError('Please fix all errors before submitting');
+      return;
+    }
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -392,20 +775,30 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
       setActiveStep(0);
       setError('');
       setSuccess(false);
+      setTouched({});
+      setFieldErrors({});
+      setSkillInput('');
+      setSkillInputError('');
+      setTagInput('');
+      setTagInputError('');
+      setNewEducationErrors({});
+      setNewExperienceErrors({});
       onClose();
     }
   };
 
   const handleNext = () => {
-    setActiveStep((prev) => prev + 1);
+    setError('');
+    if (validateStep()) {
+      setActiveStep((prev) => prev + 1);
+    } else {
+      setError('Please fill all fields correctly');
+    }
   };
 
   const handleBack = () => {
+    setError('');
     setActiveStep((prev) => prev - 1);
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
   };
 
   const getStepContent = (step) => {
@@ -427,8 +820,10 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('firstName')}
                   required
                   variant="outlined"
+                  {...getErrorProps('firstName')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -439,7 +834,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('lastName')}
                   required
+                  {...getErrorProps('lastName')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -451,7 +848,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('email')}
                   required
+                  {...getErrorProps('email')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -462,7 +861,10 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('phone')}
                   required
+                  placeholder="10 digit number"
+                  {...getErrorProps('phone')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -473,6 +875,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="alternativePhone"
                   value={formData.alternativePhone}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('alternativePhone')}
+                  placeholder="10 digit number"
+                  {...getErrorProps('alternativePhone')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -484,7 +889,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('dateOfBirth')}
                   InputLabelProps={{ shrink: true }}
+                  {...getErrorProps('dateOfBirth')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -496,6 +903,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     onChange={handleInputChange}
                     label="Gender"
                   >
+                    <MenuItem value="">Select Gender</MenuItem>
                     <MenuItem value="M">Male</MenuItem>
                     <MenuItem value="F">Female</MenuItem>
                     <MenuItem value="O">Other</MenuItem>
@@ -523,6 +931,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="address.street"
                   value={formData.address.street}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('address.street')}
+                  {...getErrorProps('address.street')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -533,6 +943,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="address.city"
                   value={formData.address.city}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('address.city')}
+                  {...getErrorProps('address.city')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -543,6 +955,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="address.state"
                   value={formData.address.state}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('address.state')}
+                  {...getErrorProps('address.state')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -553,6 +967,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="address.pincode"
                   value={formData.address.pincode}
                   onChange={handleInputChange}
+                  onBlur={() => handleBlur('address.pincode')}
+                  placeholder="6 digit pincode"
+                  {...getErrorProps('address.pincode')}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -563,6 +980,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   name="address.country"
                   value={formData.address.country}
                   onChange={handleInputChange}
+                  InputProps={{ readOnly: true }}
                 />
               </Grid>
             </Grid>
@@ -586,6 +1004,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     label="Degree *"
                     value={newEducation.degree}
                     onChange={(e) => setNewEducation({ ...newEducation, degree: e.target.value })}
+                    error={!!newEducationErrors.degree}
+                    helperText={newEducationErrors.degree}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -595,6 +1015,8 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     label="Institution *"
                     value={newEducation.institution}
                     onChange={(e) => setNewEducation({ ...newEducation, institution: e.target.value })}
+                    error={!!newEducationErrors.institution}
+                    helperText={newEducationErrors.institution}
                   />
                 </Grid>
                 <Grid item xs={12} md={3}>
@@ -605,6 +1027,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     type="number"
                     value={newEducation.yearOfPassing}
                     onChange={(e) => setNewEducation({ ...newEducation, yearOfPassing: e.target.value })}
+                    inputProps={{ min: 1900, max: new Date().getFullYear() }}
+                    error={!!newEducationErrors.yearOfPassing}
+                    helperText={newEducationErrors.yearOfPassing}
                   />
                 </Grid>
                 <Grid item xs={12} md={3}>
@@ -615,6 +1040,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     type="number"
                     value={newEducation.percentage}
                     onChange={(e) => setNewEducation({ ...newEducation, percentage: e.target.value })}
+                    inputProps={{ min: 0, max: 100, step: 0.01 }}
+                    error={!!newEducationErrors.percentage}
+                    helperText={newEducationErrors.percentage}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -631,7 +1059,6 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={handleAddEducation}
-                    disabled={!newEducation.degree || !newEducation.institution}
                     sx={{ borderRadius: 1.5, textTransform: 'none' }}
                   >
                     Add Education
@@ -646,6 +1073,11 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                   Education History
                 </Typography>
+                {fieldErrors.education && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
+                    {fieldErrors.education}
+                  </Alert>
+                )}
                 {formData.education.map((edu, index) => (
                   <Paper key={edu._id || index} sx={{ p: 2, bgcolor: '#F8FAFC', mb: 2, position: 'relative' }}>
                     <IconButton
@@ -659,14 +1091,29 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="textSecondary">Degree</Typography>
                         <Typography variant="body2">{edu.degree}</Typography>
+                        {fieldErrors[`education[${index}].degree`] && (
+                          <Typography variant="caption" color="error">
+                            {fieldErrors[`education[${index}].degree`]}
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="textSecondary">Institution</Typography>
                         <Typography variant="body2">{edu.institution}</Typography>
+                        {fieldErrors[`education[${index}].institution`] && (
+                          <Typography variant="caption" color="error">
+                            {fieldErrors[`education[${index}].institution`]}
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} md={2}>
                         <Typography variant="caption" color="textSecondary">Year</Typography>
                         <Typography variant="body2">{edu.yearOfPassing}</Typography>
+                        {fieldErrors[`education[${index}].yearOfPassing`] && (
+                          <Typography variant="caption" color="error">
+                            {fieldErrors[`education[${index}].yearOfPassing`]}
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} md={2}>
                         <Typography variant="caption" color="textSecondary">Percentage</Typography>
@@ -702,7 +1149,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     size="small"
                     label="Company *"
                     value={newExperience.company}
-                    onChange={(e) => setNewExperience({ ...newExperience, company: e.target.value })}
+                    onChange={(e) => handleExperienceChange('company', e.target.value)}
+                    error={!!newExperienceErrors.company}
+                    helperText={newExperienceErrors.company}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -711,7 +1160,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     size="small"
                     label="Position *"
                     value={newExperience.position}
-                    onChange={(e) => setNewExperience({ ...newExperience, position: e.target.value })}
+                    onChange={(e) => handleExperienceChange('position', e.target.value)}
+                    error={!!newExperienceErrors.position}
+                    helperText={newExperienceErrors.position}
                   />
                 </Grid>
                 <Grid item xs={12} md={5}>
@@ -721,7 +1172,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     label="From Date"
                     type="date"
                     value={newExperience.fromDate}
-                    onChange={(e) => setNewExperience({ ...newExperience, fromDate: e.target.value })}
+                    onChange={(e) => handleExperienceChange('fromDate', e.target.value)}
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
@@ -732,24 +1183,27 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     label="To Date"
                     type="date"
                     value={newExperience.toDate}
-                    onChange={(e) => setNewExperience({ ...newExperience, toDate: e.target.value })}
+                    onChange={(e) => handleExperienceChange('toDate', e.target.value)}
                     InputLabelProps={{ shrink: true }}
                     disabled={newExperience.current}
                   />
                 </Grid>
                 <Grid item xs={12} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Current</InputLabel>
-                    <Select
-                      value={newExperience.current}
-                      onChange={(e) => setNewExperience({ ...newExperience, current: e.target.value })}
-                      label="Current"
-                    >
-                      <MenuItem value={false}>No</MenuItem>
-                      <MenuItem value={true}>Yes</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={newExperience.current}
+                        onChange={(e) => handleExperienceChange('current', e.target.checked)}
+                      />
+                    }
+                    label="Current"
+                  />
                 </Grid>
+                {newExperienceErrors.date && (
+                  <Grid item xs={12}>
+                    <FormHelperText error>{newExperienceErrors.date}</FormHelperText>
+                  </Grid>
+                )}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -758,7 +1212,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     multiline
                     rows={2}
                     value={newExperience.description}
-                    onChange={(e) => setNewExperience({ ...newExperience, description: e.target.value })}
+                    onChange={(e) => handleExperienceChange('description', e.target.value)}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -766,7 +1220,6 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={handleAddExperience}
-                    disabled={!newExperience.company || !newExperience.position}
                     sx={{ borderRadius: 1.5, textTransform: 'none' }}
                   >
                     Add Experience
@@ -794,6 +1247,11 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="textSecondary">Company</Typography>
                         <Typography variant="body2">{exp.company}</Typography>
+                        {fieldErrors[`experience[${index}].details`] && (
+                          <Typography variant="caption" color="error">
+                            {fieldErrors[`experience[${index}].details`]}
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="textSecondary">Position</Typography>
@@ -805,6 +1263,11 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                           {exp.fromDate ? new Date(exp.fromDate).toLocaleDateString() : 'N/A'} - 
                           {exp.current ? 'Present' : (exp.toDate ? new Date(exp.toDate).toLocaleDateString() : 'N/A')}
                         </Typography>
+                        {fieldErrors[`experience[${index}].date`] && (
+                          <Typography variant="caption" color="error">
+                            {fieldErrors[`experience[${index}].date`]}
+                          </Typography>
+                        )}
                       </Grid>
                       {exp.description && (
                         <Grid item xs={12}>
@@ -834,16 +1297,21 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
               <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                 <TextField
                   size="small"
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  placeholder="Add a skill"
-                  sx={{ flex: 1 }}
+                  value={skillInput}
+                  onChange={(e) => {
+                    setSkillInput(e.target.value);
+                    setSkillInputError('');
+                  }}
                   onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                  placeholder="Add a skill"
+                  error={!!skillInputError}
+                  helperText={skillInputError}
+                  sx={{ flex: 1 }}
                 />
                 <Button
                   variant="outlined"
                   onClick={handleAddSkill}
-                  disabled={!newSkill.trim()}
+                  disabled={!skillInput.trim()}
                   sx={{ borderRadius: 1.5, textTransform: 'none' }}
                 >
                   Add
@@ -864,6 +1332,11 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     }}
                   />
                 ))}
+                {formData.skills.length === 0 && (
+                  <Typography variant="caption" color="textSecondary">
+                    No skills added yet
+                  </Typography>
+                )}
               </Box>
             </Paper>
 
@@ -876,12 +1349,13 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <FormControl fullWidth size="small" required>
+                  <FormControl fullWidth size="small" required error={touched.source && !!fieldErrors.source}>
                     <InputLabel>Source *</InputLabel>
                     <Select
                       name="source"
                       value={formData.source}
                       onChange={handleInputChange}
+                      onBlur={() => handleBlur('source')}
                       label="Source *"
                     >
                       {SOURCE_OPTIONS.map(option => (
@@ -893,6 +1367,9 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                         </MenuItem>
                       ))}
                     </Select>
+                    {touched.source && fieldErrors.source && (
+                      <FormHelperText>{fieldErrors.source}</FormHelperText>
+                    )}
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -929,16 +1406,21 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
               <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                 <TextField
                   size="small"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a tag"
-                  sx={{ flex: 1 }}
+                  value={tagInput}
+                  onChange={(e) => {
+                    setTagInput(e.target.value);
+                    setTagInputError('');
+                  }}
                   onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                  placeholder="Add a tag"
+                  error={!!tagInputError}
+                  helperText={tagInputError}
+                  sx={{ flex: 1 }}
                 />
                 <Button
                   variant="outlined"
                   onClick={handleAddTag}
-                  disabled={!newTag.trim()}
+                  disabled={!tagInput.trim()}
                   sx={{ borderRadius: 1.5, textTransform: 'none' }}
                 >
                   Add
@@ -959,6 +1441,11 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                     }}
                   />
                 ))}
+                {formData.tags.length === 0 && (
+                  <Typography variant="caption" color="textSecondary">
+                    No tags added yet
+                  </Typography>
+                )}
               </Box>
             </Paper>
           </Stack>
@@ -976,13 +1463,13 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <FormControl fullWidth size="small" required>
-                    <InputLabel>Status *</InputLabel>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
                     <Select
                       name="status"
                       value={formData.status}
                       onChange={handleInputChange}
-                      label="Status *"
+                      label="Status"
                     >
                       {STATUS_OPTIONS.map(option => (
                         <MenuItem key={option.value} value={option.value}>
@@ -996,28 +1483,28 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Assign to Job</InputLabel>
-                    <Select
-                      name="jobId"
-                      value={formData.jobId}
-                      onChange={handleInputChange}
-                      label="Assign to Job"
-                      disabled={jobsLoading}
-                    >
-                      <MenuItem value="">None</MenuItem>
-                      {availableJobs.map(job => (
-                        <MenuItem key={job._id} value={job._id}>
-                          <Box>
-                            <Typography variant="body2">{job.title}</Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              {job.jobId} - {job.location}
-                            </Typography>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  {jobsLoading ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', height: '40px' }}>
+                      <CircularProgress size={20} sx={{ mr: 1 }} />
+                      <Typography variant="body2">Loading jobs...</Typography>
+                    </Box>
+                  ) : (
+                    <Autocomplete
+                      value={selectedJob}
+                      onChange={handleJobChange}
+                      options={availableJobs}
+                      getOptionLabel={(option) => `${option.title} (${option.jobId})`}
+                      isOptionEqualToValue={(option, value) => option._id === value._id}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Assign to Job"
+                          size="small"
+                          placeholder="Search job"
+                        />
+                      )}
+                    />
+                  )}
                 </Grid>
               </Grid>
             </Paper>
@@ -1037,19 +1524,28 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
                   <Typography variant="body2">{formData.email}</Typography>
                 </Grid>
                 <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary">Phone</Typography>
+                  <Typography variant="body2">{formData.phone}</Typography>
+                </Grid>
+                <Grid item xs={6}>
                   <Typography variant="caption" color="textSecondary">Status</Typography>
                   <Chip
                     size="small"
                     label={STATUS_OPTIONS.find(s => s.value === formData.status)?.label || formData.status}
                     sx={{
                       bgcolor: STATUS_OPTIONS.find(s => s.value === formData.status)?.bg,
-                      color: STATUS_OPTIONS.find(s => s.value === formData.status)?.color
+                      color: STATUS_OPTIONS.find(s => s.value === formData.status)?.color,
+                      height: 24
                     }}
                   />
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="textSecondary">Source</Typography>
                   <Typography variant="body2">{SOURCE_OPTIONS.find(s => s.value === formData.source)?.label || formData.source}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="textSecondary">Skills</Typography>
+                  <Typography variant="body2">{formData.skills.length} skills added</Typography>
                 </Grid>
               </Grid>
             </Paper>
@@ -1065,7 +1561,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{ sx: { borderRadius: 2, maxHeight: '90vh' } }}
     >
@@ -1108,10 +1604,6 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
             <CircularProgress size={40} sx={{ color: '#1976D2' }} />
           </Box>
-        ) : error ? (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-            {error}
-          </Alert>
         ) : (
           <>
             <Stepper activeStep={activeStep} sx={{ mb: 4, mt: 1 }}>
@@ -1122,15 +1614,21 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
               ))}
             </Stepper>
 
-            <Box sx={{ minHeight: 500 }}>
-              {getStepContent(activeStep)}
-            </Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
 
             {success && (
-              <Alert severity="success" sx={{ mt: 3 }}>
+              <Alert severity="success" sx={{ mb: 3 }}>
                 {success}
               </Alert>
             )}
+
+            <Box sx={{ minHeight: 500 }}>
+              {getStepContent(activeStep)}
+            </Box>
           </>
         )}
       </DialogContent>
@@ -1154,7 +1652,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
 
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            disabled={activeStep === 0}
+            disabled={activeStep === 0 || loading}
             onClick={handleBack}
             startIcon={<ArrowBackIcon />}
             sx={{ borderRadius: 1.5, textTransform: 'none' }}
@@ -1166,7 +1664,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={loading || fetchLoading}
+              disabled={loading || fetchLoading || Object.keys(fieldErrors).length > 0}
               startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
               sx={{
                 borderRadius: 1.5,
@@ -1183,6 +1681,7 @@ const EditCandidate = ({ open, onClose, onUpdate, candidateId, candidateData }) 
               variant="contained"
               onClick={handleNext}
               endIcon={<ArrowForwardIcon />}
+              disabled={loading}
               sx={{
                 borderRadius: 1.5,
                 textTransform: 'none',

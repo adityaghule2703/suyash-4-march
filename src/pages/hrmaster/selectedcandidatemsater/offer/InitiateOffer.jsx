@@ -564,85 +564,164 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
-        return (
-          <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-            <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-              Select Candidate for Offer
-            </Typography>
-            
-            {fetchingCandidates ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                <CircularProgress size={24} />
-              </Box>
-            ) : (
-              <>
-                {candidates.length === 0 ? (
-                  <Alert severity="info" sx={{ borderRadius: 1 }}>
-                    No candidates with applications found. Only candidates with applications can receive offers.
-                  </Alert>
-                ) : (
-                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                    <InputLabel>Select Candidate *</InputLabel>
-                    <Select
-                      value={selectedCandidate?._id || selectedCandidate?.id || ''}
-                      onChange={handleCandidateChange}
-                      label="Select Candidate *"
-                      error={!!stepErrors.candidateId}
-                    >
-                      {candidates.map((cand) => (
-                        <MenuItem key={cand._id} value={cand._id}>
-                          {cand.firstName} {cand.lastName} - {cand.candidateId}
-                          {cand.latestApplication && ` (${cand.latestApplication.applicationId} - ${cand.latestApplication.jobId?.title})`}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {stepErrors.candidateId && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                        {stepErrors.candidateId}
-                      </Typography>
-                    )}
-                  </FormControl>
-                )}
-
-                {selectedCandidate && (
-                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1 }}>
-                    <Grid container spacing={1}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Name
-                        </Typography>
-                        <Typography variant="body2" fontWeight={500}>
-                          {selectedCandidate.firstName} {selectedCandidate.lastName}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Email
-                        </Typography>
-                        <Typography variant="body2">{selectedCandidate.email}</Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Phone
-                        </Typography>
-                        <Typography variant="body2">{selectedCandidate.phone}</Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="textSecondary" display="block">
-                          Position
+  return (
+    <Paper sx={{ p: 2, bgcolor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+      <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+        Selected Candidate for Offer
+      </Typography>
+      
+      {fetchingCandidates ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : (
+        <>
+          {candidate ? (
+            // When candidate is passed via props - show read-only view
+            <Box sx={{ mb: 2 }}>
+                        
+              <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                      Candidate ID
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {candidate.candidateId || candidate.id || 'N/A'}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                      Full Name
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {candidate.firstName} {candidate.lastName}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                      Email
+                    </Typography>
+                    <Typography variant="body2">{candidate.email}</Typography>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                      Phone
+                    </Typography>
+                    <Typography variant="body2">{candidate.phone || 'N/A'}</Typography>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                      Position Applied
+                    </Typography>
+                    <Typography variant="body2">
+                      {candidate.position || selectedApplication?.jobId?.title || 'N/A'}
+                    </Typography>
+                  </Grid>
+                  
+                  {selectedApplication && (
+                    <>
+                      {/* <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                          Application ID
                         </Typography>
                         <Typography variant="body2">
-                          {selectedApplication?.jobId?.title || selectedCandidate.position || 'N/A'}
+                          {selectedApplication.applicationId || selectedApplication._id}
                         </Typography>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
-              </>
-            )}
-          </Paper>
-        );
+                      </Grid> */}
+                      
+                      {/* <Grid item xs={6}>
+                        <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                          Application Date
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedApplication.createdAt ? new Date(selectedApplication.createdAt).toLocaleDateString() : 'N/A'}
+                        </Typography>
+                      </Grid> */}
+                    </>
+                  )}
+                </Grid>
+              </Box>
+            </Box>
+          ) : (
+            // Normal dropdown view when no candidate is passed via props
+            <>
+              {candidates.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: 1 }}>
+                  No candidates with applications found. Only candidates with applications can receive offers.
+                </Alert>
+              ) : (
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel>Select Candidate *</InputLabel>
+                  <Select
+                    value={selectedCandidate?._id || selectedCandidate?.id || ''}
+                    onChange={handleCandidateChange}
+                    label="Select Candidate *"
+                    error={!!stepErrors.candidateId}
+                  >
+                    {candidates.map((cand) => (
+                      <MenuItem key={cand._id} value={cand._id}>
+                        {cand.firstName} {cand.lastName} - {cand.candidateId}
+                        {cand.latestApplication && ` (${cand.latestApplication.applicationId} - ${cand.latestApplication.jobId?.title})`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {stepErrors.candidateId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      {stepErrors.candidateId}
+                    </Typography>
+                  )}
+                </FormControl>
+              )}
 
+              {selectedCandidate && (
+                <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1 }}>
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Name
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedCandidate.firstName} {selectedCandidate.lastName}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Email
+                      </Typography>
+                      <Typography variant="body2">{selectedCandidate.email}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Phone
+                      </Typography>
+                      <Typography variant="body2">{selectedCandidate.phone}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        Position
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedApplication?.jobId?.title || selectedCandidate.position || 'N/A'}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* Hidden fields to maintain form data */}
+          <input type="hidden" name="candidateId" value={formData.candidateId} />
+          <input type="hidden" name="applicationId" value={formData.applicationId} />
+        </>
+      )}
+    </Paper>
+  );
       case 1:
         return (
           <Stack spacing={2}>
@@ -970,12 +1049,6 @@ const InitiateOffer = ({ open, onClose, onComplete, candidate = null }) => {
                 </Grid>
               </Grid>
             </Paper>
-
-            <Alert severity="info" sx={{ borderRadius: 1 }}>
-              <Typography variant="body2">
-                Review all details before initiating the offer. Click "Calculate & Initiate Offer" to proceed.
-              </Typography>
-            </Alert>
           </Stack>
         );
 

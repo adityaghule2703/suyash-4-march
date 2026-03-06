@@ -21,24 +21,21 @@ import BASE_URL from '../../../config/Config';
 
 const AddProcess = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
-    ProcessName: '',
-    ProcessType: 'Main',
-    RateType: 'Per Hour',
-    VendorOrInhouse: 'Vendor',
-    Description: '',
-    IsActive: true
+    process_id: '',
+    process_name: '',
+    category: 'Core',
+    rate_type: 'Per Hour',
+    description: '',
+    is_active: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Process type options
-  const processTypeOptions = ['Main', 'Finishing'];
+  // Category options based on enum in backend
+  const categoryOptions = ['Core', 'Finishing', 'Packing', 'Other'];
   
-  // Rate type options
-  const rateTypeOptions = ['Per Nos', 'Per Kg', 'Per Hour', 'Fixed'];
-  
-  // Vendor/Inhouse options
-  const vendorInhouseOptions = ['Vendor', 'Inhouse'];
+  // Rate type options based on enum in backend
+  const rateTypeOptions = ['Per Kg', 'Per Nos', 'Per Hour', 'Fixed'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,33 +45,25 @@ const AddProcess = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const handleSelectChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleSubmit = async () => {
     // Validation
-    if (!formData.ProcessName.trim()) {
+    if (!formData.process_id.trim()) {
+      setError('Process ID is required');
+      return;
+    }
+
+    if (!formData.process_name.trim()) {
       setError('Process Name is required');
       return;
     }
 
-    if (!formData.ProcessType) {
-      setError('Process Type is required');
+    if (!formData.category) {
+      setError('Category is required');
       return;
     }
 
-    if (!formData.RateType) {
+    if (!formData.rate_type) {
       setError('Rate Type is required');
-      return;
-    }
-
-    if (!formData.VendorOrInhouse) {
-      setError('Vendor/Inhouse selection is required');
       return;
     }
 
@@ -107,12 +96,12 @@ const AddProcess = ({ open, onClose, onAdd }) => {
 
   const resetForm = () => {
     setFormData({
-      ProcessName: '',
-      ProcessType: 'Main',
-      RateType: 'Per Hour',
-      VendorOrInhouse: 'Vendor',
-      Description: '',
-      IsActive: true
+      process_id: '',
+      process_name: '',
+      category: 'Core',
+      rate_type: 'Per Hour',
+      description: '',
+      is_active: true
     });
     setError('');
   };
@@ -151,29 +140,43 @@ const AddProcess = ({ open, onClose, onAdd }) => {
         )}
 
         <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Process ID */}
+          <TextField
+            fullWidth
+            label="Process ID *"
+            name="process_id"
+            value={formData.process_id}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            placeholder="e.g., PROC-ML-002"
+            helperText="Unique identifier for the process"
+          />
+
           {/* Process Name */}
           <TextField
             fullWidth
             label="Process Name *"
-            name="ProcessName"
-            value={formData.ProcessName}
+            name="process_name"
+            value={formData.process_name}
             onChange={handleChange}
             required
             disabled={loading}
+            placeholder="e.g., Injection Molding"
           />
 
-          {/* Process Type Dropdown */}
+          {/* Category Dropdown */}
           <FormControl fullWidth>
-            <InputLabel>Process Type *</InputLabel>
+            <InputLabel>Category *</InputLabel>
             <Select
-              name="ProcessType"
-              value={formData.ProcessType}
-              onChange={handleSelectChange}
-              label="Process Type *"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              label="Category *"
               required
               disabled={loading}
             >
-              {processTypeOptions.map((option) => (
+              {categoryOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   {option}
                 </MenuItem>
@@ -185,9 +188,9 @@ const AddProcess = ({ open, onClose, onAdd }) => {
           <FormControl fullWidth>
             <InputLabel>Rate Type *</InputLabel>
             <Select
-              name="RateType"
-              value={formData.RateType}
-              onChange={handleSelectChange}
+              name="rate_type"
+              value={formData.rate_type}
+              onChange={handleChange}
               label="Rate Type *"
               required
               disabled={loading}
@@ -200,31 +203,12 @@ const AddProcess = ({ open, onClose, onAdd }) => {
             </Select>
           </FormControl>
 
-          {/* Vendor/Inhouse Dropdown */}
-          <FormControl fullWidth>
-            <InputLabel>Vendor/Inhouse *</InputLabel>
-            <Select
-              name="VendorOrInhouse"
-              value={formData.VendorOrInhouse}
-              onChange={handleSelectChange}
-              label="Vendor/Inhouse *"
-              required
-              disabled={loading}
-            >
-              {vendorInhouseOptions.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
           {/* Description */}
           <TextField
             fullWidth
             label="Description"
-            name="Description"
-            value={formData.Description}
+            name="description"
+            value={formData.description}
             onChange={handleChange}
             multiline
             rows={3}
@@ -233,7 +217,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
           />
 
           {/* Process Information Preview */}
-          {formData.ProcessName && (
+          {(formData.process_id || formData.process_name) && (
             <Box sx={{ 
               p: 2.5, 
               bgcolor: '#E8F5E9', 
@@ -245,30 +229,30 @@ const AddProcess = ({ open, onClose, onAdd }) => {
               </Typography>
               <Stack spacing={1}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Process Name:</Typography>
+                  <Typography variant="body2" color="textSecondary">Process ID:</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {formData.ProcessName}
+                    {formData.process_id || 'Not specified'}
                   </Typography>
                 </Stack>
                 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Process Type:</Typography>
+                  <Typography variant="body2" color="textSecondary">Process Name:</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {formData.ProcessType}
+                    {formData.process_name || 'Not specified'}
+                  </Typography>
+                </Stack>
+                
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="textSecondary">Category:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formData.category}
                   </Typography>
                 </Stack>
                 
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2" color="textSecondary">Rate Type:</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {formData.RateType}
-                  </Typography>
-                </Stack>
-                
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="textSecondary">Vendor/Inhouse:</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formData.VendorOrInhouse === 'Vendor' ? 'External Vendor' : 'In-house'}
+                    {formData.rate_type}
                   </Typography>
                 </Stack>
               </Stack>
