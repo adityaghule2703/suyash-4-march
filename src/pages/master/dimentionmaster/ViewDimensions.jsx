@@ -295,7 +295,7 @@ const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
             Close
           </Button>
 
-          {onEdit && (
+          {/* {onEdit && (
             <Button
               variant="contained"
               onClick={() => {
@@ -312,7 +312,7 @@ const ViewDimensions = ({ open, onClose, dimension, onEdit }) => {
             >
               Edit Dimensions
             </Button>
-          )}
+          )} */}
         </Stack>
       </Box>
     </Dialog>

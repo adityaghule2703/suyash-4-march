@@ -467,7 +467,7 @@ const ViewVendor = ({ open, onClose, vendor, onEdit }) => {
               </Button>
             )}
             
-            {activeStep === 0 ? (
+            {activeStep === 0 && (
               <Button
                 variant="contained"
                 onClick={handleNext}
@@ -481,24 +481,7 @@ const ViewVendor = ({ open, onClose, vendor, onEdit }) => {
               >
                 Next
               </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => {
-                  onClose();
-                  onEdit();
-                }}
-                startIcon={<EditIcon />}
-                size="small"
-                sx={{
-                  backgroundColor: PRIMARY_BLUE,
-                  fontSize: '0.8rem',
-                  '&:hover': { backgroundColor: '#0e7490' }
-                }}
-              >
-                Edit
-              </Button>
-            )}
+            ) }
           </Stack>
         </Stack>
       </Box>

@@ -95,7 +95,9 @@ const CloseReasonCard = ({ reason, selected, onSelect, description, icon }) => {
     <Paper
       variant="outlined"
       sx={{
-        p: 2,
+        p: 1,
+        width: 190,
+        height: 120,
         cursor: 'pointer',
         border: selected ? '2px solid #f44336' : '1px solid #e0e0e0',
         bgcolor: selected ? '#ffebee' : 'white',
@@ -107,7 +109,7 @@ const CloseReasonCard = ({ reason, selected, onSelect, description, icon }) => {
       }}
       onClick={() => onSelect(reason)}
     >
-      <Stack spacing={2} alignItems="center">
+      <Stack spacing={1} alignItems="center">
         {icon}
         <Typography variant="subtitle2" fontWeight={600} textAlign="center">
           {reason}
@@ -417,7 +419,7 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
               >
                 <Typography variant="body2">
                   <strong>Warning:</strong> This job is currently published and visible to candidates. 
-                  Closing it will remove it from all job boards and notify candidates (if selected).
+                  Closing it will remove it from all job boards.
                 </Typography>
               </Alert>
             )}
@@ -451,7 +453,7 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                         Job Summary
                       </Typography>
                       
-                      <Grid container spacing={2}>
+                      <Grid container spacing={8}>
                         <Grid item xs={12} md={6}>
                           <List dense>
                             <ListItem>
@@ -461,13 +463,7 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                                 secondary={job?.jobId}
                               />
                             </ListItem>
-                            <ListItem>
-                              <ListItemIcon><BusinessIcon fontSize="small" /></ListItemIcon>
-                              <ListItemText 
-                                primary="Department" 
-                                secondary={job?.department}
-                              />
-                            </ListItem>
+                            
                             <ListItem>
                               <ListItemIcon><LocationIcon fontSize="small" /></ListItemIcon>
                               <ListItemText 
@@ -497,6 +493,19 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                                     color={getStatusColor(job?.status)}
                                   />
                                 }
+                              />
+                            </ListItem>
+                           
+                          </List>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <List dense>
+                          
+                            <ListItem>
+                              <ListItemIcon><BusinessIcon fontSize="small" /></ListItemIcon>
+                              <ListItemText 
+                                primary="Department" 
+                                secondary={job?.department}
                               />
                             </ListItem>
                             <ListItem>
@@ -542,8 +551,8 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                     <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                       <li>The job will be marked as closed and won't accept new applications</li>
                       <li>It will be removed from all job boards and career page</li>
-                      <li>Existing applicants will be notified (if selected)</li>
-                      <li>The job can be archived for future reference</li>
+                      {/* <li>Existing applicants will be notified (if selected)</li>
+                      <li>The job can be archived for future reference</li> */}
                     </ul>
                   </Alert>
                 </Stack>
@@ -578,7 +587,7 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                       label="Specify Reason"
                       fullWidth
                       multiline
-                      rows={2}
+                      // rows={2}
                       value={customReason}
                       onChange={(e) => setCustomReason(e.target.value)}
                       placeholder="Please provide details about why this job is being closed..."
@@ -591,14 +600,14 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                     label="Additional Notes (Optional)"
                     fullWidth
                     multiline
-                    rows={3}
+                    // rows={3}
                     value={additionalNotes}
                     onChange={(e) => setAdditionalNotes(e.target.value)}
                     placeholder="Any additional information about closing this position..."
                   />
 
                   {/* Options */}
-                  <Paper variant="outlined" sx={{ p: 2 }}>
+                  {/* <Paper variant="outlined" sx={{ p: 2 }}>
                     <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                       Additional Options
                     </Typography>
@@ -624,7 +633,7 @@ const CloseJobOpening = ({ open, onClose, jobId, onClose: onJobClose }) => {
                         label="Archive job for future reference"
                       />
                     </Stack>
-                  </Paper>
+                  </Paper> */}
                 </Stack>
               )}
 

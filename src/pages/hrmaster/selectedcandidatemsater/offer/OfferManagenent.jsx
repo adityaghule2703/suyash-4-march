@@ -103,37 +103,37 @@ const getOfferStatus = (applicationStatus) => {
   const statusMap = {
     // Selected candidates (initial state)
     'selected': 'Initiated',
-    
+
     // Initiate Offer
     'initiated': 'Initiated',
-    
+
     // Submit for Approval
     'pending_approval': 'Submitted',
     'submitted': 'Submitted',
-    
+
     // Approve Offer
     'accepted': 'Approved',
     'approved': 'Approved',
-    
+
     // Reject Offer
     'rejected': 'Rejected',
-    
+
     // Generate Offer Letter
     'generated': 'Generated',
-    
+
     // Send Offer Letter
     'sent': 'Sent',
-    
+
     // Candidate Acceptance
     'accepted_by_candidate': 'Accepted',
-    
+
     // Default
     'pending': 'Pending',
     '': 'Pending',
     null: 'Pending',
     undefined: 'Pending'
   };
-  
+
   const mappedStatus = statusMap[applicationStatus] || 'Pending';
   console.log(` Mapping status: ${applicationStatus} -> ${mappedStatus}`);
   return mappedStatus;
@@ -147,10 +147,10 @@ const OfferManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+
   // Selection state
   const [selected, setSelected] = useState([]);
-  
+
   // Sort state
   const [sortConfig, setSortConfig] = useState({
     field: 'name',
@@ -192,19 +192,19 @@ const OfferManagement = () => {
   // Check if action is enabled based on current status OR completed actions
   const isActionEnabled = (action, candidate) => {
     if (!candidate) return false;
-    
+
     const status = candidate.status;
     const applicationStatus = candidate.applicationStatus;
-    
+
     // Check if this action was already completed in the current session
     const actionCompleted = completedActions[`${candidate.id}_${action}`];
-    
-    console.log(`🔍 Checking action ${action} for ${candidate.name}:`, { 
-      status, 
+
+    console.log(`🔍 Checking action ${action} for ${candidate.name}:`, {
+      status,
       applicationStatus,
       actionCompleted
     });
-    
+
     // Define allowed statuses for each action
     const actionStatusMap = {
       initiateOffer: ['Pending', 'Rejected', 'selected', null, undefined],
@@ -212,8 +212,8 @@ const OfferManagement = () => {
       approveOffer: ['Submitted', 'pending_approval', 'submitted'],
       generateOffer: ['Approved', 'approved', 'accepted'],
       sendOffer: ['Generated', 'generated'],
-      viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated', 'Approved', 'Submitted', 'Initiated', 
-                  'sent', 'viewed', 'accepted', 'generated', 'approved', 'submitted', 'initiated'],
+      viewOffer: ['Sent', 'Viewed', 'Accepted', 'Generated', 'Approved', 'Submitted', 'Initiated',
+        'sent', 'viewed', 'accepted', 'generated', 'approved', 'submitted', 'initiated'],
       acceptOffer: ['Sent', 'Viewed', 'sent', 'viewed']
     };
 
@@ -244,12 +244,12 @@ const OfferManagement = () => {
     }
 
     // Check if candidate's status matches any allowed status for the action
-    const statusCheck = actionStatusMap[action]?.some(s => 
+    const statusCheck = actionStatusMap[action]?.some(s =>
       status === s || applicationStatus === s
     ) || false;
 
     console.log(`🔍 Action ${action} is ${statusCheck ? 'enabled' : 'disabled'}`);
-    
+
     return statusCheck;
   };
 
@@ -309,7 +309,7 @@ const OfferManagement = () => {
           let latestOffer = null;
           let offerStatus = 'selected';
           let offerId = null;
-          
+
           try {
             // Fetch offers for this specific candidate
             const offersUrl = `${BASE_URL}/api/offers?candidateId=${candidate._id}`;
@@ -319,21 +319,21 @@ const OfferManagement = () => {
                 'Content-Type': 'application/json'
               }
             });
-            
+
             if (offersResponse.ok) {
               const offersData = await offersResponse.json();
               console.log(`Offers for candidate ${candidate.firstName}:`, offersData);
-              
+
               if (offersData.success && offersData.data) {
                 let offers = [];
-                
+
                 // Extract offers array based on response structure
                 if (offersData.data.offers) {
                   offers = offersData.data.offers;
                 } else if (Array.isArray(offersData.data)) {
                   offers = offersData.data;
                 }
-                
+
                 // If there are offers, find the latest one
                 if (offers.length > 0) {
                   // Sort by creation date (newest first)
@@ -342,11 +342,11 @@ const OfferManagement = () => {
                     const dateB = new Date(b.createdAt || b.createdDate || 0);
                     return dateB - dateA;
                   });
-                  
+
                   // Get the latest offer
                   latestOffer = sortedOffers[0];
                   console.log(`Latest offer for ${candidate.firstName}:`, latestOffer);
-                  
+
                   // Determine status from latest offer
                   if (latestOffer.status) {
                     offerStatus = latestOffer.status;
@@ -355,7 +355,7 @@ const OfferManagement = () => {
                   } else if (latestOffer.applicationStatus) {
                     offerStatus = latestOffer.applicationStatus;
                   }
-                  
+
                   offerId = latestOffer.offerId || latestOffer._id;
                 }
               }
@@ -400,7 +400,7 @@ const OfferManagement = () => {
             latestOffer: latestOffer // Store the complete latest offer data
           };
         }));
-        
+
         console.log('Transformed data with latest offers:', transformedData);
         setCandidates(transformedData);
         setFilteredCandidates(transformedData);
@@ -539,13 +539,13 @@ const OfferManagement = () => {
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-    
+
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
       newSelected = selected.filter(item => item !== id);
     }
-    
+
     setSelected(newSelected);
   };
 
@@ -595,26 +595,26 @@ const OfferManagement = () => {
   const handleActionComplete = async (action, updatedData) => {
     try {
       console.log(`🟢 Action ${action} completed with data:`, updatedData);
-      
+
       setActionInProgress(true);
-      
+
       // Show success message
       const actionName = action.replace(/([A-Z])/g, ' $1').toLowerCase();
       showNotification(`Offer ${actionName} completed successfully`, 'success');
-      
+
       // Close the dialog
       handleCloseDialog(action);
-      
+
       // Find the candidate ID to update
-      const candidateIdToUpdate = updatedData?.candidateId || 
-                                   updatedData?.id || 
-                                   (selectedCandidateForAction?.id);
-      
+      const candidateIdToUpdate = updatedData?.candidateId ||
+        updatedData?.id ||
+        (selectedCandidateForAction?.id);
+
       // Determine the new status based on the action
       let newDisplayStatus = '';
       let newAppStatus = '';
-      
-      switch(action) {
+
+      switch (action) {
         case 'initiateOffer':
           newDisplayStatus = 'Initiated';
           newAppStatus = 'initiated';
@@ -643,19 +643,19 @@ const OfferManagement = () => {
           newDisplayStatus = updatedData?.status || 'Pending';
           newAppStatus = updatedData?.applicationStatus || 'pending';
       }
-      
+
       console.log('🔄 Updating candidate ID:', candidateIdToUpdate, 'to status:', newDisplayStatus);
-      
+
       // Update candidates state with the new status
       setCandidates(prevCandidates => {
         const updated = prevCandidates.map(candidate => {
-          const matches = candidate.id === candidateIdToUpdate || 
-                         candidate.candidateId === candidateIdToUpdate ||
-                         candidate._id === candidateIdToUpdate;
-          
+          const matches = candidate.id === candidateIdToUpdate ||
+            candidate.candidateId === candidateIdToUpdate ||
+            candidate._id === candidateIdToUpdate;
+
           if (matches) {
             console.log(`🔄 Updating candidate ${candidate.name} from ${candidate.status} to ${newDisplayStatus}`);
-            
+
             return {
               ...candidate,
               status: newDisplayStatus,
@@ -671,17 +671,17 @@ const OfferManagement = () => {
           }
           return candidate;
         });
-        
+
         return updated;
       });
-      
+
       // Also update filtered candidates
       setFilteredCandidates(prev => {
         const updated = prev.map(candidate => {
-          const matches = candidate.id === candidateIdToUpdate || 
-                         candidate.candidateId === candidateIdToUpdate ||
-                         candidate._id === candidateIdToUpdate;
-          
+          const matches = candidate.id === candidateIdToUpdate ||
+            candidate.candidateId === candidateIdToUpdate ||
+            candidate._id === candidateIdToUpdate;
+
           if (matches) {
             return {
               ...candidate,
@@ -698,10 +698,10 @@ const OfferManagement = () => {
           }
           return candidate;
         });
-        
+
         return updated;
       });
-      
+
       // TRACK COMPLETED ACTIONS IN FRONTEND (no backend update needed)
       if (candidateIdToUpdate) {
         setCompletedActions(prev => ({
@@ -711,12 +711,12 @@ const OfferManagement = () => {
           [`${candidateIdToUpdate}_lastUpdate`]: new Date().toISOString()
         }));
       }
-      
+
       // Force a re-render
       setRefreshTrigger(prev => prev + 1);
-      
+
       setActionInProgress(false);
-      
+
     } catch (error) {
       console.error('🔴 Error in handleActionComplete:', error);
       showNotification('Action completed but failed to refresh data', 'warning');
@@ -763,43 +763,29 @@ const OfferManagement = () => {
   return (
     <Box sx={{ p: 3, mt: -8 }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="h5"
-          component="h1"
-          fontWeight="600"
-          sx={{
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            display: 'inline-block',
-          }}
-        >
-          Offer Management
-        </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage and track offers for selected candidates
-        </Typography>
-      </Box>
+
 
       {/* Action Bar */}
-      <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+      <Paper sx={{
+        p: 2,
         borderRadius: 2,
         bgcolor: '#FFFFFF',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #e2e8f0',
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderBottom: 'none',
+        mb: 0
       }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search and Filters */}
+          {/* Search */}
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
             <TextField
               placeholder="Search by name, email, or ID..."
               size="small"
               value={searchTerm}
               onChange={handleSearch}
-              sx={{ 
+              sx={{
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
@@ -821,7 +807,7 @@ const OfferManagement = () => {
                     </IconButton>
                   </InputAdornment>
                 ),
-                sx: { 
+                sx: {
                   height: 40,
                   bgcolor: '#f8fafc',
                   '& input': {
@@ -832,156 +818,8 @@ const OfferManagement = () => {
               }}
               disabled={loading}
             />
-{/* 
-            <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              onClick={() => setShowFilters(!showFilters)}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filters
-            </Button> */}
-
-            {isFilterActive && (
-              <Button
-                variant="text"
-                startIcon={<ClearIcon />}
-                onClick={handleClearFilters}
-                sx={{ 
-                  height: 40,
-                  borderRadius: 1.5,
-                  color: '#475569',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': {
-                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                  }
-                }}
-                disabled={loading}
-              >
-                Clear Filters
-              </Button>
-            )}
-          </Stack>
-
-          {/* Action Buttons */}
-          <Stack direction="row" spacing={2}>
-            {selected.length > 0 && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleBulkDelete}
-                sx={{ 
-                  height: 40,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  borderColor: '#EF4444',
-                  color: '#EF4444',
-                  '&:hover': {
-                    borderColor: '#DC2626',
-                    bgcolor: alpha('#EF4444', 0.04)
-                  }
-                }}
-                disabled={loading}
-              >
-                Action ({selected.length})
-              </Button>
-            )}
-
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={handleRefresh}
-              disabled={loading}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-            >
-              Refresh
-            </Button>
           </Stack>
         </Stack>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <TextField
-                select
-                label="Status"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setSelected([]);
-                }}
-                size="small"
-                sx={{ 
-                  minWidth: 200,
-                  '& .MuiOutlinedInput-root': { 
-                    borderRadius: 1.5,
-                    bgcolor: '#f8fafc'
-                  }
-                }}
-              >
-                <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="Initiated">Initiated</MenuItem>
-                <MenuItem value="Submitted">Submitted</MenuItem>
-                <MenuItem value="Approved">Approved</MenuItem>
-                <MenuItem value="Generated">Generated</MenuItem>
-                <MenuItem value="Sent">Sent</MenuItem>
-                <MenuItem value="Accepted">Accepted</MenuItem>
-                <MenuItem value="Rejected">Rejected</MenuItem>
-              </TextField>
-
-              <Button
-                variant="outlined"
-                startIcon={<ArrowUpwardIcon />}
-                onClick={() => setSortConfig(prev => ({
-                  ...prev,
-                  direction: prev.direction === 'asc' ? 'desc' : 'asc'
-                }))}
-                sx={{ 
-                  height: 40,
-                  borderRadius: 1.5,
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  textTransform: 'none'
-                }}
-              >
-                {sortConfig.direction === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
-              </Button>
-            </Stack>
-          </Box>
-        )}
       </Paper>
 
       {/* Error Alert */}
@@ -1007,9 +845,9 @@ const OfferManagement = () => {
           No candidates found
         </Alert>
       ) : (
-        <Paper sx={{ 
-          width: '100%', 
-          borderRadius: 2, 
+        <Paper sx={{
+          width: '100%',
+          borderRadius: 2,
           overflow: 'hidden',
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: '1px solid #e2e8f0'
@@ -1017,7 +855,7 @@ const OfferManagement = () => {
           <TableContainer component={Paper} key={refreshTrigger}>
             <Table sx={{ minWidth: 650 }} aria-label="offer management table">
               <TableHead>
-                <TableRow sx={{ 
+                <TableRow sx={{
                   background: HEADER_GRADIENT,
                   '& .MuiTableCell-root': {
                     borderBottom: 'none',
@@ -1040,54 +878,54 @@ const OfferManagement = () => {
                       disabled={loading || paginatedCandidates.length === 0}
                     />
                   </TableCell>
-                  <TableCell 
+                  <TableCell
                     sx={{ cursor: 'pointer' }}
                     onClick={() => handleSort('name')}
                   >
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       Candidate
-                      <ArrowUpwardIcon 
-                        sx={{ 
-                          fontSize: 14, 
-                          color: TEXT_COLOR_HEADER, 
+                      <ArrowUpwardIcon
+                        sx={{
+                          fontSize: 14,
+                          color: TEXT_COLOR_HEADER,
                           opacity: sortConfig.field === 'name' ? 1 : 0.5,
                           transform: sortConfig.direction === "desc" && sortConfig.field === 'name' ? 'rotate(180deg)' : 'none'
-                        }} 
+                        }}
                       />
                     </Stack>
                   </TableCell>
                   <TableCell>Contact</TableCell>
-                  <TableCell 
+                  <TableCell
                     sx={{ cursor: 'pointer' }}
                     onClick={() => handleSort('position')}
                   >
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       Position
-                      <ArrowUpwardIcon 
-                        sx={{ 
-                          fontSize: 14, 
-                          color: TEXT_COLOR_HEADER, 
+                      <ArrowUpwardIcon
+                        sx={{
+                          fontSize: 14,
+                          color: TEXT_COLOR_HEADER,
                           opacity: sortConfig.field === 'position' ? 1 : 0.5,
                           transform: sortConfig.direction === "desc" && sortConfig.field === 'position' ? 'rotate(180deg)' : 'none'
-                        }} 
+                        }}
                       />
                     </Stack>
                   </TableCell>
                   <TableCell>Experience</TableCell>
                   <TableCell>Skills</TableCell>
-                  <TableCell 
+                  <TableCell
                     sx={{ cursor: 'pointer' }}
                     onClick={() => handleSort('status')}
                   >
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       Status
-                      <ArrowUpwardIcon 
-                        sx={{ 
-                          fontSize: 14, 
-                          color: TEXT_COLOR_HEADER, 
+                      <ArrowUpwardIcon
+                        sx={{
+                          fontSize: 14,
+                          color: TEXT_COLOR_HEADER,
                           opacity: sortConfig.field === 'status' ? 1 : 0.5,
                           transform: sortConfig.direction === "desc" && sortConfig.field === 'status' ? 'rotate(180deg)' : 'none'
-                        }} 
+                        }}
                       />
                     </Stack>
                   </TableCell>
@@ -1105,12 +943,12 @@ const OfferManagement = () => {
                     </TableCell>
                   </TableRow>
                 )}
-                
+
                 {!loading && paginatedCandidates.map((candidate, index) => {
                   const isSelected = selected.includes(candidate.id);
                   const isOddRow = index % 2 === 0;
                   const statusStyle = getStatusStyle(candidate.status);
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) &&
                     selectedCandidateForAction?.id === candidate.id;
 
                   return (
@@ -1118,7 +956,7 @@ const OfferManagement = () => {
                       key={candidate.id}
                       hover
                       selected={isSelected}
-                      sx={{ 
+                      sx={{
                         bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
                         '&:hover': {
                           bgcolor: HOVER_COLOR
@@ -1261,7 +1099,7 @@ const OfferManagement = () => {
         }}
       >
         {/* Initiate Offer */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('initiateOffer', selectedCandidateForAction)}
           disabled={!isActionEnabled('initiateOffer', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1275,7 +1113,7 @@ const OfferManagement = () => {
         </MenuItem>
 
         {/* Submit for Approval */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('submitForApproval', selectedCandidateForAction)}
           disabled={!isActionEnabled('submitForApproval', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1289,7 +1127,7 @@ const OfferManagement = () => {
         </MenuItem>
 
         {/* Approve Offer */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('approveOffer', selectedCandidateForAction)}
           disabled={!isActionEnabled('approveOffer', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1305,7 +1143,7 @@ const OfferManagement = () => {
         <Divider sx={{ my: 0.5 }} />
 
         {/* Generate Offer Letter */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('generateOffer', selectedCandidateForAction)}
           disabled={!isActionEnabled('generateOffer', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1319,7 +1157,7 @@ const OfferManagement = () => {
         </MenuItem>
 
         {/* Send to Candidate */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('sendOffer', selectedCandidateForAction)}
           disabled={!isActionEnabled('sendOffer', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1333,7 +1171,7 @@ const OfferManagement = () => {
         </MenuItem>
 
         {/* Accept Offer */}
-        <MenuItem 
+        <MenuItem
           onClick={() => selectedCandidateForAction && handleOpenDialog('acceptOffer', selectedCandidateForAction)}
           disabled={!isActionEnabled('acceptOffer', selectedCandidateForAction)}
           sx={{ py: 1 }}
@@ -1360,7 +1198,7 @@ const OfferManagement = () => {
         onClose={() => handleCloseDialog('submitForApproval')}
         candidateData={dialogState.submitForApproval.candidate}
         onComplete={(updatedData) => handleActionComplete('submitForApproval', updatedData)}
-        selectedCandidateForAction={selectedCandidateForAction} 
+        selectedCandidateForAction={selectedCandidateForAction}
       />
 
       <ApproveOffer
@@ -1395,14 +1233,14 @@ const OfferManagement = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: 1.5,
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'

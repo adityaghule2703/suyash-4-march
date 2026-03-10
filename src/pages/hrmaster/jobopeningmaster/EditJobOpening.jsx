@@ -93,17 +93,10 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
   const [success, setSuccess] = useState('');
 
   // Employment types
-  const employmentTypes = [
-    'Permanent',
-    'Contract',
-    'Temporary',
-    'Internship',
-    'Part-time',
-    'Full-time'
-  ];
+  const employmentTypes = ['Permanent', 'Contract', 'Temporary', 'Internship']
 
   // Currencies
-  const currencies = ['INR', 'USD', 'EUR', 'GBP'];
+  const currencies = ['INR'];
 
   // Load job data when modal opens
   useEffect(() => {
@@ -126,7 +119,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -224,8 +217,8 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
   // Validation
   const validateStep = () => {
     setError('');
-    
-    switch(activeStep) {
+
+    switch (activeStep) {
       case 0:
         if (!formData.companyIntro.trim()) {
           setError('Company introduction is required');
@@ -244,7 +237,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
           return false;
         }
         break;
-        
+
       case 1:
         if (!formData.description.trim()) {
           setError('Job description is required');
@@ -267,22 +260,22 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
           return false;
         }
         break;
-        
+
       default:
         break;
     }
-    
+
     return true;
   };
 
   // Handle form submission
   const handleSubmit = async () => {
     if (!validateStep()) return;
-    
+
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     const payload = {
       description: formData.description,
       companyIntro: formData.companyIntro,
@@ -303,7 +296,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
       skills: formData.skills,
       education: formData.education
     };
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(`${BASE_URL}/api/jobs/${job._id}`, payload, {
@@ -312,11 +305,11 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.data.success) {
         setSuccess('Job updated successfully!');
         onUpdate(response.data.data);
-        
+
         setTimeout(() => {
           onClose();
           setActiveStep(0);
@@ -338,13 +331,13 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
 
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={handleModalClose} 
-        maxWidth="md" 
+      <Dialog
+        open={open}
+        onClose={handleModalClose}
+        maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 2, minHeight: 600 }
+          sx: { borderRadius: 2, minHeight: 500 }
         }}
       >
         <DialogTitle sx={{
@@ -376,8 +369,8 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
           </Stepper>
 
           <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-            <Stack spacing={4}>
-              
+            <Stack spacing={2}>
+
               {/* Step 1: Basic Information */}
               {activeStep === 0 && (
                 <>
@@ -385,7 +378,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                     label="Company Introduction"
                     name="companyIntro"
                     multiline
-                    rows={4}
+                    rows={2}
                     fullWidth
                     value={formData.companyIntro}
                     onChange={handleChange}
@@ -398,7 +391,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                       <TextField
                         label="Location"
                         name="location"
-                        fullWidth
+                        width="500px"
                         value={formData.location}
                         onChange={handleChange}
                         placeholder="e.g., Plant Unit A"
@@ -422,21 +415,23 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                         }}
                       />
                     </Grid>
+                    <Grid item xs={12} md={6} sx={{width:"250px"}}>
+                      <FormControl >
+                        <InputLabel>Employment Type</InputLabel>
+                        <Select
+                          name="employmentType"
+                          value={formData.employmentType}
+                          onChange={handleChange}
+                          label="Employment Type"
+                        >
+                          {employmentTypes.map(type => (
+                            <MenuItem key={type} value={type}>{type}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
                   </Grid>
 
-                  <FormControl fullWidth required>
-                    <InputLabel>Employment Type</InputLabel>
-                    <Select
-                      name="employmentType"
-                      value={formData.employmentType}
-                      onChange={handleChange}
-                      label="Employment Type"
-                    >
-                      {employmentTypes.map(type => (
-                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
                 </>
               )}
 
@@ -447,7 +442,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                     label="Job Description"
                     name="description"
                     multiline
-                    rows={4}
+                    rows={2}
                     fullWidth
                     value={formData.description}
                     onChange={handleChange}
@@ -547,18 +542,17 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
 
                   {/* Experience Range */}
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={6} sx={{ width: "150px" }}>
                       <TextField
                         label="Min Experience (years)"
                         name="experienceRequired.min"
                         type="number"
-                        fullWidth
                         value={formData.experienceRequired.min}
                         onChange={handleChange}
                         inputProps={{ min: 0 }}
                       />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={6} sx={{ width: "150px" }}>
                       <TextField
                         label="Max Experience (years)"
                         name="experienceRequired.max"
@@ -569,11 +563,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                         inputProps={{ min: formData.experienceRequired.min }}
                       />
                     </Grid>
-                  </Grid>
-
-                  {/* Salary Range */}
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={4} sx={{ width: "150px" }}>
                       <TextField
                         label="Min Salary"
                         name="salaryRange.min"
@@ -587,7 +577,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                         }}
                       />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={4} sx={{ width: "150px" }}>
                       <TextField
                         label="Max Salary"
                         name="salaryRange.max"
@@ -614,6 +604,8 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                       </FormControl>
                     </Grid>
                   </Grid>
+
+
 
                   {/* Skills */}
                   <Box>
@@ -710,7 +702,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
               {/* Step 3: Review & Save */}
               {activeStep === 2 && (
                 <>
-                  <Alert severity="info" icon={<BuildIcon />}>
+                  <Alert severity="info" >
                     Please review all the information before saving.
                   </Alert>
 
@@ -718,15 +710,15 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                     <Typography variant="h6" gutterBottom fontWeight={600}>
                       Summary
                     </Typography>
-                    
+
                     <Stack spacing={2}>
                       <Box>
                         <Typography variant="subtitle2" color="textSecondary">Company</Typography>
                         <Typography>{formData.companyIntro.substring(0, 100)}...</Typography>
                       </Box>
-                      
+
                       <Divider />
-                      
+
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
                           <Typography variant="subtitle2" color="textSecondary">Location</Typography>
@@ -749,9 +741,9 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                           <Typography>{formData.salaryRange.currency} {formData.salaryRange.min.toLocaleString()} - {formData.salaryRange.max.toLocaleString()}</Typography>
                         </Grid>
                       </Grid>
-                      
+
                       <Divider />
-                      
+
                       <Box>
                         <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                           Requirements ({formData.requirements.length})
@@ -762,7 +754,7 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
                           ))}
                         </Box>
                       </Box>
-                      
+
                       <Box>
                         <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                           Responsibilities ({formData.responsibilities.length})
@@ -784,19 +776,19 @@ const EditJobOpening = ({ open, onClose, job, onUpdate }) => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, borderTop: '1px solid #e2e8f0' }}>
+        <DialogActions sx={{ p: 1, borderTop: '1px solid #e2e8f0' }}>
           <Button onClick={handleModalClose}>
             Cancel
           </Button>
-          
+
           <Box sx={{ flex: 1 }} />
-          
+
           {activeStep > 0 && (
             <Button onClick={handleBack}>
               Back
             </Button>
           )}
-          
+
           {activeStep < steps.length - 1 ? (
             <Button
               variant="contained"

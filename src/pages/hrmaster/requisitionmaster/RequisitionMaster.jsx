@@ -1295,7 +1295,7 @@ const RequisitionMaster = () => {
             display: 'inline-block'
           }}
         >
-          Requisition Master
+          Hiring Requests
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Manage and track job requisitions throughout the approval workflow

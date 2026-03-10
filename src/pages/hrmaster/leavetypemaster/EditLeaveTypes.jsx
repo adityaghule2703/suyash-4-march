@@ -15,9 +15,6 @@ import { CloseSharp, Edit as EditIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
-  
 const EditLeaveTypes = ({ open, onClose, leaveType, onUpdate }) => {
   const [formData, setFormData] = useState({
     Name: '',

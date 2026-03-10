@@ -453,7 +453,7 @@ const AdminLeaveApproval = () => {
             display: 'inline-block'
           }}
         >
-          Admin Leave Approval
+          Leave Administration
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Review and process employee leave applications

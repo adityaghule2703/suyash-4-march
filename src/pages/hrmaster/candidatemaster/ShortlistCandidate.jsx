@@ -95,7 +95,7 @@ const ShortlistCandidate = ({ open, onClose, onShortlist, candidateId, candidate
     setJobsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/jobs?status=active&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/jobs`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

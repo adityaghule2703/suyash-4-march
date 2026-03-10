@@ -1058,7 +1058,7 @@ const ViewInterviewDetails = ({ open, onClose, interviewId }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       fullScreen={isMobile}
       PaperProps={{

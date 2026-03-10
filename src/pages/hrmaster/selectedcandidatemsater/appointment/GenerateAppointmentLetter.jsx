@@ -31,7 +31,8 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
-  TextField
+  TextField,
+  Collapse
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -43,8 +44,10 @@ import {
   Download as DownloadIcon,
   Send as SendIcon,
   Email as EmailIcon,
-   Description as DescriptionIcon, // Add this missing import
-  Person as PersonIcon // Also add this if not already imported
+  Description as DescriptionIcon,
+  Person as PersonIcon,
+  Error as ErrorIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import axios from 'axios';
@@ -68,11 +71,10 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
 
   // Data states
   const [candidates, setCandidates] = useState([]);
-  const [offers, setOffers] = useState([]);
+  const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
   const [selectedOfferDetails, setSelectedOfferDetails] = useState(null);
   const [fetchingCandidates, setFetchingCandidates] = useState(false);
-  const [fetchingOffers, setFetchingOffers] = useState(false);
-  const [fetchingOfferDetails, setFetchingOfferDetails] = useState(false);
+  const [fetchingCandidateDetails, setFetchingCandidateDetails] = useState(false);
 
   // Form state
   const [selectedCandidate, setSelectedCandidate] = useState('');
@@ -84,26 +86,27 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
   // Error/Success state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [apiErrorDetails, setApiErrorDetails] = useState('');
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   // Validation state
   const [validationErrors, setValidationErrors] = useState({});
 
-  const steps = ['Select Candidate', 'Select Offer', 'Generate'];
+  const steps = ['Select Candidate', 'Review Offer', 'Generate'];
 
   // Get candidate details safely
   const getCandidateDetails = () => {
     return candidates.find(c => c._id === selectedCandidate);
   };
 
-  // Get offer display details safely
-  const getOfferDisplayDetails = () => {
-    return offers.find(o => o._id === selectedOffer);
+  // Get offer from selected candidate's latestOffer
+  const getSelectedOffer = () => {
+    if (!selectedCandidateDetails || !selectedCandidateDetails.latestOffer) return null;
+    return selectedCandidateDetails.latestOffer;
   };
 
-  // These will be defined after state initialization
   const candidateDetails = selectedCandidate ? getCandidateDetails() : null;
-  const offerDisplayDetails = selectedOffer ? getOfferDisplayDetails() : null;
-  const offerDetails = selectedOfferDetails || offerDisplayDetails;
+  const offerDetails = selectedOfferDetails || (selectedCandidateDetails?.latestOffer) || null;
 
   // Fetch candidates on open
   useEffect(() => {
@@ -113,25 +116,16 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     }
   }, [open]);
 
-  // Fetch offers when candidate is selected
+  // Fetch candidate details when candidate is selected
   useEffect(() => {
     if (selectedCandidate) {
-      fetchAcceptedOffersForCandidate(selectedCandidate);
+      fetchCandidateDetails(selectedCandidate);
     } else {
-      setOffers([]);
-      setSelectedOffer('');
+      setSelectedCandidateDetails(null);
       setSelectedOfferDetails(null);
+      setSelectedOffer('');
     }
   }, [selectedCandidate]);
-
-  // Fetch offer details when offer is selected
-  useEffect(() => {
-    if (selectedOffer) {
-      fetchOfferDetails(selectedOffer);
-    } else {
-      setSelectedOfferDetails(null);
-    }
-  }, [selectedOffer]);
 
   // Set email from candidate details when available
   useEffect(() => {
@@ -147,7 +141,9 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     setGeneratedLetter(null);
     setError('');
     setSuccess('');
-    setOffers([]);
+    setApiErrorDetails('');
+    setShowErrorDetails(false);
+    setSelectedCandidateDetails(null);
     setSelectedOfferDetails(null);
     setValidationErrors({});
     setPreviewHtml(null);
@@ -158,116 +154,118 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     setEmailSuccess('');
   };
 
-  // Fetch candidates
+  // Fetch candidates (only those with accepted offers)
   const fetchCandidates = async () => {
     setFetchingCandidates(true);
     setError('');
+    setApiErrorDetails('');
 
     try {
       const token = localStorage.getItem('token');
+      // Fetch all candidates with status 'selected'
       const response = await axios.get(`${BASE_URL}/api/candidates?status=selected`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        setCandidates(response.data.data || []);
+        // Filter candidates that have accepted offers
+        const candidatesWithAcceptedOffers = response.data.data.filter(candidate => 
+          candidate.latestOffer && candidate.latestOffer.status === 'accepted'
+        );
+        setCandidates(candidatesWithAcceptedOffers);
+        
+        if (candidatesWithAcceptedOffers.length === 0) {
+          setError('No candidates with accepted offers found');
+        }
       } else {
         setError('Failed to fetch candidates');
+        setApiErrorDetails(response.data.message || 'Unknown error');
       }
     } catch (err) {
       console.error('Error fetching candidates:', err);
-      setError(err.response?.data?.message || 'Failed to fetch candidates');
+      handleApiError(err, 'Failed to fetch candidates');
     } finally {
       setFetchingCandidates(false);
     }
   };
 
-  // Fetch accepted offers for selected candidate
-  const fetchAcceptedOffersForCandidate = async (candidateId) => {
-    setFetchingOffers(true);
+  // Fetch candidate details by ID
+  const fetchCandidateDetails = async (candidateId) => {
+    setFetchingCandidateDetails(true);
     setError('');
-    setOffers([]);
-    setSelectedOffer('');
-    setSelectedOfferDetails(null);
+    setApiErrorDetails('');
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/offers?status=accepted`, {
+      const response = await axios.get(`${BASE_URL}/api/candidates?_id=${candidateId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.data.success) {
-        const allOffers = response.data.data?.offers || [];
-        const candidateOffers = allOffers.filter(offer => {
-          const offerCandidateId = offer.candidate?._id || offer.candidateId?._id || offer.candidateId;
-          return offerCandidateId === candidateId && offer.status?.toLowerCase() === 'accepted';
-        });
-
-        setOffers(candidateOffers);
-
-        if (candidateOffers.length === 0) {
-          setError('No accepted offers found for this candidate');
-        } else if (candidateOffers.length === 1) {
-          setSelectedOffer(candidateOffers[0]._id);
+      if (response.data.success && response.data.data.length > 0) {
+        const candidate = response.data.data[0];
+        setSelectedCandidateDetails(candidate);
+        
+        // If candidate has an accepted offer, auto-select it
+        if (candidate.latestOffer && candidate.latestOffer.status === 'accepted') {
+          setSelectedOfferDetails(candidate.latestOffer);
+          setSelectedOffer(candidate.latestOffer._id);
+        } else {
+          setError('This candidate does not have an accepted offer');
         }
       } else {
-        setError('Failed to fetch offers');
+        setError('Candidate details not found');
+        setApiErrorDetails('The requested candidate could not be found');
       }
     } catch (err) {
-      console.error('Error fetching offers:', err);
-      setError(err.response?.data?.message || 'Failed to fetch offers for this candidate');
+      console.error('Error fetching candidate details:', err);
+      handleApiError(err, 'Failed to fetch candidate details');
     } finally {
-      setFetchingOffers(false);
+      setFetchingCandidateDetails(false);
     }
   };
 
-  // Fetch complete offer details by ID
-  const fetchOfferDetails = async (offerId) => {
-    setFetchingOfferDetails(true);
-    setValidationErrors({});
+  // Handle API errors with user-friendly messages
+  const handleApiError = (err, defaultMessage) => {
+    let userMessage = defaultMessage;
+    let technicalDetails = '';
 
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/offers/${offerId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        setSelectedOfferDetails(response.data.data);
-        
-        // Validate required fields for HTML generation
-        validateOfferForHtmlGeneration(response.data.data);
+    if (err.response) {
+      // The request was made and the server responded with a status code outside 2xx
+      technicalDetails = `Status: ${err.response.status}\nData: ${JSON.stringify(err.response.data, null, 2)}`;
+      
+      // User-friendly messages based on status code
+      switch (err.response.status) {
+        case 400:
+          userMessage = 'Invalid request. Please check the selected candidate and offer.';
+          break;
+        case 401:
+          userMessage = 'Your session has expired. Please log in again.';
+          break;
+        case 403:
+          userMessage = 'You do not have permission to perform this action.';
+          break;
+        case 404:
+          userMessage = 'The requested resource was not found.';
+          break;
+        case 500:
+          userMessage = 'Server error. Please try again later or contact support.';
+          break;
+        default:
+          userMessage = err.response.data?.message || defaultMessage;
       }
-    } catch (err) {
-      console.error('Error fetching offer details:', err);
-      setError('Could not fetch offer details. Please check if the offer exists.');
-    } finally {
-      setFetchingOfferDetails(false);
+    } else if (err.request) {
+      // The request was made but no response was received
+      technicalDetails = 'No response received from server';
+      userMessage = 'Network error. Please check your internet connection.';
+    } else {
+      // Something happened in setting up the request
+      technicalDetails = err.message;
+      userMessage = 'An unexpected error occurred. Please try again.';
     }
-  };
 
-  // Validate if offer has all required fields for HTML generation
-  const validateOfferForHtmlGeneration = (offer) => {
-    const errors = {};
-    
-    if (!offer.offerDetails?.joiningDate) {
-      errors.joiningDate = 'Joining date is required';
-    }
-    
-    if (!offer.candidate?.firstName || !offer.candidate?.lastName) {
-      errors.candidateName = 'Candidate name is incomplete';
-    }
-    
-    if (!offer.offerDetails?.designation && !offer.job?.title) {
-      errors.designation = 'Designation is required';
-    }
-    
-    if (!offer.ctcDetails?.totalCtc) {
-      errors.ctc = 'CTC details are required';
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    setError(userMessage);
+    setApiErrorDetails(technicalDetails);
+    setShowErrorDetails(true);
   };
 
   // Handle candidate change
@@ -276,13 +274,8 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     setSelectedOffer('');
     setSelectedOfferDetails(null);
     setError('');
-    setValidationErrors({});
-  };
-
-  // Handle offer change
-  const handleOfferChange = (e) => {
-    setSelectedOffer(e.target.value);
-    setError('');
+    setApiErrorDetails('');
+    setShowErrorDetails(false);
     setValidationErrors({});
   };
 
@@ -292,8 +285,8 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
       setError('Please select a candidate');
       return;
     }
-    if (step === 1 && !selectedOffer) {
-      setError('Please select an offer');
+    if (step === 1 && !offerDetails) {
+      setError('No accepted offer found for this candidate');
       return;
     }
     setError('');
@@ -326,27 +319,21 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     setDownloading(true);
     
     try {
-      // Create a blob from the HTML content
       const blob = new Blob([previewHtml], { type: 'text/html' });
-      
-      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
-      // Set filename with candidate name and date
       const candidateName = candidateDetails ? 
         `${candidateDetails.firstName}_${candidateDetails.lastName}`.replace(/\s+/g, '_') : 
         'appointment_letter';
       const date = new Date().toISOString().split('T')[0];
       link.download = `${candidateName}_appointment_letter_${date}.html`;
       
-      // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Clean up
       window.URL.revokeObjectURL(url);
       
       setSuccess('Letter downloaded successfully!');
@@ -366,7 +353,6 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
       return;
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailAddress)) {
       setEmailError('Please enter a valid email address');
@@ -385,9 +371,6 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     try {
       const token = localStorage.getItem('token');
       
-      console.log('Sending email to:', `${BASE_URL}/api/appointment-letter/send/${generatedLetter.documentId}`);
-      console.log('Email address:', emailAddress);
-
       const response = await axios.post(
         `${BASE_URL}/api/appointment-letter/send/${generatedLetter.documentId}`,
         {
@@ -401,13 +384,10 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
         }
       );
 
-      console.log('Send email response:', response.data);
-
       if (response.data.success) {
         setEmailSent(true);
         setEmailSuccess(response.data.message || 'Email sent successfully!');
         
-        // Show success message and close dialog after 2 seconds
         setTimeout(() => {
           setShowEmailDialog(false);
           setEmailSent(false);
@@ -419,7 +399,21 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
       }
     } catch (err) {
       console.error('Error sending email:', err);
-      setEmailError(err.response?.data?.message || err.message || 'Failed to send email');
+      
+      let errorMsg = 'Failed to send email';
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMsg = 'Document not found. Please generate the letter again.';
+        } else if (err.response.status === 400) {
+          errorMsg = err.response.data?.message || 'Invalid email address or document ID';
+        } else {
+          errorMsg = err.response.data?.message || 'Server error';
+        }
+      } else if (err.request) {
+        errorMsg = 'Network error. Please check your connection.';
+      }
+      
+      setEmailError(errorMsg);
     } finally {
       setSendingEmail(false);
     }
@@ -435,31 +429,33 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
   const handleGenerateAndPreview = async () => {
     setSubmitting(true);
     setError('');
+    setApiErrorDetails('');
+    setShowErrorDetails(false);
 
     try {
       const token = localStorage.getItem('token');
-      const offerDetailsLocal = selectedOfferDetails || offerDisplayDetails;
       
-      const joiningDate = offerDetailsLocal?.offerDetails?.joiningDate;
+      // Get joining date from offer details
+      let joiningDate = offerDetails?.offerDetails?.joiningDate;
       
       if (!joiningDate) {
         throw new Error('Joining date not found in offer details');
       }
 
+      // Format joining date to YYYY-MM-DD
       const formattedDate = new Date(joiningDate).toISOString().split('T')[0];
 
       console.log('Generating letter with:', {
         candidateId: selectedCandidate,
-        offerId: selectedOffer,
+        offerId: offerDetails._id,
         joiningDate: formattedDate
       });
 
-      // Make API call to get HTML
       const response = await axios.post(
         `${BASE_URL}/api/appointment-letter/generate`,
         {
           candidateId: selectedCandidate,
-          offerId: selectedOffer,
+          offerId: offerDetails._id,
           joiningDate: formattedDate
         },
         {
@@ -473,28 +469,29 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
         }
       );
 
-      const responseData = typeof response.data === 'string' ? response.data : response.data;
+      const htmlContent = response.data;
       
-      if (typeof responseData === 'string' && responseData.includes('<!DOCTYPE html>')) {
+      if (typeof htmlContent === 'string' && htmlContent.includes('<!DOCTYPE html>')) {
         
-        // Store HTML for preview
-        setPreviewHtml(responseData);
+        setPreviewHtml(htmlContent);
         
-        // Extract document ID from HTML
-        const docId = extractDocumentIdFromHtml(responseData) || 
-                     Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const docId = extractDocumentIdFromHtml(htmlContent);
         
-        // Create response data
+        if (!docId) {
+          console.warn('Document ID not found in HTML response');
+        }
+        
         const letterData = {
-          documentId: docId,
+          documentId: docId || `TEMP-${Date.now()}`,
           candidateId: selectedCandidate,
           candidateName: candidateDetails ? `${candidateDetails.firstName} ${candidateDetails.lastName}` : 'Candidate',
           candidateEmail: candidateDetails?.email || '',
-          offerId: selectedOffer,
-          offerDesignation: offerDetailsLocal?.job?.title || offerDetailsLocal?.offerDetails?.designation || 'Not Specified',
+          offerId: offerDetails._id,
+          offerDesignation: offerDetails.offerDetails?.designation || 'Not Specified',
           status: 'generated',
           generatedAt: new Date().toISOString(),
           joiningDate: formattedDate,
+          html: htmlContent,
           nextSteps: [
             "Preview the appointment letter",
             "Print the letter using the print option",
@@ -506,36 +503,17 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
         setGeneratedLetter(letterData);
         setSuccess('Appointment letter generated successfully!');
         
-        // Open preview dialog AFTER generation is complete
-        setTimeout(() => {
-          setShowPreview(true);
-        }, 100);
-
-        if (onSubmit) {
-          onSubmit(letterData);
-        }
-      } else if (responseData.success) {
-        const letterData = responseData.data;
-        setGeneratedLetter(letterData);
-        setSuccess(responseData.message || 'Appointment letter generated successfully!');
-        
-        // If response contains HTML, store it
-        if (letterData?.html) {
-          setPreviewHtml(letterData.html);
-          setTimeout(() => {
-            setShowPreview(true);
-          }, 100);
-        }
+        setShowPreview(true);
 
         if (onSubmit) {
           onSubmit(letterData);
         }
       } else {
-        throw new Error(responseData.message || 'Failed to generate appointment letter');
+        throw new Error('Invalid response format: Expected HTML');
       }
     } catch (err) {
       console.error('Error generating appointment letter:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to generate appointment letter');
+      handleApiError(err, 'Failed to generate appointment letter');
     } finally {
       setSubmitting(false);
     }
@@ -606,8 +584,523 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
     }
   };
 
-  // Render step content (truncated for brevity - keep your existing renderStepContent function)
-  // ... (keep your existing renderStepContent function here)
+  // Render error alert with details
+  const renderErrorAlert = () => {
+    if (!error) return null;
+    
+    return (
+      <Alert 
+        severity="error" 
+        sx={{ mb: 3, borderRadius: 2 }}
+        action={
+          apiErrorDetails && (
+            <Button 
+              color="inherit" 
+              size="small"
+              onClick={() => setShowErrorDetails(!showErrorDetails)}
+              startIcon={<ErrorIcon />}
+            >
+              {showErrorDetails ? 'Hide Details' : 'Show Details'}
+            </Button>
+          )
+        }
+        onClose={() => setError('')}
+      >
+        <Typography variant="body2" fontWeight={500}>
+          {error}
+        </Typography>
+        
+        {apiErrorDetails && (
+          <Collapse in={showErrorDetails}>
+            <Paper
+              variant="outlined"
+              sx={{
+                mt: 2,
+                p: 1.5,
+                bgcolor: '#fef2f2',
+                borderColor: '#fecaca',
+                maxHeight: '200px',
+                overflow: 'auto'
+              }}
+            >
+              <Typography
+                variant="caption"
+                component="pre"
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  fontSize: '0.7rem',
+                  color: '#991b1b'
+                }}
+              >
+                {apiErrorDetails}
+              </Typography>
+            </Paper>
+          </Collapse>
+        )}
+      </Alert>
+    );
+  };
+
+  // Render step content for Step 0 - Select Candidate
+  const renderStep0 = () => (
+    <Stack spacing={3}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+          Select Candidate
+        </Typography>
+
+        {fetchingCandidates ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <FormControl fullWidth size="small" error={!!error && !selectedCandidate}>
+            <InputLabel>Select Candidate with Accepted Offer</InputLabel>
+            <Select
+              value={selectedCandidate}
+              onChange={handleCandidateChange}
+              label="Select Candidate with Accepted Offer"
+            >
+              <MenuItem value="">Choose a candidate</MenuItem>
+              {candidates.map((cand) => (
+                <MenuItem key={cand._id} value={cand._id}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar sx={{ width: 24, height: 24, bgcolor: PRIMARY_BLUE, fontSize: '0.75rem' }}>
+                      {cand.firstName?.[0]}{cand.lastName?.[0]}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2">
+                        {cand.firstName} {cand.lastName}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {cand.candidateId} - {cand.email}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+            {!selectedCandidate && error && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                {error}
+              </Typography>
+            )}
+          </FormControl>
+        )}
+
+        {candidates.length === 0 && !fetchingCandidates && !error && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            No candidates with accepted offers found.
+          </Alert>
+        )}
+
+        {candidates.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="textSecondary">
+              Showing {candidates.length} candidate(s) with accepted offers
+            </Typography>
+          </Box>
+        )}
+      </Paper>
+
+      <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
+        <Typography variant="body2">
+          Select a candidate who has accepted an offer to generate an appointment letter.
+        </Typography>
+      </Alert>
+    </Stack>
+  );
+
+  // Render step content for Step 1 - Review Offer
+  const renderStep1 = () => (
+    <Stack spacing={3}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+          Review Offer Details
+        </Typography>
+
+        {fetchingCandidateDetails ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : !selectedCandidateDetails ? (
+          <Alert severity="warning">Please select a candidate first</Alert>
+        ) : !offerDetails ? (
+          <Alert 
+            severity="warning"
+            action={
+              <Button 
+                color="inherit" 
+                size="small"
+                onClick={() => fetchCandidateDetails(selectedCandidate)}
+                startIcon={<RefreshIcon />}
+              >
+                Retry
+              </Button>
+            }
+          >
+            No accepted offer found for this candidate
+          </Alert>
+        ) : (
+          <Box>
+            {/* Candidate Summary */}
+            <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom fontWeight={600} sx={{ color: '#1976D2' }}>
+                Candidate Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Full Name</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {selectedCandidateDetails.firstName} {selectedCandidateDetails.lastName}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Candidate ID</Typography>
+                  <Typography variant="body2">{selectedCandidateDetails.candidateId}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Email</Typography>
+                  <Typography variant="body2">{selectedCandidateDetails.email}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Phone</Typography>
+                  <Typography variant="body2">{selectedCandidateDetails.phone}</Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Offer Details */}
+            <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+              <Typography variant="subtitle2" gutterBottom fontWeight={600} sx={{ color: '#1976D2', mb: 2 }}>
+                Offer Details
+              </Typography>
+
+              {/* Offer Information */}
+              <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                  OFFER INFORMATION
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Offer ID</Typography>
+                    <Typography variant="body2" fontWeight={600}>{offerDetails.offerId || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Status</Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      <Chip
+                        label={offerDetails.status}
+                        size="small"
+                        sx={{
+                          bgcolor: '#d1fae5',
+                          color: '#065f46',
+                          height: 24,
+                          fontSize: '12px',
+                          fontWeight: 500
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Employment Type</Typography>
+                    <Typography variant="body2">{offerDetails.offerDetails?.employmentType || 'Permanent'}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Position Details */}
+              <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                  POSITION DETAILS
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Designation</Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {offerDetails.offerDetails?.designation || 'N/A'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Department</Typography>
+                    <Typography variant="body2">{offerDetails.offerDetails?.department || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary">Location</Typography>
+                    <Typography variant="body2">{offerDetails.offerDetails?.location || 'N/A'}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Joining Date */}
+              <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                  JOINING DETAILS
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="textSecondary">Joining Date</Typography>
+                    <Typography variant="body2" fontWeight={500} sx={{ color: '#1976D2' }}>
+                      {offerDetails.offerDetails?.joiningDate ? formatDisplayDate(offerDetails.offerDetails.joiningDate) : 'Not specified'}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Compensation Details */}
+              {offerDetails.ctcDetails && (
+                <Paper sx={{ p: 2, mb: 2, bgcolor: 'white', borderRadius: 1 }}>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                    COMPENSATION DETAILS
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={3}>
+                      <Typography variant="caption" color="textSecondary">Basic Salary</Typography>
+                      <Typography variant="body2" fontWeight={500}>{formatCurrency(offerDetails.ctcDetails.basic)}</Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Typography variant="caption" color="textSecondary">HRA</Typography>
+                      <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.hra)}</Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Typography variant="caption" color="textSecondary">Conveyance</Typography>
+                      <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.conveyanceAllowance) || 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Typography variant="caption" color="textSecondary">Medical</Typography>
+                      <Typography variant="body2">{formatCurrency(offerDetails.ctcDetails.medicalAllowance) || 'N/A'}</Typography>
+                    </Grid>
+                  </Grid>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle2">Total CTC (Annual)</Typography>
+                    <Typography variant="h6" color="success.main" fontWeight={600}>
+                      {formatCurrency(offerDetails.ctcDetails.totalCtc)}
+                    </Typography>
+                  </Box>
+                </Paper>
+              )}
+            </Paper>
+          </Box>
+        )}
+      </Paper>
+
+      <Alert severity="info" icon={<InfoIcon />} sx={{ borderRadius: 2 }}>
+        <Typography variant="body2">
+          Review the offer details. The joining date will be used for the appointment letter.
+        </Typography>
+      </Alert>
+    </Stack>
+  );
+
+  // Render step content for Step 2 - Generate
+  const renderStep2 = () => (
+    <Stack spacing={3}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom color="#1976D2">
+          Generate Appointment Letter
+        </Typography>
+
+        {/* Summary Card */}
+        <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+            Summary
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Typography variant="caption" color="textSecondary">Candidate</Typography>
+              <Typography variant="body1" fontWeight={500}>
+                {candidateDetails?.firstName} {candidateDetails?.lastName}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="textSecondary">Candidate ID</Typography>
+              <Typography variant="body2">{candidateDetails?.candidateId}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="textSecondary">Offer ID</Typography>
+              <Typography variant="body2">{offerDetails?.offerId || 'N/A'}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="textSecondary">Designation</Typography>
+              <Typography variant="body2">{offerDetails?.offerDetails?.designation || 'N/A'}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="textSecondary">Total CTC</Typography>
+              <Typography variant="body2" fontWeight={600} color="success.main">
+                {formatCurrency(offerDetails?.ctcDetails?.totalCtc)}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="caption" color="textSecondary">Joining Date</Typography>
+              <Typography variant="body2" fontWeight={500}>
+                {offerDetails?.offerDetails?.joiningDate ? formatDisplayDate(offerDetails.offerDetails.joiningDate) : 'N/A'}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* Validation warnings before generation */}
+        {Object.keys(validationErrors).length > 0 && !generatedLetter && (
+          <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              The following issues may affect the appointment letter format:
+            </Typography>
+            <List dense>
+              {Object.values(validationErrors).map((error, index) => (
+                <ListItem key={index}>
+                  <ListItemIcon sx={{ minWidth: 30 }}>
+                    <WarningIcon color="warning" fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={error} />
+                </ListItem>
+              ))}
+            </List>
+          </Alert>
+        )}
+
+        {/* Generated Letter Card */}
+        {generatedLetter ? (
+          <Card sx={{ mb: 3, border: '1px solid', borderColor: 'success.main' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Avatar sx={{ bgcolor: '#2E7D32' }}>
+                  <CheckCircleIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" color="success.main">
+                    Letter Generated Successfully!
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    You can now preview, print, download, or email the letter
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Document ID</Typography>
+                  <Typography variant="body2">{generatedLetter.documentId}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="textSecondary">Generated At</Typography>
+                  <Typography variant="body2">
+                    {new Date(generatedLetter.generatedAt).toLocaleString()}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </CardContent>
+            <CardActions sx={{ p: 2, pt: 0, gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                startIcon={<PrintIcon />}
+                onClick={handlePrintLetter}
+                sx={{
+                  background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                  },
+                  flex: { xs: '1 1 calc(50% - 4px)', sm: '1 1 auto' }
+                }}
+              >
+                Print
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<VisibilityIcon />}
+                onClick={handlePreview}
+                sx={{
+                  borderColor: PRIMARY_BLUE,
+                  color: PRIMARY_BLUE,
+                  '&:hover': {
+                    borderColor: '#0096b4',
+                    bgcolor: 'rgba(0, 180, 216, 0.04)'
+                  },
+                  flex: { xs: '1 1 calc(50% - 4px)', sm: '1 1 auto' }
+                }}
+              >
+                Preview
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={downloading ? <CircularProgress size={20} /> : <DownloadIcon />}
+                onClick={handleDownloadLetter}
+                disabled={downloading || !previewHtml}
+                sx={{
+                  background: 'linear-gradient(135deg, #2E7D32, #4CAF50)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1B5E20, #388E3C)'
+                  },
+                  flex: { xs: '1 1 calc(50% - 4px)', sm: '1 1 auto' }
+                }}
+              >
+                {downloading ? 'Downloading...' : 'Download'}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<SendIcon />}
+                onClick={() => {
+                  setEmailAddress(candidateDetails?.email || '');
+                  setShowEmailDialog(true);
+                }}
+                sx={{
+                  background: 'linear-gradient(135deg, #1976D2, #2196F3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1565C0, #1976D2)'
+                  },
+                  flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                  mt: { xs: 1, sm: 0 }
+                }}
+              >
+                Send Email
+              </Button>
+            </CardActions>
+          </Card>
+        ) : (
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleGenerateAndPreview}
+              disabled={submitting || !offerDetails?.offerDetails?.joiningDate}
+              startIcon={submitting ? <CircularProgress size={20} /> : <ViewIcon />}
+              sx={{
+                background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #0e3b4a, #0096b4)'
+                },
+                '&.Mui-disabled': {
+                  background: '#e0e0e0'
+                }
+              }}
+            >
+              {submitting ? 'Generating...' : 'Generate & Preview Letter'}
+            </Button>
+          </Box>
+        )}
+      </Paper>
+    </Stack>
+  );
+
+  // Main render function for step content
+  const renderStepContent = () => {
+    switch (step) {
+      case 0:
+        return renderStep0();
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
@@ -648,17 +1141,14 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
 
         <DialogContent sx={{ pt: 3, px: 3, overflowY: 'auto' }}>
           {/* Error/Success Messages */}
-          {error && (
+          {renderErrorAlert()}
+          
+          {success && !generatedLetter && (
             <Alert 
-              severity="error" 
-              onClose={() => setError('')} 
+              severity="success" 
+              onClose={() => setSuccess('')} 
               sx={{ mb: 3, borderRadius: 2 }}
             >
-              {error}
-            </Alert>
-          )}
-          {success && !generatedLetter && (
-            <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 3, borderRadius: 2 }}>
               {success}
             </Alert>
           )}
@@ -672,9 +1162,9 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
             ))}
           </Stepper>
 
-          {/* Step Content - You need to keep your existing renderStepContent output here */}
+          {/* Step Content */}
           <Box sx={{ minHeight: 400 }}>
-            {/* Your existing step content JSX */}
+            {renderStepContent()}
           </Box>
         </DialogContent>
 
@@ -723,7 +1213,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={step === 1 && offers.length === 0}
+                disabled={step === 1 && !offerDetails}
                 sx={{
                   background: 'linear-gradient(135deg, #164e63, #00B4D8)',
                   '&:hover': {
@@ -799,6 +1289,7 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
               startIcon={<SendIcon />}
               onClick={() => {
                 setShowPreview(false);
+                setEmailAddress(candidateDetails?.email || '');
                 setShowEmailDialog(true);
               }}
               sx={{
@@ -953,7 +1444,6 @@ const GenerateAppointmentLetter = ({ open, onClose, onSubmit }) => {
               </Alert>
             </>
           ) : (
-            /* Success Screen */
             <Box sx={{ textAlign: 'center', py: 3 }}>
               <CheckCircleIcon color="success" sx={{ fontSize: 60, mb: 2 }} />
               <Typography variant="h5" gutterBottom>

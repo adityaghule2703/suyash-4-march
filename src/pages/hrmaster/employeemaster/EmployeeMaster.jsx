@@ -435,7 +435,7 @@ const EmployeeMaster = () => {
             display: 'inline-block'
           }}
         >
-          Employee Master
+          Employee Registery
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Manage and organize company employees and their information

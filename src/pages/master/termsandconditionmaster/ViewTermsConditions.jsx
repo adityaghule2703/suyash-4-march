@@ -145,7 +145,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
               Terms & Conditions Details
             </Typography>
           </Stack>
-          {termData && (
+          {/* {termData && (
             <Chip
               icon={termData?.IsActive ? <CheckCircleIcon sx={{ fontSize: 12 }} /> : <CancelIcon sx={{ fontSize: 12 }} />}
               label={termData?.IsActive ? 'Active' : 'Inactive'}
@@ -159,7 +159,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
                 '& .MuiChip-icon': { fontSize: 12 }
               }}
             />
-          )}
+          )} */}
         </Stack>
       </Box>
 
@@ -254,7 +254,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
             Close
           </Button>
 
-          <Button
+          {/* <Button
             variant="contained"
             onClick={() => {
               onClose();
@@ -273,7 +273,7 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
             }}
           >
             Edit Term
-          </Button>
+          </Button> */}
         </Stack>
       </Box>
     </Dialog>

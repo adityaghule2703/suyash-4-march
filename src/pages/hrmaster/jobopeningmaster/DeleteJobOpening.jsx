@@ -11,7 +11,11 @@ import {
   Stack,
   Box,
   Chip,
-  Divider
+  Divider,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -42,7 +46,7 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
   };
 
   const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'published':
         return 'success';
       case 'draft':
@@ -115,16 +119,16 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
           </Typography>
         </Stack>
       </DialogTitle>
-     
+
       <DialogContent sx={{ pt: 3 }}>
         <Stack spacing={3}>
           {/* Job Info Card */}
           <Stack direction="row" spacing={2} alignItems="flex-start">
             <Avatar sx={{
-              width: 60,
-              height: 60,
+              width: 30,
+              height: 30,
               bgcolor: '#D32F2F',
-              fontSize: '1.25rem'
+              fontSize: '0.75rem'
             }}>
               {getAvatarInitials(job.title)}
             </Avatar>
@@ -155,69 +159,103 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
           <Divider />
 
           {/* Job Details */}
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <BusinessIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                Department:
-              </Typography>
-              <Typography variant="body2" fontWeight={500}>
-                {job.department || 'N/A'}
-              </Typography>
-            </Stack>
+          <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+            {/* Department */}
+            <ListItem>
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <BusinessIcon sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Department"
+                secondary={job.department || 'N/A'}
+                primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+              />
+            </ListItem>
 
-            <Stack direction="row" spacing={2} alignItems="center">
-              <LocationIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                Location:
-              </Typography>
-              <Typography variant="body2" fontWeight={500}>
-                {job.location || 'N/A'}
-              </Typography>
-            </Stack>
+            
+            {/* Location */}
+            <ListItem >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <LocationIcon sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Location"
+                secondary={job.location || 'N/A'}
+                primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+              />
+            </ListItem>
 
-            <Stack direction="row" spacing={2} alignItems="center">
-              <AssignmentIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                Employment Type:
-              </Typography>
-              <Typography variant="body2" fontWeight={500}>
-                {job.employmentType || 'N/A'}
-              </Typography>
-            </Stack>
+        
 
-            <Stack direction="row" spacing={2} alignItems="center">
-              <PeopleIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                Applications:
-              </Typography>
-              <Typography variant="body2" fontWeight={500}>
-                {getTotalApplications()}
-              </Typography>
-            </Stack>
+            {/* Employment Type */}
+            <ListItem >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <AssignmentIcon sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Employment Type"
+                secondary={job.employmentType || 'N/A'}
+                primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+              />
+            </ListItem>
 
-            <Stack direction="row" spacing={2} alignItems="center">
-              <DateRangeIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                Created:
-              </Typography>
-              <Typography variant="body2" fontWeight={500}>
-                {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
-              </Typography>
-            </Stack>
+          
+
+            {/* Applications */}
+            <ListItem>
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <PeopleIcon sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Applications"
+                secondary={getTotalApplications()}
+                primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+              />
+            </ListItem>
+
+         
+
+            {/* Created Date */}
+            <ListItem >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <DateRangeIcon sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Created"
+                secondary={job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
+                primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+              />
+            </ListItem>
 
             {job.createdByName && (
-              <Stack direction="row" spacing={2} alignItems="center">
-                <PeopleIcon fontSize="small" color="action" />
-                <Typography variant="body2" color="textSecondary" sx={{ minWidth: 100 }}>
-                  Created By:
-                </Typography>
-                <Typography variant="body2" fontWeight={500}>
-                  {job.createdByName}
-                </Typography>
-              </Stack>
+              <>
+               
+                {/* Created By */}
+                <ListItem >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <PeopleIcon sx={{ color: '#64748b' }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Created By"
+                    secondary={job.createdByName}
+                    primaryTypographyProps={{ variant: 'body2', color: '#64748b', width: 120 }}
+                    secondaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: '#1e293b' }}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+                  />
+                </ListItem>
+              </>
             )}
-          </Stack>
+          </List>
 
           {/* Publishing Info */}
           {job.publishTo && job.publishTo.length > 0 && (
@@ -233,9 +271,9 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
                       key={idx}
                       size="small"
                       label={`${platform.platform}: ${platform.status}`}
-                      color={platform.status === 'published' ? 'success' : 
-                             platform.status === 'pending' ? 'warning' : 
-                             platform.status === 'failed' ? 'error' : 'default'}
+                      color={platform.status === 'published' ? 'success' :
+                        platform.status === 'pending' ? 'warning' :
+                          platform.status === 'failed' ? 'error' : 'default'}
                       variant="outlined"
                       sx={{ mb: 0.5 }}
                     />
@@ -252,7 +290,7 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
             <Typography variant="body1" sx={{ mb: 2, fontSize: '0.875rem' }}>
               Are you sure you want to delete this job opening?
             </Typography>
-            
+
             <Alert severity="error" icon={<WarningIcon />} sx={{ mb: 2 }}>
               <Typography variant="body2" fontWeight={500}>
                 ⚠️ This action cannot be undone. All job data will be permanently deleted.
@@ -263,34 +301,34 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
             {job.status === 'published' && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>Note:</strong> This job is currently published and visible to candidates. 
+                  <strong>Note:</strong> This job is currently published and visible to candidates.
                   Deleting it will remove it from all job boards immediately.
                 </Typography>
               </Alert>
             )}
 
-            {getPublishedPlatformsCount() > 0 && (
+            {/* {getPublishedPlatformsCount() > 0 && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>Note:</strong> This job is published on {getPublishedPlatformsCount()} platform(s). 
+                  <strong>Note:</strong> This job is published on {getPublishedPlatformsCount()} platform(s).
                   It will be removed from all platforms upon deletion.
                 </Typography>
               </Alert>
-            )}
+            )} */}
 
-            {getTotalApplications() > 0 && (
+            {/* {getTotalApplications() > 0 && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>Warning:</strong> This job has {getTotalApplications()} application(s). 
+                  <strong>Warning:</strong> This job has {getTotalApplications()} application(s).
                   Deleting it will also delete all associated applications.
                 </Typography>
               </Alert>
-            )}
+            )} */}
 
             {job.requisitionId && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>Note:</strong> This job is linked to requisition {job.requisitionNumber}. 
+                  <strong>Note:</strong> This job is linked to requisition {job.requisitionNumber}.
                   The requisition will not be affected.
                 </Typography>
               </Alert>
@@ -314,7 +352,7 @@ const DeleteJobOpening = ({ open, onClose, job, onDelete }) => {
           )}
         </Stack>
       </DialogContent>
-     
+
       <DialogActions sx={{
         px: 3,
         pb: 3,

@@ -287,7 +287,7 @@ const ShiftMaster = () => {
             display: "inline-block",
           }}
         >
-          Shift Master
+          Shift Calender
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Manage and organize company shifts and scheduling details

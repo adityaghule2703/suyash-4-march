@@ -327,7 +327,7 @@ const EmployeeBehaviorMaster = () => {
             display: 'inline-block'
           }}
         >
-          Employee Behavior Master
+          Behavior Monitoring
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Manage and track employee behavior records

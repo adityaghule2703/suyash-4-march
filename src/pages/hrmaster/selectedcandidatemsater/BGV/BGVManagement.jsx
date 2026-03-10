@@ -252,31 +252,12 @@ const BGVManagement = () => {
   return (
     <Box sx={{ p: 3, mt: -8}}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          fontWeight="600" 
-          sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
-          }}
-        >
-          Background Verification Management
-        </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage and track candidate background verification processes
-        </Typography>
-      </Box>
-
+      
       {/* Action Bar */}
       <Paper sx={{ 
         p: 2, 
-        mb: 3, 
+        mb: 0, 
+        borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none',
         borderRadius: 2,
         bgcolor: '#FFFFFF',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',

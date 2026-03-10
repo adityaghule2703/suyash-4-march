@@ -17,10 +17,6 @@ import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
-
-
 const AddHoliday = ({ open, onClose, onAdd }) => {
     const [formData, setFormData] = useState({
         Name: '',

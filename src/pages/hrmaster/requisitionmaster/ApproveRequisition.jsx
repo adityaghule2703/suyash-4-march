@@ -433,7 +433,7 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
         </Box>
       </Box>
 
-      <Grid container spacing={2}>
+      {/* <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
           <List dense disablePadding>
             <ListItem disableGutters sx={{ py: 0.5 }}>
@@ -516,7 +516,96 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
             </ListItem>
           </List>
         </Grid>
-      </Grid>
+      </Grid> */}
+
+      <Grid container spacing={3}>
+  {/* Row 1: Department, Budget Range, Location, Education */}
+  
+  
+  {/* First Row - 4 items */}
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 5 }}>
+      <BusinessIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Department</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.department || 'N/A'}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 5 }}>
+      <MonetizationIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Budget Range</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>
+          ₹{requisition.budgetMin?.toLocaleString()} - ₹{requisition.budgetMax?.toLocaleString()}
+        </Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 8 }}>
+      <LocationIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Location</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.location || 'N/A'}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 5 }}>
+      <SchoolIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Education</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.education || 'N/A'}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  {/* Second Row: Position, Experience, Requested By, Target Date */}
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 12 }}>
+      <WorkIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Position</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.positionTitle || 'N/A'}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 10 }}>
+      <TrendingUpIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Experience</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.experienceYears || 0} years</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingRight: 6 }}>
+      <PersonIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Requested By</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{requisition.createdByName || 'N/A'}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <CalendarIcon sx={{ color: '#666', fontSize: 20 }} />
+      <Box>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Target Date</Typography>
+        <Typography variant="body2" sx={{ color: '#101010', fontWeight: 500 }}>{formatDate(requisition.targetHireDate)}</Typography>
+      </Box>
+    </Box>
+  </Grid>
+</Grid>
 
       <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <Chip
@@ -750,7 +839,7 @@ const ApproveRequisition = ({ open, onClose, onApprove, requisitionId }) => {
         <TextField
           fullWidth
           multiline
-          rows={4}
+          rows={2}
           placeholder="Please provide your comments and justification for approval..."
           value={comments}
           onChange={(e) => {

@@ -363,7 +363,7 @@ const SelectedCandidatesMaster = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+
   // Refresh triggers for each tab
   const [refreshTriggers, setRefreshTriggers] = useState({
     offer: 0,
@@ -454,7 +454,7 @@ const SelectedCandidatesMaster = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography 
             variant="h5" 
@@ -477,7 +477,7 @@ const SelectedCandidatesMaster = () => {
         </Box>
         
         {/* Global Refresh Button */}
-        <Tooltip title="Refresh Current Tab">
+      {/* <Tooltip title="Refresh Current Tab">
           <IconButton 
             onClick={handleRefresh}
             sx={{ 
@@ -491,12 +491,64 @@ const SelectedCandidatesMaster = () => {
             <RefreshIcon />
           </IconButton>
         </Tooltip>
+      </Box> */}
+
+      {/* Header with Dynamic Title */}
+
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography
+            variant="h5"
+            component="h1"
+            fontWeight="600"
+            sx={{
+              color: TEXT_COLOR_MAIN,
+              background: HEADER_GRADIENT,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}
+          >
+            {TABS[tabValue].label}
+          </Typography>
+          <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+            Manage {TABS[tabValue].label.toLowerCase()} for selected candidates
+          </Typography>
+        </Box>
+
+        {/* Global Refresh Button */}
+        <Tooltip title="Refresh Current Tab">
+          <IconButton
+            onClick={handleRefresh}
+            sx={{
+              color: '#64748B',
+              '&:hover': {
+                bgcolor: alpha(PRIMARY_BLUE, 0.1),
+                color: PRIMARY_BLUE
+              }
+            }}
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Tabs with Requisition Master Style */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs 
-          value={tabValue} 
+      {/* <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}> */}
+      <Paper sx={{
+        borderRadius: 2,
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0',
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderBottom: 'none',
+        overflow: 'hidden',
+        mb: 0
+      }}>
+        <Tabs
+          value={tabValue}
           onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
@@ -515,7 +567,8 @@ const SelectedCandidatesMaster = () => {
             '& .MuiTabs-indicator': {
               backgroundColor: PRIMARY_BLUE,
               height: 3
-            }
+            },
+            marginBottom: '40px'
           }}
         >
           {TABS.map((tab, index) => (
@@ -533,36 +586,39 @@ const SelectedCandidatesMaster = () => {
             />
           ))}
         </Tabs>
-      </Box>
+    </Paper>
+      
 
-      {/* Tab Panels with Auto-Refresh */}
-      {TABS.map((tab, index) => (
-        <TabPanel key={tab.value} value={tabValue} index={index}>
-          {renderComponent(tab.component, tab.value)}
-        </TabPanel>
-      ))}
+      {/* Tab Panels with Auto-Refresh */ }
+  {
+    TABS.map((tab, index) => (
+      <TabPanel key={tab.value} value={tabValue} index={index}>
+        {renderComponent(tab.component, tab.value)}
+      </TabPanel>
+    ))
+  }
 
-      {/* Snackbar Notification */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ 
-            width: '100%',
-            borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+  {/* Snackbar Notification */ }
+  <Snackbar
+    open={snackbar.open}
+    autoHideDuration={3000}
+    onClose={() => setSnackbar({ ...snackbar, open: false })}
+    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+  >
+    <Alert
+      onClose={() => setSnackbar({ ...snackbar, open: false })}
+      severity={snackbar.severity}
+      variant="filled"
+      sx={{
+        width: '100%',
+        borderRadius: 1.5,
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      }}
+    >
+      {snackbar.message}
+    </Alert>
+  </Snackbar>
+    </Box >
   );
 };
 

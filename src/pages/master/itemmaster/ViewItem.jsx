@@ -548,7 +548,7 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
               </Button>
             )}
             
-            {activeStep < steps.length - 1 ? (
+            {activeStep < steps.length - 1 && (
               <Button
                 variant="contained"
                 onClick={handleNext}
@@ -562,24 +562,7 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
               >
                 Next
               </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => {
-                  onClose();
-                  onEdit && onEdit();
-                }}
-                startIcon={<EditIcon />}
-                size="small"
-                sx={{
-                  backgroundColor: PRIMARY_BLUE,
-                  fontSize: '0.8rem',
-                  '&:hover': { backgroundColor: '#0e7490' }
-                }}
-              >
-                Edit Item
-              </Button>
-            )}
+            ) }
           </Stack>
         </Stack>
       </Box>

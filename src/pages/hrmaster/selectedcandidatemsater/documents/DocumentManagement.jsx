@@ -39,7 +39,6 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
-import { DocumentDownloadDialog } from './DocumentDownloadDialog';
 import VerifyDocument from './VerifyDocument';
 import UploadDocument from './UploadDocument';
 
@@ -64,10 +63,6 @@ const DocumentManagement = () => {
   const [selected, setSelected] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // State for download dialog
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState(null);
 
   // State for verify dialog
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
@@ -179,13 +174,6 @@ const DocumentManagement = () => {
     alert(`Bulk delete for ${selected.length} items - API coming soon`);
   };
 
-  // Handle download button click
-  const handleDownloadClick = (document) => {
-    console.log('Selected document for download:', document);
-    setSelectedDocument(document);
-    setDownloadDialogOpen(true);
-  };
-
   // Handle verify button click
   const handleVerifyClick = (document) => {
     console.log('Selected document for verification:', document);
@@ -218,11 +206,6 @@ const DocumentManagement = () => {
   const handleUploadComplete = (uploadedDoc) => {
     console.log('Upload completed:', uploadedDoc);
     fetchDocuments();
-  };
-
-  // Handle download complete
-  const handleDownloadComplete = (result) => {
-    console.log('Download completed:', result);
   };
 
   // Handle verify complete
@@ -328,126 +311,116 @@ const DocumentManagement = () => {
   return (
     <Box sx={{ p: 3, mt: -8 }}>
       {/* Header - Styled exactly like reference code */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          fontWeight="600" 
-          sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
-          }}
-        >
-          Document Management
-        </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          View and manage all uploaded documents
-        </Typography>
-      </Box>
+      
 
       {/* Action Bar - Styled like reference code */}
-      <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
-        borderRadius: 2,
-        bgcolor: '#FFFFFF',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
-      }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search Bar */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
-            <TextField
-              placeholder="Search by ID, Candidate, Type, Status..."
-              size="small"
-              value={searchTerm}
-              onChange={handleSearch}
-              sx={{ 
-                width: { xs: '100%', sm: 400 },
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
-                  },
-                }
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
-                  </InputAdornment>
-                ),
-                sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
-                  '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
-                  }
-                }
-              }}
-            />
-            {/* <Tooltip title="Refresh">
-              <IconButton 
-                onClick={fetchDocuments}
-                sx={{ 
-                  color: '#64748B',
-                  '&:hover': {
-                    bgcolor: alpha(PRIMARY_BLUE, 0.1),
-                    color: PRIMARY_BLUE
-                  }
-                }}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip> */}
-          </Stack>
+   {/* Action Bar - Connected to table */}
+<Paper sx={{ 
+  p: 2, 
+  borderRadius: 2,
+  bgcolor: '#FFFFFF',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+  border: '1px solid #e2e8f0',
+  borderBottomLeftRadius: 0,
+  borderBottomRightRadius: 0,
+  borderBottom: 'none',
+  mb: 0
+}}>
+  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+    {/* Search Bar */}
+    <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+      <TextField
+        placeholder="Search by ID, Candidate, Type, Status..."
+        size="small"
+        value={searchTerm}
+        onChange={handleSearch}
+        sx={{ 
+          width: { xs: '100%', sm: 400 },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 1.5,
+            '&:hover fieldset': {
+              borderColor: PRIMARY_BLUE,
+            },
+          }
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ color: '#64748B' }} />
+            </InputAdornment>
+          ),
+          sx: { 
+            height: 40,
+            bgcolor: '#f8fafc',
+            '& input': {
+              padding: '8px 12px',
+              fontSize: '0.875rem'
+            }
+          }
+        }}
+      />
+    </Stack>
 
-          {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
-            {hasSelected && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleBulkDelete}
-                sx={{ 
-                  height: 40,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
-                }}
-              >
-                Delete ({selected.length})
-              </Button>
-            )}
-            <Button
-              variant="contained"
-              startIcon={<CloudUploadIcon />}
-              onClick={handleUploadClick}
-              sx={{
-                height: 40,
-                borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
-                }
-              }}
-            >
-              Upload Document
-            </Button>
-          </Stack>
-        </Stack>
-      </Paper>
+    {/* Action Buttons */}
+    <Stack direction="row" spacing={2} alignItems="center">
+      {hasSelected && (
+        <Button
+          variant="outlined"
+          color="error"
+          startIcon={<DeleteIcon />}
+          onClick={handleBulkDelete}
+          sx={{ 
+            height: 40,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+        >
+          Delete ({selected.length})
+        </Button>
+      )}
+      <Button
+        variant="contained"
+        startIcon={<CloudUploadIcon />}
+        onClick={handleUploadClick}
+        sx={{
+          height: 40,
+          borderRadius: 1.5,
+          background: HEADER_GRADIENT,
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          textTransform: 'none',
+          '&:hover': {
+            opacity: 0.9,
+            background: HEADER_GRADIENT,
+          }
+        }}
+      >
+        Upload Document
+      </Button>
+    </Stack>
+  </Stack>
+</Paper>
+
+{error && (
+  <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+    {error}
+  </Alert>
+)}
+
+{/* Table - Connected to action bar */}
+<Paper sx={{ 
+  width: '100%', 
+  borderRadius: 2, 
+  overflow: 'hidden',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+  border: '1px solid #e2e8f0',
+  borderTopLeftRadius: 0,
+  borderTopRightRadius: 0,
+  borderTop: 'none'
+}}>
+</Paper>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -525,7 +498,7 @@ const DocumentManagement = () => {
                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 120 }} align="center">
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 80 }} align="center">
                   Actions
                 </TableCell>
               </TableRow>
@@ -642,44 +615,26 @@ const DocumentManagement = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <Stack direction="row" spacing={0.5} justifyContent="center">
-                          <Tooltip title="Download Document">
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleDownloadClick(doc)}
-                              sx={{ 
-                                color: '#64748B',
-                                '&:hover': {
-                                  bgcolor: alpha(PRIMARY_BLUE, 0.1),
-                                  color: PRIMARY_BLUE
-                                }
-                              }}
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-
-                          {isPending && (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => handleVerifyClick(doc)}
-                              sx={{
-                                backgroundColor: '#10B981',
-                                color: 'white',
-                                fontSize: '0.75rem',
-                                py: 0.5,
-                                px: 1,
-                                minWidth: 60,
-                                '&:hover': {
-                                  backgroundColor: '#059669'
-                                }
-                              }}
-                            >
-                              Verify
-                            </Button>
-                          )}
-                        </Stack>
+                        {isPending && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleVerifyClick(doc)}
+                            sx={{
+                              backgroundColor: '#10B981',
+                              color: 'white',
+                              fontSize: '0.75rem',
+                              py: 0.5,
+                              px: 1,
+                              minWidth: 60,
+                              '&:hover': {
+                                backgroundColor: '#059669'
+                              }
+                            }}
+                          >
+                            Verify
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -710,17 +665,6 @@ const DocumentManagement = () => {
           }}
         />
       </Paper>
-
-      {/* Download Dialog */}
-      <DocumentDownloadDialog
-        open={downloadDialogOpen}
-        onClose={() => {
-          setDownloadDialogOpen(false);
-          setSelectedDocument(null);
-        }}
-        document={selectedDocument}
-        onDownloadComplete={handleDownloadComplete}
-      />
 
       {/* Verify Dialog */}
       <VerifyDocument

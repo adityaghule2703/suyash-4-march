@@ -109,7 +109,7 @@ const HeaderTwo = () => {
     { name: 'Leave Administration', path: '/hrmaster/adminleavemaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8' }, // Admin/Shield with calendar icon
     { name: 'Production Master', path: '/hrmaster/productionmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15'},
     { name: 'Termination Master', path: '/hrmaster/terminationmaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
-    { name: 'Employee Behavior Master', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
+    { name: 'Behavior Monitoring', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z' },
      { name: 'Mediclaim Master', path: '/hrmaster/mediclaimmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15'},
 
   ];

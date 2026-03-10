@@ -483,7 +483,7 @@ const LeaveTypeMaster = () => {
             display: 'inline-block'
           }}
         >
-          {mode === "leave" ? "Leave Type Master" : "Holiday Master"}
+          {mode === "leave" ? "Leave Policies" : "Holiday Calender"}
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           {mode === "leave" 

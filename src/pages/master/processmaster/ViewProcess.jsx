@@ -293,7 +293,7 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
             Close
           </Button>
 
-          <Button
+          {/* <Button
             variant="contained"
             onClick={() => {
               onClose();
@@ -308,7 +308,7 @@ const ViewProcess = ({ open, onClose, process, onEdit }) => {
             }}
           >
             Edit Process
-          </Button>
+          </Button> */}
         </Stack>
       </Box>
     </Dialog>

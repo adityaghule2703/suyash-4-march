@@ -396,7 +396,7 @@ const ViewRawMaterial = ({ open, onClose, material, onEdit }) => {
             Close
           </Button>
 
-          {onEdit && (
+          {/* {onEdit && (
             <Button
               variant="contained"
               onClick={() => {
@@ -413,7 +413,7 @@ const ViewRawMaterial = ({ open, onClose, material, onEdit }) => {
             >
               Edit Material
             </Button>
-          )}
+          )} */}
         </Stack>
       </Box>
     </Dialog>

@@ -116,19 +116,19 @@ const ScheduleInterview = ({ open, onClose, onAdd }) => {
 
   // Interview rounds
   const interviewRounds = [
-    'teliphonic',
-    'Technical',
-    'HR',
-    'Managerial',
-    'Final',
+   'Telephonic',  // Changed from 'teliphonic'
+  'Technical',
+  'HR',
+  'Managerial',
+  'Final'
   ];
 
   // Interview types
-  const interviewTypes = [
-    { value: 'video', label: 'Video Call', icon: <VideoCallIcon /> },
-    { value: 'phone', label: 'Phone Call', icon: <ScheduleIcon /> },
-    { value: 'in-person', label: 'In Person', icon: <LocationIcon /> }
-  ];
+ const interviewTypes = [
+  { value: 'video', label: 'Video Call', icon: <VideoCallIcon /> },
+  { value: 'telephonic', label: 'Phone Call', icon: <ScheduleIcon /> }, // Changed from 'phone' to 'telephonic'
+  { value: 'in-person', label: 'In Person', icon: <LocationIcon /> }
+];
 
   // Fetch applications from API
   // const fetchApplications = async (search = '', page = 1) => {

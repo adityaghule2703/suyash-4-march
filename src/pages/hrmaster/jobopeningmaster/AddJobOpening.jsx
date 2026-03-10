@@ -1,3 +1,1609 @@
+// import React, { useState, useEffect } from 'react';
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   TextField,
+//   Stack,
+//   Alert,
+//   MenuItem,
+//   Grid,
+//   CircularProgress,
+//   Stepper,
+//   Step,
+//   StepLabel,
+//   Box,
+//   Typography,
+//   styled,
+//   StepConnector,
+//   Chip,
+//   OutlinedInput,
+//   FormControl,
+//   InputLabel,
+//   Select,
+//   FormHelperText,
+//   Checkbox,
+//   ListItemText,
+//   Divider,
+//   Paper,
+//   InputAdornment
+// } from '@mui/material';
+// import {
+//   Add as AddIcon,
+//   Work as WorkIcon,
+//   Business as BusinessIcon,
+//   LocationOn as LocationIcon,
+//   AttachMoney as AttachMoneyIcon,
+//   School as SchoolIcon,
+//   Build as BuildIcon,
+//   Info as InfoIcon,
+//   ArrowBack as ArrowBackIcon,
+//   ArrowForward as ArrowForwardIcon,
+//   Search as SearchIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+
+// /* ------------------- Custom Stepper Styling ------------------- */
+// const ColorConnector = styled(StepConnector)(({ theme }) => ({
+//   '& .MuiStepConnector-line': {
+//     height: 4,
+//     border: 0,
+//     backgroundColor: '#e0e0e0',
+//     borderRadius: 10,
+//   },
+//   '&.Mui-active .MuiStepConnector-line': {
+//     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//   },
+//   '&.Mui-completed .MuiStepConnector-line': {
+//     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//   },
+// }));
+
+// // Custom styled Paper component for dropdown without scrollbars
+// const CustomPaper = styled(Paper)({
+//   maxHeight: 200,
+//   overflow: 'auto',
+//   '&::-webkit-scrollbar': {
+//     display: 'none'
+//   },
+//   scrollbarWidth: 'none',
+//   '-ms-overflow-style': 'none',
+//   '& .MuiAutocomplete-listbox': {
+//     '&::-webkit-scrollbar': {
+//       display: 'none'
+//     },
+//     scrollbarWidth: 'none',
+//     '-ms-overflow-style': 'none'
+//   }
+// });
+
+// // Custom styled MenuProps for Select components
+// const selectMenuProps = {
+//   PaperProps: {
+//     sx: {
+//       maxHeight: 200,
+//       overflow: 'auto',
+//       '&::-webkit-scrollbar': {
+//         display: 'none'
+//       },
+//       scrollbarWidth: 'none',
+//       '-ms-overflow-style': 'none'
+//     }
+//   }
+// };
+
+// const steps = ["Basic Information", "Job Details", "Publish Settings"];
+
+// // Available platforms for publishing
+// const publishPlatforms = [
+//   { value: 'careerPage', label: 'Career Page' },
+//   { value: 'naukri', label: 'Naukri.com' },
+//   { value: 'linkedin', label: 'LinkedIn' },
+//   { value: 'indeed', label: 'Indeed' },
+
+// ];
+
+// const AddJobOpening = ({ open, onClose, onAdd }) => {
+//   const [activeStep, setActiveStep] = useState(0);
+//   const [requisitions, setRequisitions] = useState([]);
+//   const [requisitionLoading, setRequisitionLoading] = useState(false);
+//   const [selectedRequisition, setSelectedRequisition] = useState(null);
+//   const [requisitionSearch, setRequisitionSearch] = useState('');
+
+//   const [formData, setFormData] = useState({
+//     requisitionId: '',
+//     description: '',
+//     companyIntro: '',
+//     requirements: [],
+//     responsibilities: [],
+//     publishTo: [],
+//     location: '',
+//     department: '',
+//     employmentType: 'Permanent',
+//     experienceRequired: {
+//       min: 0,
+//       max: 0
+//     },
+//     salaryRange: {
+//       min: 0,
+//       max: 0,
+//       currency: 'INR'
+//     },
+//     skills: [],
+//     education: []
+//   });
+
+//   // Temporary input fields for dynamic arrays
+//   const [requirementInput, setRequirementInput] = useState('');
+//   const [responsibilityInput, setResponsibilityInput] = useState('');
+//   const [skillInput, setSkillInput] = useState('');
+//   const [educationInput, setEducationInput] = useState('');
+
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState('');
+//   const [fieldErrors, setFieldErrors] = useState({});
+
+//   // Touched fields for validation
+//   const [touched, setTouched] = useState({});
+
+//   useEffect(() => {
+//     if (open) fetchRequisitions();
+//   }, [open]);
+
+//   const fetchRequisitions = async () => {
+//     try {
+//       setRequisitionLoading(true);
+//       const token = localStorage.getItem('token');
+//       const response = await axios.get(`${BASE_URL}/api/requisitions?status=approved`, {
+//         headers: { Authorization: `Bearer ${token}` }
+//       });
+//       if (response.data.success) {
+//         setRequisitions(response.data.data || []);
+//       }
+//     } catch (error) {
+//       console.error('Error fetching requisitions:', error);
+//     } finally {
+//       setRequisitionLoading(false);
+//     }
+//   };
+
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+
+//     // Handle nested objects
+//     if (name.includes('.')) {
+//       const [parent, child] = name.split('.');
+//       setFormData(prev => ({
+//         ...prev,
+//         [parent]: {
+//           ...prev[parent],
+//           [child]: value
+//         }
+//       }));
+//     } else {
+//       setFormData(prev => ({ ...prev, [name]: value }));
+//     }
+
+//     // Clear field error when user types
+//     if (fieldErrors[name]) {
+//       setFieldErrors(prev => ({ ...prev, [name]: '' }));
+//     }
+//   };
+
+//   const handleBlur = (e) => {
+//     const { name } = e.target;
+//     setTouched(prev => ({
+//       ...prev,
+//       [name]: true
+//     }));
+//   };
+
+//   const handleRequisitionChange = (e) => {
+//     const requisitionId = e.target.value;
+//     setFormData(prev => ({ ...prev, requisitionId }));
+
+//     // Auto-fill job details from selected requisition
+//     const selected = requisitions.find(req => req._id === requisitionId);
+//     if (selected) {
+//       setSelectedRequisition(selected);
+
+//       // Auto-populate fields from requisition
+//       setFormData(prev => ({
+//         ...prev,
+//         requisitionId: selected._id,
+//         location: selected.location || '',
+//         department: selected.department || '',
+//         employmentType: selected.employmentType || 'Permanent',
+//         experienceRequired: {
+//           min: selected.experienceYears || 0,
+//           max: (selected.experienceYears || 0) + 2
+//         },
+//         salaryRange: {
+//           min: selected.budgetMin || 0,
+//           max: selected.budgetMax || 0,
+//           currency: 'INR'
+//         },
+//         skills: selected.skills || [],
+//         education: selected.education ? [selected.education] : []
+//       }));
+//     }
+//   };
+
+//   // Handle requirements
+//   const handleAddRequirement = () => {
+//     if (requirementInput.trim()) {
+//       setFormData(prev => ({
+//         ...prev,
+//         requirements: [...prev.requirements, requirementInput.trim()]
+//       }));
+//       setRequirementInput('');
+//     }
+//   };
+
+//   const handleRemoveRequirement = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       requirements: prev.requirements.filter((_, i) => i !== index)
+//     }));
+//   };
+
+//   // Handle responsibilities
+//   const handleAddResponsibility = () => {
+//     if (responsibilityInput.trim()) {
+//       setFormData(prev => ({
+//         ...prev,
+//         responsibilities: [...prev.responsibilities, responsibilityInput.trim()]
+//       }));
+//       setResponsibilityInput('');
+//     }
+//   };
+
+//   const handleRemoveResponsibility = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       responsibilities: prev.responsibilities.filter((_, i) => i !== index)
+//     }));
+//   };
+
+//   // Handle skills
+//   const handleAddSkill = () => {
+//     if (skillInput.trim()) {
+//       setFormData(prev => ({
+//         ...prev,
+//         skills: [...prev.skills, skillInput.trim()]
+//       }));
+//       setSkillInput('');
+//     }
+//   };
+
+//   const handleRemoveSkill = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       skills: prev.skills.filter((_, i) => i !== index)
+//     }));
+//   };
+
+//   // Handle education
+//   const handleAddEducation = () => {
+//     if (educationInput.trim()) {
+//       setFormData(prev => ({
+//         ...prev,
+//         education: [...prev.education, educationInput.trim()]
+//       }));
+//       setEducationInput('');
+//     }
+//   };
+
+//   const handleRemoveEducation = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       education: prev.education.filter((_, i) => i !== index)
+//     }));
+//   };
+
+//   // Handle publish platforms
+//   const handlePublishChange = (event) => {
+//     const { value } = event.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       publishTo: value
+//     }));
+//   };
+
+//   const handleNext = () => {
+//     if (validateStep()) {
+//       setActiveStep(prev => prev + 1);
+//     }
+//   };
+
+//   const handleBack = () => {
+//     setActiveStep(prev => prev - 1);
+//   };
+
+//   const validateStep = () => {
+//     const errors = {};
+//     let isValid = true;
+
+//     switch (activeStep) {
+//       case 0:
+//         if (!formData.requisitionId) {
+//           errors.requisitionId = 'Please select a requisition';
+//           isValid = false;
+//         }
+//         if (!formData.companyIntro?.trim()) {
+//           errors.companyIntro = 'Company introduction is required';
+//           isValid = false;
+//         }
+//         if (!formData.location?.trim()) {
+//           errors.location = 'Location is required';
+//           isValid = false;
+//         }
+//         if (!formData.department?.trim()) {
+//           errors.department = 'Department is required';
+//           isValid = false;
+//         }
+//         if (!formData.employmentType) {
+//           errors.employmentType = 'Employment type is required';
+//           isValid = false;
+//         }
+//         break;
+
+//       // case 1:
+//       //   if (!formData.description?.trim()) {
+//       //     errors.description = 'Job description is required';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.requirements.length === 0) {
+//       //     errors.requirements = 'Please add at least one requirement';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.responsibilities.length === 0) {
+//       //     errors.responsibilities = 'Please add at least one responsibility';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.experienceRequired.min < 0) {
+//       //     errors['experienceRequired.min'] = 'Minimum experience cannot be negative';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.experienceRequired.max < formData.experienceRequired.min) {
+//       //     errors['experienceRequired.max'] = 'Maximum experience must be greater than minimum';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.salaryRange.min < 0) {
+//       //     errors['salaryRange.min'] = 'Minimum salary cannot be negative';
+//       //     isValid = false;
+//       //   }
+//       //   if (formData.salaryRange.max < formData.salaryRange.min) {
+//       //     errors['salaryRange.max'] = 'Maximum salary must be greater than minimum';
+//       //     isValid = false;
+//       //   }
+//       //   break;
+
+//       case 1:
+//         return (
+//           <>
+//             <TextField
+//               fullWidth
+//               label="Job Description *"
+//               name="description"
+//               multiline
+//               rows={2}
+//               value={formData.description}
+//               onChange={handleChange}
+//               onBlur={handleBlur}
+//               error={touched.description && (!!fieldErrors.description || !formData.description)}
+//               helperText={
+//                 touched.description
+//                   ? (!formData.description ? 'Job description is required' : fieldErrors.description)
+//                   : 'Detailed description of the job role'
+//               }
+//               disabled={loading}
+//               size="medium"
+//               variant="outlined"
+//               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//             />
+
+//             {/* Requirements Section */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Requirements <span style={{ color: '#d32f2f' }}>*</span>
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={requirementInput}
+//                   onChange={(e) => setRequirementInput(e.target.value)}
+//                   placeholder="Add a requirement (e.g., Minimum 2 years experience)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddRequirement}
+//                   disabled={!requirementInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 },
+//                     minWidth: 80
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+
+//               {/* Dynamic Requirements List */}
+//               {formData.requirements.length > 0 && (
+//                 <Box
+//                   sx={{
+//                     display: 'flex',
+//                     flexWrap: 'wrap',
+//                     gap: 1,
+//                     mb: 1,
+//                     p: 1,
+//                     backgroundColor: '#f5f5f5',
+//                     borderRadius: 1,
+//                     minHeight: formData.requirements.length > 0 ? 'auto' : 0
+//                   }}
+//                 >
+//                   {formData.requirements.map((req, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={req}
+//                       onDelete={() => handleRemoveRequirement(index)}
+//                       color="primary"
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+
+//               {touched.requirements && fieldErrors.requirements && (
+//                 <FormHelperText error>{fieldErrors.requirements}</FormHelperText>
+//               )}
+//             </Box>
+
+//             {/* Responsibilities Section */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Responsibilities <span style={{ color: '#d32f2f' }}>*</span>
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={responsibilityInput}
+//                   onChange={(e) => setResponsibilityInput(e.target.value)}
+//                   placeholder="Add a responsibility (e.g., Operate production machinery)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddResponsibility}
+//                   disabled={!responsibilityInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 },
+//                     minWidth: 80
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+
+//               {/* Dynamic Responsibilities List */}
+//               {formData.responsibilities.length > 0 && (
+//                 <Box
+//                   sx={{
+//                     display: 'flex',
+//                     flexWrap: 'wrap',
+//                     gap: 1,
+//                     mb: 1,
+//                     p: 1,
+//                     backgroundColor: '#f5f5f5',
+//                     borderRadius: 1,
+//                     minHeight: formData.responsibilities.length > 0 ? 'auto' : 0
+//                   }}
+//                 >
+//                   {formData.responsibilities.map((resp, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={resp}
+//                       onDelete={() => handleRemoveResponsibility(index)}
+//                       color="secondary"
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+
+//               {touched.responsibilities && fieldErrors.responsibilities && (
+//                 <FormHelperText error>{fieldErrors.responsibilities}</FormHelperText>
+//               )}
+//             </Box>
+
+//             {/* Experience Range */}
+//             <Grid container spacing={2}>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Min Experience (years)"
+//                   name="experienceRequired.min"
+//                   type="number"
+//                   value={formData.experienceRequired.min}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['experienceRequired.min'] && !!fieldErrors['experienceRequired.min']}
+//                   helperText={touched['experienceRequired.min'] ? fieldErrors['experienceRequired.min'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: 0 }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Max Experience (years)"
+//                   name="experienceRequired.max"
+//                   type="number"
+//                   value={formData.experienceRequired.max}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['experienceRequired.max'] && !!fieldErrors['experienceRequired.max']}
+//                   helperText={touched['experienceRequired.max'] ? fieldErrors['experienceRequired.max'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: formData.experienceRequired.min }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//             </Grid>
+
+//             {/* Salary Range */}
+//             <Grid container spacing={2}>
+//               <Grid item xs={12} md={4}>
+//                 <TextField
+//                   fullWidth
+//                   label="Min Salary"
+//                   name="salaryRange.min"
+//                   type="number"
+//                   value={formData.salaryRange.min}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['salaryRange.min'] && !!fieldErrors['salaryRange.min']}
+//                   helperText={touched['salaryRange.min'] ? fieldErrors['salaryRange.min'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: 0 }}
+//                   InputProps={{
+//                     startAdornment: (
+//                       <InputAdornment position="start">
+//                         <AttachMoneyIcon sx={{ color: '#64748b' }} />
+//                       </InputAdornment>
+//                     ),
+//                   }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={4}>
+//                 <TextField
+//                   fullWidth
+//                   label="Max Salary"
+//                   name="salaryRange.max"
+//                   type="number"
+//                   value={formData.salaryRange.max}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['salaryRange.max'] && !!fieldErrors['salaryRange.max']}
+//                   helperText={touched['salaryRange.max'] ? fieldErrors['salaryRange.max'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: formData.salaryRange.min }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={4}>
+//                 <FormControl fullWidth>
+//                   <InputLabel>Currency</InputLabel>
+//                   <Select
+//                     name="salaryRange.currency"
+//                     value={formData.salaryRange.currency}
+//                     onChange={handleChange}
+//                     label="Currency"
+//                     disabled={loading}
+//                     sx={{ borderRadius: 1 }}
+//                     MenuProps={selectMenuProps}
+//                   >
+//                     <MenuItem value="INR">INR</MenuItem>
+//                     <MenuItem value="USD">USD</MenuItem>
+//                     <MenuItem value="EUR">EUR</MenuItem>
+//                     <MenuItem value="GBP">GBP</MenuItem>
+//                   </Select>
+//                 </FormControl>
+//               </Grid>
+//             </Grid>
+
+//             {/* Skills */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Required Skills
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={skillInput}
+//                   onChange={(e) => setSkillInput(e.target.value)}
+//                   placeholder="Add a skill (e.g., Lathe operation)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddSkill}
+//                   disabled={!skillInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 },
+//                     minWidth: 80
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+
+//               {/* Dynamic Skills List */}
+//               {formData.skills.length > 0 && (
+//                 <Box
+//                   sx={{
+//                     display: 'flex',
+//                     flexWrap: 'wrap',
+//                     gap: 1,
+//                     p: 1,
+//                     backgroundColor: '#f5f5f5',
+//                     borderRadius: 1
+//                   }}
+//                 >
+//                   {formData.skills.map((skill, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={skill}
+//                       onDelete={() => handleRemoveSkill(index)}
+//                       icon={<BuildIcon />}
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+//             </Box>
+
+//             {/* Education */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Education Requirements
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={educationInput}
+//                   onChange={(e) => setEducationInput(e.target.value)}
+//                   placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddEducation}
+//                   disabled={!educationInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 },
+//                     minWidth: 80
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+
+//               {/* Dynamic Education List */}
+//               {formData.education.length > 0 && (
+//                 <Box
+//                   sx={{
+//                     display: 'flex',
+//                     flexWrap: 'wrap',
+//                     gap: 1,
+//                     p: 1,
+//                     backgroundColor: '#f5f5f5',
+//                     borderRadius: 1
+//                   }}
+//                 >
+//                   {formData.education.map((edu, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={edu}
+//                       onDelete={() => handleRemoveEducation(index)}
+//                       icon={<SchoolIcon />}
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+//             </Box>
+//           </>
+//         );
+
+//       case 2:
+//         if (formData.publishTo.length === 0) {
+//           errors.publishTo = 'Please select at least one platform to publish';
+//           isValid = false;
+//         }
+//         break;
+
+//       default:
+//         break;
+//     }
+
+//     setFieldErrors(errors);
+//     if (!isValid) {
+//       setError('Please fill in all required fields correctly');
+//     } else {
+//       setError('');
+//     }
+//     return isValid;
+//   };
+
+//   const handleSubmit = async () => {
+//     if (!validateStep()) return;
+
+//     setLoading(true);
+//     setError('');
+//     setFieldErrors({});
+
+//     if (!formData.requisitionId) {
+//       setError('Please select a requisition');
+//       setLoading(false);
+//       return;
+//     }
+
+//     const payload = {
+//       requisitionId: formData.requisitionId,
+//       description: formData.description || '',
+//       companyIntro: formData.companyIntro || '',
+//       requirements: formData.requirements.length > 0 ? formData.requirements : ['Minimum experience required'],
+//       responsibilities: formData.responsibilities.length > 0 ? formData.responsibilities : ['Perform assigned duties'],
+//       publishTo: formData.publishTo,
+//       location: formData.location || 'Not specified',
+//       department: formData.department || 'Not specified',
+//       employmentType: formData.employmentType || 'Permanent',
+//       experienceRequired: {
+//         min: Number(formData.experienceRequired.min) || 0,
+//         max: Number(formData.experienceRequired.max) || 0
+//       },
+//       salaryRange: {
+//         min: Number(formData.salaryRange.min) || 0,
+//         max: Number(formData.salaryRange.max) || 0,
+//         currency: formData.salaryRange.currency || 'INR'
+//       },
+//       skills: formData.skills.length > 0 ? formData.skills : [],
+//       education: formData.education.length > 0 ? formData.education : []
+//     };
+
+//     try {
+//       const token = localStorage.getItem('token');
+//       const response = await axios.post(`${BASE_URL}/api/jobs`, payload, {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+
+//       if (response.data.success) {
+//         onAdd(response.data.data);
+//         onClose();
+//         // Reset form
+//         setActiveStep(0);
+//         setFormData({
+//           requisitionId: '',
+//           description: '',
+//           companyIntro: '',
+//           requirements: [],
+//           responsibilities: [],
+//           publishTo: [],
+//           location: '',
+//           department: '',
+//           employmentType: 'Permanent',
+//           experienceRequired: { min: 0, max: 0 },
+//           salaryRange: { min: 0, max: 0, currency: 'INR' },
+//           skills: [],
+//           education: []
+//         });
+//         setSelectedRequisition(null);
+//         setError('');
+//         setTouched({});
+//       }
+//     } catch (err) {
+//       console.error('Error creating job:', err);
+
+//       if (err.response) {
+//         if (err.response.status === 400) {
+//           const serverError = err.response.data;
+//           if (serverError.message?.includes('Duplicate') ||
+//             serverError.message?.includes('duplicate') ||
+//             serverError.message?.includes('already exists')) {
+//             setError('Duplicate job ID. Please try again.');
+//           } else if (serverError.errors) {
+//             const serverFieldErrors = {};
+//             Object.keys(serverError.errors).forEach(key => {
+//               serverFieldErrors[key] = serverError.errors[key].message;
+//             });
+//             setFieldErrors(serverFieldErrors);
+//             setError('Please check the form for errors');
+//           } else if (serverError.message) {
+//             setError(serverError.message);
+//           } else {
+//             setError('Failed to create job opening. Please check all fields and try again.');
+//           }
+//         }
+//       } else if (err.request) {
+//         setError('No response from server. Please check your network connection.');
+//       } else {
+//         setError('Failed to create job opening. Please try again.');
+//       }
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const resetForm = () => {
+//     setActiveStep(0);
+//     setFormData({
+//       requisitionId: '',
+//       description: '',
+//       companyIntro: '',
+//       requirements: [],
+//       responsibilities: [],
+//       publishTo: [],
+//       location: '',
+//       department: '',
+//       employmentType: 'Permanent',
+//       experienceRequired: { min: 0, max: 0 },
+//       salaryRange: { min: 0, max: 0, currency: 'INR' },
+//       skills: [],
+//       education: []
+//     });
+//     setSelectedRequisition(null);
+//     setError('');
+//     setFieldErrors({});
+//     setTouched({});
+//     setRequisitionSearch('');
+//   };
+
+//   const handleClose = () => {
+//     resetForm();
+//     onClose();
+//   };
+
+//   // Render step content
+//   const renderStepContent = () => {
+//     switch (activeStep) {
+//       case 0:
+//         return (
+//           <>
+//             <FormControl fullWidth>
+//               <InputLabel>Select Requisition *</InputLabel>
+//               <Select
+//                 value={formData.requisitionId}
+//                 onChange={handleRequisitionChange}
+//                 onBlur={handleBlur}
+//                 label="Select Requisition *"
+//                 error={touched.requisitionId && !!fieldErrors.requisitionId}
+//                 disabled={loading || requisitionLoading}
+//                 sx={{ borderRadius: 1 }}
+//                 MenuProps={selectMenuProps}
+//               >
+//                 {requisitionLoading ? (
+//                   <MenuItem disabled>
+//                     <CircularProgress size={18} sx={{ mr: 1 }} />
+//                     Loading...
+//                   </MenuItem>
+//                 ) : requisitions.length > 0 ? (
+//                   requisitions.map(req => (
+//                     <MenuItem key={req._id} value={req._id}>
+//                       {req.requisitionId} - {req.positionTitle || req.jobTitle} ({req.department})
+//                     </MenuItem>
+//                   ))
+//                 ) : (
+//                   <MenuItem disabled>No requisitions found</MenuItem>
+//                 )}
+//               </Select>
+//               {touched.requisitionId && fieldErrors.requisitionId && (
+//                 <FormHelperText error>{fieldErrors.requisitionId}</FormHelperText>
+//               )}
+//             </FormControl>
+
+//             <TextField
+//               fullWidth
+//               label="Company Introduction *"
+//               name="companyIntro"
+//               multiline
+//               rows={2}
+//               value={formData.companyIntro}
+//               onChange={handleChange}
+//               onBlur={handleBlur}
+//               error={touched.companyIntro && (!!fieldErrors.companyIntro || !formData.companyIntro)}
+//               helperText={
+//                 touched.companyIntro
+//                   ? (!formData.companyIntro ? 'Company introduction is required' : fieldErrors.companyIntro)
+//                   : 'Brief introduction about your company'
+//               }
+//               disabled={loading}
+//               size="medium"
+//               variant="outlined"
+//               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//             />
+
+//             <Grid container spacing={2}>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Location *"
+//                   name="location"
+//                   value={formData.location}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched.location && (!!fieldErrors.location || !formData.location)}
+//                   helperText={
+//                     touched.location
+//                       ? (!formData.location ? 'Location is required' : fieldErrors.location)
+//                       : 'e.g., Plant Unit A'
+//                   }
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   InputProps={{
+//                     startAdornment: (
+//                       <InputAdornment position="start">
+//                         <LocationIcon sx={{ color: '#64748b' }} />
+//                       </InputAdornment>
+//                     ),
+//                   }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Department *"
+//                   name="department"
+//                   value={formData.department}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched.department && (!!fieldErrors.department || !formData.department)}
+//                   helperText={
+//                     touched.department
+//                       ? (!formData.department ? 'Department is required' : fieldErrors.department)
+//                       : 'e.g., Production'
+//                   }
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   InputProps={{
+//                     startAdornment: (
+//                       <InputAdornment position="start">
+//                         <BusinessIcon sx={{ color: '#64748b' }} />
+//                       </InputAdornment>
+//                     ),
+//                   }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid>
+
+//                 <FormControl error={touched.employmentType && !!fieldErrors.employmentType} sx={{ width: "250px" }}>
+//                   <InputLabel>Employment Type *</InputLabel>
+//                   <Select
+//                     name="employmentType"
+//                     value={formData.employmentType}
+//                     onChange={handleChange}
+//                     onBlur={handleBlur}
+//                     label="Employment Type *"
+//                     disabled={loading}
+//                     sx={{ borderRadius: 1 }}
+//                     MenuProps={selectMenuProps}
+//                   >
+//                     <MenuItem value="Permanent">Permanent</MenuItem>
+//                     <MenuItem value="Contract">Contract</MenuItem>
+//                     <MenuItem value="Temporary">Temporary</MenuItem>
+//                     <MenuItem value="Internship">Internship</MenuItem>
+
+//                   </Select>
+//                   {touched.employmentType && fieldErrors.employmentType && (
+//                     <FormHelperText>{fieldErrors.employmentType}</FormHelperText>
+//                   )}
+//                 </FormControl>
+//               </Grid>
+//             </Grid>
+
+//           </>
+//         );
+
+//       case 1:
+//         return (
+//           <>
+//             <TextField
+//               fullWidth
+//               label="Job Description *"
+//               name="description"
+//               multiline
+//               rows={2}
+//               value={formData.description}
+//               onChange={handleChange}
+//               onBlur={handleBlur}
+//               error={touched.description && (!!fieldErrors.description || !formData.description)}
+//               helperText={
+//                 touched.description
+//                   ? (!formData.description ? 'Job description is required' : fieldErrors.description)
+//                   : 'Detailed description of the job role'
+//               }
+//               disabled={loading}
+//               size="medium"
+//               variant="outlined"
+//               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//             />
+
+//             {/* Requirements Section */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Requirements <span style={{ color: '#d32f2f' }}>*</span>
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={requirementInput}
+//                   onChange={(e) => setRequirementInput(e.target.value)}
+//                   placeholder="Add a requirement (e.g., Minimum 2 years experience)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddRequirement}
+//                   disabled={!requirementInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     color: '#fff !important', 
+//                     '&:hover': { opacity: 0.9 },
+
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+//               {formData.requirements.length > 0 && (
+//                 <Box sx={{
+//                   display: 'flex',
+//                   flexWrap: 'wrap',
+//                   gap: 1,
+//                   // minHeight: 50,
+//                   mb: 1
+//                 }}>
+//                   {formData.requirements.map((req, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={req}
+//                       onDelete={() => handleRemoveRequirement(index)}
+//                       color="primary"
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+//               {touched.requirements && fieldErrors.requirements && (
+//                 <FormHelperText error>{fieldErrors.requirements}</FormHelperText>
+//               )}
+//             </Box>
+
+//             {/* Responsibilities Section */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Responsibilities <span style={{ color: '#d32f2f' }}>*</span>
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={responsibilityInput}
+//                   onChange={(e) => setResponsibilityInput(e.target.value)}
+//                   placeholder="Add a responsibility (e.g., Operate production machinery)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddResponsibility}
+//                   disabled={!responsibilityInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                      color: '#fff !important', 
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 }
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+//               {formData.requirements.length > 0 && (
+//                 <Box sx={{
+//                   display: 'flex',
+//                   flexWrap: 'wrap',
+//                   gap: 1,
+//                   // minHeight: 50,
+//                   mb: 1
+//                 }}>
+//                   {formData.responsibilities.map((resp, index) => (
+//                     <Chip
+//                       key={index}
+//                       label={resp}
+//                       onDelete={() => handleRemoveResponsibility(index)}
+//                       color="secondary"
+//                       variant="outlined"
+//                       size="small"
+//                       sx={{ borderRadius: 1 }}
+//                     />
+//                   ))}
+//                 </Box>
+//               )}
+//               {touched.responsibilities && fieldErrors.responsibilities && (
+//                 <FormHelperText error>{fieldErrors.responsibilities}</FormHelperText>
+//               )}
+//             </Box>
+
+//             {/* Experience Range */}
+//             <Grid container spacing={2}>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Min Experience (years)"
+//                   name="experienceRequired.min"
+//                   type="number"
+//                   value={formData.experienceRequired.min}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['experienceRequired.min'] && !!fieldErrors['experienceRequired.min']}
+//                   helperText={touched['experienceRequired.min'] ? fieldErrors['experienceRequired.min'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: 0 }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={6}>
+//                 <TextField
+//                   fullWidth
+//                   label="Max Experience (years)"
+//                   name="experienceRequired.max"
+//                   type="number"
+//                   value={formData.experienceRequired.max}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['experienceRequired.max'] && !!fieldErrors['experienceRequired.max']}
+//                   helperText={touched['experienceRequired.max'] ? fieldErrors['experienceRequired.max'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: formData.experienceRequired.min }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//             </Grid>
+
+//             {/* Salary Range */}
+//             <Grid container spacing={2}>
+//               <Grid item xs={12} md={4}>
+//                 <TextField
+//                   fullWidth
+//                   label="Min Salary"
+//                   name="salaryRange.min"
+//                   type="number"
+//                   value={formData.salaryRange.min}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['salaryRange.min'] && !!fieldErrors['salaryRange.min']}
+//                   helperText={touched['salaryRange.min'] ? fieldErrors['salaryRange.min'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: 0 }}
+//                   InputProps={{
+//                     startAdornment: (
+//                       <InputAdornment position="start">
+//                         <AttachMoneyIcon sx={{ color: '#64748b' }} />
+//                       </InputAdornment>
+//                     ),
+//                   }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={4}>
+//                 <TextField
+//                   fullWidth
+//                   label="Max Salary"
+//                   name="salaryRange.max"
+//                   type="number"
+//                   value={formData.salaryRange.max}
+//                   onChange={handleChange}
+//                   onBlur={handleBlur}
+//                   error={touched['salaryRange.max'] && !!fieldErrors['salaryRange.max']}
+//                   helperText={touched['salaryRange.max'] ? fieldErrors['salaryRange.max'] : ''}
+//                   disabled={loading}
+//                   size="medium"
+//                   variant="outlined"
+//                   inputProps={{ min: formData.salaryRange.min }}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//               </Grid>
+//               <Grid item xs={12} md={4}>
+//                 <FormControl fullWidth>
+//                   <InputLabel>Currency</InputLabel>
+//                   <Select
+//                     name="salaryRange.currency"
+//                     value={formData.salaryRange.currency}
+//                     onChange={handleChange}
+//                     label="Currency"
+//                     disabled={loading}
+//                     sx={{ borderRadius: 1 }}
+//                     MenuProps={selectMenuProps}
+//                   >
+//                     <MenuItem value="INR">INR</MenuItem>
+//                     <MenuItem value="USD">USD</MenuItem>
+//                     <MenuItem value="EUR">EUR</MenuItem>
+//                     <MenuItem value="GBP">GBP</MenuItem>
+//                   </Select>
+//                 </FormControl>
+//               </Grid>
+//             </Grid>
+
+//             {/* Skills */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Required Skills
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={skillInput}
+//                   onChange={(e) => setSkillInput(e.target.value)}
+//                   placeholder="Add a skill (e.g., Lathe operation)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddSkill}
+//                   disabled={!skillInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                      color: '#fff !important', 
+//                      background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 }
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+//               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+//                 {formData.skills.map((skill, index) => (
+//                   <Chip
+//                     key={index}
+//                     label={skill}
+//                     onDelete={() => handleRemoveSkill(index)}
+//                     icon={<BuildIcon />}
+//                     variant="outlined"
+//                     size="small"
+//                     sx={{ borderRadius: 1 }}
+//                   />
+//                 ))}
+//               </Box>
+//             </Box>
+
+//             {/* Education */}
+//             <Box>
+//               <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+//                 Education Requirements
+//               </Typography>
+//               <Stack direction="row" spacing={1} mb={1}>
+//                 <TextField
+//                   fullWidth
+//                   size="small"
+//                   value={educationInput}
+//                   onChange={(e) => setEducationInput(e.target.value)}
+//                   placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
+//                   disabled={loading}
+//                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                 />
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleAddEducation}
+//                   disabled={!educationInput.trim() || loading}
+//                   sx={{
+//                     borderRadius: 1,
+//                     textTransform: 'none',
+//                     color:'#fff !important',
+//                     background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                     '&:hover': { opacity: 0.9 }
+//                   }}
+//                 >
+//                   Add
+//                 </Button>
+//               </Stack>
+//               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+//                 {formData.education.map((edu, index) => (
+//                   <Chip
+//                     key={index}
+//                     label={edu}
+//                     onDelete={() => handleRemoveEducation(index)}
+//                     icon={<SchoolIcon />}
+//                     variant="outlined"
+//                     size="small"
+//                     sx={{ borderRadius: 1 }}
+//                   />
+//                 ))}
+//               </Box>
+//             </Box>
+//           </>
+//         );
+
+//       case 2:
+//         return (
+//           <>
+//             <FormControl fullWidth error={touched.publishTo && !!fieldErrors.publishTo}>
+//               <InputLabel>Publish To *</InputLabel>
+//               <Select
+//                 multiple
+//                 value={formData.publishTo}
+//                 onChange={handlePublishChange}
+//                 onBlur={handleBlur}
+//                 input={<OutlinedInput label="Publish To *" />}
+//                 disabled={loading}
+//                 sx={{ borderRadius: 1 }}
+//                 MenuProps={selectMenuProps}
+//                 renderValue={(selected) => (
+//                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+//                     {selected.map((value) => (
+//                       <Chip
+//                         key={value}
+//                         label={publishPlatforms.find(p => p.value === value)?.label || value}
+//                         size="small"
+//                         sx={{ borderRadius: 1 }}
+//                       />
+//                     ))}
+//                   </Box>
+//                 )}
+//               >
+//                 {publishPlatforms.map((platform) => (
+//                   <MenuItem key={platform.value} value={platform.value}>
+//                     <Checkbox checked={formData.publishTo.indexOf(platform.value) > -1} />
+//                     <ListItemText primary={platform.label} />
+//                   </MenuItem>
+//                 ))}
+//               </Select>
+//               {touched.publishTo && fieldErrors.publishTo && (
+//                 <FormHelperText>{fieldErrors.publishTo}</FormHelperText>
+//               )}
+//               <FormHelperText>Select where to publish this job opening</FormHelperText>
+//             </FormControl>
+
+//             <Paper sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+//               <Stack spacing={1}>
+//                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+//                   <InfoIcon sx={{ color: '#0288d1', fontSize: 18 }} />
+//                   <Typography variant="body2" fontWeight={500} sx={{ color: '#0288d1' }}>
+//                     Note:
+//                   </Typography>
+//                 </Box>
+//                 <Typography variant="body2" sx={{ color: '#475569', pl: 3.5 }}>
+//                   The job will be created in draft status first. You can review and publish it later from the job listings page.
+//                 </Typography>
+//               </Stack>
+//             </Paper>
+//           </>
+//         );
+
+//       default:
+//         return null;
+//     }
+//   };
+
+//   return (
+//     <Dialog
+//       open={open}
+//       onClose={handleClose}
+//       maxWidth="md"
+//       fullWidth
+//       PaperProps={{
+//         sx: { borderRadius: 2, maxHeight: '90vh' }
+//       }}
+//     >
+//       {/* Attractive Header */}
+//       <DialogTitle sx={{
+//         borderBottom: '1px solid #E0E0E0',
+//         pb: 2,
+//         background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//         color: '#fff'
+//       }}>
+//         <Stack direction="row" alignItems="center" spacing={1}>
+//           <WorkIcon />
+//           <Typography variant="h6" fontWeight={600}>
+//             Add Job Opening
+//           </Typography>
+//         </Stack>
+//       </DialogTitle>
+
+//       <DialogContent sx={{ pt: 3, overflowY: 'auto' }}>
+//         <Stack spacing={3}>
+//           {/* Stepper */}
+//           <Box sx={{ width: '100%', mb: 2, pt: 2 }}>
+//             <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+//               {steps.map((label) => (
+//                 <Step key={label}>
+//                   <StepLabel>
+//                     <Typography variant="caption" fontWeight={500}>
+//                       {label}
+//                     </Typography>
+//                   </StepLabel>
+//                 </Step>
+//               ))}
+//             </Stepper>
+//           </Box>
+
+//           {/* Step Content */}
+//           <Paper elevation={0} sx={{ p: 3, backgroundColor: '#F9F9F9', borderRadius: 2 }}>
+//             <Stack spacing={3}>
+//               {renderStepContent()}
+
+//               {error && (
+//                 <Alert
+//                   severity="error"
+//                   sx={{
+//                     borderRadius: 1,
+//                     '& .MuiAlert-icon': {
+//                       alignItems: 'center'
+//                     }
+//                   }}
+//                 >
+//                   {error}
+//                 </Alert>
+//               )}
+//             </Stack>
+//           </Paper>
+//         </Stack>
+//       </DialogContent>
+
+//       <DialogActions sx={{
+//         px: 2,
+//         // pb: 3,
+//         borderTop: '1px solid #E0E0E0',
+//         // pt: 2,
+//         backgroundColor: '#F8FAFC',
+//         justifyContent: 'space-between'
+//       }}>
+//         <Button
+//           onClick={handleClose}
+//           disabled={loading}
+//           sx={{
+//             borderRadius: 1,
+//             px: 3,
+//             py: 1,
+//             textTransform: 'none',
+//             fontWeight: 500,
+//             border: '1px solid #cbd5e1',
+//             color: '#475569'
+//           }}
+//         >
+//           Cancel
+//         </Button>
+
+//         <Stack direction="row" spacing={2}>
+//           {activeStep > 0 && (
+//             <Button
+//               onClick={handleBack}
+//               disabled={loading || requisitionLoading}
+//               startIcon={<ArrowBackIcon />}
+//               sx={{
+//                 borderRadius: 1,
+//                 px: 3,
+//                 py: 1,
+//                 textTransform: 'none',
+//                 fontWeight: 500
+//               }}
+//             >
+//               Back
+//             </Button>
+//           )}
+
+//           {activeStep < steps.length - 1 ? (
+//             <Button
+//               variant="contained"
+//               onClick={handleNext}
+//               disabled={loading || requisitionLoading}
+//               endIcon={<ArrowForwardIcon />}
+//               sx={{
+//                 borderRadius: 1,
+//                 px: 3,
+//                 py: 1,
+//                 textTransform: 'none',
+//                 fontWeight: 500,
+//                 background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                 '&:hover': {
+//                   opacity: 0.9
+//                 }
+//               }}
+//             >
+//               Next
+//             </Button>
+//           ) : (
+//             <Button
+//               variant="contained"
+//               onClick={handleSubmit}
+//               disabled={loading || requisitionLoading}
+//               startIcon={loading ? null : <AddIcon />}
+//               sx={{
+//                 borderRadius: 1,
+//                 px: 3,
+//                 py: 1,
+//                 textTransform: 'none',
+//                 fontWeight: 500,
+//                 background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//                 '&:hover': {
+//                   opacity: 0.9
+//                 }
+//               }}
+//             >
+//               {loading ? 'Creating...' : 'Create Job Opening'}
+//             </Button>
+//           )}
+//         </Stack>
+//       </DialogActions>
+//     </Dialog>
+//   );
+// };
+
+// export default AddJobOpening;
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -27,7 +1633,8 @@ import {
   Checkbox,
   ListItemText,
   Divider,
-  Paper
+  Paper,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,13 +1644,17 @@ import {
   AttachMoney as AttachMoneyIcon,
   School as SchoolIcon,
   Build as BuildIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
+  Search as SearchIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 /* ------------------- Custom Stepper Styling ------------------- */
-
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   '& .MuiStepConnector-line': {
     height: 4,
@@ -52,12 +1663,45 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
     borderRadius: 10,
   },
   '&.Mui-active .MuiStepConnector-line': {
-    background: 'linear-gradient(90deg, #164e63, #00B4D8)',
+    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
   },
   '&.Mui-completed .MuiStepConnector-line': {
-    background: 'linear-gradient(90deg, #164e63, #00B4D8)',
+    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
   },
 }));
+
+// Custom styled Paper component for dropdown without scrollbars
+const CustomPaper = styled(Paper)({
+  maxHeight: 200,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    display: 'none'
+  },
+  scrollbarWidth: 'none',
+  '-ms-overflow-style': 'none',
+  '& .MuiAutocomplete-listbox': {
+    '&::-webkit-scrollbar': {
+      display: 'none'
+    },
+    scrollbarWidth: 'none',
+    '-ms-overflow-style': 'none'
+  }
+});
+
+// Custom styled MenuProps for Select components
+const selectMenuProps = {
+  PaperProps: {
+    sx: {
+      maxHeight: 200,
+      overflow: 'auto',
+      '&::-webkit-scrollbar': {
+        display: 'none'
+      },
+      scrollbarWidth: 'none',
+      '-ms-overflow-style': 'none'
+    }
+  }
+};
 
 const steps = ["Basic Information", "Job Details", "Publish Settings"];
 
@@ -67,7 +1711,6 @@ const publishPlatforms = [
   { value: 'naukri', label: 'Naukri.com' },
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'indeed', label: 'Indeed' },
-  { value: 'monster', label: 'Monster' }
 ];
 
 const AddJobOpening = ({ open, onClose, onAdd }) => {
@@ -75,7 +1718,8 @@ const AddJobOpening = ({ open, onClose, onAdd }) => {
   const [requisitions, setRequisitions] = useState([]);
   const [requisitionLoading, setRequisitionLoading] = useState(false);
   const [selectedRequisition, setSelectedRequisition] = useState(null);
-  
+  const [requisitionSearch, setRequisitionSearch] = useState('');
+
   const [formData, setFormData] = useState({
     requisitionId: '',
     description: '',
@@ -108,20 +1752,18 @@ const AddJobOpening = ({ open, onClose, onAdd }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [stepErrors, setStepErrors] = useState({});
+
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
+  // Touched fields for validation
+  const [touched, setTouched] = useState({});
 
   useEffect(() => {
     if (open) fetchRequisitions();
+    fetchDepartments();
   }, [open]);
-
-  // Add this useEffect for debugging
-useEffect(() => {
-  console.log('Form data updated:', {
-    requisitionId: formData.requisitionId,
-    publishTo: formData.publishTo,
-    requirements: formData.requirements.length,
-    responsibilities: formData.responsibilities.length
-  });
-}, [formData]);
 
   const fetchRequisitions = async () => {
     try {
@@ -140,9 +1782,28 @@ useEffect(() => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      setDepartmentsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/departments`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (response.data.success) {
+        setDepartments(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching departments: ', error);
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Handle nested objects
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -156,22 +1817,75 @@ useEffect(() => {
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-    
+
     // Clear field error when user types
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched(prev => ({
+      ...prev,
+      [name]: true
+    }));
+
+    // Validate field on blur
+    validateField(name, formData[name]);
+  };
+
+  const validateField = (fieldName, value) => {
+    let error = '';
+
+    switch (fieldName) {
+      case 'requisitionId':
+        if (!value) error = 'Please select a requisition';
+        break;
+      case 'companyIntro':
+        if (!value?.trim()) error = 'Company introduction is required';
+        break;
+      case 'location':
+        if (!value?.trim()) error = 'Location is required';
+        break;
+      case 'department':
+        if (!value?.trim()) error = 'Department is required';
+        break;
+      case 'employmentType':
+        if (!value) error = 'Employment type is required';
+        break;
+      case 'description':
+        if (!value?.trim()) error = 'Job description is required';
+        break;
+      case 'experienceRequired.min':
+        if (value < 0) error = 'Minimum experience cannot be negative';
+        break;
+      case 'experienceRequired.max':
+        if (value < formData.experienceRequired.min) error = 'Maximum experience must be greater than or equal to minimum';
+        break;
+      case 'salaryRange.min':
+        if (value < 0) error = 'Minimum salary cannot be negative';
+        break;
+      case 'salaryRange.max':
+        if (value < formData.salaryRange.min) error = 'Maximum salary must be greater than or equal to minimum';
+        break;
+      default:
+        break;
+    }
+
+    setFieldErrors(prev => ({ ...prev, [fieldName]: error }));
+    return error;
+  };
+
   const handleRequisitionChange = (e) => {
     const requisitionId = e.target.value;
     setFormData(prev => ({ ...prev, requisitionId }));
-    
+
     // Auto-fill job details from selected requisition
     const selected = requisitions.find(req => req._id === requisitionId);
     if (selected) {
       setSelectedRequisition(selected);
-      
+
       // Auto-populate fields from requisition
       setFormData(prev => ({
         ...prev,
@@ -192,6 +1906,11 @@ useEffect(() => {
         education: selected.education ? [selected.education] : []
       }));
     }
+
+    // Clear field error
+    if (fieldErrors.requisitionId) {
+      setFieldErrors(prev => ({ ...prev, requisitionId: '' }));
+    }
   };
 
   // Handle requirements
@@ -202,6 +1921,10 @@ useEffect(() => {
         requirements: [...prev.requirements, requirementInput.trim()]
       }));
       setRequirementInput('');
+      // Clear requirement error if exists
+      if (fieldErrors.requirements) {
+        setFieldErrors(prev => ({ ...prev, requirements: '' }));
+      }
     }
   };
 
@@ -210,6 +1933,11 @@ useEffect(() => {
       ...prev,
       requirements: prev.requirements.filter((_, i) => i !== index)
     }));
+
+    // Add error if requirements become empty
+    if (formData.requirements.length === 1) {
+      setFieldErrors(prev => ({ ...prev, requirements: 'Please add at least one requirement' }));
+    }
   };
 
   // Handle responsibilities
@@ -220,6 +1948,10 @@ useEffect(() => {
         responsibilities: [...prev.responsibilities, responsibilityInput.trim()]
       }));
       setResponsibilityInput('');
+      // Clear responsibility error if exists
+      if (fieldErrors.responsibilities) {
+        setFieldErrors(prev => ({ ...prev, responsibilities: '' }));
+      }
     }
   };
 
@@ -228,6 +1960,11 @@ useEffect(() => {
       ...prev,
       responsibilities: prev.responsibilities.filter((_, i) => i !== index)
     }));
+
+    // Add error if responsibilities become empty
+    if (formData.responsibilities.length === 1) {
+      setFieldErrors(prev => ({ ...prev, responsibilities: 'Please add at least one responsibility' }));
+    }
   };
 
   // Handle skills
@@ -267,421 +2004,508 @@ useEffect(() => {
   };
 
   // Handle publish platforms
-const handlePublishChange = (event) => {
-  const { value } = event.target;
-  // In MUI Select with multiple, value is always an array
-  setFormData(prev => ({
-    ...prev,
-    publishTo: value
-  }));
-  console.log('Selected platforms:', value);
-};
+  const handlePublishChange = (event) => {
+    const { value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      publishTo: value
+    }));
+    // Clear publish error if exists
+    if (fieldErrors.publishTo) {
+      setFieldErrors(prev => ({ ...prev, publishTo: '' }));
+    }
+  };
+
+  // Validation functions for each step
+  const validateStep0 = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!formData.requisitionId) {
+      errors.requisitionId = 'Please select a requisition';
+      isValid = false;
+    }
+    if (!formData.companyIntro?.trim()) {
+      errors.companyIntro = 'Company introduction is required';
+      isValid = false;
+    }
+    if (!formData.location?.trim()) {
+      errors.location = 'Location is required';
+      isValid = false;
+    }
+    if (!formData.department?.trim()) {
+      errors.department = 'Department is required';
+      isValid = false;
+    }
+    if (!formData.employmentType) {
+      errors.employmentType = 'Employment type is required';
+      isValid = false;
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...errors }));
+
+    if (!isValid) {
+      setStepErrors(prev => ({
+        ...prev,
+        [activeStep]: 'Please fill in all required fields correctly'
+      }));
+    } else {
+      setStepErrors(prev => ({ ...prev, [activeStep]: '' }));
+    }
+
+    return isValid;
+  };
+
+  const validateStep1 = () => {
+    const errors = {};
+    let isValid = true;
+
+    // Job Description validation
+    if (!formData.description?.trim()) {
+      errors.description = 'Job description is required';
+      isValid = false;
+    }
+
+    // Requirements validation
+    if (formData.requirements.length === 0) {
+      errors.requirements = 'Please add at least one requirement';
+      isValid = false;
+    }
+
+    // Responsibilities validation
+    if (formData.responsibilities.length === 0) {
+      errors.responsibilities = 'Please add at least one responsibility';
+      isValid = false;
+    }
+
+    // Experience validation
+    if (formData.experienceRequired.min < 0) {
+      errors['experienceRequired.min'] = 'Minimum experience cannot be negative';
+      isValid = false;
+    }
+    if (formData.experienceRequired.max < formData.experienceRequired.min) {
+      errors['experienceRequired.max'] = 'Maximum experience must be greater than or equal to minimum';
+      isValid = false;
+    }
+
+    // Salary validation
+    if (formData.salaryRange.min < 0) {
+      errors['salaryRange.min'] = 'Minimum salary cannot be negative';
+      isValid = false;
+    }
+    if (formData.salaryRange.max < formData.salaryRange.min) {
+      errors['salaryRange.max'] = 'Maximum salary must be greater than or equal to minimum';
+      isValid = false;
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...errors }));
+
+    if (!isValid) {
+      setStepErrors(prev => ({
+        ...prev,
+        [activeStep]: 'Please fill in all required fields correctly'
+      }));
+    } else {
+      setStepErrors(prev => ({ ...prev, [activeStep]: '' }));
+    }
+
+    return isValid;
+  };
+
+  const validateStep2 = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (formData.publishTo.length === 0) {
+      errors.publishTo = 'Please select at least one platform to publish';
+      isValid = false;
+    }
+
+    setFieldErrors(prev => ({ ...prev, ...errors }));
+
+    if (!isValid) {
+      setStepErrors(prev => ({
+        ...prev,
+        [activeStep]: 'Please select at least one publishing platform'
+      }));
+    } else {
+      setStepErrors(prev => ({ ...prev, [activeStep]: '' }));
+    }
+
+    return isValid;
+  };
 
   const handleNext = () => {
-    if (validateStep()) {
+    let isValid = false;
+
+    switch (activeStep) {
+      case 0:
+        isValid = validateStep0();
+        break;
+      case 1:
+        isValid = validateStep1();
+        break;
+      case 2:
+        isValid = validateStep2();
+        break;
+      default:
+        isValid = true;
+    }
+
+    if (isValid) {
       setActiveStep(prev => prev + 1);
+      setError('');
     }
   };
 
   const handleBack = () => {
     setActiveStep(prev => prev - 1);
-  };
-
-  const validateStep = () => {
-    const errors = {};
-    let isValid = true;
-
-    switch(activeStep) {
-      case 0:
-        if (!formData.requisitionId) {
-          errors.requisitionId = 'Please select a requisition';
-          isValid = false;
-        }
-        if (!formData.companyIntro?.trim()) {
-          errors.companyIntro = 'Company introduction is required';
-          isValid = false;
-        }
-        if (!formData.location?.trim()) {
-          errors.location = 'Location is required';
-          isValid = false;
-        }
-        if (!formData.department?.trim()) {
-          errors.department = 'Department is required';
-          isValid = false;
-        }
-        if (!formData.employmentType) {
-          errors.employmentType = 'Employment type is required';
-          isValid = false;
-        }
-        break;
-
-      case 1:
-        if (!formData.description?.trim()) {
-          errors.description = 'Job description is required';
-          isValid = false;
-        }
-        if (formData.requirements.length === 0) {
-          errors.requirements = 'Please add at least one requirement';
-          isValid = false;
-        }
-        if (formData.responsibilities.length === 0) {
-          errors.responsibilities = 'Please add at least one responsibility';
-          isValid = false;
-        }
-        if (formData.experienceRequired.min < 0) {
-          errors['experienceRequired.min'] = 'Minimum experience cannot be negative';
-          isValid = false;
-        }
-        if (formData.experienceRequired.max < formData.experienceRequired.min) {
-          errors['experienceRequired.max'] = 'Maximum experience must be greater than minimum';
-          isValid = false;
-        }
-        if (formData.salaryRange.min < 0) {
-          errors['salaryRange.min'] = 'Minimum salary cannot be negative';
-          isValid = false;
-        }
-        if (formData.salaryRange.max < formData.salaryRange.min) {
-          errors['salaryRange.max'] = 'Maximum salary must be greater than minimum';
-          isValid = false;
-        }
-        break;
-
-      case 2:
-        if (formData.publishTo.length === 0) {
-          errors.publishTo = 'Please select at least one platform to publish';
-          isValid = false;
-        }
-        break;
-
-      default:
-        break;
-    }
-
-    setFieldErrors(errors);
-    if (!isValid) {
-      setError('Please fill in all required fields correctly');
-    } else {
-      setError('');
-    }
-    return isValid;
+    setError('');
+    setStepErrors(prev => ({ ...prev, [activeStep - 1]: '' }));
   };
 
   const handleSubmit = async () => {
-  if (!validateStep()) return;
+    // Validate all steps before submission
+    const isStep0Valid = validateStep0();
+    const isStep1Valid = validateStep1();
+    const isStep2Valid = validateStep2();
 
-  setLoading(true);
-  setError('');
-  setFieldErrors({});
-
-  // Make sure requisitionId is a string
-  if (!formData.requisitionId) {
-    setError('Please select a requisition');
-    setLoading(false);
-    return;
-  }
-
-  // Prepare the payload matching the API expected structure
-  // Based on your successful API response, the publishTo field should be an array of strings
-  const payload = {
-    requisitionId: formData.requisitionId,
-    description: formData.description || '',
-    companyIntro: formData.companyIntro || '',
-    requirements: formData.requirements.length > 0 ? formData.requirements : ['Minimum experience required'],
-    responsibilities: formData.responsibilities.length > 0 ? formData.responsibilities : ['Perform assigned duties'],
-    publishTo: formData.publishTo, // This should be an array of strings like ["careerPage", "naukri", "linkedin"]
-    location: formData.location || 'Not specified',
-    department: formData.department || 'Not specified',
-    employmentType: formData.employmentType || 'Permanent',
-    experienceRequired: {
-      min: Number(formData.experienceRequired.min) || 0,
-      max: Number(formData.experienceRequired.max) || 0
-    },
-    salaryRange: {
-      min: Number(formData.salaryRange.min) || 0,
-      max: Number(formData.salaryRange.max) || 0,
-      currency: formData.salaryRange.currency || 'INR'
-    },
-    skills: formData.skills.length > 0 ? formData.skills : [],
-    education: formData.education.length > 0 ? formData.education : []
-  };
-
-  // Log the payload to see what we're sending
-  console.log('Sending payload:', JSON.stringify(payload, null, 2));
-  console.log('publishTo value:', payload.publishTo);
-  console.log('publishTo type:', typeof payload.publishTo, Array.isArray(payload.publishTo));
-
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.post(`${BASE_URL}/api/jobs`, payload, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.data.success) {
-      onAdd(response.data.data);
-      onClose();
-      // Reset form
-      setActiveStep(0);
-      setFormData({
-        requisitionId: '',
-        description: '',
-        companyIntro: '',
-        requirements: [],
-        responsibilities: [],
-        publishTo: [],
-        location: '',
-        department: '',
-        employmentType: 'Permanent',
-        experienceRequired: { min: 0, max: 0 },
-        salaryRange: { min: 0, max: 0, currency: 'INR' },
-        skills: [],
-        education: []
-      });
-      setSelectedRequisition(null);
-      setError('');
+    if (!isStep0Valid || !isStep1Valid || !isStep2Valid) {
+      setError('Please complete all steps correctly before submitting');
+      return;
     }
-  } catch (err) {
-    console.error('Error creating job:', err);
-    
-    // Log the detailed error response
-    if (err.response) {
-      console.error('Error status:', err.response.status);
-      console.error('Error data:', err.response.data);
-      console.error('Error headers:', err.response.headers);
-      
-      // Handle specific error messages from server
-      if (err.response.status === 400) {
-        const serverError = err.response.data;
-        
-        // Check for duplicate job ID error
-        if (serverError.message?.includes('Duplicate') || 
+
+    setLoading(true);
+    setError('');
+    setFieldErrors({});
+
+    const payload = {
+      requisitionId: formData.requisitionId,
+      description: formData.description || '',
+      companyIntro: formData.companyIntro || '',
+      requirements: formData.requirements.length > 0 ? formData.requirements : ['Minimum experience required'],
+      responsibilities: formData.responsibilities.length > 0 ? formData.responsibilities : ['Perform assigned duties'],
+      publishTo: formData.publishTo,
+      location: formData.location || 'Not specified',
+      department: formData.department || 'Not specified',
+      employmentType: formData.employmentType || 'Permanent',
+      experienceRequired: {
+        min: Number(formData.experienceRequired.min) || 0,
+        max: Number(formData.experienceRequired.max) || 0
+      },
+      salaryRange: {
+        min: Number(formData.salaryRange.min) || 0,
+        max: Number(formData.salaryRange.max) || 0,
+        currency: formData.salaryRange.currency || 'INR'
+      },
+      skills: formData.skills.length > 0 ? formData.skills : [],
+      education: formData.education.length > 0 ? formData.education : []
+    };
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/api/jobs`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        onAdd(response.data.data);
+        onClose();
+        // Reset form
+        setActiveStep(0);
+        setFormData({
+          requisitionId: '',
+          description: '',
+          companyIntro: '',
+          requirements: [],
+          responsibilities: [],
+          publishTo: [],
+          location: '',
+          department: '',
+          employmentType: 'Permanent',
+          experienceRequired: { min: 0, max: 0 },
+          salaryRange: { min: 0, max: 0, currency: 'INR' },
+          skills: [],
+          education: []
+        });
+        setSelectedRequisition(null);
+        setError('');
+        setFieldErrors({});
+        setStepErrors({});
+        setTouched({});
+      }
+    } catch (err) {
+      console.error('Error creating job:', err);
+
+      if (err.response) {
+        if (err.response.status === 400) {
+          const serverError = err.response.data;
+          if (serverError.message?.includes('Duplicate') ||
             serverError.message?.includes('duplicate') ||
             serverError.message?.includes('already exists')) {
-          setError('Duplicate job ID. Please try again.');
-        } 
-        // Handle validation errors from server
-        else if (serverError.errors) {
-          const serverFieldErrors = {};
-          Object.keys(serverError.errors).forEach(key => {
-            serverFieldErrors[key] = serverError.errors[key].message;
-          });
-          setFieldErrors(serverFieldErrors);
-          setError('Please check the form for errors');
+            setError('Duplicate job ID. Please try again.');
+          } else if (serverError.errors) {
+            const serverFieldErrors = {};
+            Object.keys(serverError.errors).forEach(key => {
+              serverFieldErrors[key] = serverError.errors[key].message;
+            });
+            setFieldErrors(serverFieldErrors);
+            setError('Please check the form for errors');
+          } else if (serverError.message) {
+            setError(serverError.message);
+          } else {
+            setError('Failed to create job opening. Please check all fields and try again.');
+          }
+        } else if (err.response.status === 500) {
+          setError('Server error. Please try again later or contact support.');
         }
-        else if (serverError.message) {
-          setError(serverError.message);
-        } else {
-          // If no specific error message, show a generic one
-          setError('Failed to create job opening. Please check all fields and try again.');
-        }
+      } else if (err.request) {
+        setError('No response from server. Please check your network connection.');
+      } else {
+        setError('Failed to create job opening. Please try again.');
       }
-    } else if (err.request) {
-      // The request was made but no response was received
-      console.error('No response received:', err.request);
-      setError('No response from server. Please check your network connection.');
-    } else {
-      // Something happened in setting up the request
-      console.error('Error setting up request:', err.message);
-      setError('Failed to create job opening. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
-      fullWidth
-      PaperProps={{
-        sx: { borderRadius: 2, minHeight: 500 }
-      }}
-    >
-      {/* Attractive Header */}
-      <DialogTitle sx={{
-        background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-        color: '#fff',
-        fontWeight: 600,
-        fontSize: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1
-      }}>
-        <WorkIcon /> Add Job Opening
-      </DialogTitle>
+  const resetForm = () => {
+    setActiveStep(0);
+    setFormData({
+      requisitionId: '',
+      description: '',
+      companyIntro: '',
+      requirements: [],
+      responsibilities: [],
+      publishTo: [],
+      location: '',
+      department: '',
+      employmentType: 'Permanent',
+      experienceRequired: { min: 0, max: 0 },
+      salaryRange: { min: 0, max: 0, currency: 'INR' },
+      skills: [],
+      education: []
+    });
+    setSelectedRequisition(null);
+    setError('');
+    setFieldErrors({});
+    setStepErrors({});
+    setTouched({});
+    setRequisitionSearch('');
+  };
 
-      <DialogContent sx={{ pt: 3 }}>
-        {/* Modern Stepper */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 3, mt: 1 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500}>{label}</Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
-        <Stack spacing={3}>
-          {/* STEP 1: Basic Information */}
-          {activeStep === 0 && (
-            <>
-              <FormControl fullWidth error={!!fieldErrors.requisitionId}>
-                <InputLabel>Select Requisition *</InputLabel>
-                <Select
-                  value={formData.requisitionId}
-                  onChange={handleRequisitionChange}
-                  label="Select Requisition *"
-                >
-                  {requisitionLoading ? (
-                    <MenuItem disabled>
-                      <CircularProgress size={18} sx={{ mr: 1 }} />
-                      Loading...
+  // Render step content
+  const renderStepContent = () => {
+    switch (activeStep) {
+      case 0:
+        return (
+          <>
+            <FormControl fullWidth error={touched.requisitionId && !!fieldErrors.requisitionId}>
+              <InputLabel>Select Requisition *</InputLabel>
+              <Select
+                value={formData.requisitionId}
+                onChange={handleRequisitionChange}
+                onBlur={handleBlur}
+                label="Select Requisition *"
+                error={touched.requisitionId && !!fieldErrors.requisitionId}
+                disabled={loading || requisitionLoading}
+                sx={{ borderRadius: 1 }}
+                MenuProps={selectMenuProps}
+              >
+                {requisitionLoading ? (
+                  <MenuItem disabled>
+                    <CircularProgress size={18} sx={{ mr: 1 }} />
+                    Loading...
+                  </MenuItem>
+                ) : requisitions.length > 0 ? (
+                  requisitions.map(req => (
+                    <MenuItem key={req._id} value={req._id}>
+                      {req.requisitionId} - {req.positionTitle || req.jobTitle} ({req.department})
                     </MenuItem>
-                  ) : requisitions.length > 0 ? (
-                    requisitions.map(req => (
-                      <MenuItem key={req._id} value={req._id}>
-                        {req.requisitionId} - {req.positionTitle || req.jobTitle} ({req.department})
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem disabled>No requisitions found</MenuItem>
-                  )}
-                </Select>
-                {fieldErrors.requisitionId && (
-                  <FormHelperText>{fieldErrors.requisitionId}</FormHelperText>
+                  ))
+                ) : (
+                  <MenuItem disabled>No requisitions found</MenuItem>
                 )}
-              </FormControl>
+              </Select>
+              {touched.requisitionId && fieldErrors.requisitionId && (
+                <FormHelperText error>{fieldErrors.requisitionId}</FormHelperText>
+              )}
+            </FormControl>
 
-              <TextField
-                label="Company Introduction *"
-                name="companyIntro"
-                multiline
-                rows={3}
-                fullWidth
-                value={formData.companyIntro}
-                onChange={handleChange}
-                placeholder="Brief introduction about your company..."
-                error={!!fieldErrors.companyIntro}
-                helperText={fieldErrors.companyIntro}
-              />
+            <TextField
+              fullWidth
+              label="Company Introduction *"
+              name="companyIntro"
+              multiline
+              rows={2}
+              value={formData.companyIntro}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.companyIntro && !!fieldErrors.companyIntro}
+              helperText={touched.companyIntro ? fieldErrors.companyIntro || 'Brief introduction about your company' : 'Brief introduction about your company'}
+              disabled={loading}
+              size="medium"
+              variant="outlined"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+            />
 
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    label="Location *"
-                    name="location"
-                    fullWidth
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="e.g., Plant Unit A"
-                    error={!!fieldErrors.location}
-                    helperText={fieldErrors.location}
-                    slotProps={{
-                      input: {
-                        startAdornment: <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    label="Department *"
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Location *"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.location && !!fieldErrors.location}
+                  helperText={touched.location ? fieldErrors.location || 'e.g., Plant Unit A' : 'e.g., Plant Unit A'}
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocationIcon sx={{ color: '#64748b' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth error={touched.department && !!fieldErrors.department}>
+                  <InputLabel>Department *</InputLabel>
+                  <Select
                     name="department"
-                    fullWidth
                     value={formData.department}
                     onChange={handleChange}
-                    placeholder="e.g., Production"
-                    error={!!fieldErrors.department}
-                    helperText={fieldErrors.department}
-                    slotProps={{
-                      input: {
-                        startAdornment: <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }
-                    }}
-                  />
-                </Grid>
-              </Grid>
-
-              <FormControl fullWidth error={!!fieldErrors.employmentType}>
-                <InputLabel>Employment Type *</InputLabel>
-                <Select
-                  name="employmentType"
-                  value={formData.employmentType}
-                  onChange={handleChange}
-                  label="Employment Type *"
-                >
-                  <MenuItem value="Permanent">Permanent</MenuItem>
-                  <MenuItem value="Contract">Contract</MenuItem>
-                  <MenuItem value="Temporary">Temporary</MenuItem>
-                  <MenuItem value="Internship">Internship</MenuItem>
-                  <MenuItem value="Part-time">Part-time</MenuItem>
-                  <MenuItem value="Full-time">Full-time</MenuItem>
-                </Select>
-                {fieldErrors.employmentType && (
-                  <FormHelperText>{fieldErrors.employmentType}</FormHelperText>
-                )}
-              </FormControl>
-            </>
-          )}
-
-          {/* STEP 2: Job Details */}
-          {activeStep === 1 && (
-            <>
-              <TextField
-                label="Job Description *"
-                name="description"
-                multiline
-                rows={4}
-                fullWidth
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Detailed description of the job role..."
-                error={!!fieldErrors.description}
-                helperText={fieldErrors.description}
-              />
-
-              {/* Requirements Section */}
-              <Box>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Requirements <span style={{ color: 'red' }}>*</span>
-                </Typography>
-                <Stack direction="row" spacing={1} mb={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={requirementInput}
-                    onChange={(e) => setRequirementInput(e.target.value)}
-                    placeholder="Add a requirement (e.g., Minimum 2 years experience)"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddRequirement();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddRequirement}
-                    disabled={!requirementInput.trim()}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
+                    onBlur={handleBlur}
+                    label="Department *"
+                    disabled={loading || departmentsLoading}
+                    sx={{ borderRadius: 1, width: 250 }}
+                    MenuProps={selectMenuProps}
                   >
-                    Add
-                  </Button>
-                </Stack>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50, mb: 1 }}>
+                    {departmentsLoading ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={18} sx={{ mr: 1 }} />
+                        Loading...
+                      </MenuItem>
+                    ) : departments.length > 0 ? (
+                      departments.map(dept => (
+                        <MenuItem key={dept._id} value={dept.DepartmentName}>
+                          {dept.DepartmentName}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem disabled>No departments found</MenuItem>
+                    )}
+                  </Select>
+                  {touched.department && fieldErrors.department && (
+                    <FormHelperText error>{fieldErrors.department}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth error={touched.employmentType && !!fieldErrors.employmentType}>
+                  <InputLabel>Employment Type *</InputLabel>
+                  <Select
+                    name="employmentType"
+                    value={formData.employmentType}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    label="Employment Type *"
+                    disabled={loading}
+                    sx={{ borderRadius: 1 }}
+                    MenuProps={selectMenuProps}
+                  >
+                    <MenuItem value="Permanent">Permanent</MenuItem>
+                    <MenuItem value="Contract">Contract</MenuItem>
+                    <MenuItem value="Temporary">Temporary</MenuItem>
+                    <MenuItem value="Internship">Internship</MenuItem>
+                  </Select>
+                  {touched.employmentType && fieldErrors.employmentType && (
+                    <FormHelperText>{fieldErrors.employmentType}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+            </Grid>
+          </>
+        );
+
+      case 1:
+        return (
+          <>
+            <TextField
+              fullWidth
+              label="Job Description *"
+              name="description"
+              multiline
+              rows={2}
+              value={formData.description}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.description && !!fieldErrors.description}
+              helperText={touched.description ? fieldErrors.description || 'Detailed description of the job role' : 'Detailed description of the job role'}
+              disabled={loading}
+              size="medium"
+              variant="outlined"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+            />
+
+            {/* Requirements Section */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+                Requirements <span style={{ color: '#d32f2f' }}>*</span>
+              </Typography>
+              <Stack direction="row" spacing={1} mb={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={requirementInput}
+                  onChange={(e) => setRequirementInput(e.target.value)}
+                  placeholder="Add a requirement (e.g., Minimum 2 years experience)"
+                  disabled={loading}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddRequirement}
+                  disabled={!requirementInput.trim() || loading}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                    color: '#fff !important',
+                    '&:hover': { opacity: 0.9 },
+                    minWidth: 80
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+
+              {/* Dynamic Requirements List */}
+              {formData.requirements.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    mb: 2,
+                    p: 1,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1
+                  }}
+                >
                   {formData.requirements.map((req, index) => (
                     <Chip
                       key={index}
@@ -689,46 +2513,63 @@ const handlePublishChange = (event) => {
                       onDelete={() => handleRemoveRequirement(index)}
                       color="primary"
                       variant="outlined"
+                      size="small"
+                      sx={{ borderRadius: 1 }}
                     />
                   ))}
                 </Box>
-                {fieldErrors.requirements && (
-                  <FormHelperText error>{fieldErrors.requirements}</FormHelperText>
-                )}
-              </Box>
+              )}
 
-              {/* Responsibilities Section */}
-              <Box>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Responsibilities <span style={{ color: 'red' }}>*</span>
-                </Typography>
-                <Stack direction="row" spacing={1} mb={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={responsibilityInput}
-                    onChange={(e) => setResponsibilityInput(e.target.value)}
-                    placeholder="Add a responsibility (e.g., Operate production machinery)"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddResponsibility();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddResponsibility}
-                    disabled={!responsibilityInput.trim()}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
-                  >
-                    Add
-                  </Button>
-                </Stack>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: 50, mb: 1 }}>
+              {fieldErrors.requirements && (
+                <FormHelperText error sx={{ mt: 0.5 }}>{fieldErrors.requirements}</FormHelperText>
+              )}
+            </Box>
+
+            {/* Responsibilities Section */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+                Responsibilities <span style={{ color: '#d32f2f' }}>*</span>
+              </Typography>
+              <Stack direction="row" spacing={1} mb={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={responsibilityInput}
+                  onChange={(e) => setResponsibilityInput(e.target.value)}
+                  placeholder="Add a responsibility (e.g., Operate production machinery)"
+                  disabled={loading}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddResponsibility}
+                  disabled={!responsibilityInput.trim() || loading}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    color: '#fff !important',
+                    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                    '&:hover': { opacity: 0.9 },
+                    minWidth: 80
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+
+              {/* Dynamic Responsibilities List */}
+              {formData.responsibilities.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    mb: 2,
+                    p: 1,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1
+                  }}
+                >
                   {formData.responsibilities.map((resp, index) => (
                     <Chip
                       key={index}
@@ -736,127 +2577,168 @@ const handlePublishChange = (event) => {
                       onDelete={() => handleRemoveResponsibility(index)}
                       color="secondary"
                       variant="outlined"
+                      size="small"
+                      sx={{ borderRadius: 1 }}
                     />
                   ))}
                 </Box>
-                {fieldErrors.responsibilities && (
-                  <FormHelperText error>{fieldErrors.responsibilities}</FormHelperText>
-                )}
-              </Box>
+              )}
 
-              {/* Experience Range */}
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    label="Min Experience (years)"
-                    name="experienceRequired.min"
-                    type="number"
-                    fullWidth
-                    value={formData.experienceRequired.min}
-                    onChange={handleChange}
-                    inputProps={{ min: 0 }}
-                    error={!!fieldErrors['experienceRequired.min']}
-                    helperText={fieldErrors['experienceRequired.min']}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    label="Max Experience (years)"
-                    name="experienceRequired.max"
-                    type="number"
-                    fullWidth
-                    value={formData.experienceRequired.max}
-                    onChange={handleChange}
-                    inputProps={{ min: formData.experienceRequired.min }}
-                    error={!!fieldErrors['experienceRequired.max']}
-                    helperText={fieldErrors['experienceRequired.max']}
-                  />
-                </Grid>
+              {fieldErrors.responsibilities && (
+                <FormHelperText error sx={{ mt: 0.5 }}>{fieldErrors.responsibilities}</FormHelperText>
+              )}
+            </Box>
+
+            {/* Experience Range */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Min Experience (years)"
+                  name="experienceRequired.min"
+                  type="number"
+                  value={formData.experienceRequired.min}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched['experienceRequired.min'] && !!fieldErrors['experienceRequired.min']}
+                  helperText={touched['experienceRequired.min'] ? fieldErrors['experienceRequired.min'] || '' : ''}
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
               </Grid>
-
-              {/* Salary Range */}
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    label="Min Salary"
-                    name="salaryRange.min"
-                    type="number"
-                    fullWidth
-                    value={formData.salaryRange.min}
-                    onChange={handleChange}
-                    inputProps={{ min: 0 }}
-                    error={!!fieldErrors['salaryRange.min']}
-                    helperText={fieldErrors['salaryRange.min']}
-                    slotProps={{
-                      input: {
-                        startAdornment: <AttachMoneyIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    label="Max Salary"
-                    name="salaryRange.max"
-                    type="number"
-                    fullWidth
-                    value={formData.salaryRange.max}
-                    onChange={handleChange}
-                    inputProps={{ min: formData.salaryRange.min }}
-                    error={!!fieldErrors['salaryRange.max']}
-                    helperText={fieldErrors['salaryRange.max']}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Currency</InputLabel>
-                    <Select
-                      name="salaryRange.currency"
-                      value={formData.salaryRange.currency}
-                      onChange={handleChange}
-                      label="Currency"
-                    >
-                      <MenuItem value="INR">INR</MenuItem>
-                      <MenuItem value="USD">USD</MenuItem>
-                      <MenuItem value="EUR">EUR</MenuItem>
-                      <MenuItem value="GBP">GBP</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Max Experience (years)"
+                  name="experienceRequired.max"
+                  type="number"
+                  value={formData.experienceRequired.max}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched['experienceRequired.max'] && !!fieldErrors['experienceRequired.max']}
+                  helperText={touched['experienceRequired.max'] ? fieldErrors['experienceRequired.max'] || '' : ''}
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  inputProps={{ min: formData.experienceRequired.min }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
               </Grid>
+            </Grid>
 
-              {/* Skills */}
-              <Box>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Required Skills
-                </Typography>
-                <Stack direction="row" spacing={1} mb={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    placeholder="Add a skill (e.g., Lathe operation)"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddSkill();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddSkill}
-                    disabled={!skillInput.trim()}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
+            {/* Salary Range */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Min Salary"
+                  name="salaryRange.min"
+                  type="number"
+                  value={formData.salaryRange.min}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched['salaryRange.min'] && !!fieldErrors['salaryRange.min']}
+                  helperText={touched['salaryRange.min'] ? fieldErrors['salaryRange.min'] || '' : ''}
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AttachMoneyIcon sx={{ color: '#64748b' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Max Salary"
+                  name="salaryRange.max"
+                  type="number"
+                  value={formData.salaryRange.max}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched['salaryRange.max'] && !!fieldErrors['salaryRange.max']}
+                  helperText={touched['salaryRange.max'] ? fieldErrors['salaryRange.max'] || '' : ''}
+                  disabled={loading}
+                  size="medium"
+                  variant="outlined"
+                  inputProps={{ min: formData.salaryRange.min }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Currency</InputLabel>
+                  <Select
+                    name="salaryRange.currency"
+                    value={formData.salaryRange.currency}
+                    onChange={handleChange}
+                    label="Currency"
+                    disabled={loading}
+                    sx={{ borderRadius: 1 }}
+                    MenuProps={selectMenuProps}
                   >
-                    Add
-                  </Button>
-                </Stack>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    <MenuItem value="INR">INR</MenuItem>
+                    <MenuItem value="USD">USD</MenuItem>
+                    <MenuItem value="EUR">EUR</MenuItem>
+                    <MenuItem value="GBP">GBP</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            {/* Skills */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+                Required Skills
+              </Typography>
+              <Stack direction="row" spacing={1} mb={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  placeholder="Add a skill (e.g., Lathe operation)"
+                  disabled={loading}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddSkill}
+                  disabled={!skillInput.trim() || loading}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    color: '#fff !important',
+                    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                    '&:hover': { opacity: 0.9 },
+                    minWidth: 80
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+
+              {/* Dynamic Skills List */}
+              {formData.skills.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    p: 1,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1
+                  }}
+                >
                   {formData.skills.map((skill, index) => (
                     <Chip
                       key={index}
@@ -864,43 +2746,58 @@ const handlePublishChange = (event) => {
                       onDelete={() => handleRemoveSkill(index)}
                       icon={<BuildIcon />}
                       variant="outlined"
+                      size="small"
+                      sx={{ borderRadius: 1 }}
                     />
                   ))}
                 </Box>
-              </Box>
+              )}
+            </Box>
 
-              {/* Education */}
-              <Box>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Education Requirements
-                </Typography>
-                <Stack direction="row" spacing={1} mb={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={educationInput}
-                    onChange={(e) => setEducationInput(e.target.value)}
-                    placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddEducation();
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleAddEducation}
-                    disabled={!educationInput.trim()}
-                    sx={{
-                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-                      '&:hover': { opacity: 0.9 }
-                    }}
-                  >
-                    Add
-                  </Button>
-                </Stack>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {/* Education */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#1e293b', fontWeight: 600 }}>
+                Education Requirements
+              </Typography>
+              <Stack direction="row" spacing={1} mb={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={educationInput}
+                  onChange={(e) => setEducationInput(e.target.value)}
+                  placeholder="Add education (e.g., ITI/Diploma in Mechanical)"
+                  disabled={loading}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleAddEducation}
+                  disabled={!educationInput.trim() || loading}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    color: '#fff !important',
+                    background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                    '&:hover': { opacity: 0.9 },
+                    minWidth: 80
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+
+              {/* Dynamic Education List */}
+              {formData.education.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    p: 1,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1
+                  }}
+                >
                   {formData.education.map((edu, index) => (
                     <Chip
                       key={index}
@@ -908,140 +2805,245 @@ const handlePublishChange = (event) => {
                       onDelete={() => handleRemoveEducation(index)}
                       icon={<SchoolIcon />}
                       variant="outlined"
+                      size="small"
+                      sx={{ borderRadius: 1 }}
                     />
                   ))}
                 </Box>
-              </Box>
-            </>
-          )}
+              )}
+            </Box>
+          </>
+        );
 
-          {/* STEP 3: Publish Settings */}
-          {activeStep === 2 && (
-            <>
-              <FormControl fullWidth error={!!fieldErrors.publishTo}>
-                <InputLabel>Publish To *</InputLabel>
-                <Select
-                  multiple
-                  value={formData.publishTo}
-                  onChange={handlePublishChange}
-                  input={<OutlinedInput label="Publish To *" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip 
-                          key={value} 
-                          label={publishPlatforms.find(p => p.value === value)?.label || value} 
-                          size="small"
-                        />
-                      ))}
-                    </Box>
-                  )}
-                >
-                  {publishPlatforms.map((platform) => (
-                    <MenuItem key={platform.value} value={platform.value}>
-                      <Checkbox checked={formData.publishTo.indexOf(platform.value) > -1} />
-                      <ListItemText primary={platform.label} />
-                    </MenuItem>
-                  ))}
-                </Select>
-                {fieldErrors.publishTo && (
-                  <FormHelperText>{fieldErrors.publishTo}</FormHelperText>
-                )}
-                <FormHelperText>Select where to publish this job opening</FormHelperText>
-              </FormControl>
-
-              <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-                <Stack spacing={1}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <InfoIcon color="info" fontSize="small" />
-                    <Typography variant="body2" fontWeight={500}>
-                      Note:
-                    </Typography>
+      case 2:
+        return (
+          <>
+            <FormControl fullWidth error={touched.publishTo && !!fieldErrors.publishTo}>
+              <InputLabel>Publish To *</InputLabel>
+              <Select
+                multiple
+                value={formData.publishTo}
+                onChange={handlePublishChange}
+                onBlur={handleBlur}
+                input={<OutlinedInput label="Publish To *" />}
+                disabled={loading}
+                sx={{ borderRadius: 1 }}
+                MenuProps={selectMenuProps}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value) => (
+                      <Chip
+                        key={value}
+                        label={publishPlatforms.find(p => p.value === value)?.label || value}
+                        size="small"
+                        sx={{ borderRadius: 1 }}
+                      />
+                    ))}
                   </Box>
-                  <Typography variant="body2" color="textSecondary" sx={{ pl: 4 }}>
-                    The job will be created in draft status first. You can review and publish it later from the job listings page.
-                  </Typography>
-                </Stack>
-              </Paper>
-            </>
-          )}
-
-          {/* Error Display */}
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mt: 2,
-                border: '1px solid #ffcdd2',
-                backgroundColor: '#ffebee'
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-
-          {/* Field Errors Summary */}
-          {Object.keys(fieldErrors).length > 0 && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <Typography variant="body2" fontWeight={500}>
-                Please fix the following errors:
-              </Typography>
-              <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
-                {Object.values(fieldErrors).map((msg, idx) => (
-                  <li key={idx}>
-                    <Typography variant="caption">{msg}</Typography>
-                  </li>
+                )}
+              >
+                {publishPlatforms.map((platform) => (
+                  <MenuItem key={platform.value} value={platform.value}>
+                    <Checkbox checked={formData.publishTo.indexOf(platform.value) > -1} />
+                    <ListItemText primary={platform.label} />
+                  </MenuItem>
                 ))}
-              </ul>
-            </Alert>
-          )}
+              </Select>
+              {touched.publishTo && fieldErrors.publishTo && (
+                <FormHelperText error>{fieldErrors.publishTo}</FormHelperText>
+              )}
+              <FormHelperText>Select where to publish this job opening</FormHelperText>
+            </FormControl>
+
+            <Paper sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <InfoIcon sx={{ color: '#0288d1', fontSize: 18 }} />
+                  <Typography variant="body2" fontWeight={500} sx={{ color: '#0288d1' }}>
+                    Note:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ color: '#475569', pl: 3.5 }}>
+                  The job will be created in draft status first. You can review and publish it later from the job listings page.
+                </Typography>
+              </Stack>
+            </Paper>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 2, maxHeight: '90vh' }
+      }}
+    >
+      {/* Attractive Header */}
+      <DialogTitle sx={{
+        borderBottom: '1px solid #E0E0E0',
+        pb: 2,
+        background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+        color: '#fff'
+      }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <WorkIcon />
+          <Typography variant="h6" fontWeight={600}>
+            Add Job Opening
+          </Typography>
+        </Stack>
+      </DialogTitle>
+
+      <DialogContent sx={{ pt: 3, overflowY: 'auto' }}>
+        <Stack spacing={3}>
+          {/* Stepper */}
+          <Box sx={{ width: '100%', mb: 2, pt: 2 }}>
+            <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+              {steps.map((label, index) => (
+                <Step key={label}>
+                  <StepLabel
+                    StepIconProps={{
+                      error: stepErrors[index] ? true : false
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={500}>
+                      {label}
+                    </Typography>
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
+
+          {/* Step Content */}
+          <Paper elevation={0} sx={{ p: 3, backgroundColor: '#F9F9F9', borderRadius: 2 }}>
+            <Stack spacing={3}>
+              {renderStepContent()}
+
+              {/* Step Error Display */}
+              {stepErrors[activeStep] && (
+                <Alert
+                  severity="warning"
+                  icon={<WarningIcon />}
+                  sx={{
+                    borderRadius: 1,
+                    '& .MuiAlert-icon': {
+                      alignItems: 'center'
+                    }
+                  }}
+                >
+                  {stepErrors[activeStep]}
+                </Alert>
+              )}
+
+              {/* General Error Display */}
+              {error && (
+                <Alert
+                  severity="error"
+                  sx={{
+                    borderRadius: 1,
+                    '& .MuiAlert-icon': {
+                      alignItems: 'center'
+                    }
+                  }}
+                >
+                  {error}
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 3 }}>
+      <DialogActions sx={{
+        px: 2,
+        borderTop: '1px solid #E0E0E0',
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'space-between'
+      }}>
         <Button
-          variant="outlined"
-          onClick={onClose}
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            borderRadius: 1,
+            px: 3,
+            py: 1,
+            textTransform: 'none',
+            fontWeight: 500,
+            border: '1px solid #cbd5e1',
+            color: '#475569'
+          }}
         >
           Cancel
         </Button>
-        
-        <Box sx={{ flex: 1 }} />
-        
-        {activeStep > 0 && (
-          <Button onClick={handleBack}>
-            Back
-          </Button>
-        )}
 
-        {activeStep < steps.length - 1 ? (
-          <Button
-            variant="contained"
-            onClick={handleNext}
-            sx={{
-              background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-              '&:hover': { opacity: 0.9 }
-            }}
-          >
-            Next
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
-            sx={{
-              background: 'linear-gradient(135deg, #164e63, #00B4D8)',
-              '&:hover': { opacity: 0.9 },
-              '&.Mui-disabled': {
-                background: '#e0e0e0'
-              }
-            }}
-          >
-            {loading ? 'Creating...' : 'Create Job Opening'}
-          </Button>
-        )}
+        <Stack direction="row" spacing={2}>
+          {activeStep > 0 && (
+            <Button
+              onClick={handleBack}
+              disabled={loading || requisitionLoading}
+              startIcon={<ArrowBackIcon />}
+              sx={{
+                borderRadius: 1,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
+            >
+              Back
+            </Button>
+          )}
+
+          {activeStep < steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading || requisitionLoading}
+              endIcon={<ArrowForwardIcon />}
+              sx={{
+                borderRadius: 1,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500,
+                background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                '&:hover': {
+                  opacity: 0.9
+                }
+              }}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading || requisitionLoading}
+              startIcon={loading ? null : <AddIcon />}
+              sx={{
+                borderRadius: 1,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500,
+                background: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+                '&:hover': {
+                  opacity: 0.9
+                }
+              }}
+            >
+              {loading ? 'Creating...' : 'Create Job Opening'}
+            </Button>
+          )}
+        </Stack>
       </DialogActions>
     </Dialog>
   );

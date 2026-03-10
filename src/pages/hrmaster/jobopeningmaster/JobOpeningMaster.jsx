@@ -492,7 +492,8 @@ const JobOpeningMaster = () => {
             display: 'inline-block'
           }}
         >
-          Job Opening Master
+          {/* Job Opening Master */}
+          Career Opportunities
         </Typography>
         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
           Manage and track all job openings, publish to job boards, and monitor applications
@@ -623,37 +624,37 @@ const JobOpeningMaster = () => {
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Job Details
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Job ID
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Department
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Location
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Status
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, color: TEXT_COLOR_HEADER }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     Applications
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    {/* <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} /> */}
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.875rem', py: 2, width: 100, color: TEXT_COLOR_HEADER }} align="center">
@@ -894,7 +895,8 @@ const JobOpeningMaster = () => {
             setOpenViewModal(false);
             setSelectedJobForView(null);
           }}
-          job={selectedJobForView}
+          jobId={selectedJobForView?._id || selectedJobForView?.id}
+          // job={selectedJobForView}
           onEdit={() => {
             setOpenViewModal(false);
             setSelectedJobForView(null);
@@ -903,6 +905,8 @@ const JobOpeningMaster = () => {
           }}
         />
       )}
+
+    
 
       {/* Publish Modal */}
       {selectedJobForPublish && (

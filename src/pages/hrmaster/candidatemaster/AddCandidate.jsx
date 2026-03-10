@@ -45,6 +45,15 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Color constants
+const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+const STRIPE_COLOR_ODD = '#FFFFFF';
+const STRIPE_COLOR_EVEN = '#f8fafc';
+const HOVER_COLOR = '#f1f5f9';
+const PRIMARY_BLUE = '#00B4D8';
+const TEXT_COLOR_HEADER = '#FFFFFF';
+const TEXT_COLOR_MAIN = '#0f172a';
+
 // Custom Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   '& .MuiStepConnector-line': {
@@ -112,6 +121,10 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
 
   // Validation rules
   const validationRules = {
+    jobId: {
+      required: true,
+      message: 'Please select a job to apply for'
+    },
     firstName: {
       required: true,
       minLength: 2,
@@ -211,6 +224,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
 
   const getFieldLabel = (fieldPath) => {
     const labels = {
+      jobId: 'Job',
       firstName: 'First name',
       lastName: 'Last name',
       email: 'Email',
@@ -226,9 +240,11 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
   };
 
   // Validate all fields in current step
+  // Validate all fields in current step
   const validateStep = () => {
     const errors = {};
     const stepFields = getStepFields(activeStep);
+    const newTouched = { ...touched };
 
     stepFields.forEach(field => {
       let value;
@@ -243,26 +259,32 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       if (error) {
         errors[field] = error;
       }
+
+      // Mark field as touched for validation
+      newTouched[field] = true;
     });
 
     // Additional validations
-    if (activeStep === 0) {
-      // Email format validation (already handled by pattern)
-      // Phone format validation (already handled by pattern)
-    }
-
     if (activeStep === 2) {
       // Validate education entries
       if (formData.education.length === 0 || !formData.education[0].degree) {
         errors['education'] = 'At least one education entry is required';
       } else {
         formData.education.forEach((edu, index) => {
-          if (!edu.degree) errors[`education[${index}].degree`] = 'Degree is required';
-          if (!edu.institution) errors[`education[${index}].institution`] = 'Institution is required';
+          if (!edu.degree) {
+            errors[`education[${index}].degree`] = 'Degree is required';
+            newTouched[`education[${index}].degree`] = true;
+          }
+          if (!edu.institution) {
+            errors[`education[${index}].institution`] = 'Institution is required';
+            newTouched[`education[${index}].institution`] = true;
+          }
           if (!edu.yearOfPassing) {
             errors[`education[${index}].yearOfPassing`] = 'Year of passing is required';
+            newTouched[`education[${index}].yearOfPassing`] = true;
           } else if (edu.yearOfPassing < 1900 || edu.yearOfPassing > new Date().getFullYear()) {
             errors[`education[${index}].yearOfPassing`] = 'Please enter a valid year';
+            newTouched[`education[${index}].yearOfPassing`] = true;
           }
         });
       }
@@ -273,22 +295,26 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       formData.experience.forEach((exp, index) => {
         if (exp.company && (!exp.fromDate || !exp.position)) {
           errors[`experience[${index}].details`] = 'Please fill all experience details';
+          newTouched[`experience[${index}].details`] = true;
         }
         if (exp.fromDate && exp.toDate && !exp.current) {
           if (new Date(exp.toDate) < new Date(exp.fromDate)) {
             errors[`experience[${index}].date`] = 'To date must be after from date';
+            newTouched[`experience[${index}].date`] = true;
           }
         }
       });
     }
 
     setFieldErrors(errors);
+    setTouched(newTouched); // Update touched state
+
     return Object.keys(errors).length === 0;
   };
 
   const getStepFields = (step) => {
     switch (step) {
-      case 0: return ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth'];
+      case 0: return ['jobId', 'firstName', 'lastName', 'email', 'phone', 'dateOfBirth'];
       case 1: return ['address.street', 'address.city', 'address.state', 'address.pincode'];
       case 2: return [];
       case 3: return [];
@@ -371,6 +397,9 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       ...prev,
       jobId: newValue?._id || ''
     }));
+    if (fieldErrors.jobId) {
+      setFieldErrors(prev => ({ ...prev, jobId: '' }));
+    }
   };
 
   // Handle input changes
@@ -543,8 +572,6 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
     setError('');
     if (validateStep()) {
       setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
-    } else {
-      setError('Please fill all required fields');
     }
   };
 
@@ -695,6 +722,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                 <Autocomplete
                   value={selectedJob}
                   onChange={handleJobChange}
+                  onBlur={() => handleBlur('jobId')}
                   options={jobs}
                   getOptionLabel={(option) => `${option.title} (${option.jobId}) - ${option.location}`}
                   isOptionEqualToValue={(option, value) => option._id === value._id}
@@ -770,33 +798,33 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
                   label="First Name *"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('firstName')}
                   size="small"
+                  sx={{ width: "250px" }}
                   required
                   {...getErrorProps('firstName')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
                   label="Last Name *"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('lastName')}
                   size="small"
+                  sx={{ width: "250px" }}
                   required
                   {...getErrorProps('lastName')}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
+
                   label="Email *"
                   name="email"
                   type="email"
@@ -804,6 +832,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('email')}
                   size="small"
+                  sx={{ width: "300px" }}
                   required
                   {...getErrorProps('email')}
                 />
@@ -824,7 +853,6 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
                   label="Date of Birth"
                   name="dateOfBirth"
                   type="date"
@@ -832,6 +860,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('dateOfBirth')}
                   size="small"
+                  sx={{ width: "250px" }}
                   InputLabelProps={{ shrink: true }}
                   {...getErrorProps('dateOfBirth')}
                 />
@@ -896,13 +925,13 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
-                  fullWidth
                   label="Street *"
                   name="street"
                   value={formData.address.street}
                   onChange={handleAddressChange}
                   onBlur={() => handleBlur('address.street')}
                   size="small"
+                  sx={{ width: "340px" }}
                   required
                   {...getErrorProps('address.street')}
                 />
@@ -916,6 +945,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   onChange={handleAddressChange}
                   onBlur={() => handleBlur('address.city')}
                   size="small"
+                  sx={{ width: "240px" }}
                   required
                   {...getErrorProps('address.city')}
                 />
@@ -941,6 +971,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   value={formData.address.country}
                   onChange={handleAddressChange}
                   size="small"
+                  sx={{ width: "100px" }}
                   InputProps={{ readOnly: true }}
                 />
               </Grid>
@@ -1080,7 +1111,20 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                   variant="contained"
                   onClick={handleAddSkill}
                   disabled={!skillInput.trim()}
-                  sx={{ borderRadius: 1.5, textTransform: 'none' }}
+                  sx={{
+                    borderRadius: 1.5,
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #164e63, #00B4D8)', // Simplified gradient without stops
+                    color: '#FFFFFF',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #164e63, #00B4D8)',
+                      opacity: 0.9
+                    },
+                    '&.Mui-disabled': {
+                      background: '#e0e0e0',
+                      color: '#9e9e9e'
+                    }
+                  }}
                 >
                   Add
                 </Button>
@@ -1259,29 +1303,31 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       <DialogTitle sx={{
         borderBottom: '1px solid #E0E0E0',
         pb: 2,
-        backgroundColor: '#F8FAFC',
+        background: HEADER_GRADIENT, // Changed from backgroundColor to background and applied gradient
+        color: TEXT_COLOR_HEADER,
         position: 'sticky',
         top: 0,
         zIndex: 2
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" fontWeight={600} color="#101010">
+          <Typography variant="h6" fontWeight={600}  >
+            <AddIcon sx={{ mr: 1, verticalAlign: 'middle', color: TEXT_COLOR_HEADER }} />
             Add New Candidate
           </Typography>
           <IconButton onClick={handleClose} size="small">
-            <CloseIcon />
+            <CloseIcon sx={{ color: TEXT_COLOR_HEADER, }} />
           </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={4}>
+      <DialogContent sx={{ pt: 1 }}>
+        <Stack spacing={2}>
           {/* Stepper */}
           <Stepper
             activeStep={activeStep}
             alternativeLabel
             connector={<ColorConnector />}
-            sx={{ mb: 2 }}
+            sx={{ mb: 1, pt: 2 }}
           >
             {steps.map((label, index) => (
               <Step key={label}>
@@ -1294,7 +1340,7 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
             ))}
           </Stepper>
 
-       
+
 
           <Divider />
 
@@ -1324,8 +1370,8 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
       </DialogContent>
 
       <DialogActions sx={{
-        px: 3,
-        py: 2,
+        px: 2,
+        py: 1,
         borderTop: '1px solid #E0E0E0',
         backgroundColor: '#F8FAFC',
         position: 'sticky',

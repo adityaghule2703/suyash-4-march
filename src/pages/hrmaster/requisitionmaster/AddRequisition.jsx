@@ -769,8 +769,8 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
                     onChange={handleTextChange} // Using text change handler
                     type="text"
                     error={!!fieldErrors.experienceYears}
-                    helperText={fieldErrors.experienceYears || 'Optional - e.g., 3 years, Fresher, 5+ years'}
-                    placeholder="e.g., 3 years, Fresher, 5+ years"
+                    helperText={fieldErrors.experienceYears || 'Optional - e.g., 0, 1, 2'}
+                    placeholder="e.g., 0, 1, 2"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
                   />
                 </Grid>
