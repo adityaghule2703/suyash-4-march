@@ -20,9 +20,9 @@ const DoughnutChart = () => {
           datasets: [{
             data: [60, 30, 10],
             backgroundColor: [
-              '#3b82f6',
-              '#0ea5e9',
-              '#7dd3fc'
+              '#9FE2BF',  // Light teal
+              '#0A5C60',  // Medium teal
+              '#063B3E'   // Dark teal
             ],
             borderWidth: 0,
             hoverOffset: 15
@@ -37,7 +37,8 @@ const DoughnutChart = () => {
               position: 'bottom',
               labels: {
                 padding: 20,
-                usePointStyle: true
+                usePointStyle: true,
+                color: '#334155'
               }
             }
           }

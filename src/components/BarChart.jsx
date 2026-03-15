@@ -22,21 +22,21 @@ const BarChart = () => {
               label: 'Sales',
               data: [12000, 19000, 8000, 15000, 11000],
               backgroundColor: [
-                'rgba(59, 130, 246, 0.7)',
-                'rgba(14, 165, 233, 0.7)',
-                'rgba(56, 189, 248, 0.7)',
-                'rgba(125, 211, 252, 0.7)',
-                'rgba(186, 230, 253, 0.7)'
+                'rgba(159, 226, 191, 0.7)',
+                'rgba(10, 92, 96, 0.7)',
+                'rgba(6, 59, 62, 0.7)',
+                'rgba(18, 140, 126, 0.7)',
+                'rgba(13, 105, 108, 0.7)'
               ],
               borderColor: [
-                '#3b82f6',
-                '#0ea5e9',
-                '#38bdf8',
-                '#7dd3fc',
-                '#bae6fd'
+                '#9FE2BF',
+                '#0A5C60',
+                '#063B3E',
+                '#128C7E',
+                '#0D696C'
               ],
               borderWidth: 1,
-              borderRadius: 6
+              borderRadius: 4
             }
           ]
         },
@@ -46,23 +46,35 @@ const BarChart = () => {
           plugins: {
             legend: {
               display: false
+            },
+            tooltip: {
+              titleFont: { size: 11 },
+              bodyFont: { size: 10 },
+              padding: 8
             }
           },
           scales: {
             y: {
               beginAtZero: true,
               grid: {
-                drawBorder: false
+                drawBorder: false,
+                color: 'rgba(10, 92, 96, 0.05)'
               },
               ticks: {
                 callback: function(value) {
                   return '$' + value.toLocaleString();
-                }
+                },
+                font: { size: 9 },
+                color: '#94A3B8'
               }
             },
             x: {
               grid: {
                 display: false
+              },
+              ticks: {
+                font: { size: 9 },
+                color: '#94A3B8'
               }
             }
           }
