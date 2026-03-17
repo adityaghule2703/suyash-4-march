@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
   Grid,
   Stepper,
   Step,
@@ -17,8 +16,6 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  FormControlLabel,
-  Switch,
   Autocomplete,
   CircularProgress,
   InputAdornment,
@@ -32,16 +29,49 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
+
 // 🔥 Modern Stepper Connector with Gradient
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
@@ -235,13 +265,6 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
         Grade: ''
       }));
     }
-  };
-
-  const handleSwitchChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      IsActive: e.target.checked
-    }));
   };
 
   const validateField = (name, value) => {
@@ -496,128 +519,184 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       case 0: // Basic Information
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Material Selection
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12 }}>
-                  <Autocomplete
-                    fullWidth
-                    options={materials}
-                    loading={loadingMaterials}
-                    value={selectedMaterial}
-                    onChange={handleMaterialChange}
-                    getOptionLabel={(option) => 
-                      `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
-                    }
-                    isOptionEqualToValue={(option, value) => option._id === value._id}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        label="Select Material *"
-                        required
-                        disabled={loading}
-                        error={!!fieldErrors.MaterialName}
-                        helperText={fieldErrors.MaterialName}
-                        sx={{
-                          '& .MuiOutlinedInput-root': { borderRadius: 1 }
-                        }}
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {loadingMaterials ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box>
-                          <Typography variant="body2" fontWeight={500}>
-                            {option.MaterialName}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
-                          </Typography>
-                        </Box>
-                      </li>
-                    )}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SELECT MATERIAL <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <Autocomplete
+                      fullWidth
+                      options={materials}
+                      loading={loadingMaterials}
+                      value={selectedMaterial}
+                      onChange={handleMaterialChange}
+                      getOptionLabel={(option) => 
+                        `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
+                      }
+                      isOptionEqualToValue={(option, value) => option._id === value._id}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select material"
+                          required
+                          error={!!fieldErrors.MaterialName}
+                          helperText={fieldErrors.MaterialName}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary,
+                              '&::placeholder': {
+                                color: COLORS.text.tertiary,
+                                fontSize: '0.75rem'
+                              }
+                            },
+                            '& .MuiFormHelperText-root': {
+                              fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                            }
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingMaterials ? <CircularProgress color="inherit" size={16} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Box>
+                            <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                              {option.MaterialName}
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                              {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
+                            </Typography>
+                          </Box>
+                        </li>
+                      )}
+                      ListboxProps={{
+                        sx: {
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem', py: 1, px: 1.5
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Material Name *"
-                    name="MaterialName"
-                    value={formData.MaterialName}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    error={!!fieldErrors.MaterialName}
-                    helperText={fieldErrors.MaterialName}
-                    InputProps={{
-                      readOnly: true,
-                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      MATERIAL NAME <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="MaterialName"
+                      value={formData.MaterialName}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      error={!!fieldErrors.MaterialName}
+                      helperText={fieldErrors.MaterialName}
+                      InputProps={{
+                        readOnly: true,
+                        sx: { 
+                          bgcolor: COLORS.background.light,
+                          borderRadius: 1.5
+                        }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Grade *"
-                    name="Grade"
-                    value={formData.Grade}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    error={!!fieldErrors.Grade}
-                    helperText={fieldErrors.Grade}
-                    InputProps={{
-                      readOnly: true,
-                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      GRADE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="Grade"
+                      value={formData.Grade}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      error={!!fieldErrors.Grade}
+                      helperText={fieldErrors.Grade}
+                      InputProps={{
+                        readOnly: true,
+                        sx: { 
+                          bgcolor: COLORS.background.light,
+                          borderRadius: 1.5
+                        }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
             {/* Material Info Summary */}
             {selectedMaterial && (
-              <Paper sx={{ p: 2, backgroundColor: '#E3F2FD', borderRadius: 1, border: '1px solid #90CAF9' }}>
-                <Typography variant="caption" sx={{ color: '#1976D2', fontWeight: 600, display: 'block', mb: 1 }}>
-                  Material Details
+              <Box sx={{ mt: 1 }}>
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                  Code: {selectedMaterial.MaterialCode}
+                  {selectedMaterial.Density && ` | Density: ${selectedMaterial.Density} ${selectedMaterial.Unit || ''}`}
                 </Typography>
-                <Grid container spacing={1}>
-                  <Grid size={{ xs: 4 }}>
-                    <Typography variant="caption" color="textSecondary">Code:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 8 }}>
-                    <Typography variant="caption" fontWeight={500}>{selectedMaterial.MaterialCode}</Typography>
-                  </Grid>
-                  {selectedMaterial.Density && (
-                    <>
-                      <Grid size={{ xs: 4 }}>
-                        <Typography variant="caption" color="textSecondary">Density:</Typography>
-                      </Grid>
-                      <Grid size={{ xs: 8 }}>
-                        <Typography variant="caption" fontWeight={500}>
-                          {selectedMaterial.Density} {selectedMaterial.Unit || ''}
-                        </Typography>
-                      </Grid>
-                    </>
-                  )}
-                </Grid>
-              </Paper>
+              </Box>
             )}
           </Stack>
         );
@@ -625,294 +704,439 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       case 1: // Rate & Cost Details
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Rate Details
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Rate per KG *"
-                    name="RatePerKG"
-                    value={formData.RatePerKG}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="0.00"
-                    error={!!fieldErrors.RatePerKG}
-                    helperText={fieldErrors.RatePerKG}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
-                    }}
-                    inputProps={{ 
-                      step: "0.01", 
-                      min: 0,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RATE PER KG <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="RatePerKG"
+                      value={formData.RatePerKG}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="0.00"
+                      error={!!fieldErrors.RatePerKG}
+                      helperText={fieldErrors.RatePerKG}
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
+                            ₹
+                          </Typography>
+                        ),
+                      }}
+                      inputProps={{ 
+                        step: "0.01", 
+                        min: 0,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Profile Conversion Rate *"
-                    name="profile_conversion_rate"
-                    value={formData.profile_conversion_rate}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="0.00"
-                    error={!!fieldErrors.profile_conversion_rate}
-                    helperText={fieldErrors.profile_conversion_rate}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
-                    }}
-                    inputProps={{ 
-                      step: "0.01", 
-                      min: 0,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PROFILE CONVERSION RATE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="profile_conversion_rate"
+                      value={formData.profile_conversion_rate}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="0.00"
+                      error={!!fieldErrors.profile_conversion_rate}
+                      helperText={fieldErrors.profile_conversion_rate}
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
+                            ₹
+                          </Typography>
+                        ),
+                      }}
+                      inputProps={{ 
+                        step: "0.01", 
+                        min: 0,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Loss Percentages
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Scrap Percentage *"
-                    name="ScrapPercentage"
-                    value={formData.ScrapPercentage}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="0"
-                    error={!!fieldErrors.ScrapPercentage}
-                    helperText={fieldErrors.ScrapPercentage}
-                    InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                    }}
-                    inputProps={{ 
-                      step: "0.1", 
-                      min: 0,
-                      max: 100,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SCRAP PERCENTAGE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="ScrapPercentage"
+                      value={formData.ScrapPercentage}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="0"
+                      error={!!fieldErrors.ScrapPercentage}
+                      helperText={fieldErrors.ScrapPercentage}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                            %
+                          </Typography>
+                        ),
+                      }}
+                      inputProps={{ 
+                        step: "0.1", 
+                        min: 0,
+                        max: 100,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Transport Loss % *"
-                    name="TransportLossPercentage"
-                    value={formData.TransportLossPercentage}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="0"
-                    error={!!fieldErrors.TransportLossPercentage}
-                    helperText={fieldErrors.TransportLossPercentage}
-                    InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                    }}
-                    inputProps={{ 
-                      step: "0.1", 
-                      min: 0,
-                      max: 100,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      TRANSPORT LOSS % <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="TransportLossPercentage"
+                      value={formData.TransportLossPercentage}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="0"
+                      error={!!fieldErrors.TransportLossPercentage}
+                      helperText={fieldErrors.TransportLossPercentage}
+                      InputProps={{
+                        endAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                            %
+                          </Typography>
+                        ),
+                      }}
+                      inputProps={{ 
+                        step: "0.1", 
+                        min: 0,
+                        max: 100,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Calculated Rates (Read Only)
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Scrap Rate per KG"
-                    name="scrap_rate_per_kg"
-                    value={formData.scrap_rate_per_kg}
-                    disabled
-                    InputProps={{
-                      readOnly: true,
-                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
-                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SCRAP RATE PER KG
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="scrap_rate_per_kg"
+                      value={formData.scrap_rate_per_kg}
+                      disabled
+                      InputProps={{
+                        readOnly: true,
+                        startAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
+                            ₹
+                          </Typography>
+                        ),
+                        sx: { bgcolor: COLORS.background.light, borderRadius: 1.5 }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Transport Rate per KG"
-                    name="transport_rate_per_kg"
-                    value={formData.transport_rate_per_kg}
-                    disabled
-                    InputProps={{
-                      readOnly: true,
-                      startAdornment: <InputAdornment position="start">₹</InputAdornment>,
-                      sx: { bgcolor: '#f5f5f5', borderRadius: 1 }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      TRANSPORT RATE PER KG
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="transport_rate_per_kg"
+                      value={formData.transport_rate_per_kg}
+                      disabled
+                      InputProps={{
+                        readOnly: true,
+                        startAdornment: (
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
+                            ₹
+                          </Typography>
+                        ),
+                        sx: { bgcolor: COLORS.background.light, borderRadius: 1.5 }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Validity & Status
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Date Effective *"
-                    name="DateEffective"
-                    type="date"
-                    value={formData.DateEffective}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    error={!!fieldErrors.DateEffective}
-                    helperText={fieldErrors.DateEffective}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      DATE EFFECTIVE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="DateEffective"
+                      type="date"
+                      value={formData.DateEffective}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      error={!!fieldErrors.DateEffective}
+                      helperText={fieldErrors.DateEffective}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
-                {/* <Grid size={{ xs: 12, md: 6 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        name="IsActive"
-                        checked={formData.IsActive}
-                        onChange={handleSwitchChange}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label="Active Material"
-                    sx={{ mt: 1 }}
-                  />
-                </Grid> */}
               </Grid>
-            </Paper>
+            </Box>
 
             {/* Calculation Preview */}
             {formData.RatePerKG && formData.ScrapPercentage && formData.TransportLossPercentage && (
-              <Paper sx={{ p: 2, backgroundColor: '#E8F5E9', borderRadius: 1, border: '1px solid #C8E6C9' }}>
-                <Typography variant="subtitle2" sx={{ color: '#2E7D32', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ color: COLORS.primaryDark, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                   Rate Calculation Preview
                 </Typography>
                 
                 <Grid container spacing={1}>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" color="textSecondary">Base Rate:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Base Rate:</Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" fontWeight={500} align="right">
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary, textAlign: 'right' }}>
                       ₹{parseFloat(formData.RatePerKG).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" color="textSecondary">Scrap Rate:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Scrap Rate:</Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
                       + ₹{parseFloat(formData.scrap_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" color="textSecondary">Transport Rate:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Transport Rate:</Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
                       + ₹{parseFloat(formData.transport_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
 
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" color="textSecondary">Profile Conversion Rate:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Profile Conversion Rate:</Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="body2" fontWeight={500} align="right" color="warning.main">
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
                       + ₹{parseFloat(formData.profile_conversion_rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   
                   <Grid size={{ xs: 12 }}>
-                    <Box sx={{ borderTop: '1px dashed #BDBDBD', pt: 1, mt: 1 }}>
+                    <Box sx={{ borderTop: `1px dashed ${COLORS.border}`, pt: 1, mt: 1 }}>
                       <Grid container>
                         <Grid size={{ xs: 6 }}>
-                          <Typography variant="body1" fontWeight={600} color="textPrimary">
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
                             Effective Rate:
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 6 }}>
-                          <Typography variant="body1" fontWeight={700} color="success.main" align="right">
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primaryDark, textAlign: 'right' }}>
                             ₹{calculateEffectiveRate().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                         </Grid>
@@ -920,7 +1144,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                     </Box>
                   </Grid>
                 </Grid>
-              </Paper>
+              </Box>
             )}
           </Stack>
         );
@@ -938,18 +1162,30 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
           maxHeight: '95vh'
         }
       }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2,
-        backgroundColor: '#F8FAFC'
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
       }}>
-        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010', mb: 1 }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
           Add Raw Material
         </Typography>
 
@@ -958,48 +1194,94 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ mb: 1, mt: 1 }}
+          sx={{ mb: 0.5, mt: 0.5 }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
-                <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              '& .MuiAlert-icon': {
+                fontSize: '1.25rem',
+                alignItems: 'center'
+              },
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
+          >
+            {error}
+          </Alert>
         )}
       </DialogContent>
 
       <DialogActions sx={{
-        px: 2,
+        px: 2.5,
         py: 1.5,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
       }}>
         <Button
           onClick={handleBack}
           disabled={activeStep === 0 || loading}
-          size="small"
-          startIcon={<NavigateBeforeIcon />}
-          sx={{ color: '#666' }}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            },
+            '&:disabled': {
+              borderColor: COLORS.border,
+              color: COLORS.text.tertiary
+            }
+          }}
         >
           Back
         </Button>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             onClick={handleClose}
             disabled={loading}
-            size="small"
-            sx={{ mr: 1, color: '#666' }}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1007,12 +1289,24 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={loading}
-              size="small"
-              startIcon={<AddIcon />}
+              disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
+              startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               {loading ? 'Adding...' : 'Add Material'}
@@ -1022,11 +1316,23 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               variant="contained"
               onClick={handleNext}
               disabled={loading}
-              size="small"
-              endIcon={<NavigateNextIcon />}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               Next

@@ -21,7 +21,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  styled
+  styled,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { 
   Edit as EditIcon,
@@ -31,16 +33,49 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
+
 // 🔥 Modern Stepper Connector with Gradient
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
@@ -153,6 +188,8 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
   const [error, setError] = useState('');
   const [hsnCodes, setHsnCodes] = useState([]);
   const [loadingHsn, setLoadingHsn] = useState(false);
+  const [selectedHSN, setSelectedHSN] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState(null);
 
   // Options
   const unitOptions = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
@@ -186,8 +223,21 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
         rm_rejection_percent: item.rm_rejection_percent !== undefined && item.rm_rejection_percent !== null ? item.rm_rejection_percent.toString() : '',
         scrap_realisation_percent: item.scrap_realisation_percent !== undefined && item.scrap_realisation_percent !== null ? item.scrap_realisation_percent.toString() : ''
       });
+
+      // Set selected unit
+      if (item.unit) {
+        setSelectedUnit(item.unit);
+      }
+
+      // Set selected HSN code
+      if (item.hsn_code) {
+        const hsn = hsnCodes.find(h => h.HSNCode === item.hsn_code);
+        if (hsn) {
+          setSelectedHSN(hsn);
+        }
+      }
     }
-  }, [item]);
+  }, [item, hsnCodes]);
 
   const fetchHsnCodes = async () => {
     try {
@@ -246,27 +296,27 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
     }
   };
 
-  const handleSelectChange = (event) => {
-    const { name, value } = event.target;
+  const handleUnitChange = (event, newValue) => {
+    setSelectedUnit(newValue);
     setFieldErrors(prev => ({
       ...prev,
-      [name]: ''
+      unit: ''
     }));
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      unit: newValue || ''
     }));
   };
 
-  const handleHSNChange = (event) => {
-    const selectedHSNCode = event.target.value;
+  const handleHSNChange = (event, newValue) => {
+    setSelectedHSN(newValue);
     setFieldErrors(prev => ({
       ...prev,
       hsn_code: ''
     }));
     setFormData(prev => ({
       ...prev,
-      hsn_code: selectedHSNCode
+      hsn_code: newValue ? newValue.HSNCode : ''
     }));
   };
 
@@ -565,6 +615,8 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
       rm_rejection_percent: '',
       scrap_realisation_percent: ''
     });
+    setSelectedUnit(null);
+    setSelectedHSN(null);
     setFieldErrors({});
     setError('');
     setActiveStep(0);
@@ -580,92 +632,167 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
       case 0: // Basic Info
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Basic Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Part Number *"
-                    name="part_no"
-                    value={formData.part_no}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., PART001"
-                    error={!!fieldErrors.part_no}
-                    helperText={fieldErrors.part_no}
-                    inputProps={{ maxLength: 50 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Item Number *"
-                    name="item_no"
-                    value={formData.item_no}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., ITEM001"
-                    error={!!fieldErrors.item_no}
-                    helperText={fieldErrors.item_no}
-                    inputProps={{ maxLength: 50 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <FormControl fullWidth size="small" required error={!!fieldErrors.unit}>
-                    <InputLabel>Unit *</InputLabel>
-                    <Select
-                      name="unit"
-                      value={formData.unit}
-                      onChange={handleSelectChange}
-                      label="Unit *"
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PART NUMBER <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="part_no"
+                      value={formData.part_no}
+                      onChange={handleChange}
                       required
                       disabled={loading}
-                      sx={{ borderRadius: 1 }}
-                    >
-                      <MenuItem value="">
-                        <em>Select Unit</em>
-                      </MenuItem>
-                      {unitOptions.map((unit) => (
-                        <MenuItem key={unit} value={unit}>
-                          {unit}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {fieldErrors.unit && (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                        {fieldErrors.unit}
-                      </Typography>
-                    )}
-                  </FormControl>
+                      placeholder="e.g., PART001"
+                      error={!!fieldErrors.part_no}
+                      helperText={fieldErrors.part_no}
+                      inputProps={{ maxLength: 50 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ITEM NUMBER <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="item_no"
+                      value={formData.item_no}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="e.g., ITEM001"
+                      error={!!fieldErrors.item_no}
+                      helperText={fieldErrors.item_no}
+                      inputProps={{ maxLength: 50 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      UNIT <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <Autocomplete
+                      fullWidth
+                      options={unitOptions}
+                      value={selectedUnit}
+                      onChange={handleUnitChange}
+                      disabled={loading}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select unit"
+                          required
+                          error={!!fieldErrors.unit}
+                          helperText={fieldErrors.unit}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                            },
+                            '& .MuiFormHelperText-root': {
+                              fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                            }
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                            {option}
+                          </Typography>
+                        </li>
+                      )}
+                      ListboxProps={{
+                        sx: {
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem', py: 1, px: 1.5
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Part Description *"
-                    name="part_description"
-                    value={formData.part_description}
-                    onChange={handleChange}
-                    multiline
-                    rows={2}
-                    required
-                    disabled={loading}
-                    placeholder="Enter detailed part description"
-                    error={!!fieldErrors.part_description}
-                    helperText={fieldErrors.part_description}
-                    inputProps={{ maxLength: 200 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PART DESCRIPTION <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="part_description"
+                      value={formData.part_description}
+                      onChange={handleChange}
+                      multiline
+                      rows={2}
+                      required
+                      disabled={loading}
+                      placeholder="Enter detailed part description"
+                      error={!!fieldErrors.part_description}
+                      helperText={fieldErrors.part_description}
+                      inputProps={{ maxLength: 200 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -676,106 +803,182 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
         return (
           <Stack spacing={2}>
             {/* Drawing Information */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Drawing Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Drawing Number"
-                    name="drawing_no"
-                    value={formData.drawing_no}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., DRG001"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      DRAWING NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="drawing_no"
+                      value={formData.drawing_no}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., DRG001"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Revision Number"
-                    name="revision_no"
-                    value={formData.revision_no}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., Rev 1.0"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      REVISION NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="revision_no"
+                      value={formData.revision_no}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Rev 1.0"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
 
             {/* Material Information */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Material Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Material *"
-                    name="material"
-                    value={formData.material}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., Copper"
-                    error={!!fieldErrors.material}
-                    helperText={fieldErrors.material}
-                    inputProps={{ maxLength: 100 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      MATERIAL <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="material"
+                      value={formData.material}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="e.g., Copper"
+                      error={!!fieldErrors.material}
+                      helperText={fieldErrors.material}
+                      inputProps={{ maxLength: 100 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="RM Grade"
-                    name="rm_grade"
-                    value={formData.rm_grade}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., Grade A"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RM GRADE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="rm_grade"
+                      value={formData.rm_grade}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Grade A"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Density (g/cm³)"
-                    name="density"
-                    value={formData.density}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., 8.96"
-                    error={!!fieldErrors.density}
-                    helperText={fieldErrors.density}
-                    inputProps={{ 
-                      step: "0.01", 
-                      min: 0,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      DENSITY (g/cm³)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="density"
+                      value={formData.density}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 8.96"
+                      error={!!fieldErrors.density}
+                      helperText={fieldErrors.density}
+                      inputProps={{ 
+                        step: "0.01", 
+                        min: 0,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -786,177 +989,301 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
         return (
           <Stack spacing={2}>
             {/* Raw Material Details */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Raw Material Details
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="RM Source"
-                    name="rm_source"
-                    value={formData.rm_source}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., New India CT"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RM SOURCE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="rm_source"
+                      value={formData.rm_source}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., New India CT"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="RM Type"
-                    name="rm_type"
-                    value={formData.rm_type}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., Strip, Sheet, Rod"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RM TYPE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="rm_type"
+                      value={formData.rm_type}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Strip, Sheet, Rod"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="RM Specification"
-                    name="rm_spec"
-                    value={formData.rm_spec}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., Copper"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RM SPECIFICATION
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="rm_spec"
+                      value={formData.rm_spec}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Copper"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Strip Size (mm)"
-                    name="strip_size"
-                    value={formData.strip_size}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., 3660"
-                    error={!!fieldErrors.strip_size}
-                    helperText={fieldErrors.strip_size}
-                    inputProps={{ 
-                      min: 0,
-                      step: "0.01",
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      STRIP SIZE (mm)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="strip_size"
+                      value={formData.strip_size}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 3660"
+                      error={!!fieldErrors.strip_size}
+                      helperText={fieldErrors.strip_size}
+                      inputProps={{ 
+                        min: 0, step: "0.01",
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Pitch (mm)"
-                    name="pitch"
-                    value={formData.pitch}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., 42"
-                    error={!!fieldErrors.pitch}
-                    helperText={fieldErrors.pitch}
-                    inputProps={{ 
-                      min: 0,
-                      step: "0.01",
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PITCH (mm)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="pitch"
+                      value={formData.pitch}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 42"
+                      error={!!fieldErrors.pitch}
+                      helperText={fieldErrors.pitch}
+                      inputProps={{ 
+                        min: 0, step: "0.01",
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Number of Cavities"
-                    name="no_of_cavity"
-                    value={formData.no_of_cavity}
-                    onChange={handleChange}
-                    disabled={loading}
-                    type="number"
-                    placeholder="e.g., 1"
-                    error={!!fieldErrors.no_of_cavity}
-                    helperText={fieldErrors.no_of_cavity}
-                    inputProps={{ 
-                      min: 1, 
-                      step: 1,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      NUMBER OF CAVITIES
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="no_of_cavity"
+                      value={formData.no_of_cavity}
+                      onChange={handleChange}
+                      disabled={loading}
+                      type="number"
+                      placeholder="e.g., 1"
+                      error={!!fieldErrors.no_of_cavity}
+                      helperText={fieldErrors.no_of_cavity}
+                      inputProps={{ 
+                        min: 1, step: 1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
 
             {/* Tax Information */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Tax Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>HSN Code</InputLabel>
-                    <Select
-                      name="hsn_code"
-                      value={formData.hsn_code}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      HSN CODE
+                    </Typography>
+                    <Autocomplete
+                      fullWidth
+                      options={hsnCodes}
+                      loading={loadingHsn}
+                      value={selectedHSN}
                       onChange={handleHSNChange}
-                      label="HSN Code"
-                      disabled={loading || loadingHsn}
-                      sx={{ borderRadius: 1 }}
-                    >
-                      <MenuItem value="">
-                        <em>{loadingHsn ? 'Loading...' : 'Select HSN Code'}</em>
-                      </MenuItem>
-                      {hsnCodes.map((hsn) => (
-                        <MenuItem key={hsn._id} value={hsn.HSNCode}>
+                      getOptionLabel={(option) => option.HSNCode || ''}
+                      isOptionEqualToValue={(option, value) => option._id === value._id}
+                      disabled={loading}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder={loadingHsn ? 'Loading...' : 'Select HSN code'}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                            }
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingHsn ? <CircularProgress color="inherit" size={16} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
                           <Box>
-                            <Typography variant="body2" fontWeight={500}>
-                              {hsn.HSNCode}
+                            <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                              {option.HSNCode}
                             </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              {hsn.Description} (GST: {hsn.GSTPercentage}%)
+                            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                              {option.Description} (GST: {option.GSTPercentage}%)
                             </Typography>
                           </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                        </li>
+                      )}
+                      ListboxProps={{
+                        sx: {
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem', py: 1, px: 1.5
+                          }
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Select HSN code for tax calculation
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -966,71 +1293,101 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
       case 3: // Process Parameters
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Process Parameters
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="RM Rejection Percentage (%)"
-                    name="rm_rejection_percent"
-                    value={formData.rm_rejection_percent}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., 2"
-                    error={!!fieldErrors.rm_rejection_percent}
-                    helperText={fieldErrors.rm_rejection_percent}
-                    inputProps={{ 
-                      min: 0, 
-                      max: 100, 
-                      step: 0.1,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      RM REJECTION PERCENTAGE (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="rm_rejection_percent"
+                      value={formData.rm_rejection_percent}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 2"
+                      error={!!fieldErrors.rm_rejection_percent}
+                      helperText={fieldErrors.rm_rejection_percent}
+                      inputProps={{ 
+                        min: 0, max: 100, step: 0.1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Percentage of raw material rejection
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Scrap Realisation Percentage (%)"
-                    name="scrap_realisation_percent"
-                    value={formData.scrap_realisation_percent}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., 98"
-                    error={!!fieldErrors.scrap_realisation_percent}
-                    helperText={fieldErrors.scrap_realisation_percent}
-                    inputProps={{ 
-                      min: 0, 
-                      max: 100, 
-                      step: 0.1,
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SCRAP REALISATION PERCENTAGE (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="scrap_realisation_percent"
+                      value={formData.scrap_realisation_percent}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 98"
+                      error={!!fieldErrors.scrap_realisation_percent}
+                      helperText={fieldErrors.scrap_realisation_percent}
+                      inputProps={{ 
+                        min: 0, max: 100, step: 0.1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Percentage of scrap that can be recovered
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -1050,18 +1407,30 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
           maxHeight: '95vh'
         }
       }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2,
-        backgroundColor: '#F8FAFC'
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
       }}>
-        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010', mb: 1 }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
           Edit Item
         </Typography>
 
@@ -1070,48 +1439,94 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ mb: 1, mt: 1 }}
+          sx={{ mb: 0.5, mt: 0.5 }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
-                <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              '& .MuiAlert-icon': {
+                fontSize: '1.25rem',
+                alignItems: 'center'
+              },
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
+          >
+            {error}
+          </Alert>
         )}
       </DialogContent>
 
       <DialogActions sx={{
-        px: 2,
+        px: 2.5,
         py: 1.5,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
       }}>
         <Button
           onClick={handleBack}
           disabled={activeStep === 0 || loading}
-          size="small"
-          startIcon={<NavigateBeforeIcon />}
-          sx={{ color: '#666' }}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            },
+            '&:disabled': {
+              borderColor: COLORS.border,
+              color: COLORS.text.tertiary
+            }
+          }}
         >
           Back
         </Button>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             onClick={handleClose}
             disabled={loading}
-            size="small"
-            sx={{ mr: 1, color: '#666' }}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1120,11 +1535,23 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
               variant="contained"
               onClick={handleSubmit}
               disabled={loading}
-              size="small"
-              startIcon={<EditIcon />}
+              startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               {loading ? 'Updating...' : 'Update Item'}
@@ -1134,11 +1561,23 @@ const EditItem = ({ open, onClose, item, onUpdate, materials }) => {
               variant="contained"
               onClick={handleNext}
               disabled={loading}
-              size="small"
-              endIcon={<NavigateNextIcon />}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               Next

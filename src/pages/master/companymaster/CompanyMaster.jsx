@@ -18,45 +18,63 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
   Chip,
   Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
+  Refresh as RefreshIcon,
   Business as BusinessIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Import modal components
 import AddCompanies from './AddCompanies';
 import EditCompanies from './EditCompanies';
 import ViewCompanies from './ViewCompanies';
 import DeleteCompanies from './DeleteCompanies';
 
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc'; 
-const HOVER_COLOR = '#f1f5f9'; 
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a'; 
+// Color constants - Single color #063C3F throughout (matching Users component)
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
+// Action Menu Component
 const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
   return (
     <>
@@ -65,9 +83,9 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -84,7 +102,8 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
@@ -93,13 +112,15 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
             onView(company);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <ViewIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              View Details
+            </Typography>
           </ListItemText>
         </MenuItem>
         <MenuItem 
@@ -107,28 +128,30 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
             onEdit(company);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Edit</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              Edit
+            </Typography>
           </ListItemText>
         </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
+        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         <MenuItem 
           onClick={() => {
             onDelete(company);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
+            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
               Delete
             </Typography>
           </ListItemText>
@@ -139,42 +162,52 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
 };
 
 const CompanyMaster = () => {
+  // State for data
   const [companies, setCompanies] = useState([]);
   const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   
+  // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
   const [selected, setSelected] = useState([]);
   
+  // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedCompanyForAction, setSelectedCompanyForAction] = useState(null);
   
+  // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-
+  
+  // Selected company
   const [selectedCompany, setSelectedCompany] = useState(null);
   
+  // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
   });
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch companies from API
   useEffect(() => {
     fetchCompanies();
   }, []);
-
-  // Optional: Refresh data when all modals are closed
-  useEffect(() => {
-    if (!openAddModal && !openEditModal && !openViewModal && !openDeleteDialog) {
-      // You can uncomment this if you want to refresh data when modals close
-      // fetchCompanies();
-    }
-  }, [openAddModal, openEditModal, openViewModal, openDeleteDialog]);
 
   const fetchCompanies = async () => {
     try {
@@ -211,10 +244,20 @@ const CompanyMaster = () => {
     }
   };
   
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchCompanies();
+    showNotification('Data refreshed', 'success');
+  };
+  
+  // Handle search (client-side filtering since no server pagination)
+  const handleSearch = () => {
+    if (!searchTerm) {
+      setFilteredCompanies(companies);
+      return;
+    }
     
+    const value = searchTerm.toLowerCase();
     const filtered = companies.filter(company =>
       company.company_name?.toLowerCase().includes(value) ||
       (company.email && company.email.toLowerCase().includes(value)) ||
@@ -224,9 +267,14 @@ const CompanyMaster = () => {
     );
     
     setFilteredCompanies(filtered);
-    setPage(0);
   };
+
+  // Apply search when searchTerm changes
+  useEffect(() => {
+    handleSearch();
+  }, [searchTerm, companies]);
   
+  // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
       setSelected(filteredCompanies.map(company => company._id));
@@ -235,6 +283,7 @@ const CompanyMaster = () => {
     }
   };
   
+  // Handle single selection
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
@@ -248,29 +297,31 @@ const CompanyMaster = () => {
     setSelected(newSelected);
   };
   
+  // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]); // Clear selection when changing page
   };
   
+  // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setSelected([]); // Clear selection when changing rows per page
   };
   
+  // Handle add company
   const handleAddCompany = (newCompany) => {
     // Ensure the new company has all required fields and proper structure
     const formattedCompany = {
       ...newCompany,
-      // Ensure _id exists (use _id or id from response)
-      _id: newCompany._id || newCompany.id,
-      // Ensure bank_details exists with proper structure
+      _id: newCompany._id || newCompany.id || Date.now().toString(),
       bank_details: newCompany.bank_details || {
         bank_name: '',
         account_no: '',
         ifsc: '',
         branch: ''
       },
-      // Ensure all required fields have at least empty strings
       company_id: newCompany.company_id || '',
       company_name: newCompany.company_name || '',
       address: newCompany.address || '',
@@ -283,58 +334,34 @@ const CompanyMaster = () => {
       is_active: newCompany.is_active !== undefined ? newCompany.is_active : true
     };
 
-    console.log('Adding formatted company:', formattedCompany);
-
-    // Add to existing companies
-    setCompanies(prevCompanies => {
-      const updatedCompanies = [...prevCompanies, formattedCompany];
-      return updatedCompanies;
-    });
-    
-    // Update filtered companies based on current search term
-    if (searchTerm) {
-      const matchesSearch = 
-        formattedCompany.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formattedCompany.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formattedCompany.gstin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formattedCompany.pan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formattedCompany.state?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (matchesSearch) {
-        setFilteredCompanies(prev => [...prev, formattedCompany]);
-      } else {
-        // If doesn't match search, still add to filtered but it won't show until search is cleared
-        setFilteredCompanies(prev => [...prev, formattedCompany]);
-      }
-    } else {
-      setFilteredCompanies(prev => [...prev, formattedCompany]);
-    }
-
+    setCompanies(prev => [...prev, formattedCompany]);
     showNotification('Company added successfully!', 'success');
   };
   
+  // Handle edit company
   const handleEditCompany = (updatedCompany) => {
     const updatedCompanies = companies.map(company =>
       company._id === updatedCompany._id ? updatedCompany : company
     );
     
     setCompanies(updatedCompanies);
-    setFilteredCompanies(updatedCompanies);
     showNotification('Company updated successfully!', 'success');
   };
   
+  // Handle delete company
   const handleDeleteCompany = (companyId) => {
     const updatedCompanies = companies.filter(company => company._id !== companyId);
     setCompanies(updatedCompanies);
-    setFilteredCompanies(updatedCompanies);
     setSelected(selected.filter(id => id !== companyId));
     showNotification('Company deleted successfully!', 'success');
   };
   
+  // Handle bulk delete
   const handleBulkDelete = () => {
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
+  // Action menu handlers
   const handleActionMenuOpen = (event, company) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedCompanyForAction(company);
@@ -345,24 +372,28 @@ const CompanyMaster = () => {
     setSelectedCompanyForAction(null);
   };
   
+  // Open edit modal
   const openEditCompanyModal = (company) => {
     setSelectedCompany(company);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
+  // Open view modal
   const openViewCompanyModal = (company) => {
     setSelectedCompany(company);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
+  // Open delete confirmation
   const openDeleteCompanyDialog = (company) => {
     setSelectedCompany(company);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
   
+  // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -371,6 +402,7 @@ const CompanyMaster = () => {
     });
   };
   
+  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -380,6 +412,7 @@ const CompanyMaster = () => {
     });
   };
   
+  // Get company initials for avatar
   const getCompanyInitials = (companyName) => {
     if (!companyName) return 'C';
     
@@ -391,110 +424,134 @@ const CompanyMaster = () => {
     return companyName.substring(0, 2).toUpperCase();
   };
   
+  // Get avatar color based on company name
   const getAvatarColor = (companyName) => {
-    if (!companyName) return PRIMARY_BLUE;
+    if (!companyName) return COLORS.primary;
     
     const colors = [
-      '#164e63',
-      '#0e7490',
-      '#0891b2',
-      '#0c4a6e',
-      '#1d4ed8',
-      '#7c3aed',
-      '#7e22ce',
-      '#be185d',
-      '#c2410c',
-      '#059669'
+      COLORS.primary,
+      COLORS.primaryDark,
+      '#074346',
+      '#0D696C',
+      '#128C7E'
     ];
     
     const charCode = companyName.charCodeAt(0) || 0;
     return colors[charCode % colors.length];
   };
   
+  // Paginated companies
   const paginatedCompanies = filteredCompanies.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Company Master
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Manage and organize company information and details
         </Typography>
       </Box>
 
+      {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               placeholder="Search by company name, GSTIN, PAN, or state..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               sx={{ 
                 width: { xs: '100%', sm: 360 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
               disabled={loading}
             />
+            {/* <Tooltip title="Refresh data">
+              <IconButton 
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.primary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip> */}
           </Stack>
 
-          <Stack direction="row" spacing={2} alignItems="center">
+          {/* Action Buttons */}
+          <Stack direction="row" spacing={1.5} alignItems="center">
             {selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
@@ -503,18 +560,18 @@ const CompanyMaster = () => {
             )}
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
               onClick={() => setOpenAddModal(true)}
               sx={{
-                height: 40,
+                height: 36,
                 borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
+                bgcolor: COLORS.primary,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
+                  bgcolor: COLORS.primaryDark,
                 }
               }}
               disabled={loading}
@@ -525,93 +582,83 @@ const CompanyMaster = () => {
         </Stack>
       </Paper>
 
+      {/* Companies Table */}
       <Paper sx={{ 
         width: '100%', 
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
+                <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
                     indeterminate={selected.length > 0 && selected.length < filteredCompanies.length}
                     checked={filteredCompanies.length > 0 && selected.length === filteredCompanies.length}
                     onChange={handleSelectAll}
                     sx={{
-                      color: TEXT_COLOR_HEADER,
+                      color: COLORS.text.light,
                       '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '& .MuiSvgIcon-root': {
-                        fontSize: 20
+                        fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || filteredCompanies.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Company
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Company
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Tax Information
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Tax Information
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Contact
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Contact
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Bank Details
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Bank Details
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -620,20 +667,21 @@ const CompanyMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading companies...
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : paginatedCompanies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No companies found' : 'No companies available'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Add your first company to get started'}
                       </Typography>
                     </Box>
@@ -642,7 +690,6 @@ const CompanyMaster = () => {
               ) : (
                 paginatedCompanies.map((company, index) => {
                   const isSelected = selected.includes(company._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedCompanyForAction?._id === company._id;
                   const avatarColor = getAvatarColor(company.company_name);
@@ -653,115 +700,93 @@ const CompanyMaster = () => {
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
+                      <TableCell padding="checkbox" sx={{ width: 40 }}>
                         <Checkbox
                           checked={isSelected}
                           onChange={() => handleSelect(company._id)}
                           sx={{
-                            color: PRIMARY_BLUE,
+                            color: COLORS.primary,
                             '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
+                              color: COLORS.primary,
                             },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1.25rem'
+                            }
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={2} alignItems="center">
+                        <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
                             sx={{ 
-                              width: 40, 
-                              height: 40, 
+                              width: 32, 
+                              height: 32, 
                               bgcolor: avatarColor,
-                              fontSize: '0.875rem',
+                              fontSize: '0.7rem',
                               fontWeight: 600
                             }}
                           >
                             {getCompanyInitials(company.company_name)}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                               {company.company_name}
                             </Typography>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography variant="caption" color="#64748B">
-                                {company.state} (Code: {company.state_code})
-                              </Typography>
-                            </Stack>
-                            <Typography 
-                              variant="caption" 
-                              color="#64748B"
-                              sx={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 1,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                maxWidth: 200
-                              }}
-                            >
-                              {company.address || 'No address'}
+                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                              {company.state} {company.state_code && `(Code: ${company.state_code})`}
                             </Typography>
+                            {/* <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                              {company.address || 'No address'}
+                            </Typography> */}
                           </Box>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           GSTIN: {company.gstin || '-'}
                         </Typography>
-                        <Typography variant="caption" color="#64748B" display="block">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           PAN: {company.pan || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {company.email || 'No email'}
                         </Typography>
-                        <Typography variant="caption" color="#64748B">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           {company.phone || 'No phone'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Box sx={{ maxWidth: 200 }}>
-                          <Typography 
-                            variant="body2" 
-                            color={TEXT_COLOR_MAIN}
-                            sx={{ 
-                              fontWeight: 500,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}
-                          >
+                        <Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                             {company.bank_details?.bank_name || '-'}
                             {company.bank_details?.account_no && ` • ...${company.bank_details.account_no.slice(-4)}`}
                           </Typography>
-                          <Typography 
-                            variant="caption" 
-                            color="#64748B"
-                            sx={{ 
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}
-                          >
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                             {company.bank_details?.ifsc && `IFSC: ${company.bank_details.ifsc}`}
                             {company.bank_details?.branch && ` • ${company.bank_details.branch}`}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           company={company}
                           onView={openViewCompanyModal}
@@ -780,8 +805,9 @@ const CompanyMaster = () => {
           </Table>
         </TableContainer>
 
+        {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
           count={filteredCompanies.length}
           rowsPerPage={rowsPerPage}
@@ -789,18 +815,22 @@ const CompanyMaster = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
+      {/* Modal Components */}
       <AddCompanies 
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
@@ -844,6 +874,7 @@ const CompanyMaster = () => {
         </>
       )}
 
+      {/* Snackbar Notification */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
@@ -857,7 +888,11 @@ const CompanyMaster = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

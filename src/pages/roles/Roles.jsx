@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -18,26 +18,24 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
+  Chip,
+  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
-  Chip
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
+  Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
@@ -50,14 +48,32 @@ import EditRoles from './EditRoles';
 import ViewRoles from './ViewRoles';
 import DeleteRoles from './DeleteRoles';
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc';
-const HOVER_COLOR = '#f1f5f9';
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
+// Color constants - Single color #063C3F throughout (matching Users component)
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 // Action Menu Component
 const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
@@ -68,9 +84,9 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -87,7 +103,8 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
@@ -96,13 +113,15 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             onView(role);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <ViewIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              View Details
+            </Typography>
           </ListItemText>
         </MenuItem>
         <MenuItem 
@@ -110,28 +129,30 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             onEdit(role);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Edit</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              Edit
+            </Typography>
           </ListItemText>
         </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
+        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         <MenuItem 
           onClick={() => {
             onDelete(role);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
+            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
               Delete
             </Typography>
           </ListItemText>
@@ -144,13 +165,17 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
 const Roles = () => {
   // State for data
   const [roles, setRoles] = useState([]);
-  const [filteredRoles, setFilteredRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   
-  // Table state
+  // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Selection state
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -173,24 +198,33 @@ const Roles = () => {
     severity: 'success'
   });
 
-  // Pagination state from API
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10
-  });
-
-  // Fetch roles from API
+  // Debounce search to avoid too many API calls
   useEffect(() => {
-    fetchRoles();
-  }, []);
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0); // Reset to first page when searching
+    }, 500);
 
-  const fetchRoles = async () => {
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch roles from API with pagination
+  const fetchRoles = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/roles`, {
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page + 1, // API uses 1-based pagination
+        limit: rowsPerPage
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/roles?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -198,13 +232,8 @@ const Roles = () => {
 
       if (response.data.success) {
         setRoles(response.data.data || []);
-        setFilteredRoles(response.data.data || []);
-        setPagination(response.data.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: response.data.data?.length || 0,
-          itemsPerPage: 10
-        });
+        setTotalItems(response.data.pagination.totalItems);
+        setTotalPages(response.data.pagination.totalPages);
       } else {
         showNotification('Failed to load roles', 'error');
       }
@@ -214,26 +243,23 @@ const Roles = () => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Handle search
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
-    
-    const filtered = roles.filter(role =>
-      role.RoleName.toLowerCase().includes(value) ||
-      (role.Description && role.Description.toLowerCase().includes(value))
-    );
-    
-    setFilteredRoles(filtered);
-    setPage(0);
+  }, [page, rowsPerPage, searchTerm]);
+
+  // Fetch roles when dependencies change
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchRoles();
+    showNotification('Data refreshed', 'success');
   };
   
   // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredRoles.map(role => role._id));
+      setSelected(roles.map(role => role._id));
     } else {
       setSelected([]);
     }
@@ -256,37 +282,32 @@ const Roles = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]); // Clear selection when changing page
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setSelected([]); // Clear selection when changing rows per page
   };
   
   // Handle add role
   const handleAddRole = (newRole) => {
-    setRoles([...roles, newRole]);
-    setFilteredRoles([...filteredRoles, newRole]);
+    fetchRoles(); // Refresh the list
     showNotification('Role added successfully!', 'success');
   };
   
   // Handle edit role
   const handleEditRole = (updatedRole) => {
-    const updatedRoles = roles.map(role =>
-      role._id === updatedRole._id ? updatedRole : role
-    );
-    
-    setRoles(updatedRoles);
-    setFilteredRoles(updatedRoles);
+    fetchRoles(); // Refresh the list
     showNotification('Role updated successfully!', 'success');
   };
   
   // Handle delete role
   const handleDeleteRole = (roleId) => {
-    const updatedRoles = roles.filter(role => role._id !== roleId);
-    setRoles(updatedRoles);
-    setFilteredRoles(updatedRoles);
+    fetchRoles(); // Refresh the list
     setSelected(selected.filter(id => id !== roleId));
     showNotification('Role deleted successfully!', 'success');
   };
@@ -339,6 +360,7 @@ const Roles = () => {
   
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -346,212 +368,153 @@ const Roles = () => {
     });
   };
   
-  // Active status chip
+  // Get status chip styles
   const getStatusChip = (isActive) => {
-    return isActive ? (
-      <Chip
-        icon={<CheckCircleIcon />}
-        label="Active"
-        size="small"
-        sx={{
-          bgcolor: '#dcfce7',
-          color: '#166534',
-          border: '1px solid #86efac',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: '#166534',
-            fontSize: 14
-          }
-        }}
-      />
-    ) : (
-      <Chip
-        icon={<CancelIcon />}
-        label="Inactive"
-        size="small"
-        sx={{
-          bgcolor: '#fee2e2',
-          color: '#991b1b',
-          border: '1px solid #fca5a5',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: '#991b1b',
-            fontSize: 14
-          }
-        }}
-      />
-    );
+    if (isActive) {
+      return {
+        label: 'Active',
+        bg: COLORS.chips.active,
+        text: COLORS.primaryDark,
+        border: '#86efac',
+        icon: <CheckCircleIcon sx={{ fontSize: '0.75rem', color: COLORS.primaryDark }} />
+      };
+    } else {
+      return {
+        label: 'Inactive',
+        bg: COLORS.chips.inactive,
+        text: COLORS.text.secondary,
+        border: COLORS.border,
+        icon: <CancelIcon sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }} />
+      };
+    }
   };
-  
-  // Paginated roles
-  const paginatedRoles = filteredRoles.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Roles Management
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Manage and organize user roles and permissions
         </Typography>
       </Box>
 
       {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search and Filters */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               placeholder="Search by role name or description..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
               disabled={loading}
             />
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button> */}
+            <Tooltip title="Refresh data">
+              <IconButton 
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.primary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Stack>
 
           {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
             {selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            {/* <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button> */}
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
               onClick={() => setOpenAddModal(true)}
               sx={{
-                height: 40,
+                height: 36,
                 borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
+                bgcolor: COLORS.primary,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
+                  bgcolor: COLORS.primaryDark,
                 }
               }}
               disabled={loading}
@@ -568,79 +531,77 @@ const Roles = () => {
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
+                <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredRoles.length}
-                    checked={filteredRoles.length > 0 && selected.length === filteredRoles.length}
+                    indeterminate={selected.length > 0 && selected.length < roles.length}
+                    checked={roles.length > 0 && selected.length === roles.length}
                     onChange={handleSelectAll}
                     sx={{
-                      color: TEXT_COLOR_HEADER,
+                      color: COLORS.text.light,
                       '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '& .MuiSvgIcon-root': {
-                        fontSize: 20
+                        fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || roles.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Role Name
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Role Name
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Description
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                {/* <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Created Date
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -649,31 +610,32 @@ const Roles = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading roles...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedRoles.length === 0 ? (
+              ) : roles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No roles found' : 'No roles available'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Add your first role to get started'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedRoles.map((role, index) => {
+                roles.map((role, index) => {
                   const isSelected = selected.includes(role._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedRoleForAction?._id === role._id;
+                  const statusChip = getStatusChip(role.IsActive);
 
                   return (
                     <TableRow
@@ -681,49 +643,79 @@ const Roles = () => {
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
+                      <TableCell padding="checkbox" sx={{ width: 40 }}>
                         <Checkbox
                           checked={isSelected}
                           onChange={() => handleSelect(role._id)}
                           sx={{
-                            color: PRIMARY_BLUE,
+                            color: COLORS.primary,
                             '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
+                              color: COLORS.primary,
                             },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1.25rem'
+                            }
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                           {role.RoleName}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          ID: {role._id.slice(-6)}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569" sx={{ maxWidth: 300 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {role.Description || 'No description provided'}
                         </Typography>
                       </TableCell>
+                      {/* <TableCell>
+                        <Chip
+                          icon={statusChip.icon}
+                          label={statusChip.label}
+                          size="small"
+                          sx={{ 
+                            fontSize: '0.65rem',
+                            fontWeight: 500,
+                            height: 20,
+                            bgcolor: statusChip.bg,
+                            color: statusChip.text,
+                            border: `1px solid ${statusChip.border}`,
+                            '& .MuiChip-label': {
+                              px: 1
+                            },
+                            '& .MuiChip-icon': {
+                              ml: 0.5,
+                              mr: -0.5
+                            }
+                          }}
+                        />
+                      </TableCell> */}
                       <TableCell>
-                        {getStatusChip(role.IsActive)}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="#475569">
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {formatDate(role.CreatedAt)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           role={role}
                           onView={openViewRoleModal}
@@ -744,27 +736,30 @@ const Roles = () => {
 
         {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredRoles.length}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
-      {/* Separate Modal Components */}
+      {/* Modal Components */}
       <AddRoles 
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
@@ -822,7 +817,11 @@ const Roles = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

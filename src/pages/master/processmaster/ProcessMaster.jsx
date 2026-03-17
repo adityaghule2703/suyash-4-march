@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -18,38 +18,28 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
+  Chip,
+  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
-  Chip,
-  Avatar
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  AttachMoney as MoneyIcon,
-  Factory as FactoryIcon,
-  Schedule as ScheduleIcon,
-  Business as BusinessIcon,
-  Description as DescriptionIcon,
-  CalendarToday as CalendarIcon,
-  Update as UpdateIcon,
+  Refresh as RefreshIcon,
   Category as CategoryIcon,
-  Label as LabelIcon
+  Label as LabelIcon,
+  CalendarToday as CalendarIcon,
+  Update as UpdateIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -60,17 +50,35 @@ import EditProcess from './EditProcess';
 import ViewProcess from './ViewProcess';
 import DeleteProcess from './DeleteProcess';
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc';
-const HOVER_COLOR = '#f1f5f9';
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
+// Color constants - Single color #063C3F throughout
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 // Action Menu Component
-const ActionMenu = ({ process, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
   return (
     <>
       <Tooltip title="Actions">
@@ -78,9 +86,9 @@ const ActionMenu = ({ process, onView, onEdit, onDelete, anchorEl, onClose, onOp
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -97,51 +105,56 @@ const ActionMenu = ({ process, onView, onEdit, onDelete, anchorEl, onClose, onOp
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
         <MenuItem 
           onClick={() => {
-            onView(process);
+            onView(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <ViewIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              View Details
+            </Typography>
           </ListItemText>
         </MenuItem>
         <MenuItem 
           onClick={() => {
-            onEdit(process);
+            onEdit(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Edit</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              Edit
+            </Typography>
           </ListItemText>
         </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
+        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         <MenuItem 
           onClick={() => {
-            onDelete(process);
+            onDelete(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
+            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
               Delete
             </Typography>
           </ListItemText>
@@ -154,13 +167,17 @@ const ActionMenu = ({ process, onView, onEdit, onDelete, anchorEl, onClose, onOp
 const ProcessMaster = () => {
   // State for data
   const [processes, setProcesses] = useState([]);
-  const [filteredProcesses, setFilteredProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   
-  // Table state
+  // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Selection state
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -183,38 +200,43 @@ const ProcessMaster = () => {
     severity: 'success'
   });
 
-  // Pagination state from API
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10
-  });
-
-  // Fetch processes from API
+  // Debounce search to avoid too many API calls
   useEffect(() => {
-    fetchProcesses();
-  }, []);
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0); // Reset to first page when searching
+    }, 500);
 
-  const fetchProcesses = async () => {
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch processes from API with pagination
+  const fetchProcesses = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/processes`, {
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page + 1, // API uses 1-based pagination
+        limit: rowsPerPage
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/processes?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.data.success) {
-        setProcesses(response.data.data || []);
-        setFilteredProcesses(response.data.data || []);
-        setPagination(response.data.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: response.data.data?.length || 0,
-          itemsPerPage: 10
-        });
+        const { data: processesData, pagination } = response.data;
+        setProcesses(processesData || []);
+        setTotalItems(pagination.totalItems);
+        setTotalPages(pagination.totalPages);
       } else {
         showNotification('Failed to load processes', 'error');
       }
@@ -224,29 +246,23 @@ const ProcessMaster = () => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Handle search
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
-    
-    const filtered = processes.filter(process =>
-      process.process_id?.toLowerCase().includes(value) ||
-      process.process_name?.toLowerCase().includes(value) ||
-      process.category?.toLowerCase().includes(value) ||
-      process.rate_type?.toLowerCase().includes(value) ||
-      (process.description && process.description.toLowerCase().includes(value))
-    );
-    
-    setFilteredProcesses(filtered);
-    setPage(0);
+  }, [page, rowsPerPage, searchTerm]);
+
+  // Fetch processes when dependencies change
+  useEffect(() => {
+    fetchProcesses();
+  }, [fetchProcesses]);
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchProcesses();
+    showNotification('Data refreshed', 'success');
   };
   
   // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredProcesses.map(process => process._id));
+      setSelected(processes.map(process => process._id));
     } else {
       setSelected([]);
     }
@@ -269,44 +285,39 @@ const ProcessMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]); // Clear selection when changing page
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
-  };
-  
-  // Handle add process
-  const handleAddProcess = (newProcess) => {
-    setProcesses([...processes, newProcess]);
-    setFilteredProcesses([...filteredProcesses, newProcess]);
-    showNotification('Process added successfully!', 'success');
-  };
-  
-  // Handle edit process
-  const handleEditProcess = (updatedProcess) => {
-    const updatedProcesses = processes.map(process =>
-      process._id === updatedProcess._id ? updatedProcess : process
-    );
-    
-    setProcesses(updatedProcesses);
-    setFilteredProcesses(updatedProcesses);
-    showNotification('Process updated successfully!', 'success');
-  };
-  
-  // Handle delete process
-  const handleDeleteProcess = (processId) => {
-    const updatedProcesses = processes.filter(process => process._id !== processId);
-    setProcesses(updatedProcesses);
-    setFilteredProcesses(updatedProcesses);
-    setSelected(selected.filter(id => id !== processId));
-    showNotification('Process deleted successfully!', 'success');
+    setSelected([]); // Clear selection when changing rows per page
   };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
     showNotification('Bulk delete requires API implementation', 'warning');
+  };
+  
+  // Handle add process
+  const handleAddProcess = () => {
+    fetchProcesses();
+    showNotification('Process added successfully!', 'success');
+  };
+  
+  // Handle edit process
+  const handleEditProcess = () => {
+    fetchProcesses();
+    showNotification('Process updated successfully!', 'success');
+  };
+  
+  // Handle delete process
+  const handleDeleteProcess = () => {
+    fetchProcesses();
+    setSelected([]);
+    showNotification('Process deleted successfully!', 'success');
   };
   
   // Action menu handlers
@@ -352,16 +363,37 @@ const ProcessMaster = () => {
   
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  };
+  
+  // Get status styles
+  const getStatusStyles = (isActive) => {
+    return isActive ? {
+      bg: COLORS.chips.active,
+      text: COLORS.primaryDark,
+      border: '#86efac'
+    } : {
+      bg: COLORS.chips.inactive,
+      text: COLORS.text.secondary,
+      border: COLORS.border
+    };
+  };
+  
+  // Get status text
+  const getStatusText = (isActive) => {
+    return isActive ? 'Active' : 'Inactive';
   };
   
   // Get process initials for avatar
   const getProcessInitials = (processName) => {
-    if (!processName) return 'P';
+    if (!processName) return 'PR';
     
     const words = processName.split(' ');
     if (words.length >= 2) {
@@ -371,41 +403,20 @@ const ProcessMaster = () => {
     return processName.substring(0, 2).toUpperCase();
   };
   
-  // Active status chip
-  const getStatusChip = (isActive) => {
-    return isActive ? (
-      <Chip
-        icon={<CheckCircleIcon />}
-        label="Active"
-        size="small"
-        sx={{
-          bgcolor: '#dcfce7',
-          color: '#166534',
-          border: '1px solid #86efac',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: '#166534',
-            fontSize: 14
-          }
-        }}
-      />
-    ) : (
-      <Chip
-        icon={<CancelIcon />}
-        label="Inactive"
-        size="small"
-        sx={{
-          bgcolor: '#fee2e2',
-          color: '#991b1b',
-          border: '1px solid #fca5a5',
-          fontWeight: 500,
-          '& .MuiChip-icon': {
-            color: '#991b1b',
-            fontSize: 14
-          }
-        }}
-      />
-    );
+  // Get avatar color based on process name
+  const getAvatarColor = (processName) => {
+    if (!processName) return COLORS.primary;
+    
+    const colors = [
+      COLORS.primary,
+      COLORS.primaryDark,
+      '#074346',
+      '#0D696C',
+      '#128C7E'
+    ];
+    
+    const charCode = processName.charCodeAt(0) || 0;
+    return colors[charCode % colors.length];
   };
   
   // Get rate type chip
@@ -429,7 +440,8 @@ const ProcessMaster = () => {
           border: '1px solid',
           borderColor: color.border,
           fontWeight: 500,
-          fontSize: '0.75rem'
+          fontSize: '0.65rem',
+          height: 20
         }}
       />
     );
@@ -450,111 +462,131 @@ const ProcessMaster = () => {
       <Chip
         label={category}
         size="small"
-        icon={<CategoryIcon />}
+        icon={<CategoryIcon sx={{ fontSize: '0.7rem' }} />}
         sx={{
           bgcolor: color.bg,
           color: color.color,
           border: '1px solid',
           borderColor: color.border,
           fontWeight: 500,
+          fontSize: '0.65rem',
+          height: 20,
           '& .MuiChip-icon': {
             color: color.color,
-            fontSize: 14
+            fontSize: '0.7rem',
+            ml: 0.5
           }
         }}
       />
     );
   };
-  
-  // Paginated processes
-  const paginatedProcesses = filteredProcesses.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Process Master
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Manage manufacturing processes, categories, rates, and process IDs
         </Typography>
       </Box>
 
       {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search and Filters */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               placeholder="Search by Process ID, Name, Category, or Rate Type..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               sx={{ 
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
               disabled={loading}
             />
+            {/* <Tooltip title="Refresh data">
+              <IconButton 
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.primary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
             {selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
@@ -563,18 +595,18 @@ const ProcessMaster = () => {
             )}
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
               onClick={() => setOpenAddModal(true)}
               sx={{
-                height: 40,
+                height: 36,
                 borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
+                bgcolor: COLORS.primary,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
+                  bgcolor: COLORS.primaryDark,
                 }
               }}
               disabled={loading}
@@ -591,103 +623,101 @@ const ProcessMaster = () => {
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
+                <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredProcesses.length}
-                    checked={filteredProcesses.length > 0 && selected.length === filteredProcesses.length}
+                    indeterminate={selected.length > 0 && selected.length < processes.length}
+                    checked={processes.length > 0 && selected.length === processes.length}
                     onChange={handleSelectAll}
                     sx={{
-                      color: TEXT_COLOR_HEADER,
+                      color: COLORS.text.light,
                       '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '& .MuiSvgIcon-root': {
-                        fontSize: 20
+                        fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || processes.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Process Details
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Process Name
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Process ID
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Category
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Rate Type
                 </TableCell>
                 {/* <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Status
                 </TableCell> */}
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                {/* <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Created Date
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Last Updated
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -696,31 +726,33 @@ const ProcessMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading processes...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedProcesses.length === 0 ? (
+              ) : processes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No processes found' : 'No processes available'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Add your first process to get started'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedProcesses.map((process, index) => {
+                processes.map((process) => {
                   const isSelected = selected.includes(process._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedProcessForAction?._id === process._id;
+                  const avatarColor = getAvatarColor(process.process_name);
+                  const statusStyles = getStatusStyles(process.is_active);
 
                   return (
                     <TableRow
@@ -728,52 +760,58 @@ const ProcessMaster = () => {
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
+                      <TableCell padding="checkbox" sx={{ width: 40 }}>
                         <Checkbox
                           checked={isSelected}
                           onChange={() => handleSelect(process._id)}
                           sx={{
-                            color: PRIMARY_BLUE,
+                            color: COLORS.primary,
                             '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
+                              color: COLORS.primary,
                             },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1.25rem'
+                            }
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={2} alignItems="center">
-                          <Avatar sx={{ 
-                            width: 32, 
-                            height: 32, 
-                            bgcolor: '#4F46E5',
-                            fontSize: '0.75rem',
-                            fontWeight: 500
-                          }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Avatar 
+                            sx={{ 
+                              width: 32, 
+                              height: 32, 
+                              bgcolor: avatarColor,
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}
+                          >
                             {getProcessInitials(process.process_name)}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                               {process.process_name}
                             </Typography>
-                            {process.description && (
-                              <Typography variant="caption" color="#64748B" sx={{ display: 'block', mt: 0.5 }}>
-                                {process.description.length > 30 
-                                  ? `${process.description.substring(0, 30)}...` 
-                                  : process.description}
-                              </Typography>
-                            )}
+                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                              ID: {process._id.slice(-6)}
+                            </Typography>
                           </Box>
                         </Stack>
                       </TableCell>
@@ -781,15 +819,18 @@ const ProcessMaster = () => {
                         <Chip
                           label={process.process_id}
                           size="small"
-                          icon={<LabelIcon />}
+                          icon={<LabelIcon sx={{ fontSize: '0.7rem' }} />}
                           sx={{
                             bgcolor: '#F1F5F9',
                             color: '#334155',
                             border: '1px solid #CBD5E1',
                             fontWeight: 500,
+                            fontSize: '0.65rem',
+                            height: 20,
                             '& .MuiChip-icon': {
                               color: '#475569',
-                              fontSize: 14
+                              fontSize: '0.7rem',
+                              ml: 0.5
                             }
                           }}
                         />
@@ -801,27 +842,41 @@ const ProcessMaster = () => {
                         {getRateTypeChip(process.rate_type)}
                       </TableCell>
                       {/* <TableCell>
-                        {getStatusChip(process.is_active)}
+                        <Chip
+                          label={getStatusText(process.is_active)}
+                          size="small"
+                          sx={{ 
+                            fontSize: '0.65rem',
+                            fontWeight: 500,
+                            height: 20,
+                            bgcolor: statusStyles.bg,
+                            color: statusStyles.text,
+                            border: `1px solid ${statusStyles.border}`,
+                            '& .MuiChip-label': {
+                              px: 1
+                            }
+                          }}
+                        />
                       </TableCell> */}
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <CalendarIcon sx={{ fontSize: 14, color: '#64748B' }} />
-                          <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                      {/* <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <CalendarIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
                             {formatDate(process.createdAt)}
                           </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <UpdateIcon sx={{ fontSize: 14, color: '#64748B' }} />
-                          <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <UpdateIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
                             {formatDate(process.updatedAt)}
                           </Typography>
                         </Stack>
-                      </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      </TableCell> */}
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
-                          process={process}
+                          item={process}
                           onView={openViewProcessModal}
                           onEdit={openEditProcessModal}
                           onDelete={openDeleteProcessDialog}
@@ -840,27 +895,30 @@ const ProcessMaster = () => {
 
         {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredProcesses.length}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
-      {/* Separate Modal Components */}
+      {/* Modal Components */}
       <AddProcess 
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
@@ -918,7 +976,11 @@ const ProcessMaster = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

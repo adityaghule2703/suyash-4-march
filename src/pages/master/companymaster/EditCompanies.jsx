@@ -17,8 +17,7 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  FormControlLabel,
-  Switch,
+  Chip,
   styled
 } from '@mui/material';
 import { 
@@ -30,20 +29,53 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-// 🔥 Modern Stepper Connector with Gradient
+// Color constants matching Users component
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
+
+// Modern Stepper Connector with Primary Color
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundColor: COLORS.primary,
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundColor: COLORS.primary,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
-    height: 3,
+    height: 2,
     border: 0,
     backgroundColor: '#eaeaf0',
     borderRadius: 1,
@@ -54,13 +86,11 @@ const steps = ['Company Information', 'Bank & Contact Details'];
 
 // Validation helper functions
 const validateGST = (gst) => {
-  // GST format: 15 characters - 2 digits state code + 10 PAN + 1 entity number + 1 check digit + 1 alphabet
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/;
   return gstRegex.test(gst);
 };
 
 const validatePAN = (pan) => {
-  // PAN format: 5 letters + 4 numbers + 1 letter
   const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
   return panRegex.test(pan);
 };
@@ -71,15 +101,13 @@ const validateEmail = (email) => {
 };
 
 const validatePhone = (phone) => {
-  // Phone: 10 digits, optional +91 prefix, optional spaces/hyphens
   const phoneRegex = /^(\+91[\-\s]?)?[0]?[6-9]\d{9}$/;
   return phoneRegex.test(phone.replace(/[\s\-]/g, ''));
 };
 
 const validateIFSC = (ifsc) => {
-  // IFSC: 4 letters + 0 + 6 alphanumeric
   const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-  return ifsc ? ifscRegex.test(ifsc) : true; // Optional field
+  return ifsc ? ifscRegex.test(ifsc) : true;
 };
 
 const EditCompanies = ({ open, onClose, company, onUpdate }) => {
@@ -129,7 +157,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         is_active: company.is_active !== undefined ? company.is_active : true
       });
       
-      // Set logo preview if exists
       if (company.logo_path) {
         setLogoPreview(`${BASE_URL}/${company.logo_path}`);
       }
@@ -139,7 +166,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Clear field error when user starts typing
     setFieldErrors(prev => ({
       ...prev,
       [name]: ''
@@ -153,9 +179,7 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
       return;
     }
     
-    // Handle nested bank_details fields
     if (name === 'bank_name' || name === 'account_no' || name === 'ifsc' || name === 'branch') {
-      // Convert to uppercase for IFSC
       const processedValue = name === 'ifsc' ? value.toUpperCase() : value;
       
       setFormData(prev => ({
@@ -166,7 +190,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         }
       }));
     } else {
-      // Convert GSTIN and PAN to uppercase
       let processedValue = value;
       if (name === 'gstin' || name === 'pan') {
         processedValue = value.toUpperCase();
@@ -182,9 +205,8 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type and size
       const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      const maxSize = 2 * 1024 * 1024; // 2MB
+      const maxSize = 2 * 1024 * 1024;
       
       if (!validTypes.includes(file.type)) {
         setError('Please upload a valid image file (JPEG, PNG, GIF, or WEBP)');
@@ -246,7 +268,7 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
     let isValid = true;
 
     switch (step) {
-      case 0: // Company Information
+      case 0:
         if (!formData.company_id?.trim()) {
           errors.company_id = 'Company ID is required';
           isValid = false;
@@ -307,7 +329,7 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         }
         break;
       
-      case 1: // Bank & Contact Details
+      case 1:
         if (!formData.email?.trim()) {
           errors.email = 'Email is required';
           isValid = false;
@@ -330,7 +352,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
           }
         }
 
-        // Validate IFSC if provided
         if (formData.bank_details.ifsc) {
           const ifscError = validateField('ifsc', formData.bank_details.ifsc);
           if (ifscError) {
@@ -339,7 +360,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
           }
         }
 
-        // Validate account number if provided
         if (formData.bank_details.account_no && !/^\d{9,18}$/.test(formData.bank_details.account_no)) {
           errors.account_no = 'Account number should be 9-18 digits';
           isValid = false;
@@ -361,7 +381,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
     const errors = {};
     let isValid = true;
 
-    // Company Information validation
     if (!formData.company_id?.trim()) {
       errors.company_id = 'Company ID is required';
       isValid = false;
@@ -486,11 +505,9 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         }
       };
 
-      // If there's a new logo file, use FormData
       if (logoFile) {
         const formDataWithLogo = new FormData();
         
-        // Append all fields
         Object.keys(dataToSend).forEach(key => {
           if (key === 'bank_details') {
             formDataWithLogo.append(key, JSON.stringify(dataToSend[key]));
@@ -514,7 +531,6 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
           onClose();
         }
       } else {
-        // No new logo, send as JSON
         const response = await axios.put(`${BASE_URL}/api/company/${company._id}`, dataToSend, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -573,8 +589,19 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         return (
           <Stack spacing={2}>
             {/* Logo Upload Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 Company Logo
               </Typography>
               
@@ -584,9 +611,22 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
                     <Button
                       variant="outlined"
                       component="label"
-                      startIcon={<CloudUploadIcon />}
+                      startIcon={<CloudUploadIcon sx={{ fontSize: '1rem' }} />}
                       disabled={loading}
-                      sx={{ height: '40px', borderRadius: 1 }}
+                      sx={{
+                        height: 32,
+                        px: 2,
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text.secondary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          bgcolor: `${COLORS.primary}10`
+                        }
+                      }}
                     >
                       Upload New Logo (Max 2MB)
                       <input
@@ -601,11 +641,11 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
                         component="img"
                         src={logoPreview}
                         alt="Logo preview"
-                        sx={{ height: 40, width: 40, objectFit: 'contain' }}
+                        sx={{ height: 40, width: 40, objectFit: 'contain', borderRadius: 1 }}
                       />
                     )}
                   </Stack>
-                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 1 }}>
                     Supported formats: JPEG, PNG, GIF, WEBP (Max 2MB)
                   </Typography>
                 </Grid>
@@ -613,150 +653,331 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
             </Paper>
 
             {/* Company Information Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 Company Details
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Company ID *"
-                    name="company_id"
-                    value={formData.company_id}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., COMP001"
-                    error={!!fieldErrors.company_id}
-                    helperText={fieldErrors.company_id}
-                    inputProps={{ maxLength: 20 }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      COMPANY ID <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="company_id"
+                      value={formData.company_id}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., COMP001"
+                      error={!!fieldErrors.company_id}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    {fieldErrors.company_id && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.company_id}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Company Name *"
-                    name="company_name"
-                    value={formData.company_name}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    error={!!fieldErrors.company_name}
-                    helperText={fieldErrors.company_name}
-                    inputProps={{ maxLength: 100 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      COMPANY NAME <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="company_name"
+                      value={formData.company_name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Tech Solutions Ltd"
+                      error={!!fieldErrors.company_name}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    {fieldErrors.company_name && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.company_name}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Address *"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    required
-                    multiline
-                    rows={2}
-                    disabled={loading}
-                    error={!!fieldErrors.address}
-                    helperText={fieldErrors.address}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ADDRESS <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      multiline
+                      rows={2}
+                      disabled={loading}
+                      placeholder="Enter complete address"
+                      error={!!fieldErrors.address}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    {fieldErrors.address && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.address}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="GSTIN *"
-                    name="gstin"
-                    value={formData.gstin}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., 27AAPFU0939F1Z5"
-                    error={!!fieldErrors.gstin}
-                    helperText={fieldErrors.gstin || '15 characters: 2 digits + 10 PAN + 3 chars'}
-                    inputProps={{ maxLength: 15, style: { textTransform: 'uppercase' } }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      GSTIN <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="gstin"
+                      value={formData.gstin}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 27AAPFU0939F1Z5"
+                      error={!!fieldErrors.gstin}
+                      inputProps={{ maxLength: 15, style: { textTransform: 'uppercase' } }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      15 characters: 2 digits + 10 PAN + 3 chars
+                    </Typography>
+                    {fieldErrors.gstin && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.gstin}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="PAN *"
-                    name="pan"
-                    value={formData.pan}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., ABCDE1234F"
-                    error={!!fieldErrors.pan}
-                    helperText={fieldErrors.pan || '10 characters: 5 letters + 4 numbers + 1 letter'}
-                    inputProps={{ maxLength: 10, style: { textTransform: 'uppercase' } }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PAN <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="pan"
+                      value={formData.pan}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., ABCDE1234F"
+                      error={!!fieldErrors.pan}
+                      inputProps={{ maxLength: 10, style: { textTransform: 'uppercase' } }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      10 characters: 5 letters + 4 numbers + 1 letter
+                    </Typography>
+                    {fieldErrors.pan && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.pan}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="State *"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    error={!!fieldErrors.state}
-                    helperText={fieldErrors.state}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      STATE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Maharashtra"
+                      error={!!fieldErrors.state}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    {fieldErrors.state && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.state}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="State Code *"
-                    name="state_code"
-                    value={formData.state_code}
-                    onChange={handleChange}
-                    required
-                    type="number"
-                    disabled={loading}
-                    error={!!fieldErrors.state_code}
-                    helperText={fieldErrors.state_code || 'Between 1 and 99'}
-                    inputProps={{ 
-                      min: 1, 
-                      max: 99,
-                      step: 1,
-                      onWheel: (e) => e.target.blur() // Prevent scroll from changing value
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      STATE CODE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="state_code"
+                      value={formData.state_code}
+                      onChange={handleChange}
+                      type="number"
+                      disabled={loading}
+                      placeholder="e.g., 27"
+                      error={!!fieldErrors.state_code}
+                      inputProps={{ min: 1, max: 99 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none',
+                          margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Between 1 and 99
+                    </Typography>
+                    {fieldErrors.state_code && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.state_code}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -767,153 +988,295 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
         return (
           <Stack spacing={2}>
             {/* Contact Details Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 Contact Details
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Email *"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="company@example.com"
-                    error={!!fieldErrors.email}
-                    helperText={fieldErrors.email}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      EMAIL <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="company@example.com"
+                      error={!!fieldErrors.email}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    {fieldErrors.email && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.email}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Phone *"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="e.g., 9876543210 or +91 9876543210"
-                    error={!!fieldErrors.phone}
-                    helperText={fieldErrors.phone || 'Indian mobile number with/without +91'}
-                    inputProps={{ maxLength: 15 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PHONE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 9876543210 or +91 9876543210"
+                      error={!!fieldErrors.phone}
+                      inputProps={{ maxLength: 15 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Indian mobile number with/without +91
+                    </Typography>
+                    {fieldErrors.phone && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.phone}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
 
             {/* Bank Details Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 Bank Details (Optional)
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Bank Name"
-                    name="bank_name"
-                    value={formData.bank_details.bank_name}
-                    onChange={handleChange}
-                    disabled={loading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      BANK NAME
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="bank_name"
+                      value={formData.bank_details.bank_name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., State Bank of India"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Branch"
-                    name="branch"
-                    value={formData.bank_details.branch}
-                    onChange={handleChange}
-                    disabled={loading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      BRANCH
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="branch"
+                      value={formData.bank_details.branch}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., Andheri East"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Account Number"
-                    name="account_no"
-                    value={formData.bank_details.account_no}
-                    onChange={handleChange}
-                    disabled={loading}
-                    error={!!fieldErrors.account_no}
-                    helperText={fieldErrors.account_no || '9-18 digits'}
-                    inputProps={{ 
-                      maxLength: 18,
-                      pattern: '[0-9]*',
-                      onWheel: (e) => e.target.blur()
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': { borderRadius: 1 },
-                      '& input[type=number]': {
-                        MozAppearance: 'textfield'
-                      },
-                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ACCOUNT NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="account_no"
+                      value={formData.bank_details.account_no}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 123456789012"
+                      error={!!fieldErrors.account_no}
+                      inputProps={{ maxLength: 18 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none',
+                          margin: 0
+                        }
+                      }}
+                    />
+                    {fieldErrors.account_no && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.account_no}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="IFSC Code"
-                    name="ifsc"
-                    value={formData.bank_details.ifsc}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="e.g., SBIN0123456"
-                    error={!!fieldErrors.ifsc}
-                    helperText={fieldErrors.ifsc || '4 letters + 0 + 6 alphanumeric'}
-                    inputProps={{ 
-                      maxLength: 11,
-                      style: { textTransform: 'uppercase' }
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      IFSC CODE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="ifsc"
+                      value={formData.bank_details.ifsc}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., SBIN0123456"
+                      error={!!fieldErrors.ifsc}
+                      inputProps={{ maxLength: 11, style: { textTransform: 'uppercase' } }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      4 letters + 0 + 6 alphanumeric
+                    </Typography>
+                    {fieldErrors.ifsc && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.ifsc}
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
-
-            {/* Status Section */}
-            {/* <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Company Status
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        name="is_active"
-                        checked={formData.is_active}
-                        onChange={handleChange}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label="Active Company"
-                  />
-                </Grid>
-              </Grid>
-            </Paper> */}
           </Stack>
         );
       
@@ -930,59 +1293,125 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          maxHeight: '95vh'
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2,
-        backgroundColor: '#F8FAFC'
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010', mb: 1 }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
           Edit Company
         </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {company?._id && (
+            <Chip
+              label={`ID: ${company._id.slice(-6)}`}
+              size="small"
+              sx={{ 
+                fontSize: '0.65rem',
+                fontWeight: 500,
+                height: 20,
+                bgcolor: COLORS.background.light,
+                color: COLORS.text.secondary,
+                border: `1px solid ${COLORS.border}`,
+                '& .MuiChip-label': {
+                  px: 1
+                }
+              }}
+            />
+          )}
+          <Chip
+            label={formData.is_active ? 'Active' : 'Inactive'}
+            size="small"
+            sx={{ 
+              fontSize: '0.65rem',
+              fontWeight: 500,
+              height: 20,
+              bgcolor: formData.is_active ? COLORS.chips.active : COLORS.chips.inactive,
+              color: formData.is_active ? COLORS.primaryDark : COLORS.text.secondary,
+              border: `1px solid ${formData.is_active ? '#86efac' : COLORS.border}`,
+              '& .MuiChip-label': {
+                px: 1
+              }
+            }}
+          />
+        </Box>
+      </DialogTitle>
 
-        {/* 🔥 Modern Stepper with Gradient Connector */}
+      {/* Modern Stepper with Primary Color */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ mb: 1, mt: 1 }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
-                <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
-      </DialogTitle>
+      </Box>
 
-      <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              fontSize: '0.75rem',
+              py: 0.5,
+              '& .MuiAlert-icon': { fontSize: '1.25rem' }
+            }}
+          >
+            {error}
+          </Alert>
         )}
       </DialogContent>
 
       <DialogActions sx={{
-        px: 2,
+        px: 2.5,
         py: 1.5,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
         justifyContent: 'space-between'
       }}>
         <Button
           onClick={handleBack}
           disabled={activeStep === 0 || loading}
           size="small"
-          startIcon={<NavigateBeforeIcon />}
-          sx={{ color: '#666' }}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
         >
           Back
         </Button>
@@ -991,7 +1420,21 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
             onClick={handleClose}
             disabled={loading}
             size="small"
-            sx={{ mr: 1, color: '#666' }}
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1001,10 +1444,19 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
               onClick={handleSubmit}
               disabled={loading}
               size="small"
-              startIcon={<EditIcon />}
+              startIcon={<EditIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
               }}
             >
               {loading ? 'Updating...' : 'Update Company'}
@@ -1015,10 +1467,19 @@ const EditCompanies = ({ open, onClose, company, onUpdate }) => {
               onClick={handleNext}
               disabled={loading}
               size="small"
-              endIcon={<NavigateNextIcon />}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
               }}
             >
               Next
