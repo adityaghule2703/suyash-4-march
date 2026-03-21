@@ -47,6 +47,7 @@ import SelectedCandidatesMaster from './pages/hrmaster/selectedcandidatemsater/S
 import ProcessDetailsMaster from './pages/master/processdetailsmaster/ProcessDetailsMaster'
 import CompanyFinancialMaster from './pages/master/companyfinancialmaster/CompanyFinancialMaster'
 import MediclaimMaster from './pages/hrmaster/mediclaimmaster/MediclaimMaster'
+import LeadsMaster from './pages/master/leadsmaster/LeadsMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -84,6 +85,7 @@ const App = () => {
           <Route path="master/dimentionmaster" element={<DimentionMaster />} />
           {/* <Route path="master/operationmaster" element={<OperationMaster />} /> */}
           <Route path="master/processmaster" element={<ProcessMaster />} />
+           <Route path="master/leadsmaster" element={<LeadsMaster />} />
           <Route path="master/quotationmaster" element={<QuotationMaster />} />
           <Route path="master/taxmaster" element={<TaxMaster />} />
           <Route path="master/termsandconditionmaster" element={<TermsAndConditionMaster />} />

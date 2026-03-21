@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../config/Config';
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [activeSubmenu, setActiveSubmenu] = useState('quotation');
   const [clickedItem, setClickedItem] = useState(null);
@@ -17,6 +18,7 @@ const Header = () => {
   const [filteredQuotationItems, setFilteredQuotationItems] = useState([]);
   const [filteredHRItems, setFilteredHRItems] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const masterRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -24,8 +26,9 @@ const Header = () => {
   const profileDropdownRef = useRef(null);
   const masterSearchRef = useRef(null);
   const notificationsRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
-  const ITEMS_PER_COLUMN = 8; // Increased from 7 to 8
+  const ITEMS_PER_COLUMN = 8;
 
   // Master dropdown items - Main categories
   const masterCategories = [
@@ -53,6 +56,7 @@ const Header = () => {
     { name: 'Product Specifications', path: '/master/dimentionmaster', icon: 'M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125zM9.75 9.75h4.5' },
     { name: 'Material Catalog', path: '/master/materialmaster', icon: 'M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375 7.444 2.25 12 2.25s8.25 1.847 8.25 4.125zm0 4.5c0 2.278-3.694 4.125-8.25 4.125S3.75 13.153 3.75 10.875m16.5 4.5c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125' },
     { name: 'Raw Material', path: '/master/rawmaterialmaster', icon: 'M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z' },
+    { name: 'Leads', path: '/master/leadsmaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8' },
     { name: 'Quotation', path: '/master/quotationmaster', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z' }
   ];
 
@@ -195,6 +199,7 @@ const Header = () => {
     setActiveSubmenu('quotation');
     setShowProfileDropdown(false);
     setShowNotifications(false);
+    setMobileMenuOpen(false);
     clearMasterSearch();
   };
 
@@ -206,7 +211,8 @@ const Header = () => {
         dropdownRef.current && !dropdownRef.current.contains(event.target) &&
         submenuRef.current && !submenuRef.current.contains(event.target) &&
         profileDropdownRef.current && !profileDropdownRef.current.contains(event.target) &&
-        notificationsRef.current && !notificationsRef.current.contains(event.target)
+        notificationsRef.current && !notificationsRef.current.contains(event.target) &&
+        mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)
       ) {
         closeAllDropdowns();
       }
@@ -215,6 +221,11 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
 
   const toggleDropdown = (dropdown) => {
     if (activeDropdown === dropdown) {
@@ -280,6 +291,7 @@ const Header = () => {
     if (e.key === 'Enter' && searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
+      setMobileMenuOpen(false);
     }
   };
 
@@ -294,19 +306,6 @@ const Header = () => {
     }
     
     return name.substring(0, 2).toUpperCase();
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Never';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   const currentPath = window.location.pathname;
@@ -391,8 +390,17 @@ const Header = () => {
           to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes slideIn {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+
         .dropdown-animation {
           animation: fadeIn 0.15s cubic-bezier(0.34, 1.3, 0.64, 1);
+        }
+
+        .mobile-menu-animation {
+          animation: slideIn 0.2s ease-out;
         }
 
         .esc-hint {
@@ -405,22 +413,67 @@ const Header = () => {
           letter-spacing: 0.3px;
         }
 
-        /* Responsive styles for 90% zoom */
-        @media screen and (max-width: 1400px) {
+        /* Desktop styles (keep original) */
+        @media (min-width: 1024px) {
           .header-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
           }
           .nav-link-text {
             font-size: 0.75rem;
           }
           .search-box {
-            width: 180px;
+            width: 200px;
+            display: block;
+          }
+        }
+
+        /* Tablet styles */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .header-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+          }
+          .nav-link-text {
+            font-size: 0.7rem;
+          }
+          .search-box {
+            width: 160px;
+            display: block;
+          }
+          .desktop-nav {
+            gap: 0.25rem;
+          }
+        }
+
+        /* Mobile styles - hide desktop nav, hide search box, show hamburger */
+        @media (max-width: 767px) {
+          .desktop-nav {
+            display: none;
+          }
+          .mobile-menu-btn {
+            display: block;
+          }
+          .search-box {
+            display: none; /* Hide search box on mobile */
+          }
+          .header-container {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+          }
+        }
+
+        @media (min-width: 768px) {
+          .mobile-menu-btn {
+            display: none;
+          }
+          .mobile-menu {
+            display: none;
           }
         }
 
         /* For very large screens */
-        @media screen and (min-width: 2000px) {
+        @media (min-width: 2000px) {
           .master-dropdown {
             min-width: 900px !important;
           }
@@ -436,13 +489,28 @@ const Header = () => {
           <div className="flex items-center justify-between h-14">
             {/* Left side - Logo and Navigation */}
             <div className="flex items-center space-x-3 relative z-10">
-              {/* Logo */}
+              {/* Mobile Menu Button - Only visible on mobile */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="mobile-menu-btn p-1.5 rounded-md hover:bg-white/10 text-white/90 transition-colors"
+                aria-label="Toggle menu"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {mobileMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+
+              {/* Logo - Now won't shrink on mobile because search box is hidden */}
               <div className="flex items-center -ml-3 pl-3 pr-5 py-1">
                 <img src="/se.png" className="h-7 w-auto relative z-10" alt="Logo" />
               </div>
 
-              {/* Navigation Links */}
-              <div className="flex items-center space-x-0.5 ml-1">
+              {/* Desktop Navigation Links - Hidden on mobile */}
+              <div className="desktop-nav flex items-center space-x-0.5 ml-1">
                 <NavLink
                   to="/dashboard"
                   className={({ isActive }) =>
@@ -495,14 +563,13 @@ const Header = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  {/* <span className="esc-hint hidden sm:inline">esc</span> */}
 
-                  {/* Master Dropdown Menu - increased height and font size */}
+                  {/* Master Dropdown Menu - Desktop */}
                   {activeDropdown === 'master' && (
                     <div
                       ref={dropdownRef}
                       className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-[#9FE2BF] py-2 z-[100] flex dropdown-animation master-dropdown"
-                      style={{ minWidth: '620px' }} // Slightly increased width
+                      style={{ minWidth: '620px' }}
                     >
                       <div className="w-40 border-r border-[#9FE2BF] bg-[#F8FFFC]">
                         {masterCategories.map((category) => (
@@ -575,7 +642,7 @@ const Header = () => {
                             {quotationColumns.length > 0 ? (
                               quotationColumns.map((column, index) => (
                                 <div key={`quotation-col-${index}`} className={`w-48 ${index < quotationColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
-                                  <div className="max-h-96 overflow-y-auto scrollbar-hide"> {/* Increased from max-h-80 to max-h-96 */}
+                                  <div className="max-h-96 overflow-y-auto scrollbar-hide">
                                     {column.map((item) => (
                                       <NavLink
                                         key={item.path}
@@ -612,7 +679,7 @@ const Header = () => {
                             {hrColumns.length > 0 ? (
                               hrColumns.map((column, index) => (
                                 <div key={`hr-col-${index}`} className={`w-48 ${index < hrColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
-                                  <div className="max-h-96 overflow-y-auto scrollbar-hide"> {/* Increased from max-h-80 to max-h-96 */}
+                                  <div className="max-h-96 overflow-y-auto scrollbar-hide">
                                     {column.map((item) => (
                                       <NavLink
                                         key={item.path}
@@ -667,9 +734,10 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Right side - Search and Profile */}
+            {/* Right side - Search (hidden on mobile) and Profile */}
             <div className="flex items-center space-x-2 relative z-10">
-              <div className="w-48 search-box">
+              {/* Search Box - Hidden on mobile via CSS */}
+              <div className="search-box w-36 sm:w-40 md:w-48">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                     <svg className="h-3.5 w-3.5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -717,7 +785,7 @@ const Header = () => {
                       <h3 className="text-xs font-medium text-[#151C26]">Notifications</h3>
                       <span className="text-[11px] text-[#0A5C60] cursor-pointer hover:text-[#063B3E]">Mark all</span>
                     </div>
-                    <div className="max-h-80 overflow-y-auto"> {/* Increased from max-h-72 to max-h-80 */}
+                    <div className="max-h-80 overflow-y-auto">
                       {notifications.map((notif) => (
                         <div key={notif.id} className={`px-3 py-2.5 border-b border-[#F2F5F8] last:border-0 cursor-pointer hover:bg-[#F8FFFC] ${!notif.read ? 'bg-[#F0FDF9]' : ''}`}>
                           <div className="flex items-start gap-1.5">
@@ -784,7 +852,6 @@ const Header = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {/* <span className="esc-hint hidden sm:inline">esc</span> */}
 
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-[#E3E8EF] py-1 z-50 dropdown-animation">
@@ -854,6 +921,176 @@ const Header = () => {
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu - Only visible when menu is open */}
+        {mobileMenuOpen && (
+          <div 
+            ref={mobileMenuRef}
+            className="mobile-menu fixed inset-0 top-14 z-40 bg-white mobile-menu-animation"
+            style={{ height: 'calc(100vh - 3.5rem)' }}
+          >
+            <div className="h-full overflow-y-auto">
+              {/* Mobile Search - Now inside mobile menu */}
+              <div className="p-4 border-b border-[#E3E8EF]">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    className="w-full pl-10 pr-4 py-2.5 border border-[#E3E8EF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A5C60] focus:border-transparent text-[#151C26] placeholder-[#94A3B8] text-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleSearch}
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <svg className="h-4 w-4 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile Navigation */}
+              <div className="py-2">
+                <NavLink
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-[#9FE2BF]/20 text-[#0A5C60] border-l-4 border-[#0A5C60]'
+                        : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                    }`
+                  }
+                >
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  Dashboard
+                </NavLink>
+
+                <NavLink
+                  to="/users"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-[#9FE2BF]/20 text-[#0A5C60] border-l-4 border-[#0A5C60]'
+                        : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                    }`
+                  }
+                >
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 2.1a9 9 0 10-18 0" />
+                  </svg>
+                  Users
+                </NavLink>
+
+                {/* Mobile Master Section */}
+                <div className="border-t border-[#E3E8EF] my-2">
+                  <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
+                    Master
+                  </div>
+                  
+                  {/* Quotation Master Items */}
+                  <div className="mb-2">
+                    <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                      Quotation Master
+                    </div>
+                    {quotationMasterItems.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                            isActive
+                              ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                              : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                          }`
+                        }
+                      >
+                        <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                        </svg>
+                        {item.name}
+                      </NavLink>
+                    ))}
+                  </div>
+
+                  {/* HR Master Items */}
+                  <div>
+                    <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                      HR Master
+                    </div>
+                    {allHRItems.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                            isActive
+                              ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                              : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                          }`
+                        }
+                      >
+                        <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                        </svg>
+                        {item.name}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+
+                <NavLink
+                  to="/roles"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-[#9FE2BF]/20 text-[#0A5C60] border-l-4 border-[#0A5C60]'
+                        : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                    }`
+                  }
+                >
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  </svg>
+                  Roles
+                </NavLink>
+              </div>
+
+              {/* Mobile User Info */}
+              <div className="border-t border-[#E3E8EF] mt-2 pt-2 px-4">
+                <div className="flex items-center gap-3 py-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#9FE2BF] to-[#0A5C60] flex items-center justify-center text-white text-sm font-semibold">
+                    {getUserInitials()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[#151C26]">
+                      {userData?.Username || 'User'}
+                    </p>
+                    <p className="text-xs text-[#4B5568]">
+                      {userData?.Email || 'Loading...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
     </>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -18,14 +18,15 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
+  Chip,
+  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
-  Chip,
+  Alert,
+  CircularProgress,
   Card,
   CardContent,
   Grid,
@@ -34,25 +35,24 @@ import {
   Select,
   Badge
 } from '@mui/material';
-
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
+  Refresh as RefreshIcon,
+  Print as PrintIcon,
   AttachMoney as MoneyIcon,
   Description as DescriptionIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Business as BusinessIcon,
+  Person as PersonIcon,
+  DateRange as DateIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
-import PrintIcon from '@mui/icons-material/Print';
 
 // Import modal components
 import AddQuotation from './AddQuotation';
@@ -60,15 +60,34 @@ import EditQuotation from './EditQuotation';
 import ViewQuotation from './ViewQuotation';
 import DeleteQuotation from './DeleteQuotation';
 import PrintQuotation from './PrintQuotation';
+import { FilterIcon } from 'lucide-react';
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc';
-const HOVER_COLOR = '#f1f5f9';
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
+// Color constants - Single color #063C3F throughout
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 // Status colors
 const STATUS_COLORS = {
@@ -100,9 +119,9 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -119,7 +138,8 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
@@ -128,13 +148,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
             onView(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <ViewIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              View Details
+            </Typography>
           </ListItemText>
         </MenuItem>
         <MenuItem 
@@ -142,28 +164,30 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
             onPrint(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
           <ListItemIcon sx={{ color: '#6B7280', minWidth: 36 }}>
             <PrintIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Generate PDF</Typography>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              Generate PDF
+            </Typography>
           </ListItemText>
         </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
+        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         <MenuItem 
           onClick={() => {
             onDelete(item);
             onClose();
           }}
-          sx={{ py: 1 }}
+          sx={{ py: 1.5 }}
         >
           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
+            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
               Delete
             </Typography>
           </ListItemText>
@@ -180,6 +204,7 @@ const QuotationMaster = () => {
   
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
     status: '',
     quotationType: '',
@@ -187,9 +212,13 @@ const QuotationMaster = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   
-  // Table state
+  // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Selection state
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -213,14 +242,6 @@ const QuotationMaster = () => {
     severity: 'success'
   });
 
-  // Pagination state from API
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10
-  });
-
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalQuotations: 0,
@@ -233,32 +254,26 @@ const QuotationMaster = () => {
 
   // Filter options
   const [vendors, setVendors] = useState([]);
-  
-  // Create debounced search function
-  const debouncedSearch = React.useMemo(
-    () => debounce(() => {
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
-      fetchQuotations();
-    }, 500),
-    [searchTerm, filters, rowsPerPage] // Dependencies
-  );
 
-  // onPrint handler
-  const openPrintQuotation = (quotation) => {
-    setSelectedQuotation(quotation);
-    setOpenPrintModal(true);
-    handleActionMenuClose();
-  };
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0); // Reset to first page when searching
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Fetch quotations with pagination and filters
-  const fetchQuotations = async () => {
+  const fetchQuotations = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: pagination.currentPage,
+        page: page + 1, // API uses 1-based pagination
         limit: rowsPerPage
       });
       
@@ -285,15 +300,12 @@ const QuotationMaster = () => {
       });
 
       if (response.data.success) {
-        setQuotations(response.data.data || []);
-        setPagination(response.data.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: response.data.data?.length || 0,
-          itemsPerPage: rowsPerPage
-        });
-        setStatistics(response.data.statistics || {
-          totalQuotations: response.data.pagination?.totalItems || 0,
+        const { data: quotationsData, pagination, statistics } = response.data;
+        setQuotations(quotationsData || []);
+        setTotalItems(pagination.totalItems);
+        setTotalPages(pagination.totalPages);
+        setStatistics(statistics || {
+          totalQuotations: 0,
           totalAmount: 0,
           avgAmount: 0,
           draftCount: 0,
@@ -312,10 +324,10 @@ const QuotationMaster = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, searchTerm, filters]);
 
   // Fetch vendors for filter dropdown
-  const fetchVendors = async () => {
+  const fetchVendors = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/vendors?limit=100`, {
@@ -330,18 +342,18 @@ const QuotationMaster = () => {
     } catch (err) {
       console.error('Error fetching vendors:', err);
     }
-  };
+  }, []);
 
   // Initial load
   useEffect(() => {
     fetchQuotations();
     fetchVendors();
-  }, []);
+  }, [fetchQuotations, fetchVendors]);
 
-  // Handle search input change
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-    debouncedSearch();
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchQuotations();
+    showNotification('Data refreshed', 'success');
   };
 
   // Handle filter changes
@@ -351,7 +363,7 @@ const QuotationMaster = () => {
 
   // Apply filters
   const applyFilters = () => {
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    setPage(0);
     fetchQuotations();
     setShowFilters(false);
   };
@@ -363,8 +375,9 @@ const QuotationMaster = () => {
       quotationType: '',
       vendorName: ''
     });
+    setSearchInput('');
     setSearchTerm('');
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    setPage(0);
     setTimeout(() => fetchQuotations(), 0);
   };
 
@@ -410,39 +423,15 @@ const QuotationMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setPagination(prev => ({ ...prev, currentPage: newPage + 1 }));
-    fetchQuotations();
+    setSelected([]); // Clear selection when changing page
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
-    const newLimit = parseInt(event.target.value, 10);
-    setRowsPerPage(newLimit);
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setPagination(prev => ({ 
-      ...prev, 
-      itemsPerPage: newLimit,
-      currentPage: 1 
-    }));
-    fetchQuotations();
-  };
-  
-  // Handle add quotation
-  const handleAddQuotation = (newQuotation) => {
-    fetchQuotations(); // Refresh data
-    showNotification('Quotation added successfully!', 'success');
-  };
-  
-  // Handle edit quotation
-  const handleEditQuotation = (updatedQuotation) => {
-    fetchQuotations(); // Refresh data
-    showNotification('Quotation updated successfully!', 'success');
-  };
-  
-  // Handle delete quotation
-  const handleDeleteQuotation = (quotationId) => {
-    fetchQuotations(); // Refresh data
-    showNotification('Quotation deleted successfully!', 'success');
+    setSelected([]); // Clear selection when changing rows per page
   };
   
   // Handle bulk delete
@@ -467,6 +456,25 @@ const QuotationMaster = () => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Handle add quotation
+  const handleAddQuotation = () => {
+    fetchQuotations();
+    showNotification('Quotation added successfully!', 'success');
+  };
+  
+  // Handle edit quotation
+  const handleEditQuotation = () => {
+    fetchQuotations();
+    showNotification('Quotation updated successfully!', 'success');
+  };
+  
+  // Handle delete quotation
+  const handleDeleteQuotation = () => {
+    fetchQuotations();
+    setSelected([]);
+    showNotification('Quotation deleted successfully!', 'success');
   };
   
   // Action menu handlers
@@ -500,6 +508,13 @@ const QuotationMaster = () => {
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
+
+  // Open print modal
+  const openPrintQuotation = (quotation) => {
+    setSelectedQuotation(quotation);
+    setOpenPrintModal(true);
+    handleActionMenuClose();
+  };
   
   // Show notification
   const showNotification = (message, severity) => {
@@ -512,6 +527,7 @@ const QuotationMaster = () => {
   
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -524,8 +540,31 @@ const QuotationMaster = () => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
+  };
+  
+  // Get quotation initials for avatar
+  const getQuotationInitials = (quotationNo) => {
+    if (!quotationNo) return 'QT';
+    return quotationNo.substring(0, 2).toUpperCase();
+  };
+  
+  // Get avatar color based on quotation number
+  const getAvatarColor = (quotationNo) => {
+    if (!quotationNo) return COLORS.primary;
+    
+    const colors = [
+      COLORS.primary,
+      COLORS.primaryDark,
+      '#074346',
+      '#0D696C',
+      '#128C7E'
+    ];
+    
+    const charCode = quotationNo.charCodeAt(0) || 0;
+    return colors[charCode % colors.length];
   };
   
   // Status chip
@@ -540,249 +579,105 @@ const QuotationMaster = () => {
           color: colors.text,
           border: `1px solid ${colors.border}`,
           fontWeight: 600,
-          fontSize: '0.75rem'
+          fontSize: '0.65rem',
+          height: 20
         }}
       />
     );
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Quotation Master
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Manage and track vendor quotations and purchase requests
         </Typography>
       </Box>
 
-      {/* Statistics Cards */}
-      {/* <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#E0F2FE',
-            border: '1px solid #BAE6FD',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <DescriptionIcon sx={{ color: '#0369A1' }} />
-                <Typography variant="body2" color="#64748B">
-                  Total
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#0C4A6E" sx={{ mt: 1 }}>
-                {statistics.totalQuotations}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#DCFCE7',
-            border: '1px solid #BBF7D0',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <MoneyIcon sx={{ color: '#166534' }} />
-                <Typography variant="body2" color="#64748B">
-                  Total Amount
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#166534" sx={{ mt: 1 }}>
-                {formatCurrency(statistics.totalAmount)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#FEF3C7',
-            border: '1px solid #FDE68A',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <DescriptionIcon sx={{ color: '#92400E' }} />
-                <Typography variant="body2" color="#64748B">
-                  Draft
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#92400E" sx={{ mt: 1 }}>
-                {statistics.draftCount}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#DBEAFE',
-            border: '1px solid #BFDBFE',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <DescriptionIcon sx={{ color: '#1E40AF' }} />
-                <Typography variant="body2" color="#64748B">
-                  Sent
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#1E40AF" sx={{ mt: 1 }}>
-                {statistics.sentCount}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#D1FAE5',
-            border: '1px solid #A7F3D0',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <DescriptionIcon sx={{ color: '#065F46' }} />
-                <Typography variant="body2" color="#64748B">
-                  Approved
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#065F46" sx={{ mt: 1 }}>
-                {statistics.approvedCount}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ 
-            borderRadius: 2,
-            bgcolor: '#FEF3C7',
-            border: '1px solid #FDE68A',
-            boxShadow: 'none'
-          }}>
-            <CardContent sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <MoneyIcon sx={{ color: '#92400E' }} />
-                <Typography variant="body2" color="#64748B">
-                  Avg. Amount
-                </Typography>
-              </Stack>
-              <Typography variant="h6" fontWeight={700} color="#92400E" sx={{ mt: 1 }}>
-                {formatCurrency(statistics.avgAmount)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid> */}
+   
 
       {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
           {/* Search and Filters */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               placeholder="Search by quotation no, vendor, or company..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearchChange}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                endAdornment: searchTerm && (
+                endAdornment: searchInput && (
                   <InputAdornment position="end">
                     <IconButton size="small" onClick={() => {
+                      setSearchInput('');
                       setSearchTerm('');
-                      fetchQuotations();
                     }}>
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
               disabled={loading}
             />
-            <Badge
-              badgeContent={getActiveFilterCount()}
-              color="primary"
-              invisible={!hasActiveFilters()}
-            >
-              {/* <Button
-                variant="outlined"
-                startIcon={<FilterIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-                sx={{ 
-                  height: 40,
-                  borderRadius: 1.5,
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: PRIMARY_BLUE,
-                    bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                  }
-                }}
-                disabled={loading}
-              >
-                Filter
-              </Button> */}
-            </Badge>
+         
             {hasActiveFilters() && (
               <Button
                 variant="text"
                 size="small"
                 onClick={clearFilters}
                 sx={{ 
-                  height: 40,
-                  color: '#64748B',
-                  fontSize: '0.875rem',
+                  height: 36,
+                  color: COLORS.text.secondary,
+                  fontSize: '0.7rem',
                   textTransform: 'none'
                 }}
               >
@@ -792,59 +687,45 @@ const QuotationMaster = () => {
           </Stack>
 
           {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
             {selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            {/* <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button> */}
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
               onClick={() => setOpenAddModal(true)}
               sx={{
-                height: 40,
+                height: 36,
                 borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
+                bgcolor: COLORS.primary,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
+                  bgcolor: COLORS.primaryDark,
                 }
               }}
               disabled={loading}
@@ -856,50 +737,53 @@ const QuotationMaster = () => {
 
         {/* Filter Panel */}
         {showFilters && (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+          <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${COLORS.border}` }}>
             <Grid container spacing={2} alignItems="flex-end">
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
+                  <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
                   <Select
                     value={filters.status}
                     label="Status"
                     onChange={(e) => handleFilterChange('status', e.target.value)}
+                    sx={{ fontSize: '0.75rem', height: 36 }}
                   >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="Draft">Draft</MenuItem>
-                    <MenuItem value="Sent">Sent</MenuItem>
-                    <MenuItem value="Approved">Approved</MenuItem>
-                    <MenuItem value="Rejected">Rejected</MenuItem>
+                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All</MenuItem>
+                    <MenuItem value="Draft" sx={{ fontSize: '0.75rem' }}>Draft</MenuItem>
+                    <MenuItem value="Sent" sx={{ fontSize: '0.75rem' }}>Sent</MenuItem>
+                    <MenuItem value="Approved" sx={{ fontSize: '0.75rem' }}>Approved</MenuItem>
+                    <MenuItem value="Rejected" sx={{ fontSize: '0.75rem' }}>Rejected</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Quotation Type</InputLabel>
+                  <InputLabel sx={{ fontSize: '0.75rem' }}>Quotation Type</InputLabel>
                   <Select
                     value={filters.quotationType}
                     label="Quotation Type"
                     onChange={(e) => handleFilterChange('quotationType', e.target.value)}
+                    sx={{ fontSize: '0.75rem', height: 36 }}
                   >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="Detailed">Detailed</MenuItem>
-                    <MenuItem value="Summary">Summary</MenuItem>
-                    <MenuItem value="CostBreakup">Cost Breakup</MenuItem>
+                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All</MenuItem>
+                    <MenuItem value="Detailed" sx={{ fontSize: '0.75rem' }}>Detailed</MenuItem>
+                    <MenuItem value="Summary" sx={{ fontSize: '0.75rem' }}>Summary</MenuItem>
+                    <MenuItem value="CostBreakup" sx={{ fontSize: '0.75rem' }}>Cost Breakup</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Vendor</InputLabel>
+                  <InputLabel sx={{ fontSize: '0.75rem' }}>Vendor</InputLabel>
                   <Select
                     value={filters.vendorName}
                     label="Vendor"
                     onChange={(e) => handleFilterChange('vendorName', e.target.value)}
+                    sx={{ fontSize: '0.75rem', height: 36 }}
                   >
-                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All</MenuItem>
                     {vendors.map(vendor => (
-                      <MenuItem key={vendor._id} value={vendor.VendorName}>
+                      <MenuItem key={vendor._id} value={vendor.VendorName} sx={{ fontSize: '0.75rem' }}>
                         {vendor.VendorName}
                       </MenuItem>
                     ))}
@@ -912,10 +796,14 @@ const QuotationMaster = () => {
                   onClick={applyFilters}
                   fullWidth
                   sx={{
-                    height: 40,
+                    height: 36,
                     borderRadius: 1.5,
-                    background: HEADER_GRADIENT,
-                    textTransform: 'none'
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.75rem',
+                    textTransform: 'none',
+                    '&:hover': {
+                      bgcolor: COLORS.primaryDark
+                    }
                   }}
                 >
                   Apply Filters
@@ -932,103 +820,93 @@ const QuotationMaster = () => {
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
+                <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
                     indeterminate={selected.length > 0 && selected.length < quotations.length}
                     checked={quotations.length > 0 && selected.length === quotations.length}
                     onChange={handleSelectAll}
                     sx={{
-                      color: TEXT_COLOR_HEADER,
+                      color: COLORS.text.light,
                       '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
+                        color: COLORS.text.light,
                       },
                       '& .MuiSvgIcon-root': {
-                        fontSize: 20
+                        fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || quotations.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Quotation No
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Quotation No
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  Vendor
+                  Vendor Details
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Company
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  Date
+                  Dates
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
-                  Valid Till
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
-                }}>
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }} align="right">
                   Amount
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                {/* <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Status
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -1037,27 +915,28 @@ const QuotationMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading quotations...
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : quotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {hasActiveFilters() ? 'No quotations found matching your filters' : 'No quotations available'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {hasActiveFilters() ? 'Try adjusting your filters' : 'Add your first quotation to get started'}
                       </Typography>
                       {hasActiveFilters() && (
                         <Button
                           variant="text"
                           onClick={clearFilters}
-                          sx={{ mt: 2, color: PRIMARY_BLUE }}
+                          sx={{ mt: 2, fontSize: '0.75rem', color: COLORS.primary }}
                         >
                           Clear Filters
                         </Button>
@@ -1066,11 +945,11 @@ const QuotationMaster = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                quotations.map((quotation, index) => {
+                quotations.map((quotation) => {
                   const isSelected = selected.includes(quotation._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedQuotationForAction?._id === quotation._id;
+                  const avatarColor = getAvatarColor(quotation.QuotationNo);
 
                   return (
                     <TableRow
@@ -1078,76 +957,105 @@ const QuotationMaster = () => {
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
+                      <TableCell padding="checkbox" sx={{ width: 40 }}>
                         <Checkbox
                           checked={isSelected}
                           onChange={() => handleSelect(quotation._id)}
                           sx={{
-                            color: PRIMARY_BLUE,
+                            color: COLORS.primary,
                             '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
+                              color: COLORS.primary,
                             },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1.25rem'
+                            }
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
-                          {quotation.QuotationNo}
-                        </Typography>
-                        <Typography variant="caption" color="#64748B">
-                          Items: {quotation.Items?.length || 0}
-                        </Typography>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Avatar 
+                            sx={{ 
+                              width: 32, 
+                              height: 32, 
+                              bgcolor: avatarColor,
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            {getQuotationInitials(quotation.QuotationNo)}
+                          </Avatar>
+                          <Box>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                              {quotation.QuotationNo}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                              Items: {quotation.Items?.length || 0}
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {quotation.VendorName}
                         </Typography>
-                        <Typography variant="caption" color="#64748B">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           {quotation.VendorGSTIN}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569" fontWeight={500}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {quotation.CompanyName}
                         </Typography>
-                        <Typography variant="caption" color="#64748B">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           {quotation.CompanyGSTIN}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {formatDate(quotation.QuotationDate)}
-                        </Typography>
+                        <Stack direction="column" spacing={0.5}>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <DateIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                              Q: {formatDate(quotation.QuotationDate)}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <DateIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                              V: {formatDate(quotation.ValidTill)}
+                            </Typography>
+                          </Stack>
+                        </Stack>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {formatDate(quotation.ValidTill)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600} color="#059669">
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
                           {formatCurrency(quotation.GrandTotal)}
                         </Typography>
-                        <Typography variant="caption" color="#64748B">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           GST: {quotation.GSTPercentage}%
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         {getStatusChip(quotation.Status)}
-                      </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      </TableCell> */}
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={quotation}
                           onView={openViewQuotationModal}
@@ -1171,25 +1079,28 @@ const QuotationMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={pagination.totalItems}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
-      {/* Separate Modal Components */}
+      {/* Modal Components */}
       <AddQuotation 
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
@@ -1220,6 +1131,7 @@ const QuotationMaster = () => {
               setOpenEditModal(true);
             }}
           />
+
           <PrintQuotation
             open={openPrintModal}
             onClose={() => {
@@ -1228,6 +1140,7 @@ const QuotationMaster = () => {
             }}
             quotation={selectedQuotation}
           />
+
           <DeleteQuotation 
             open={openDeleteDialog}
             onClose={() => {
@@ -1254,7 +1167,11 @@ const QuotationMaster = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

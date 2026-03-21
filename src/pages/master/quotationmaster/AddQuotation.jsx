@@ -1,47 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
-  // Layout components
   Box,
-  Paper,
   Grid,
   Stepper,
   Step,
   StepLabel,
   StepConnector,
   stepConnectorClasses,
-  
-  // Form components
   TextField,
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  Autocomplete,
-  
-  // Feedback components
-  Alert,
   Typography,
-  Chip,
-  Divider,
-  
-  // Buttons and actions
   Button,
-  IconButton,
-  
-  // Surfaces
-  styled,
-  
-  // Utils
   Stack,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  Autocomplete,
+  Chip,
+  Divider,
+  IconButton,
   CircularProgress,
+  styled
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -53,16 +36,49 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
+
 // 🔥 Modern Stepper Connector with Gradient
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
@@ -137,12 +153,15 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   const [vendors, setVendors] = useState([]);
   const [items, setItems] = useState([]);
   const [templates, setTemplates] = useState([]);
+  
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   // Steps definition
   const steps = ['Template & Vendor', 'Items & Processes', 'Financials & Review'];
 
   // Vendor type options
-  const vendorTypeOptions = ['RM', 'Process', 'Both' ];
+  const vendorTypeOptions = ['RM', 'Process', 'Both'];
 
   useEffect(() => {
     if (open) {
@@ -324,6 +343,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
+  const handleTemplateChange = (event, newValue) => {
+    setSelectedTemplate(newValue);
+    setFieldErrors(prev => ({ ...prev, template_id: '' }));
+    setFormData(prev => ({
+      ...prev,
+      template_id: newValue?._id || ''
+    }));
+  };
+
+  const handleVendorChange = (event, newValue) => {
+    setSelectedVendor(newValue);
+    setFieldErrors(prev => ({ ...prev, 'vendor.id': '' }));
+    setFormData(prev => ({
+      ...prev,
+      vendor: { ...prev.vendor, id: newValue?._id || '' }
+    }));
+  };
+
   const handleItemInputChange = (e) => {
     const { name, value } = e.target;
     setItemInput(prev => ({
@@ -425,11 +462,32 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     });
   };
 
-  const handleProcessSelectionChange = (e) => {
+  const handleProcessSelectionChange = (event, newValue) => {
+    if (newValue) {
+      setCurrentProcessSelection(prev => ({
+        ...prev,
+        process_id: newValue._id
+      }));
+    } else {
+      setCurrentProcessSelection(prev => ({
+        ...prev,
+        process_id: ''
+      }));
+    }
+  };
+
+  const handleProcessFieldChange = (e) => {
     const { name, value } = e.target;
     setCurrentProcessSelection(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleOutsourcedVendorChange = (event, newValue) => {
+    setCurrentProcessSelection(prev => ({
+      ...prev,
+      outsourced_vendor_id: newValue?._id || null
     }));
   };
 
@@ -515,12 +573,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       if (formData.items.length === 0) {
         errors.items = 'At least one item is required';
       }
-      for (let i = 0; i < formData.items.length; i++) {
-        if (formData.items[i].processes.length === 0) {
-          errors[`item_${i}_processes`] = `Item ${formData.items[i].part_no} must have at least one process`;
-          break;
-        }
-      }
     }
 
     setFieldErrors(errors);
@@ -542,135 +594,131 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   };
 
   const handleSubmit = async () => {
-  if (!validateStep(1)) {
-    setError('Please fill in all required fields correctly');
-    return;
-  }
+    if (!validateStep(1)) {
+      setError('Please fill in all required fields correctly');
+      return;
+    }
 
-  setLoading(true);
-  setError('');
+    setLoading(true);
+    setError('');
 
-  const payload = {
-    template_id: formData.template_id,
-    valid_till: formData.valid_till,
-    remarks: {
-      internal: formData.remarks.internal || '',
-      customer: formData.remarks.customer || ''
-    },
-    financials: {
-      gst_percentage: parseFloat(formData.financials.gst_percentage) || 18
-    },
-    icc: {
-      credit_on_input_days: parseInt(formData.icc.credit_on_input_days) || -30,
-      wip_fg_days: parseInt(formData.icc.wip_fg_days) || 30,
-      credit_to_customer_days: parseInt(formData.icc.credit_to_customer_days) || 45,
-      cost_of_capital: parseFloat(formData.icc.cost_of_capital) || 0.10
-    },
-    items: formData.items.map(item => ({
-      part_no: item.part_no,
-      quantity: parseInt(item.quantity) || 0,
-      costing_parameters: {
-        ohp_percent_on_material: parseFloat(item.costing_parameters?.ohp_percent_on_material) || 10,
-        ohp_percent_on_labour: parseFloat(item.costing_parameters?.ohp_percent_on_labour) || 15,
-        inspection_cost_per_nos: parseFloat(item.costing_parameters?.inspection_cost_per_nos) || 0,
-        tool_maintenance_cost_per_nos: parseFloat(item.costing_parameters?.tool_maintenance_cost_per_nos) || 0,
-        packing_cost_per_nos: parseFloat(item.costing_parameters?.packing_cost_per_nos) || 0,
-        plating_cost_per_kg: parseFloat(item.costing_parameters?.plating_cost_per_kg) || 0,
-        margin_percent: parseFloat(item.costing_parameters?.margin_percent) || 15
+    const payload = {
+      template_id: formData.template_id,
+      valid_till: formData.valid_till,
+      remarks: {
+        internal: formData.remarks.internal || '',
+        customer: formData.remarks.customer || ''
       },
-      processes: item.processes.map(process => ({
-        process_id: process.process_id,
-        rate_per_hour: parseFloat(process.rate_per_hour) || 0,
-        hours: parseFloat(process.hours) || 0,
-        outsourced_vendor_id: process.outsourced_vendor_id || null
+      financials: {
+        gst_percentage: parseFloat(formData.financials.gst_percentage) || 18
+      },
+      icc: {
+        credit_on_input_days: parseInt(formData.icc.credit_on_input_days) || -30,
+        wip_fg_days: parseInt(formData.icc.wip_fg_days) || 30,
+        credit_to_customer_days: parseInt(formData.icc.credit_to_customer_days) || 45,
+        cost_of_capital: parseFloat(formData.icc.cost_of_capital) || 0.10
+      },
+      items: formData.items.map(item => ({
+        part_no: item.part_no,
+        quantity: parseInt(item.quantity) || 0,
+        costing_parameters: {
+          ohp_percent_on_material: parseFloat(item.costing_parameters?.ohp_percent_on_material) || 10,
+          ohp_percent_on_labour: parseFloat(item.costing_parameters?.ohp_percent_on_labour) || 15,
+          inspection_cost_per_nos: parseFloat(item.costing_parameters?.inspection_cost_per_nos) || 0,
+          tool_maintenance_cost_per_nos: parseFloat(item.costing_parameters?.tool_maintenance_cost_per_nos) || 0,
+          packing_cost_per_nos: parseFloat(item.costing_parameters?.packing_cost_per_nos) || 0,
+          plating_cost_per_kg: parseFloat(item.costing_parameters?.plating_cost_per_kg) || 0,
+          margin_percent: parseFloat(item.costing_parameters?.margin_percent) || 15
+        },
+        processes: item.processes.map(process => ({
+          process_id: process.process_id,
+          rate_per_hour: parseFloat(process.rate_per_hour) || 0,
+          hours: parseFloat(process.hours) || 0,
+          outsourced_vendor_id: process.outsourced_vendor_id || null
+        }))
       }))
-    }))
-  };
-
-  // Set vendor based on type
-  if (vendorType === 'Existing') {
-    payload.vendor = {
-      type: 'Existing',
-      id: formData.vendor.id  // Changed from 'existing' to 'id'
     };
-  } else {
-    // For New vendor
-    payload.vendor = {
-      type: 'New',
-      new: {
-        vendor_name: newVendor.vendor_name,
-        vendor_type: newVendor.vendor_type || 'RM',
-        address: newVendor.address,
-        gstin: newVendor.gstin,
-        state: newVendor.state,
-        state_code: newVendor.state_code ? parseInt(newVendor.state_code) : null,
-        contact_person: newVendor.contact_person,
-        phone: newVendor.phone,
-        email: newVendor.email,
-        pan: newVendor.pan || ''
-      }
-    };
-    
-    // Add optional fields if provided
-    if (newVendor.city) payload.vendor.new.city = newVendor.city;
-    if (newVendor.pincode) payload.vendor.new.pincode = newVendor.pincode;
-  }
 
-  console.log('Submitting payload:', JSON.stringify(payload, null, 2));
-
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.post(`${BASE_URL}/api/quotations`, payload, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'blob'
-    });
-
-    if (response.data instanceof Blob) {
-      const contentDisposition = response.headers['content-disposition'];
-      let filename = 'quotation.xlsx';
-      
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '');
-        }
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      onAdd({ success: true, filename });
-      resetForm();
-      onClose();
-    }
-  } catch (err) {
-    console.error('Error adding quotation:', err);
-    
-    // Try to get error message from response if it's JSON
-    if (err.response && err.response.data instanceof Blob) {
-      const text = await err.response.data.text();
-      try {
-        const errorData = JSON.parse(text);
-        setError(errorData.message || 'Failed to add quotation');
-      } catch {
-        setError('Failed to add quotation. Please try again.');
-      }
+    // Set vendor based on type
+    if (vendorType === 'Existing') {
+      payload.vendor = {
+        type: 'Existing',
+        id: formData.vendor.id
+      };
     } else {
-      setError(err.response?.data?.message || 'Failed to add quotation. Please try again.');
+      // For New vendor
+      payload.vendor = {
+        type: 'New',
+        new: {
+          vendor_name: newVendor.vendor_name,
+          vendor_type: newVendor.vendor_type || 'RM',
+          address: newVendor.address,
+          gstin: newVendor.gstin,
+          state: newVendor.state,
+          state_code: newVendor.state_code ? parseInt(newVendor.state_code) : null,
+          contact_person: newVendor.contact_person,
+          phone: newVendor.phone,
+          email: newVendor.email,
+          pan: newVendor.pan || ''
+        }
+      };
+      
+      if (newVendor.city) payload.vendor.new.city = newVendor.city;
+      if (newVendor.pincode) payload.vendor.new.pincode = newVendor.pincode;
     }
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/api/quotations`, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'blob'
+      });
+
+      if (response.data instanceof Blob) {
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'quotation.xlsx';
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, '');
+          }
+        }
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        onAdd({ success: true, filename });
+        resetForm();
+        onClose();
+      }
+    } catch (err) {
+      console.error('Error adding quotation:', err);
+      
+      if (err.response && err.response.data instanceof Blob) {
+        const text = await err.response.data.text();
+        try {
+          const errorData = JSON.parse(text);
+          setError(errorData.message || 'Failed to add quotation');
+        } catch {
+          setError('Failed to add quotation. Please try again.');
+        }
+      } else {
+        setError(err.response?.data?.message || 'Failed to add quotation. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setVendorType('Existing');
@@ -710,6 +758,8 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       email: '',
       pan: ''
     });
+    setSelectedTemplate(null);
+    setSelectedVendor(null);
     setItemInput({ part_no: '', quantity: '', part_name: '' });
     setError('');
     setFieldErrors({});
@@ -728,16 +778,16 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     return process ? process.process_name : 'Unknown Process';
   };
 
-  const renderOption = (props, option) => {
+  const renderItemOption = (props, option) => {
     const item = items.find(i => i.part_no === option);
     const { key, ...otherProps } = props;
     
     return (
       <li key={key} {...otherProps}>
         <Box>
-          <Typography variant="body2">{option}</Typography>
+          <Typography sx={{ fontSize: '0.75rem' }}>{option}</Typography>
           {item && (
-            <Typography variant="caption" color="textSecondary">
+            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
               {item.part_name} • {item.unit || 'No unit'}
             </Typography>
           )}
@@ -746,396 +796,880 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     );
   };
 
+  const renderProcessOption = (props, option) => (
+    <li {...props}>
+      <Box>
+        <Typography sx={{ fontSize: '0.75rem' }}>{option.process_name}</Typography>
+        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.25 }}>
+          <Chip 
+            label={option.rate_type} 
+            size="small" 
+            variant="outlined"
+            sx={{ fontSize: '0.65rem', height: 20 }}
+          />
+          <Chip 
+            label={option.vendor_or_inhouse || 'Vendor'} 
+            size="small"
+            color={option.vendor_or_inhouse === 'Vendor' ? 'warning' : 'info'}
+            sx={{ fontSize: '0.65rem', height: 20 }}
+          />
+        </Box>
+      </Box>
+    </li>
+  );
+
+  const renderVendorOption = (props, option) => (
+    <li {...props}>
+      <Box>
+        <Typography sx={{ fontSize: '0.75rem' }}>{option.vendor_name}</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+          {option.gstin} • {option.vendor_code}
+        </Typography>
+      </Box>
+    </li>
+  );
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
         return (
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             {/* Template Selection */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Template Selection
               </Typography>
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
-                  <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}>
-                    <InputLabel>Select Template *</InputLabel>
-                    <Select
-                      name="template_id"
-                      value={formData.template_id}
-                      onChange={handleChange}
-                      label="Select Template *"
-                      disabled={loading || templates.length === 0}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                  SELECT TEMPLATE <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={templates}
+                  value={selectedTemplate}
+                  onChange={handleTemplateChange}
+                  getOptionLabel={(option) => option.template_name || ''}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                  disabled={loading}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Select template"
+                      required
                       error={!!fieldErrors.template_id}
-                    >
-                      <MenuItem value="">
-                        <em>Select a template</em>
-                      </MenuItem>
-                      {templates.map((template) => (
-                        <MenuItem key={template._id} value={template._id}>
-                          <Typography variant="body2">
-                            {template.template_name}
-                          </Typography>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {fieldErrors.template_id && (
-                      <FormHelperText error>{fieldErrors.template_id}</FormHelperText>
-                    )}
-                  </FormControl>
-                </Grid>
-              </Grid>
-            </Paper>
+                      helperText={fieldErrors.template_id}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem',
+                          marginLeft: 0,
+                          marginTop: 0.25
+                        }
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Typography sx={{ fontSize: '0.75rem' }}>{option.template_name}</Typography>
+                    </li>
+                  )}
+                  ListboxProps={{
+                    sx: {
+                      '& .MuiAutocomplete-option': {
+                        fontSize: '0.75rem',
+                        py: 1,
+                        px: 1.5
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
 
             {/* Vendor Type Selection */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Vendor Details
               </Typography>
               
               <RadioGroup row value={vendorType} onChange={handleVendorTypeChange} sx={{ mb: 1.5 }}>
-                <FormControlLabel value="Existing" control={<Radio size="small" />} label="Existing Vendor" />
-                <FormControlLabel value="New" control={<Radio size="small" />} label="New Vendor" />
+                <FormControlLabel 
+                  value="Existing" 
+                  control={<Radio size="small" />} 
+                  label={<Typography sx={{ fontSize: '0.75rem' }}>Existing Vendor</Typography>} 
+                />
+                <FormControlLabel 
+                  value="New" 
+                  control={<Radio size="small" />} 
+                  label={<Typography sx={{ fontSize: '0.75rem' }}>New Vendor</Typography>} 
+                />
               </RadioGroup>
 
               {vendorType === 'Existing' ? (
-                <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}>
-                  <InputLabel>Select Vendor *</InputLabel>
-                  <Select
-                    name="vendor.id"
-                    value={formData.vendor.id}
-                    onChange={handleChange}
-                    disabled={loading || vendors.length === 0}
-                    label="Select Vendor *"
-                    error={!!fieldErrors['vendor.id']}
-                  >
-                    <MenuItem value="">
-                      <em>Select a vendor</em>
-                    </MenuItem>
-                    {vendors.map((vendor) => (
-                      <MenuItem key={vendor._id} value={vendor._id}>
-                        <Stack direction="column" spacing={0.5}>
-                          <Typography variant="body2">
-                            {vendor.vendor_name}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {vendor.gstin} • {vendor.vendor_code}
-                          </Typography>
-                        </Stack>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {fieldErrors['vendor.id'] && (
-                    <FormHelperText error>{fieldErrors['vendor.id']}</FormHelperText>
-                  )}
-                </FormControl>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                    SELECT VENDOR <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Autocomplete
+                    fullWidth
+                    options={vendors}
+                    value={selectedVendor}
+                    onChange={handleVendorChange}
+                    getOptionLabel={(option) => option.vendor_name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    disabled={loading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Select vendor"
+                        required
+                        error={!!fieldErrors['vendor.id']}
+                        helperText={fieldErrors['vendor.id']}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    )}
+                    renderOption={renderVendorOption}
+                    ListboxProps={{
+                      sx: {
+                        '& .MuiAutocomplete-option': {
+                          fontSize: '0.75rem',
+                          py: 1,
+                          px: 1.5
+                        }
+                      }
+                    }}
+                  />
+                </Box>
               ) : (
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Vendor Name *"
-                      name="vendor_name"
-                      value={newVendor.vendor_name}
-                      onChange={handleNewVendorChange}
-                      required
-                      error={!!fieldErrors.vendor_name}
-                      helperText={fieldErrors.vendor_name}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}>
-                      <InputLabel>Vendor Type *</InputLabel>
-                      <Select
-                        name="vendor_type"
-                        value={newVendor.vendor_type}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        VENDOR NAME <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="vendor_name"
+                        value={newVendor.vendor_name}
                         onChange={handleNewVendorChange}
-                        label="Vendor Type *"
-                      >
-                        {vendorTypeOptions.map((type) => (
-                          <MenuItem key={type} value={type}>{type}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        required
+                        error={!!fieldErrors.vendor_name}
+                        helperText={fieldErrors.vendor_name}
+                        placeholder="Enter vendor name"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="GSTIN *"
-                      name="gstin"
-                      value={newVendor.gstin}
-                      onChange={handleNewVendorChange}
-                      required
-                      error={!!fieldErrors.gstin}
-                      helperText={fieldErrors.gstin}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        VENDOR TYPE <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <Autocomplete
+                        fullWidth
+                        options={vendorTypeOptions}
+                        value={newVendor.vendor_type}
+                        onChange={(event, newValue) => {
+                          setNewVendor(prev => ({ ...prev, vendor_type: newValue || 'RM' }));
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            size="small"
+                            placeholder="Select vendor type"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem',
+                                color: COLORS.text.primary
+                              }
+                            }}
+                          />
+                        )}
+                        renderOption={(props, option) => (
+                          <li {...props}>
+                            <Typography sx={{ fontSize: '0.75rem' }}>{option}</Typography>
+                          </li>
+                        )}
+                        ListboxProps={{
+                          sx: {
+                            '& .MuiAutocomplete-option': {
+                              fontSize: '0.75rem',
+                              py: 1,
+                              px: 1.5
+                            }
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="PAN"
-                      name="pan"
-                      value={newVendor.pan}
-                      onChange={handleNewVendorChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        GSTIN <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="gstin"
+                        value={newVendor.gstin}
+                        onChange={handleNewVendorChange}
+                        required
+                        error={!!fieldErrors.gstin}
+                        helperText={fieldErrors.gstin}
+                        placeholder="Enter GSTIN"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="State *"
-                      name="state"
-                      value={newVendor.state}
-                      onChange={handleNewVendorChange}
-                      required
-                      error={!!fieldErrors.state}
-                      helperText={fieldErrors.state}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        PAN
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="pan"
+                        value={newVendor.pan}
+                        onChange={handleNewVendorChange}
+                        placeholder="Enter PAN"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="State Code"
-                      name="state_code"
-                      value={newVendor.state_code}
-                      onChange={handleNewVendorChange}
-                      type="number"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        STATE <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="state"
+                        value={newVendor.state}
+                        onChange={handleNewVendorChange}
+                        required
+                        error={!!fieldErrors.state}
+                        helperText={fieldErrors.state}
+                        placeholder="Enter state"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        STATE CODE
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="state_code"
+                        value={newVendor.state_code}
+                        onChange={handleNewVendorChange}
+                        type="number"
+                        placeholder="Enter state code"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Address *"
-                      name="address"
-                      value={newVendor.address}
-                      onChange={handleNewVendorChange}
-                      required
-                      multiline
-                      rows={2}
-                      error={!!fieldErrors.address}
-                      helperText={fieldErrors.address}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        ADDRESS <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="address"
+                        value={newVendor.address}
+                        onChange={handleNewVendorChange}
+                        required
+                        multiline
+                        rows={2}
+                        error={!!fieldErrors.address}
+                        helperText={fieldErrors.address}
+                        placeholder="Enter address"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="City"
-                      name="city"
-                      value={newVendor.city}
-                      onChange={handleNewVendorChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CITY
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="city"
+                        value={newVendor.city}
+                        onChange={handleNewVendorChange}
+                        placeholder="Enter city"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Pincode"
-                      name="pincode"
-                      value={newVendor.pincode}
-                      onChange={handleNewVendorChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        PINCODE
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="pincode"
+                        value={newVendor.pincode}
+                        onChange={handleNewVendorChange}
+                        placeholder="Enter pincode"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Contact Person *"
-                      name="contact_person"
-                      value={newVendor.contact_person}
-                      onChange={handleNewVendorChange}
-                      required
-                      error={!!fieldErrors.contact_person}
-                      helperText={fieldErrors.contact_person}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CONTACT PERSON <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="contact_person"
+                        value={newVendor.contact_person}
+                        onChange={handleNewVendorChange}
+                        required
+                        error={!!fieldErrors.contact_person}
+                        helperText={fieldErrors.contact_person}
+                        placeholder="Enter contact person"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Phone *"
-                      name="phone"
-                      value={newVendor.phone}
-                      onChange={handleNewVendorChange}
-                      required
-                      error={!!fieldErrors.phone}
-                      helperText={fieldErrors.phone}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        PHONE <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="phone"
+                        value={newVendor.phone}
+                        onChange={handleNewVendorChange}
+                        required
+                        error={!!fieldErrors.phone}
+                        helperText={fieldErrors.phone}
+                        placeholder="Enter phone number"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Email *"
-                      name="email"
-                      value={newVendor.email}
-                      onChange={handleNewVendorChange}
-                      required
-                      type="email"
-                      error={!!fieldErrors.email}
-                      helperText={fieldErrors.email}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        EMAIL <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="email"
+                        value={newVendor.email}
+                        onChange={handleNewVendorChange}
+                        required
+                        type="email"
+                        error={!!fieldErrors.email}
+                        helperText={fieldErrors.email}
+                        placeholder="Enter email"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
                   </Grid>
                 </Grid>
               )}
-            </Paper>
+            </Box>
 
             {/* Valid Till Date */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Quotation Validity
               </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                label="Valid Till *"
-                name="valid_till"
-                type="date"
-                value={formData.valid_till}
-                onChange={handleChange}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ min: getTodayDate() }}
-                error={!!fieldErrors.valid_till}
-                helperText={fieldErrors.valid_till}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Paper>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                  VALID TILL <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  name="valid_till"
+                  type="date"
+                  value={formData.valid_till}
+                  onChange={handleChange}
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: getTodayDate() }}
+                  error={!!fieldErrors.valid_till}
+                  helperText={fieldErrors.valid_till}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    },
+                    '& .MuiFormHelperText-root': {
+                      fontSize: '0.65rem',
+                      marginLeft: 0,
+                      marginTop: 0.25
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
           </Stack>
         );
 
       case 1:
         return (
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             {/* Add Item Form */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Add New Item
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Autocomplete
-                    size="small"
-                    freeSolo
-                    options={partNoOptions}
-                    value={itemInput.part_no}
-                    onChange={handlePartNoChange}
-                    onInputChange={(event, newInputValue) => {
-                      setItemInput(prev => ({ ...prev, part_no: newInputValue }));
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Part No *"
-                        placeholder="Search or select part number"
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                      />
-                    )}
-                    renderOption={renderOption}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PART NO <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <Autocomplete
+                      fullWidth
+                      freeSolo
+                      options={partNoOptions}
+                      value={itemInput.part_no}
+                      onChange={handlePartNoChange}
+                      onInputChange={(event, newInputValue) => {
+                        setItemInput(prev => ({ ...prev, part_no: newInputValue }));
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Search or select part number"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      )}
+                      renderOption={renderItemOption}
+                      ListboxProps={{
+                        sx: {
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem',
+                            py: 1,
+                            px: 1.5
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Quantity *"
-                    name="quantity"
-                    value={itemInput.quantity}
-                    onChange={handleItemInputChange}
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="quantity"
+                      value={itemInput.quantity}
+                      onChange={handleItemInputChange}
+                      type="number"
+                      inputProps={{ min: 1 }}
+                      placeholder="Enter quantity"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={handleAddItem}
-                    startIcon={<AddCircleIcon />}
-                    disabled={!itemInput.part_no || !itemInput.quantity}
-                    sx={{ height: '40px', borderRadius: 1 }}
-                  >
-                    Add
-                  </Button>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={handleAddItem}
+                      startIcon={<AddCircleIcon sx={{ fontSize: '1rem' }} />}
+                      disabled={!itemInput.part_no || !itemInput.quantity}
+                      sx={{
+                        height: 36,
+                        borderRadius: 1.5,
+                        bgcolor: COLORS.primary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        '&:hover': { bgcolor: COLORS.primaryDark },
+                        '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
                 </Grid>
                 {itemInput.part_name && (
                   <Grid size={{ xs: 12 }}>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                       Selected: {itemInput.part_name}
                     </Typography>
                   </Grid>
                 )}
               </Grid>
-            </Paper>
+            </Box>
 
             {/* Items List */}
             {formData.items.length > 0 ? (
               formData.items.map((item, itemIndex) => (
-                <Paper key={itemIndex} sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+                <Box key={itemIndex}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#1976D2', fontWeight: 600, fontSize: '0.9rem' }}>
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary }}>
                       Item {itemIndex + 1}: {item.part_no}
                     </Typography>
-                    <IconButton size="small" onClick={() => handleRemoveItem(itemIndex)} color="error">
+                    <IconButton size="small" onClick={() => handleRemoveItem(itemIndex)} sx={{ color: '#EF4444' }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Box>
 
                   <Grid container spacing={1.5} sx={{ mb: 2 }}>
                     <Grid size={{ xs: 12, sm: 4 }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label="Part Name"
-                        value={item.part_name || items.find(i => i.part_no === item.part_no)?.part_name || ''}
-                        disabled
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1, bgcolor: '#f5f5f5' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PART NAME
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={item.part_name || items.find(i => i.part_no === item.part_no)?.part_name || ''}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              bgcolor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     <Grid size={{ xs: 12, sm: 4 }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label="Quantity"
-                        value={item.quantity}
-                        disabled
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1, bgcolor: '#f5f5f5' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          QUANTITY
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={item.quantity}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              bgcolor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     <Grid size={{ xs: 12, sm: 4 }}>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={() => handleOpenProcessDialog(itemIndex)}
-                        sx={{ height: '40px', borderRadius: 1 }}
-                      >
-                        Add Process
-                      </Button>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          size="small"
+                          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                          onClick={() => handleOpenProcessDialog(itemIndex)}
+                          sx={{
+                            height: 36,
+                            borderRadius: 1.5,
+                            borderColor: COLORS.primary,
+                            color: COLORS.primary,
+                            fontSize: '0.7rem',
+                            fontWeight: 500,
+                            textTransform: 'none',
+                            '&:hover': {
+                              borderColor: COLORS.primaryDark,
+                              bgcolor: COLORS.primaryLight
+                            }
+                          }}
+                        >
+                          Add Process
+                        </Button>
+                      </Box>
                     </Grid>
                   </Grid>
 
                   {/* Costing Parameters */}
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 500, display: 'block', mb: 1 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
                       Costing Parameters
                     </Typography>
                     <Grid container spacing={1}>
@@ -1148,7 +1682,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.ohp_percent_on_material}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'ohp_percent_on_material', e.target.value)}
                           inputProps={{ min: 0, step: 0.1 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1160,7 +1711,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.ohp_percent_on_labour}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'ohp_percent_on_labour', e.target.value)}
                           inputProps={{ min: 0, step: 0.1 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1172,7 +1740,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.inspection_cost_per_nos}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'inspection_cost_per_nos', e.target.value)}
                           inputProps={{ min: 0, step: 0.01 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1184,7 +1769,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.tool_maintenance_cost_per_nos}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'tool_maintenance_cost_per_nos', e.target.value)}
                           inputProps={{ min: 0, step: 0.01 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1196,7 +1798,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.packing_cost_per_nos}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'packing_cost_per_nos', e.target.value)}
                           inputProps={{ min: 0, step: 0.01 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1208,7 +1827,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.plating_cost_per_kg}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'plating_cost_per_kg', e.target.value)}
                           inputProps={{ min: 0, step: 0.01 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid size={{ xs: 6, sm: 3 }}>
@@ -1220,7 +1856,24 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                           value={item.costing_parameters.margin_percent}
                           onChange={(e) => handleItemCostingParamChange(itemIndex, 'margin_percent', e.target.value)}
                           inputProps={{ min: 0, step: 0.1 }}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
                         />
                       </Grid>
                     </Grid>
@@ -1229,234 +1882,356 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   {/* Processes */}
                   {item.processes.length > 0 && (
                     <Box>
-                      <Typography variant="caption" sx={{ color: '#666', fontWeight: 500, display: 'block', mb: 1 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
                         Processes
                       </Typography>
                       <Stack spacing={1}>
                         {item.processes.map((process, processIndex) => (
-                          <Paper key={processIndex} sx={{ p: 1, backgroundColor: '#F8FAFC', borderRadius: 1 }}>
+                          <Box key={processIndex} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                                   {process.process_name || getProcessName(process.process_id)}
                                 </Typography>
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
                                   Rate: ₹{process.rate_per_hour}/hr • Hours: {process.hours} • Total: ₹{(process.rate_per_hour * process.hours).toFixed(2)}
                                 </Typography>
                               </Box>
-                              <IconButton size="small" onClick={() => handleRemoveProcessFromItem(itemIndex, processIndex)} color="error">
+                              <IconButton size="small" onClick={() => handleRemoveProcessFromItem(itemIndex, processIndex)} sx={{ color: '#EF4444' }}>
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Box>
-                          </Paper>
+                          </Box>
                         ))}
                       </Stack>
                     </Box>
                   )}
-                </Paper>
+                </Box>
               ))
             ) : (
-              <Paper sx={{ p: 3, backgroundColor: '#F8FAFC', borderRadius: 1, textAlign: 'center' }}>
-                <Typography variant="body2" color="textSecondary">
+              <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
                   No items added yet. Add items using the form above.
                 </Typography>
-              </Paper>
+              </Box>
             )}
 
             {fieldErrors.items && (
-              <Alert severity="error" sx={{ borderRadius: 1 }}>{fieldErrors.items}</Alert>
-            )}
-            {fieldErrors.item_0_processes && (
-              <Alert severity="error" sx={{ borderRadius: 1 }}>{fieldErrors.item_0_processes}</Alert>
+              <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+                {fieldErrors.items}
+              </Alert>
             )}
           </Stack>
         );
 
       case 2:
         return (
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             {/* Financials Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Financial Details
               </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="GST Percentage (%)"
-                    name="gst_percentage"
-                    type="number"
-                    value={formData.financials.gst_percentage}
-                    onChange={handleFinancialsChange}
-                    inputProps={{ min: 0, max: 100, step: 0.1 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      GST PERCENTAGE (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="gst_percentage"
+                      type="number"
+                      value={formData.financials.gst_percentage}
+                      onChange={handleFinancialsChange}
+                      inputProps={{ min: 0, max: 100, step: 0.1 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
             {/* ICC Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Investment & Cost of Capital (ICC)
               </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Credit on Input Days"
-                    name="credit_on_input_days"
-                    type="number"
-                    value={formData.icc.credit_on_input_days}
-                    onChange={handleICCChange}
-                    helperText="Negative for credit received"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CREDIT ON INPUT DAYS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="credit_on_input_days"
+                      type="number"
+                      value={formData.icc.credit_on_input_days}
+                      onChange={handleICCChange}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Negative for credit received
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="WIP/FG Days"
-                    name="wip_fg_days"
-                    type="number"
-                    value={formData.icc.wip_fg_days}
-                    onChange={handleICCChange}
-                    inputProps={{ min: 0 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      WIP/FG DAYS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="wip_fg_days"
+                      type="number"
+                      value={formData.icc.wip_fg_days}
+                      onChange={handleICCChange}
+                      inputProps={{ min: 0 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Credit to Customer Days"
-                    name="credit_to_customer_days"
-                    type="number"
-                    value={formData.icc.credit_to_customer_days}
-                    onChange={handleICCChange}
-                    inputProps={{ min: 0 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CREDIT TO CUSTOMER DAYS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="credit_to_customer_days"
+                      type="number"
+                      value={formData.icc.credit_to_customer_days}
+                      onChange={handleICCChange}
+                      inputProps={{ min: 0 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Cost of Capital"
-                    name="cost_of_capital"
-                    type="number"
-                    value={formData.icc.cost_of_capital}
-                    onChange={handleICCChange}
-                    inputProps={{ min: 0, max: 1, step: 0.01 }}
-                    helperText="e.g., 0.10 for 10%"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      COST OF CAPITAL
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="cost_of_capital"
+                      type="number"
+                      value={formData.icc.cost_of_capital}
+                      onChange={handleICCChange}
+                      inputProps={{ min: 0, max: 1, step: 0.01 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      e.g., 0.10 for 10%
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
             {/* Remarks */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Remarks
               </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Internal Remarks"
-                    name="remarks.internal"
-                    value={formData.remarks.internal}
-                    onChange={handleChange}
-                    multiline
-                    rows={2}
-                    placeholder="Internal notes or instructions..."
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      INTERNAL REMARKS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="remarks.internal"
+                      value={formData.remarks.internal}
+                      onChange={handleChange}
+                      multiline
+                      rows={2}
+                      placeholder="Internal notes or instructions..."
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Customer Remarks"
-                    name="remarks.customer"
-                    value={formData.remarks.customer}
-                    onChange={handleChange}
-                    multiline
-                    rows={2}
-                    placeholder="Message for the customer..."
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CUSTOMER REMARKS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="remarks.customer"
+                      value={formData.remarks.customer}
+                      onChange={handleChange}
+                      multiline
+                      rows={2}
+                      placeholder="Message for the customer..."
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
 
             {/* Review Summary */}
-            <Paper sx={{ p: 2, backgroundColor: '#F8FAFC', borderRadius: 1 }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+            <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 Summary
               </Typography>
               
               <Grid container spacing={2}>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Template</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {templates.find(t => t._id === formData.template_id)?.template_name || 'Not selected'}
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Template</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                    {selectedTemplate?.template_name || 'Not selected'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Vendor Type</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{vendorType}</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Vendor Type</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{vendorType}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Vendor</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Vendor</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                     {vendorType === 'Existing' 
-                      ? vendors.find(v => v._id === formData.vendor.id)?.vendor_name || 'Not selected'
+                      ? selectedVendor?.vendor_name || 'Not selected'
                       : newVendor.vendor_name || 'New vendor'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Valid Till</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Valid Till</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                     {formData.valid_till ? new Date(formData.valid_till).toLocaleDateString() : 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  <Divider sx={{ my: 1 }} />
+                  <Divider sx={{ my: 1, borderColor: COLORS.border }} />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Total Items</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{formData.items.length}</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Total Items</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{formData.items.length}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>GST %</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{formData.financials.gst_percentage}%</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>GST %</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{formData.financials.gst_percentage}%</Typography>
                 </Grid>
               </Grid>
 
               {formData.items.length > 0 && (
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 1 }}>Items Summary</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block', mb: 1 }}>Items Summary</Typography>
                   {formData.items.map((item, idx) => (
-                    <Paper key={idx} sx={{ p: 1, mb: 1, backgroundColor: '#FFFFFF' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.part_no}</Typography>
-                      <Typography variant="caption" color="textSecondary">
+                    <Box key={idx} sx={{ p: 1, mb: 1, bgcolor: COLORS.background.white, borderRadius: 1.5 }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.part_no}</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
                         Qty: {item.quantity} • Processes: {item.processes.length}
                       </Typography>
-                    </Paper>
+                    </Box>
                   ))}
                 </Box>
               )}
-            </Paper>
+            </Box>
 
-            <Alert severity="info" sx={{ borderRadius: 1 }}>
-              <Typography variant="body2">
+            <Alert severity="info" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+              <Typography sx={{ fontSize: '0.75rem' }}>
                 Please review all information before submitting. You can go back to make changes if needed.
               </Typography>
             </Alert>
@@ -1476,18 +2251,30 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
           maxHeight: '95vh'
         }
       }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2,
-        backgroundColor: '#F8FAFC'
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
       }}>
-        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010', mb: 1 }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
           Create New Quotation
         </Typography>
 
@@ -1496,48 +2283,94 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ mb: 1, mt: 1 }}
+          sx={{ mb: 0.5, mt: 0.5 }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
-                <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+                <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              '& .MuiAlert-icon': {
+                fontSize: '1.25rem',
+                alignItems: 'center'
+              },
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
+          >
+            {error}
+          </Alert>
         )}
       </DialogContent>
 
       <DialogActions sx={{
-        px: 2,
+        px: 2.5,
         py: 1.5,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC',
-        justifyContent: 'space-between'
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
       }}>
         <Button
           onClick={handleBack}
           disabled={activeStep === 0 || loading}
-          size="small"
-          startIcon={<NavigateBeforeIcon />}
-          sx={{ color: '#666' }}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            },
+            '&:disabled': {
+              borderColor: COLORS.border,
+              color: COLORS.text.tertiary
+            }
+          }}
         >
           Back
         </Button>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             onClick={handleClose}
             disabled={loading}
-            size="small"
-            sx={{ mr: 1, color: '#666' }}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1546,11 +2379,23 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               variant="contained"
               onClick={handleSubmit}
               disabled={loading}
-              size="small"
-              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <AddIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               {loading ? 'Creating...' : 'Create'}
@@ -1560,11 +2405,23 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               variant="contained"
               onClick={handleNext}
               disabled={loading}
-              size="small"
-              endIcon={<NavigateNextIcon />}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
-                backgroundColor: '#1976D2',
-                '&:hover': { backgroundColor: '#1565C0' }
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                },
+                '&:disabled': {
+                  bgcolor: COLORS.border,
+                  color: COLORS.text.tertiary
+                }
               }}
             >
               Next
@@ -1575,100 +2432,203 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
       {/* Process Selection Dialog */}
       <Dialog open={openProcessDialog} onClose={handleCloseProcessDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ py: 1.5, px: 2, backgroundColor: '#F8FAFC' }}>
-          <Typography variant="subtitle2" fontWeight={600}>Add Process to Item</Typography>
+        <DialogTitle sx={{ py: 1.5, px: 2.5, bgcolor: COLORS.background.white }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.primary }}>
+            Add Process to Item
+          </Typography>
         </DialogTitle>
-        <DialogContent sx={{ p: 2 }}>
+        <DialogContent sx={{ p: 2.5 }}>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Select Process *</InputLabel>
-              <Select
-                name="process_id"
-                value={currentProcessSelection.process_id}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                SELECT PROCESS <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <Autocomplete
+                fullWidth
+                options={processes}
+                value={processes.find(p => p._id === currentProcessSelection.process_id) || null}
                 onChange={handleProcessSelectionChange}
-                label="Select Process *"
-                sx={{ borderRadius: 1 }}
-              >
-                <MenuItem value="">
-                  <em>Select a process</em>
-                </MenuItem>
-                {processes.map((process) => (
-                  <MenuItem key={process._id} value={process._id}>
-                    <Stack direction="column" spacing={0.5}>
-                      <Typography variant="body2">{process.process_name}</Typography>
-                      <Stack direction="row" spacing={1}>
-                        <Chip 
-                          label={process.rate_type} 
-                          size="small" 
-                          variant="outlined"
-                        />
-                        <Chip 
-                          label={process.vendor_or_inhouse || 'Vendor'} 
-                          size="small"
-                          color={process.vendor_or_inhouse === 'Vendor' ? 'warning' : 'info'}
-                        />
-                      </Stack>
-                    </Stack>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                getOptionLabel={(option) => option.process_name || ''}
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Search or select process"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary
+                      }
+                    }}
+                  />
+                )}
+                renderOption={renderProcessOption}
+                ListboxProps={{
+                  sx: {
+                    '& .MuiAutocomplete-option': {
+                      fontSize: '0.75rem',
+                      py: 1,
+                      px: 1.5
+                    }
+                  }
+                }}
+              />
+            </Box>
 
-            <TextField
-              fullWidth
-              size="small"
-              label="Rate per Hour (₹) *"
-              name="rate_per_hour"
-              type="number"
-              value={currentProcessSelection.rate_per_hour}
-              onChange={handleProcessSelectionChange}
-              inputProps={{ min: 0, step: 0.01 }}
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1, color: '#64748B' }}>₹</Typography>
-              }}
-              sx={{ borderRadius: 1 }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                RATE PER HOUR (₹) <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                name="rate_per_hour"
+                type="number"
+                value={currentProcessSelection.rate_per_hour}
+                onChange={handleProcessFieldChange}
+                inputProps={{ min: 0, step: 0.01 }}
+                InputProps={{
+                  startAdornment: <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>₹</Typography>
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary },
+                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
+                  }
+                }}
+              />
+            </Box>
 
-            <TextField
-              fullWidth
-              size="small"
-              label="Hours *"
-              name="hours"
-              type="number"
-              value={currentProcessSelection.hours}
-              onChange={handleProcessSelectionChange}
-              inputProps={{ min: 0, step: 0.01 }}
-              sx={{ borderRadius: 1 }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                HOURS <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                name="hours"
+                type="number"
+                value={currentProcessSelection.hours}
+                onChange={handleProcessFieldChange}
+                inputProps={{ min: 0, step: 0.01 }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary },
+                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
+                  }
+                }}
+              />
+            </Box>
 
-            <FormControl fullWidth size="small">
-              <InputLabel>Outsourced Vendor (Optional)</InputLabel>
-              <Select
-                name="outsourced_vendor_id"
-                value={currentProcessSelection.outsourced_vendor_id || ''}
-                onChange={handleProcessSelectionChange}
-                label="Outsourced Vendor (Optional)"
-                sx={{ borderRadius: 1 }}
-              >
-                <MenuItem value="">
-                  <em>None (In-house)</em>
-                </MenuItem>
-                {vendors.map((vendor) => (
-                  <MenuItem key={vendor._id} value={vendor._id}>
-                    {vendor.vendor_name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                OUTSOURCED VENDOR (Optional)
+              </Typography>
+              <Autocomplete
+                fullWidth
+                options={vendors}
+                value={vendors.find(v => v._id === currentProcessSelection.outsourced_vendor_id) || null}
+                onChange={handleOutsourcedVendorChange}
+                getOptionLabel={(option) => option.vendor_name || ''}
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select outsourced vendor"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary
+                      }
+                    }}
+                  />
+                )}
+                renderOption={renderVendorOption}
+                ListboxProps={{
+                  sx: {
+                    '& .MuiAutocomplete-option': {
+                      fontSize: '0.75rem',
+                      py: 1,
+                      px: 1.5
+                    }
+                  }
+                }}
+              />
+            </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 2, py: 1.5, borderTop: '1px solid #E0E0E0' }}>
-          <Button onClick={handleCloseProcessDialog} size="small">Cancel</Button>
+        <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}` }}>
+          <Button 
+            onClick={handleCloseProcessDialog} 
+            size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Cancel
+          </Button>
           <Button 
             onClick={handleAddProcessToItem} 
             variant="contained"
             disabled={!currentProcessSelection.process_id || !currentProcessSelection.rate_per_hour || !currentProcessSelection.hours}
             size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              bgcolor: COLORS.primary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                bgcolor: COLORS.primaryDark,
+              }
+            }}
           >
             Add Process
           </Button>
