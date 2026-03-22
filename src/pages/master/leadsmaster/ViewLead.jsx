@@ -41,7 +41,8 @@ const ViewLead = ({ open, onClose, lead, onEdit }) => {
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ 
         borderBottom: `1px solid ${COLORS.border}`, 
-        py: 1.5, 
+        py: 1.5,
+        mb: 2, 
         bgcolor: COLORS.background.tableHeader 
       }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">

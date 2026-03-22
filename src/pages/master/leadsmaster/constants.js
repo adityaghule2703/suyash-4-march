@@ -61,6 +61,18 @@ export const STATUS_COLORS = {
   'Junk': { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' }
 };
 
+// Add this to your constants.js file
+export const STATUS_TRANSITIONS = {
+  'New': ['Contacted', 'Junk'],
+  'Contacted': ['Qualified', 'Junk'],
+  'Qualified': ['Proposal Sent'],
+  'Proposal Sent': ['Negotiation', 'Won', 'Lost'],
+  'Negotiation': ['Won', 'Lost'],
+  'Won': [],
+  'Lost': [],
+  'Junk': []
+};
+
 // Priority Colors
 export const PRIORITY_COLORS = {
   'High': { bg: '#FEE2E2', color: '#991B1B' },

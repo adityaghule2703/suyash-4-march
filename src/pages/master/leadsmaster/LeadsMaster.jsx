@@ -35,8 +35,12 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Refresh as RefreshIcon,
-  Business as BusinessIcon
+  Business as BusinessIcon,
+  Update as UpdateIcon,
+  Message as MessageIcon,
+  Image as ImageIcon,
+  Science as ScienceIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -44,10 +48,20 @@ import AddLead from './AddLead';
 import EditLead from './EditLead';
 import ViewLead from './ViewLead';
 import DeleteLead from './DeleteLead';
-import { COLORS, STATUS_COLORS, PRIORITY_COLORS } from './constants';
+import StatusUpdatePopup from './StatusUpdatePopup';
+import ConvertLeadPopup from './ConvertLeadPopup';
+import FollowupPopup from './FollowupPopup';
+import DrawingsPopup from './DrawingsPopup';
+import FeasibilityPopup from './FeasibilityPopup';
+import FeasibilityCheckPopup from './FeasibilityCheckPopup';
+import { COLORS, STATUS_COLORS, PRIORITY_COLORS, STATUS_TRANSITIONS } from './constants';
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with all options
+const ActionMenu = ({ item, onView, onEdit, onDelete, onStatusUpdate, onConvert, onFollowup, onDrawings, onFeasibility, onFeasibilityCheck, anchorEl, onClose, onOpen }) => {
+  const currentStatus = item?.status || 'New';
+  const hasAvailableTransitions = STATUS_TRANSITIONS[currentStatus]?.length > 0;
+  const isWon = currentStatus === 'Won';
+
   return (
     <>
       <Tooltip title="Actions">
@@ -95,6 +109,7 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             </Typography>
           </ListItemText>
         </MenuItem>
+        
         <MenuItem 
           onClick={() => {
             onEdit(item);
@@ -111,7 +126,119 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             </Typography>
           </ListItemText>
         </MenuItem>
+        
+        {/* Feasibility Check Button - Show for all statuses */}
+        <MenuItem 
+          onClick={() => {
+            onFeasibilityCheck(item);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+            <AssessmentIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+              Feasibility Check
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        {/* Feasibility Button - Show for all statuses */}
+        <MenuItem 
+          onClick={() => {
+            onFeasibility(item);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
+            <ScienceIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#06B6D4', fontSize: '0.75rem' }}>
+              Feasibility
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        {/* Drawings Button - Show for all statuses */}
+        <MenuItem 
+          onClick={() => {
+            onDrawings(item);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+            <ImageIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+              Drawings
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        {/* Follow-up Button - Show for all statuses */}
+        <MenuItem 
+          onClick={() => {
+            onFollowup(item);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+            <MessageIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+              Add Follow-up
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        {hasAvailableTransitions && (
+          <MenuItem 
+            onClick={() => {
+              onStatusUpdate(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <UpdateIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Update Status
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {isWon && (
+          <MenuItem 
+            onClick={() => {
+              onConvert(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <BusinessIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                Convert to Customer
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        
         <MenuItem 
           onClick={() => {
             onDelete(item);
@@ -157,6 +284,12 @@ const LeadsMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openStatusPopup, setOpenStatusPopup] = useState(false);
+  const [openConvertPopup, setOpenConvertPopup] = useState(false);
+  const [openFollowupPopup, setOpenFollowupPopup] = useState(false);
+  const [openDrawingsPopup, setOpenDrawingsPopup] = useState(false);
+  const [openFeasibilityPopup, setOpenFeasibilityPopup] = useState(false);
+  const [openFeasibilityCheckPopup, setOpenFeasibilityCheckPopup] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   
   // Notification state
@@ -265,6 +398,31 @@ const LeadsMaster = () => {
     showNotification('Lead deleted successfully!', 'success');
   };
   
+  const handleStatusUpdate = () => {
+    fetchLeads();
+    showNotification('Status updated successfully!', 'success');
+  };
+  
+  const handleConvertLead = () => {
+    fetchLeads();
+    showNotification('Lead converted to customer successfully!', 'success');
+  };
+  
+  const handleFollowup = () => {
+    fetchLeads();
+    showNotification('Follow-up added successfully!', 'success');
+  };
+  
+  const handleDrawingUpload = () => {
+    fetchLeads();
+    showNotification('Drawing uploaded successfully!', 'success');
+  };
+  
+  const handleFeasibilityUpdate = () => {
+    fetchLeads();
+    showNotification('Feasibility updated successfully!', 'success');
+  };
+  
   const handleActionMenuOpen = (event, lead) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedLeadForAction(lead);
@@ -290,6 +448,42 @@ const LeadsMaster = () => {
   const openDeleteLeadDialog = (lead) => {
     setSelectedLead(lead);
     setOpenDeleteDialog(true);
+    handleActionMenuClose();
+  };
+  
+  const openStatusUpdatePopup = (lead) => {
+    setSelectedLead(lead);
+    setOpenStatusPopup(true);
+    handleActionMenuClose();
+  };
+  
+  const openConvertPopupModal = (lead) => {
+    setSelectedLead(lead);
+    setOpenConvertPopup(true);
+    handleActionMenuClose();
+  };
+  
+  const openFollowupPopupModal = (lead) => {
+    setSelectedLead(lead);
+    setOpenFollowupPopup(true);
+    handleActionMenuClose();
+  };
+  
+  const openDrawingsPopupModal = (lead) => {
+    setSelectedLead(lead);
+    setOpenDrawingsPopup(true);
+    handleActionMenuClose();
+  };
+  
+  const openFeasibilityPopupModal = (lead) => {
+    setSelectedLead(lead);
+    setOpenFeasibilityPopup(true);
+    handleActionMenuClose();
+  };
+  
+  const openFeasibilityCheckPopupModal = (lead) => {
+    setSelectedLead(lead);
+    setOpenFeasibilityCheckPopup(true);
     handleActionMenuClose();
   };
   
@@ -392,20 +586,6 @@ const LeadsMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -551,7 +731,7 @@ const LeadsMaster = () => {
                   const isSelected = selected.includes(lead._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && selectedLeadForAction?._id === lead._id;
                   const avatarColor = getAvatarColor(lead);
-                  const statusColors = STATUS_COLORS[lead.status] || { bg: '#F1F5F9', color: '#475569' };
+                  const statusColors = STATUS_COLORS[lead.status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
                   const priorityColors = PRIORITY_COLORS[lead.priority] || { bg: '#F1F5F9', color: '#475569' };
 
                   return (
@@ -670,6 +850,12 @@ const LeadsMaster = () => {
                           onView={openViewLeadModal}
                           onEdit={openEditLeadModal}
                           onDelete={openDeleteLeadDialog}
+                          onStatusUpdate={openStatusUpdatePopup}
+                          onConvert={openConvertPopupModal}
+                          onFollowup={openFollowupPopupModal}
+                          onDrawings={openDrawingsPopupModal}
+                          onFeasibility={openFeasibilityPopupModal}
+                          onFeasibilityCheck={openFeasibilityCheckPopupModal}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, lead)}
@@ -748,6 +934,65 @@ const LeadsMaster = () => {
             }}
             lead={selectedLead}
             onDelete={handleDeleteLead}
+          />
+
+          <StatusUpdatePopup
+            open={openStatusPopup}
+            onClose={() => {
+              setOpenStatusPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
+            onStatusUpdate={handleStatusUpdate}
+          />
+
+          <ConvertLeadPopup
+            open={openConvertPopup}
+            onClose={() => {
+              setOpenConvertPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
+            onConvert={handleConvertLead}
+          />
+
+          <FollowupPopup
+            open={openFollowupPopup}
+            onClose={() => {
+              setOpenFollowupPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
+            onFollowup={handleFollowup}
+          />
+
+          <DrawingsPopup
+            open={openDrawingsPopup}
+            onClose={() => {
+              setOpenDrawingsPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
+            onDrawingUpload={handleDrawingUpload}
+          />
+
+          <FeasibilityPopup
+            open={openFeasibilityPopup}
+            onClose={() => {
+              setOpenFeasibilityPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
+            onFeasibilityUpdate={handleFeasibilityUpdate}
+          />
+
+          <FeasibilityCheckPopup
+            open={openFeasibilityCheckPopup}
+            onClose={() => {
+              setOpenFeasibilityCheckPopup(false);
+              setSelectedLead(null);
+            }}
+            lead={selectedLead}
           />
         </>
       )}

@@ -48,6 +48,8 @@ import ProcessDetailsMaster from './pages/master/processdetailsmaster/ProcessDet
 import CompanyFinancialMaster from './pages/master/companyfinancialmaster/CompanyFinancialMaster'
 import MediclaimMaster from './pages/hrmaster/mediclaimmaster/MediclaimMaster'
 import LeadsMaster from './pages/master/leadsmaster/LeadsMaster'
+import AddRoles from './pages/roles/AddRoles'
+import AddUser from './pages/users/AddUser'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -76,6 +78,7 @@ const App = () => {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+           <Route path="users/adduser" element={<AddUser />} />
           <Route path="quotation" element={<Quotation />} />
           {/* <Route path="master/customermaster" element={<CustomerMaster />} /> */}
           <Route path="master/vendormaster" element={<VendorMaster />} />
@@ -113,6 +116,7 @@ const App = () => {
                <Route path="hrmaster/interviewmaster" element={<InterviewMaster />} />
                <Route path="hrmaster/mediclaimmaster" element={<MediclaimMaster />} />
           <Route path="roles" element={<Roles />} />
+          <Route path="/roles/add" element={<AddRoles />} />
 
           <Route path='hrmaster/employeeleavemaster' element={<EmployeeLeaveMaster/>} />
           <Route path='hrmaster/adminleavemaster' element={<AdminLeaveApproval/>} />

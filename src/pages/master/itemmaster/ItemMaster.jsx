@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddItem from './AddItem';
@@ -75,8 +76,17 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.ITEM_MASTER, PAGES.PRODUCT_ITEM_CATALOG, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.ITEM_MASTER, PAGES.PRODUCT_ITEM_CATALOG, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.ITEM_MASTER, PAGES.PRODUCT_ITEM_CATALOG, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -108,61 +118,91 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Main component
 const ItemMaster = () => {
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURN
   // State for data
   const [items, setItems] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -172,7 +212,7 @@ const ItemMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -199,11 +239,84 @@ const ItemMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper - defined as a function, not a hook
+  const checkPermission = useCallback((action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.ITEM_MASTER,
+      PAGES.PRODUCT_ITEM_CATALOG,
+      action
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Get allowed actions for this page
+  const allowedActions = useCallback(() => {
+    if (isSuperAdmin) {
+      return [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.IMPORT, ACTIONS.PRINT];
+    }
+    return getAllowedActions(
+      userPermissions,
+      MODULES.ITEM_MASTER,
+      PAGES.PRODUCT_ITEM_CATALOG
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Permission checks - computed after permissions are loaded
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canImport = checkPermission(ACTIONS.IMPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -217,7 +330,7 @@ const ItemMaster = () => {
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -265,10 +378,12 @@ const ItemMaster = () => {
     }
   }, []);
 
-  // Fetch data when dependencies change
+  // Fetch data when dependencies change - only if user has permission
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchItems();
+    }
+  }, [fetchItems, canViewPage, isSuperAdmin, permissionsLoaded]);
 
   // Fetch materials on mount
   useEffect(() => {
@@ -281,8 +396,10 @@ const ItemMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(items.map(item => item._id));
     } else {
@@ -290,8 +407,10 @@ const ItemMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -307,7 +426,7 @@ const ItemMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -315,11 +434,12 @@ const ItemMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -355,6 +475,7 @@ const ItemMaster = () => {
 
   // Open edit modal
   const openEditItemModal = (item) => {
+    if (!canUpdate) return;
     setSelectedItem(item);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -362,6 +483,7 @@ const ItemMaster = () => {
   
   // Open view modal
   const openViewItemModal = (item) => {
+    if (!canViewPage) return;
     setSelectedItem(item);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -369,6 +491,7 @@ const ItemMaster = () => {
   
   // Open delete confirmation
   const openDeleteItemDialog = (item) => {
+    if (!canDelete) return;
     setSelectedItem(item);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -381,36 +504,6 @@ const ItemMaster = () => {
       message,
       severity
     });
-  };
-  
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
-  // Get status styles
-  const getStatusStyles = (isActive) => {
-    return isActive ? {
-      bg: COLORS.chips.active,
-      text: COLORS.primaryDark,
-      border: '#86efac'
-    } : {
-      bg: COLORS.chips.inactive,
-      text: COLORS.text.secondary,
-      border: COLORS.border
-    };
-  };
-  
-  // Get status text
-  const getStatusText = (isActive) => {
-    return isActive ? 'Active' : 'Inactive';
   };
   
   // Get avatar initials
@@ -439,6 +532,17 @@ const ItemMaster = () => {
     return colors[charCode % colors.length];
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
+  // Main render
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -509,25 +613,12 @@ const ItemMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -551,26 +642,30 @@ const ItemMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Item
-            </Button>
+            
+            {/* Add Item Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Item
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -594,26 +689,29 @@ const ItemMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < items.length}
-                    checked={items.length > 0 && selected.length === items.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < items.length}
+                      checked={items.length > 0 && selected.length === items.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || items.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || items.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -662,14 +760,6 @@ const ItemMaster = () => {
                 }}>
                   HSN Code
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -684,7 +774,7 @@ const ItemMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading items...
@@ -693,7 +783,7 @@ const ItemMaster = () => {
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No items found' : 'No items available'}
@@ -710,7 +800,6 @@ const ItemMaster = () => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedItemForAction?._id === item._id;
                   const avatarColor = getAvatarColor(item.part_no);
-                  const statusStyles = getStatusStyles(item.is_active);
 
                   return (
                     <TableRow
@@ -735,21 +824,24 @@ const ItemMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(item._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(item._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -824,23 +916,6 @@ const ItemMaster = () => {
                           {item.no_of_cavity ? `${item.no_of_cavity} cavity` : ''}
                         </Typography>
                       </TableCell>
-                      {/* <TableCell>
-                        <Chip
-                          label={getStatusText(item.is_active)}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: statusStyles.bg,
-                            color: statusStyles.text,
-                            border: `1px solid ${statusStyles.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            }
-                          }}
-                        />
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={item}
@@ -850,6 +925,7 @@ const ItemMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, item)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -885,49 +961,59 @@ const ItemMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddItem 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddItem}
-        materials={materials}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddItem 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddItem}
+          materials={materials}
+        />
+      )}
 
       {selectedItem && (
         <>
-          <EditItem 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedItem(null);
-            }}
-            item={selectedItem}
-            onUpdate={handleEditItem}
-            materials={materials}
-          />
+          {canUpdate && (
+            <EditItem 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedItem(null);
+              }}
+              item={selectedItem}
+              onUpdate={handleEditItem}
+              materials={materials}
+            />
+          )}
 
-          <ViewItem 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedItem(null);
-            }}
-            item={selectedItem}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewItem 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedItem(null);
+              }}
+              item={selectedItem}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteItem 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedItem(null);
-            }}
-            item={selectedItem}
-            onDelete={handleDeleteItem}
-          />
+          {canDelete && (
+            <DeleteItem 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedItem(null);
+              }}
+              item={selectedItem}
+              onDelete={handleDeleteItem}
+            />
+          )}
         </>
       )}
 

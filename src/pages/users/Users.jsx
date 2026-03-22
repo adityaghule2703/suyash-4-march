@@ -16,7 +16,6 @@ import {
   Typography,
   Snackbar,
   TablePagination,
-  Checkbox,
   Stack,
   Chip,
   Avatar,
@@ -26,7 +25,9 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Collapse,
+  Checkbox
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -35,18 +36,20 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  KeyboardArrowRight as KeyboardArrowRightIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
 
-// Import modal components
-import AddUser from './AddUser';
+// Import modal components (only for Edit, View and Delete)
 import EditUser from './EditUser';
 import ViewUser from './ViewUser';
 import DeleteUser from './DeleteUser';
 
-// Color constants - Single color #063C3F throughout
+// Color constants
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -71,6 +74,190 @@ const COLORS = {
     suspended: '#FEF3C7',
     locked: '#FEE2E2'
   }
+};
+
+// All available actions
+const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
+
+// All pages/modules
+const ALL_PAGES = [
+  // Dashboard
+  { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
+  
+  // Administration
+  { module: 'USERS', page: 'Users', category: 'Administration' },
+  { module: 'ROLES', page: 'Roles', category: 'Administration' },
+  
+  // Quotation Master
+  { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
+  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
+  { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
+  { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
+  { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
+  { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
+  { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
+  { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
+  { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
+  
+  // HR Master
+  { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
+  { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
+  { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
+  { module: 'LEAVE_TYPE_MASTER', page: 'Leave Policies', category: 'HR Master' },
+  { module: 'ACCIDENT_MASTER', page: 'Accident Reporting', category: 'HR Master' },
+  { module: 'REQUISITION_MASTER', page: 'Hiring Requests', category: 'HR Master' },
+  { module: 'JOB_OPENING_MASTER', page: 'Career Opportunities', category: 'HR Master' },
+  { module: 'CANDIDATE_MASTER', page: 'Candidate Master', category: 'HR Master' },
+  { module: 'INTERVIEW_MASTER', page: 'Interview Scheduling', category: 'HR Master' },
+  { module: 'SELECTED_CANDIDATES_MASTER', page: 'Selected Candidate', category: 'HR Master' },
+  { module: 'SALARY_MASTER', page: 'Salary Master', category: 'HR Master' },
+  { module: 'PIECE_RATE_MASTER', page: 'Piece Rate Master', category: 'HR Master' },
+  { module: 'REGULARIZATION_MASTER', page: 'Attendance Regularization', category: 'HR Master' },
+  { module: 'EMPLOYEE_LEAVE_MASTER', page: 'Employee Leave Records', category: 'HR Master' },
+  { module: 'ADMIN_LEAVE_MASTER', page: 'Leave Administration', category: 'HR Master' },
+  { module: 'PRODUCTION_MASTER', page: 'Production Master', category: 'HR Master' },
+  { module: 'TERMINATION_MASTER', page: 'Termination Master', category: 'HR Master' },
+  { module: 'EMPLOYEE_BEHAVIOR_MASTER', page: 'Behavior Monitoring', category: 'HR Master' },
+  { module: 'MEDICLAIM_MASTER', page: 'Mediclaim Master', category: 'HR Master' },
+  { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' }
+];
+
+// Group pages by category
+const groupedPages = ALL_PAGES.reduce((acc, page) => {
+  if (!acc[page.category]) {
+    acc[page.category] = [];
+  }
+  acc[page.category].push(page);
+  return acc;
+}, {});
+
+// Permissions Matrix Component
+const PermissionsMatrix = ({ permissions = [] }) => {
+  // Create a map for quick lookup of permissions
+  const permissionMap = React.useMemo(() => {
+    const map = {};
+    permissions.forEach(perm => {
+      const module = perm.permission?.module || perm.module;
+      const action = perm.permission?.action || perm.action;
+      const key = `${module}_${action}`;
+      map[key] = true;
+    });
+    return map;
+  }, [permissions]);
+
+  const isPermissionChecked = (module, action) => {
+    const key = `${module}_${action}`;
+    return !!permissionMap[key];
+  };
+
+  return (
+    <Box sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ minWidth: 800 }}>
+        <TableHead>
+          <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+            <TableCell sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem',
+              letterSpacing: '0.5px',
+              color: COLORS.text.light,
+              position: 'sticky',
+              left: 0,
+              bgcolor: COLORS.background.tableHeader,
+              zIndex: 1,
+              minWidth: 200
+            }}>
+              Pages / Modules
+            </TableCell>
+            {ALL_ACTIONS.map((action) => (
+              <TableCell 
+                key={action} 
+                align="center"
+                sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light,
+                  minWidth: 70
+                }}
+              >
+                {action}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {Object.entries(groupedPages).map(([category, pages]) => (
+            <React.Fragment key={category}>
+              {/* Category Header Row */}
+              <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
+                <TableCell 
+                  colSpan={ALL_ACTIONS.length + 1}
+                  sx={{ 
+                    fontWeight: 600, 
+                    fontSize: '0.7rem', 
+                    color: COLORS.primary,
+                    py: 1,
+                    borderBottom: `1px solid ${COLORS.border}`
+                  }}
+                >
+                  {category}
+                </TableCell>
+              </TableRow>
+              
+              {/* Pages Rows */}
+              {pages.map((page) => (
+                <TableRow key={page.module} hover>
+                  <TableCell 
+                    sx={{ 
+                      fontSize: '0.75rem', 
+                      color: COLORS.text.primary,
+                      position: 'sticky',
+                      left: 0,
+                      bgcolor: COLORS.background.white,
+                      zIndex: 1,
+                      borderRight: `1px solid ${COLORS.border}`,
+                      py: 1.5
+                    }}
+                  >
+                    <Box>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        {page.page}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        {page.module}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  {ALL_ACTIONS.map((action) => {
+                    const isChecked = isPermissionChecked(page.module, action);
+                    return (
+                      <TableCell key={action} align="center" sx={{ p: 1 }}>
+                        <Checkbox
+                          checked={isChecked}
+                          disabled
+                          size="small"
+                          sx={{
+                            color: COLORS.primary,
+                            '&.Mui-checked': {
+                              color: COLORS.primary,
+                            },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1rem'
+                            }
+                          }}
+                        />
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </React.Fragment>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
 };
 
 // Action Menu Component
@@ -161,27 +348,25 @@ const ActionMenu = ({ user, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
 };
 
 const Users = () => {
+  const navigate = useNavigate();
+  
   // State for data
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [expandedRow, setExpandedRow] = useState(null);
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  
-  // Selection state
-  const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedUserForAction, setSelectedUserForAction] = useState(null);
   
   // Modal state
-  const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -196,25 +381,23 @@ const Users = () => {
     severity: 'success'
   });
 
-  // Debounce search to avoid too many API calls
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch users from API with pagination
+  // Fetch users from API
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -229,10 +412,9 @@ const Users = () => {
       });
 
       if (response.data.success) {
-        const { users: usersData, pagination } = response.data.data;
-        setUsers(usersData || []);
-        setTotalItems(pagination.totalItems);
-        setTotalPages(pagination.totalPages);
+        const usersData = response.data.data || [];
+        setUsers(usersData);
+        setTotalItems(response.data.pagination?.totalItems || usersData.length);
       } else {
         showNotification('Failed to load users', 'error');
       }
@@ -244,79 +426,43 @@ const Users = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  // Fetch users when dependencies change
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Handle refresh
   const handleRefresh = () => {
     fetchUsers();
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelected(users.map(user => user._id));
-    } else {
-      setSelected([]);
-    }
-  };
-  
-  // Handle single selection
-  const handleSelect = (id) => {
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [];
-    
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, id);
-    } else {
-      newSelected = selected.filter(item => item !== id);
-    }
-    
-    setSelected(newSelected);
-  };
-  
-  // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setExpandedRow(null);
   };
   
-  // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setExpandedRow(null);
   };
   
-  // Handle add user
-  const handleAddUser = (newUser) => {
-    fetchUsers(); // Refresh the list
-    showNotification('User added successfully!', 'success');
+  const handleAddUser = () => {
+    navigate('/users/adduser');
   };
   
-  // Handle edit user
   const handleEditUser = (updatedUser) => {
-    fetchUsers(); // Refresh the list
+    fetchUsers();
     showNotification('User updated successfully!', 'success');
+    setOpenEditModal(false);
+    setSelectedUser(null);
   };
   
-  // Handle delete user
   const handleDeleteUser = (userId) => {
-    fetchUsers(); // Refresh the list
-    setSelected(selected.filter(id => id !== userId));
+    fetchUsers();
     showNotification('User deleted successfully!', 'success');
   };
   
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    showNotification('Bulk delete requires API implementation', 'warning');
-  };
-  
-  // Action menu handlers
   const handleActionMenuOpen = (event, user) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedUserForAction(user);
@@ -327,28 +473,24 @@ const Users = () => {
     setSelectedUserForAction(null);
   };
 
-  // Open edit modal
   const openEditUserModal = (user) => {
     setSelectedUser(user);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
-  // Open view modal
   const openViewUserModal = (user) => {
     setSelectedUser(user);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
-  // Open delete confirmation
   const openDeleteUserDialog = (user) => {
     setSelectedUser(user);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
   
-  // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -357,7 +499,6 @@ const Users = () => {
     });
   };
   
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -369,40 +510,6 @@ const Users = () => {
     });
   };
   
-  // Get status color and styles
-  const getStatusStyles = (status) => {
-    const styles = {
-      active: {
-        bg: COLORS.chips.active,
-        text: COLORS.primaryDark,
-        border: '#86efac'
-      },
-      inactive: {
-        bg: COLORS.chips.inactive,
-        text: COLORS.text.secondary,
-        border: COLORS.border
-      },
-      suspended: {
-        bg: COLORS.chips.suspended,
-        text: '#92400e',
-        border: '#fcd34d'
-      },
-      locked: {
-        bg: COLORS.chips.locked,
-        text: '#991b1b',
-        border: '#fca5a5'
-      }
-    };
-    return styles[status?.toLowerCase()] || styles.inactive;
-  };
-  
-  // Get status text
-  const getStatusText = (status) => {
-    if (!status) return 'Unknown';
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-  
-  // Get role color
   const getRoleStyles = (roleName) => {
     const styles = {
       SuperAdmin: {
@@ -434,7 +541,6 @@ const Users = () => {
     return styles[roleName] || styles.default;
   };
   
-  // Get avatar initials
   const getAvatarInitials = (username, employee) => {
     if (employee?.FirstName && employee?.LastName) {
       return `${employee.FirstName.charAt(0)}${employee.LastName.charAt(0)}`.toUpperCase();
@@ -442,7 +548,6 @@ const Users = () => {
     return username ? username.charAt(0).toUpperCase() : 'U';
   };
   
-  // Get avatar color based on username
   const getAvatarColor = (username) => {
     if (!username) return COLORS.primary;
     
@@ -458,17 +563,21 @@ const Users = () => {
     return colors[charCode % colors.length];
   };
   
-  // Get employee name
   const getEmployeeName = (employee) => {
     if (!employee) return 'No Employee';
     return `${employee.FirstName || ''} ${employee.LastName || ''}`.trim() || 'No Name';
   };
   
-  // Get employee ID
   const getEmployeeID = (employee) => {
     if (!employee) return '-';
     return employee.EmployeeID || '-';
   };
+
+  const handleExpandRow = (userId) => {
+    setExpandedRow(expandedRow === userId ? null : userId);
+  };
+
+  const paginatedUsers = users;
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -558,34 +667,10 @@ const Users = () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                onClick={handleBulkDelete}
-                sx={{ 
-                  height: 36,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  borderColor: '#fee2e2',
-                  color: '#991b1b',
-                  '&:hover': {
-                    borderColor: '#fecaca',
-                    bgcolor: '#fee2e2'
-                  }
-                }}
-                disabled={loading}
-              >
-                Delete ({selected.length})
-              </Button>
-            )}
             <Button
               variant="contained"
               startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
+              onClick={handleAddUser}
               sx={{
                 height: 36,
                 borderRadius: 1.5,
@@ -625,26 +710,7 @@ const Users = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < users.length}
-                    checked={users.length > 0 && selected.length === users.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
-                        color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || users.length === 0}
-                  />
-                </TableCell>
+                <TableCell sx={{ width: 40 }}></TableCell>
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -685,14 +751,6 @@ const Users = () => {
                 }}>
                   Employee
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -715,16 +773,16 @@ const Users = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading users...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : users.length === 0 ? (
+              ) : paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No users found' : 'No users available'}
@@ -736,154 +794,157 @@ const Users = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => {
-                  const isSelected = selected.includes(user._id);
+                paginatedUsers.map((user) => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedUserForAction?._id === user._id;
                   const avatarColor = getAvatarColor(user.Username);
                   const roleName = user.RoleID?.RoleName || 'Unknown';
                   const roleStyles = getRoleStyles(roleName);
-                  const statusStyles = getStatusStyles(user.Status);
+                  const isExpanded = expandedRow === user._id;
+                  const userPermissions = user.permissions || [];
 
                   return (
-                    <TableRow
-                      key={user._id}
-                      hover
-                      selected={isSelected}
-                      sx={{ 
-                        bgcolor: COLORS.background.white,
-                        '&:hover': {
-                          bgcolor: COLORS.background.hover
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: `${COLORS.primary}10`,
+                    <React.Fragment key={user._id}>
+                      <TableRow
+                        hover
+                        sx={{ 
+                          bgcolor: COLORS.background.white,
                           '&:hover': {
-                            bgcolor: `${COLORS.primary}20`
+                            bgcolor: COLORS.background.hover
+                          },
+                          '& .MuiTableCell-root': {
+                            py: 1.5,
+                            fontSize: '0.75rem',
+                            borderColor: COLORS.border
                           }
-                        },
-                        '& .MuiTableCell-root': {
-                          py: 1.5,
-                          fontSize: '0.75rem',
-                          borderColor: COLORS.border
-                        }
-                      }}
-                    >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(user._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
-                              color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar 
-                            sx={{ 
-                              width: 32, 
-                              height: 32, 
-                              bgcolor: avatarColor,
-                              fontSize: '0.7rem',
-                              fontWeight: 600
+                        }}
+                      >
+                        <TableCell sx={{ width: 40 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleExpandRow(user._id)}
+                            sx={{
+                              color: COLORS.text.secondary,
+                              '&:hover': {
+                                bgcolor: `${COLORS.primary}20`
+                              }
                             }}
                           >
-                            {getAvatarInitials(user.Username, user.EmployeeID)}
-                          </Avatar>
-                          <Box>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
-                              {user.EmployeeID ? getEmployeeName(user.EmployeeID) : user.Username}
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                              ID: {user._id.slice(-6)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                          {user.Username}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Created: {formatDate(user.CreatedAt)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {user.Email}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {user.EmployeeID?.Email || 'No employee email'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={roleName}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: roleStyles.bg,
-                            color: roleStyles.text,
-                            border: `1px solid ${roleStyles.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {user.EmployeeID ? getEmployeeID(user.EmployeeID) : 'No Employee'}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {user.EmployeeID ? `${user.EmployeeID.FirstName || ''} ${user.EmployeeID.LastName || ''}`.trim() : '-'}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell>
-                        <Chip
-                          label={getStatusText(user.Status)}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: statusStyles.bg,
-                            color: statusStyles.text,
-                            border: `1px solid ${statusStyles.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            }
-                          }}
-                        />
-                      </TableCell> */}
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {formatDate(user.LastLogin)}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Attempts: {user.LoginAttempts || 0}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
-                          user={user}
-                          onView={openViewUserModal}
-                          onEdit={openEditUserModal}
-                          onDelete={openDeleteUserDialog}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, user)}
-                        />
-                      </TableCell>
-                    </TableRow>
+                            {isExpanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
+                          </IconButton>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Avatar 
+                              sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                bgcolor: avatarColor,
+                                fontSize: '0.7rem',
+                                fontWeight: 600
+                              }}
+                            >
+                              {getAvatarInitials(user.Username, user.EmployeeID)}
+                            </Avatar>
+                            <Box>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                                {user.EmployeeID ? getEmployeeName(user.EmployeeID) : user.Username}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                ID: {user._id.slice(-6)}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                            {user.Username}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            Created: {formatDate(user.CreatedAt)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                            {user.Email}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            {user.EmployeeID?.Email || 'No employee email'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={roleName}
+                            size="small"
+                            sx={{ 
+                              fontSize: '0.65rem',
+                              fontWeight: 500,
+                              height: 20,
+                              bgcolor: roleStyles.bg,
+                              color: roleStyles.text,
+                              border: `1px solid ${roleStyles.border}`,
+                              '& .MuiChip-label': {
+                                px: 1
+                              }
+                            }}
+                          />
+                          {user.RoleID?.isSuperAdmin && (
+                            <Chip
+                              label="Super Admin"
+                              size="small"
+                              sx={{
+                                fontSize: '0.6rem',
+                                height: 18,
+                                mt: 0.5,
+                                bgcolor: COLORS.chips.active,
+                                color: COLORS.primaryDark
+                              }}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                            {user.EmployeeID ? getEmployeeID(user.EmployeeID) : 'No Employee'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            {user.EmployeeID ? `${user.EmployeeID.FirstName || ''} ${user.EmployeeID.LastName || ''}`.trim() : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                            {formatDate(user.LastLogin)}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            Attempts: {user.LoginAttempts || 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center" sx={{ width: 60 }}>
+                          <ActionMenu 
+                            user={user}
+                            onView={openViewUserModal}
+                            onEdit={openEditUserModal}
+                            onDelete={openDeleteUserDialog}
+                            anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+                            onClose={handleActionMenuClose}
+                            onOpen={(e) => handleActionMenuOpen(e, user)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Expanded Row with Permissions Matrix */}
+                      <TableRow>
+                        <TableCell colSpan={8} sx={{ p: 0 }}>
+                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                            <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderTop: `1px solid ${COLORS.border}` }}>
+                              <Typography variant="subtitle2" sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, mb: 2 }}>
+                                User Permissions Matrix
+                              </Typography>
+                              <PermissionsMatrix permissions={userPermissions} />
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   );
                 })
               )}
@@ -917,12 +978,6 @@ const Users = () => {
       </Paper>
 
       {/* Modal Components */}
-      <AddUser 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddUser}
-      />
-
       {selectedUser && (
         <>
           <EditUser 

@@ -16,17 +16,17 @@ import {
   Typography,
   Snackbar,
   TablePagination,
-  Checkbox,
   Stack,
   Chip,
-  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Collapse,
+  Checkbox
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -37,18 +37,20 @@ import {
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  KeyboardArrowRight as KeyboardArrowRightIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
 
-// Import the separate modal components
-import AddRoles from './AddRoles';
+// Import the separate modal components (keeping for edit/view/delete)
 import EditRoles from './EditRoles';
 import ViewRoles from './ViewRoles';
 import DeleteRoles from './DeleteRoles';
 
-// Color constants - Single color #063C3F throughout (matching Users component)
+// Color constants
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -69,10 +71,190 @@ const COLORS = {
   border: '#E3E8EF',
   chips: {
     active: '#9FE2BF',
-    inactive: '#F1F5F9',
-    suspended: '#FEF3C7',
-    locked: '#FEE2E2'
+    inactive: '#F1F5F9'
   }
+};
+
+// All available actions from your permission catalog
+const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
+
+// All pages/modules from your permission catalog
+const ALL_PAGES = [
+  // Dashboard
+  { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
+  
+  // Administration
+  { module: 'USERS', page: 'Users', category: 'Administration' },
+  { module: 'ROLES', page: 'Roles', category: 'Administration' },
+  
+  // Quotation Master
+  { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
+  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
+  { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
+  { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
+  { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
+  { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
+  { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
+  { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
+  { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
+  
+  // HR Master
+  { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
+  { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
+  { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
+  { module: 'LEAVE_TYPE_MASTER', page: 'Leave Policies', category: 'HR Master' },
+  { module: 'ACCIDENT_MASTER', page: 'Accident Reporting', category: 'HR Master' },
+  { module: 'REQUISITION_MASTER', page: 'Hiring Requests', category: 'HR Master' },
+  { module: 'JOB_OPENING_MASTER', page: 'Career Opportunities', category: 'HR Master' },
+  { module: 'CANDIDATE_MASTER', page: 'Candidate Master', category: 'HR Master' },
+  { module: 'INTERVIEW_MASTER', page: 'Interview Scheduling', category: 'HR Master' },
+  { module: 'SELECTED_CANDIDATES_MASTER', page: 'Selected Candidate', category: 'HR Master' },
+  { module: 'SALARY_MASTER', page: 'Salary Master', category: 'HR Master' },
+  { module: 'PIECE_RATE_MASTER', page: 'Piece Rate Master', category: 'HR Master' },
+  { module: 'REGULARIZATION_MASTER', page: 'Attendance Regularization', category: 'HR Master' },
+  { module: 'EMPLOYEE_LEAVE_MASTER', page: 'Employee Leave Records', category: 'HR Master' },
+  { module: 'ADMIN_LEAVE_MASTER', page: 'Leave Administration', category: 'HR Master' },
+  { module: 'PRODUCTION_MASTER', page: 'Production Master', category: 'HR Master' },
+  { module: 'TERMINATION_MASTER', page: 'Termination Master', category: 'HR Master' },
+  { module: 'EMPLOYEE_BEHAVIOR_MASTER', page: 'Behavior Monitoring', category: 'HR Master' },
+  { module: 'MEDICLAIM_MASTER', page: 'Mediclaim Master', category: 'HR Master' },
+  { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' }
+];
+
+// Permissions Matrix Component - Displayed in expanded row
+const PermissionsMatrix = ({ permissions = [] }) => {
+  // Create a map for quick lookup of permissions
+  const permissionMap = React.useMemo(() => {
+    const map = {};
+    permissions.forEach(perm => {
+      const key = `${perm.module}_${perm.action}`;
+      map[key] = true;
+    });
+    return map;
+  }, [permissions]);
+
+  const isPermissionChecked = (module, action) => {
+    const key = `${module}_${action}`;
+    return !!permissionMap[key];
+  };
+
+  // Group pages by category
+  const groupedPages = ALL_PAGES.reduce((acc, page) => {
+    if (!acc[page.category]) {
+      acc[page.category] = [];
+    }
+    acc[page.category].push(page);
+    return acc;
+  }, {});
+
+  return (
+    <Box sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ minWidth: 800 }}>
+        <TableHead>
+          <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+            <TableCell sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem',
+              letterSpacing: '0.5px',
+              color: COLORS.text.light,
+              position: 'sticky',
+              left: 0,
+              bgcolor: COLORS.background.tableHeader,
+              zIndex: 1,
+              minWidth: 200
+            }}>
+              Pages / Modules
+            </TableCell>
+            {ALL_ACTIONS.map((action) => (
+              <TableCell 
+                key={action} 
+                align="center"
+                sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light,
+                  minWidth: 70
+                }}
+              >
+                {action}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {Object.entries(groupedPages).map(([category, pages]) => (
+            <React.Fragment key={category}>
+              {/* Category Header Row */}
+              <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
+                <TableCell 
+                  colSpan={ALL_ACTIONS.length + 1}
+                  sx={{ 
+                    fontWeight: 600, 
+                    fontSize: '0.7rem', 
+                    color: COLORS.primary,
+                    py: 1,
+                    borderBottom: `1px solid ${COLORS.border}`
+                  }}
+                >
+                  {category}
+                </TableCell>
+              </TableRow>
+              
+              {/* Pages Rows */}
+              {pages.map((page) => (
+                <TableRow key={page.module} hover>
+                  <TableCell 
+                    sx={{ 
+                      fontSize: '0.75rem', 
+                      color: COLORS.text.primary,
+                      position: 'sticky',
+                      left: 0,
+                      bgcolor: COLORS.background.white,
+                      zIndex: 1,
+                      borderRight: `1px solid ${COLORS.border}`,
+                      py: 1.5
+                    }}
+                  >
+                    <Box>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        {page.page}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        {page.module}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  {ALL_ACTIONS.map((action) => {
+                    const isChecked = isPermissionChecked(page.module, action);
+                    return (
+                      <TableCell key={action} align="center" sx={{ p: 1 }}>
+                        <Checkbox
+                          checked={isChecked}
+                          disabled
+                          size="small"
+                          sx={{
+                            color: COLORS.primary,
+                            '&.Mui-checked': {
+                              color: COLORS.primary,
+                            },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: '1rem'
+                            }
+                          }}
+                        />
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </React.Fragment>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
 };
 
 // Action Menu Component
@@ -163,27 +345,25 @@ const ActionMenu = ({ role, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
 };
 
 const Roles = () => {
+  const navigate = useNavigate();
+  
   // State for data
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [expandedRow, setExpandedRow] = useState(null);
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  
-  // Selection state
-  const [selected, setSelected] = useState([]);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [filteredRoles, setFilteredRoles] = useState([]);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedRoleForAction, setSelectedRoleForAction] = useState(null);
   
-  // Modal state
-  const [openAddModal, setOpenAddModal] = useState(false);
+  // Modal state (only for edit/view/delete)
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -198,42 +378,45 @@ const Roles = () => {
     severity: 'success'
   });
 
-  // Debounce search to avoid too many API calls
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch roles from API with pagination
+  // Filter roles based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredRoles(roles);
+    } else {
+      const filtered = roles.filter(role => 
+        role.RoleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        role.Description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredRoles(filtered);
+    }
+    setPage(0);
+  }, [roles, searchTerm]);
+
+  // Fetch roles from API
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Build query parameters
-      const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
-        limit: rowsPerPage
-      });
-      
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
-      
-      const response = await axios.get(`${BASE_URL}/api/roles?${params.toString()}`, {
+      const response = await axios.get(`${BASE_URL}/api/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.data.success) {
-        setRoles(response.data.data || []);
-        setTotalItems(response.data.pagination.totalItems);
-        setTotalPages(response.data.pagination.totalPages);
+        const rolesData = response.data.data || response.data.roles || [];
+        setRoles(rolesData);
+        setFilteredRoles(rolesData);
       } else {
         showNotification('Failed to load roles', 'error');
       }
@@ -243,81 +426,44 @@ const Roles = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, []);
 
-  // Fetch roles when dependencies change
   useEffect(() => {
     fetchRoles();
   }, [fetchRoles]);
 
-  // Handle refresh
   const handleRefresh = () => {
     fetchRoles();
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelected(roles.map(role => role._id));
-    } else {
-      setSelected([]);
-    }
-  };
-  
-  // Handle single selection
-  const handleSelect = (id) => {
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [];
-    
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, id);
-    } else {
-      newSelected = selected.filter(item => item !== id);
-    }
-    
-    setSelected(newSelected);
-  };
-  
-  // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setExpandedRow(null);
   };
   
-  // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setExpandedRow(null);
   };
   
-  // Handle add role
-  const handleAddRole = (newRole) => {
-    fetchRoles(); // Refresh the list
-    showNotification('Role added successfully!', 'success');
+  const handleAddRole = () => {
+    // Navigate to add role page instead of opening modal
+    navigate('/roles/add');
   };
   
-  // Handle edit role
   const handleEditRole = (updatedRole) => {
-    fetchRoles(); // Refresh the list
+    fetchRoles();
     showNotification('Role updated successfully!', 'success');
   };
   
-  // Handle delete role
   const handleDeleteRole = (roleId) => {
-    fetchRoles(); // Refresh the list
-    setSelected(selected.filter(id => id !== roleId));
+    fetchRoles();
     showNotification('Role deleted successfully!', 'success');
   };
   
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    showNotification('Bulk delete requires API implementation', 'warning');
-  };
-  
-  // Action menu handlers
   const handleActionMenuOpen = (event, role) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedRoleForAction(role);
@@ -328,28 +474,24 @@ const Roles = () => {
     setSelectedRoleForAction(null);
   };
 
-  // Open edit modal
   const openEditRoleModal = (role) => {
     setSelectedRole(role);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
-  // Open view modal
   const openViewRoleModal = (role) => {
     setSelectedRole(role);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
-  // Open delete confirmation
   const openDeleteRoleDialog = (role) => {
     setSelectedRole(role);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
   
-  // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -358,7 +500,6 @@ const Roles = () => {
     });
   };
   
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -368,25 +509,33 @@ const Roles = () => {
     });
   };
   
-  // Get status chip styles
   const getStatusChip = (isActive) => {
     if (isActive) {
       return {
         label: 'Active',
         bg: COLORS.chips.active,
         text: COLORS.primaryDark,
-        border: '#86efac',
         icon: <CheckCircleIcon sx={{ fontSize: '0.75rem', color: COLORS.primaryDark }} />
       };
-    } else {
-      return {
-        label: 'Inactive',
-        bg: COLORS.chips.inactive,
-        text: COLORS.text.secondary,
-        border: COLORS.border,
-        icon: <CancelIcon sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }} />
-      };
     }
+    return {
+      label: 'Inactive',
+      bg: COLORS.chips.inactive,
+      text: COLORS.text.secondary,
+      icon: <CancelIcon sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }} />
+    };
+  };
+
+  const getPaginatedData = () => {
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filteredRoles.slice(startIndex, endIndex);
+  };
+
+  const paginatedRoles = getPaginatedData();
+
+  const handleExpandRow = (roleId) => {
+    setExpandedRow(expandedRow === roleId ? null : roleId);
   };
 
   return (
@@ -459,7 +608,7 @@ const Roles = () => {
               }}
               disabled={loading}
             />
-            <Tooltip title="Refresh data">
+            {/* <Tooltip title="Refresh data">
               <IconButton 
                 onClick={handleRefresh}
                 disabled={loading}
@@ -472,39 +621,15 @@ const Roles = () => {
               >
                 <RefreshIcon fontSize="small" />
               </IconButton>
-            </Tooltip>
+            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                onClick={handleBulkDelete}
-                sx={{ 
-                  height: 36,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  borderColor: '#fee2e2',
-                  color: '#991b1b',
-                  '&:hover': {
-                    borderColor: '#fecaca',
-                    bgcolor: '#fee2e2'
-                  }
-                }}
-                disabled={loading}
-              >
-                Delete ({selected.length})
-              </Button>
-            )}
             <Button
               variant="contained"
               startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
+              onClick={handleAddRole}
               sx={{
                 height: 36,
                 borderRadius: 1.5,
@@ -541,85 +666,34 @@ const Roles = () => {
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
                   color: COLORS.text.light,
-                  py: 1.5
+                  py: 1.5,
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px'
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < roles.length}
-                    checked={roles.length > 0 && selected.length === roles.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
-                        color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || roles.length === 0}
-                  />
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Role Name
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Description
-                </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Created Date
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  width: 60,
-                  color: COLORS.text.light
-                }} align="center">
-                  Actions
-                </TableCell>
+                <TableCell sx={{ width: 40 }}></TableCell>
+                <TableCell>Role Name</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Permissions Count</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Created Date</TableCell>
+                <TableCell align="center" sx={{ width: 60 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading roles...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : roles.length === 0 ? (
+              ) : paginatedRoles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No roles found' : 'No roles available'}
@@ -631,102 +705,128 @@ const Roles = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                roles.map((role, index) => {
-                  const isSelected = selected.includes(role._id);
+                paginatedRoles.map((role) => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedRoleForAction?._id === role._id;
                   const statusChip = getStatusChip(role.IsActive);
+                  const isExpanded = expandedRow === role._id;
 
                   return (
-                    <TableRow
-                      key={role._id}
-                      hover
-                      selected={isSelected}
-                      sx={{ 
-                        bgcolor: COLORS.background.white,
-                        '&:hover': {
-                          bgcolor: COLORS.background.hover
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: `${COLORS.primary}10`,
+                    <React.Fragment key={role._id}>
+                      <TableRow
+                        hover
+                        sx={{ 
+                          bgcolor: COLORS.background.white,
                           '&:hover': {
-                            bgcolor: `${COLORS.primary}20`
+                            bgcolor: COLORS.background.hover
+                          },
+                          '& .MuiTableCell-root': {
+                            py: 1.5,
+                            fontSize: '0.75rem',
+                            borderColor: COLORS.border
                           }
-                        },
-                        '& .MuiTableCell-root': {
-                          py: 1.5,
-                          fontSize: '0.75rem',
-                          borderColor: COLORS.border
-                        }
-                      }}
-                    >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(role._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
-                              color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
-                          {role.RoleName}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          ID: {role._id.slice(-6)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {role.Description || 'No description provided'}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell>
-                        <Chip
-                          icon={statusChip.icon}
-                          label={statusChip.label}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: statusChip.bg,
-                            color: statusChip.text,
-                            border: `1px solid ${statusChip.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            },
-                            '& .MuiChip-icon': {
-                              ml: 0.5,
-                              mr: -0.5
-                            }
-                          }}
-                        />
-                      </TableCell> */}
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {formatDate(role.CreatedAt)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
-                          role={role}
-                          onView={openViewRoleModal}
-                          onEdit={openEditRoleModal}
-                          onDelete={openDeleteRoleDialog}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, role)}
-                        />
-                      </TableCell>
-                    </TableRow>
+                        }}
+                      >
+                        <TableCell sx={{ width: 40 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleExpandRow(role._id)}
+                            sx={{
+                              color: COLORS.text.secondary,
+                              '&:hover': {
+                                bgcolor: `${COLORS.primary}20`
+                              }
+                            }}
+                          >
+                            {isExpanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
+                          </IconButton>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                            {role.RoleName}
+                          </Typography>
+                          {role.isSuperAdmin && (
+                            <Chip
+                              label="Super Admin"
+                              size="small"
+                              sx={{
+                                fontSize: '0.6rem',
+                                height: 18,
+                                mt: 0.5,
+                                bgcolor: COLORS.chips.active,
+                                color: COLORS.primaryDark
+                              }}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                            {role.Description || 'No description provided'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={role.permissionsCount || role.permissions?.length || 0}
+                            size="small"
+                            sx={{ 
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                              height: 22,
+                              minWidth: 32,
+                              bgcolor: COLORS.primaryLight,
+                              color: COLORS.primary
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={statusChip.icon}
+                            label={statusChip.label}
+                            size="small"
+                            sx={{ 
+                              fontSize: '0.65rem',
+                              fontWeight: 500,
+                              height: 22,
+                              bgcolor: statusChip.bg,
+                              color: statusChip.text,
+                              '& .MuiChip-icon': {
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                            {formatDate(role.CreatedAt)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center" sx={{ width: 60 }}>
+                          <ActionMenu 
+                            role={role}
+                            onView={openViewRoleModal}
+                            onEdit={openEditRoleModal}
+                            onDelete={openDeleteRoleDialog}
+                            anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+                            onClose={handleActionMenuClose}
+                            onOpen={(e) => handleActionMenuOpen(e, role)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Expanded Row with Permissions Matrix */}
+                      <TableRow>
+                        <TableCell colSpan={7} sx={{ p: 0 }}>
+                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                            <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderTop: `1px solid ${COLORS.border}` }}>
+                              <Typography variant="subtitle2" sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, mb: 2 }}>
+                                Permissions Matrix
+                              </Typography>
+                              <PermissionsMatrix permissions={role.permissions || []} />
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   );
                 })
               )}
@@ -738,7 +838,7 @@ const Roles = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={totalItems}
+          count={filteredRoles.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -759,13 +859,7 @@ const Roles = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddRoles 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddRole}
-      />
-
+      {/* Modal Components - Only for Edit, View, Delete */}
       {selectedRole && (
         <>
           <EditRoles 

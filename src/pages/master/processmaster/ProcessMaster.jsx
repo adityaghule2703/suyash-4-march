@@ -43,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddProcess from './AddProcess';
@@ -77,8 +78,36 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.PROCESS_MASTER, PAGES.MANUFACTURING_PROCESS, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.PROCESS_MASTER, PAGES.MANUFACTURING_PROCESS, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.PROCESS_MASTER, PAGES.MANUFACTURING_PROCESS, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -110,55 +139,64 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -173,7 +211,7 @@ const ProcessMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -200,11 +238,80 @@ const ProcessMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = useCallback((action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.PROCESS_MASTER,
+      PAGES.MANUFACTURING_PROCESS,
+      action
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Get allowed actions for this page
+  const allowedActions = useCallback(() => {
+    if (isSuperAdmin) {
+      return [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE];
+    }
+    return getAllowedActions(
+      userPermissions,
+      MODULES.PROCESS_MASTER,
+      PAGES.MANUFACTURING_PROCESS
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -218,7 +325,7 @@ const ProcessMaster = () => {
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -248,10 +355,12 @@ const ProcessMaster = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  // Fetch processes when dependencies change
+  // Fetch processes when dependencies change - only if user has permission
   useEffect(() => {
-    fetchProcesses();
-  }, [fetchProcesses]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchProcesses();
+    }
+  }, [fetchProcesses, canViewPage, isSuperAdmin, permissionsLoaded]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -259,8 +368,10 @@ const ProcessMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(processes.map(process => process._id));
     } else {
@@ -268,8 +379,10 @@ const ProcessMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -285,7 +398,7 @@ const ProcessMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -293,11 +406,12 @@ const ProcessMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -333,6 +447,7 @@ const ProcessMaster = () => {
 
   // Open edit modal
   const openEditProcessModal = (process) => {
+    if (!canUpdate) return;
     setSelectedProcess(process);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -340,6 +455,7 @@ const ProcessMaster = () => {
   
   // Open view modal
   const openViewProcessModal = (process) => {
+    if (!canViewPage) return;
     setSelectedProcess(process);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -347,6 +463,7 @@ const ProcessMaster = () => {
   
   // Open delete confirmation
   const openDeleteProcessDialog = (process) => {
+    if (!canDelete) return;
     setSelectedProcess(process);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -481,6 +598,16 @@ const ProcessMaster = () => {
     );
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -551,25 +678,12 @@ const ProcessMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -593,26 +707,30 @@ const ProcessMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Process
-            </Button>
+            
+            {/* Add Process Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Process
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -636,26 +754,29 @@ const ProcessMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < processes.length}
-                    checked={processes.length > 0 && selected.length === processes.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < processes.length}
+                      checked={processes.length > 0 && selected.length === processes.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || processes.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || processes.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -688,30 +809,6 @@ const ProcessMaster = () => {
                 }}>
                   Rate Type
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Created Date
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Last Updated
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -726,7 +823,7 @@ const ProcessMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading processes...
@@ -735,7 +832,7 @@ const ProcessMaster = () => {
                 </TableRow>
               ) : processes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No processes found' : 'No processes available'}
@@ -752,7 +849,6 @@ const ProcessMaster = () => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedProcessForAction?._id === process._id;
                   const avatarColor = getAvatarColor(process.process_name);
-                  const statusStyles = getStatusStyles(process.is_active);
 
                   return (
                     <TableRow
@@ -777,21 +873,24 @@ const ProcessMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(process._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(process._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -841,39 +940,6 @@ const ProcessMaster = () => {
                       <TableCell>
                         {getRateTypeChip(process.rate_type)}
                       </TableCell>
-                      {/* <TableCell>
-                        <Chip
-                          label={getStatusText(process.is_active)}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: statusStyles.bg,
-                            color: statusStyles.text,
-                            border: `1px solid ${statusStyles.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            }
-                          }}
-                        />
-                      </TableCell> */}
-                      {/* <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <CalendarIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                            {formatDate(process.createdAt)}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <UpdateIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                            {formatDate(process.updatedAt)}
-                          </Typography>
-                        </Stack>
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={process}
@@ -883,6 +949,7 @@ const ProcessMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, process)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -918,47 +985,57 @@ const ProcessMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddProcess 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddProcess}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddProcess 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddProcess}
+        />
+      )}
 
       {selectedProcess && (
         <>
-          <EditProcess 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedProcess(null);
-            }}
-            process={selectedProcess}
-            onUpdate={handleEditProcess}
-          />
+          {canUpdate && (
+            <EditProcess 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedProcess(null);
+              }}
+              process={selectedProcess}
+              onUpdate={handleEditProcess}
+            />
+          )}
 
-          <ViewProcess 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedProcess(null);
-            }}
-            process={selectedProcess}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewProcess 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedProcess(null);
+              }}
+              process={selectedProcess}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteProcess 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedProcess(null);
-            }}
-            process={selectedProcess}
-            onDelete={handleDeleteProcess}
-          />
+          {canDelete && (
+            <DeleteProcess 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedProcess(null);
+              }}
+              process={selectedProcess}
+              onDelete={handleDeleteProcess}
+            />
+          )}
         </>
       )}
 

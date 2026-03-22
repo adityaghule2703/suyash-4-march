@@ -32,76 +32,89 @@ const Login = () => {
   }, [navigate]);
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setSuccess('');
+  setLoading(true);
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password.');
-      setLoading(false);
-      return;
-    }
+  if (!email.trim() || !password.trim()) {
+    setError('Please enter both email and password.');
+    setLoading(false);
+    return;
+  }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address.');
-      setLoading(false);
-      return;
-    }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    setError('Please enter a valid email address.');
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const response = await axios.post(`${BASE_URL}/api/auth/login`, {
-        email: email.trim(),
-        password: password.trim()
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      const data = response.data;
-
-      if (data.success && data.data && data.data.token) {
-        localStorage.setItem('token', data.data.token);
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userEmail', data.data.Email);
-        localStorage.setItem('userName', data.data.Username);
-        localStorage.setItem('userRole', data.data.RoleName);
-        localStorage.setItem('userId', data.data._id);
-        localStorage.setItem('userRoleId', data.data.RoleID._id);
-        localStorage.setItem('userData', JSON.stringify(data.data));
-
-        if (response.data.employee?._id) {
-          localStorage.setItem("employeeId", response.data.employee._id);
-        }
-
-        setSuccess('Login successful! Redirecting...');
-
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-
-      } else {
-        setError(data.message || 'Invalid response from server. Please try again.');
+  try {
+    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
+      email: email.trim(),
+      password: password.trim()
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
       }
-    } catch (err) {
-      console.error('Login error:', err);
+    });
 
-      if (err.response) {
-        const errorMessage = err.response.data?.message ||
-          err.response.data?.error ||
-          'Login failed. Please check your credentials and try again.';
-        setError(errorMessage);
-      } else if (err.request) {
-        setError('No response from server. Please check your network connection.');
-      } else {
-        setError(err.message || 'Login failed. Please try again.');
+    const data = response.data;
+
+    // Updated to match new response structure
+    if (data.success && data.token && data.user) {
+      // Store token and refresh token
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('isLoggedIn', 'true');
+      
+      // Store user data
+      const user = data.user;
+      localStorage.setItem('userEmail', user.Email);
+      localStorage.setItem('userName', user.Username);
+      localStorage.setItem('userRole', user.role.RoleName);
+      localStorage.setItem('userId', user._id);
+      localStorage.setItem('userRoleId', user.role._id);
+      localStorage.setItem('isSuperAdmin', user.isSuperAdmin);
+      localStorage.setItem('userData', JSON.stringify(user));
+      
+      // Store permissions if needed
+      if (user.permissions) {
+        localStorage.setItem('userPermissions', JSON.stringify(user.permissions));
       }
-    } finally {
-      setLoading(false);
+      
+      // Store employee ID if exists (not present in this response but keeping for compatibility)
+      if (user.EmployeeID) {
+        localStorage.setItem("employeeId", user.EmployeeID);
+      }
+
+      setSuccess('Login successful! Redirecting...');
+
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
+
+    } else {
+      setError(data.message || 'Invalid response from server. Please try again.');
     }
-  };
+  } catch (err) {
+    console.error('Login error:', err);
+
+    if (err.response) {
+      const errorMessage = err.response.data?.message ||
+        err.response.data?.error ||
+        'Login failed. Please check your credentials and try again.';
+      setError(errorMessage);
+    } else if (err.request) {
+      setError('No response from server. Please check your network connection.');
+    } else {
+      setError(err.message || 'Login failed. Please try again.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !loading) {
