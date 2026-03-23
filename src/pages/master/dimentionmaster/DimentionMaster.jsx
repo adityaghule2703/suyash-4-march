@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddDimensions from './AddDimensions';
@@ -78,8 +79,36 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.DIMENSION_MASTER, PAGES.PRODUCT_SPECIFICATIONS, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.DIMENSION_MASTER, PAGES.PRODUCT_SPECIFICATIONS, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.DIMENSION_MASTER, PAGES.PRODUCT_SPECIFICATIONS, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -111,55 +140,64 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -174,7 +212,7 @@ const DimensionMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -210,11 +248,80 @@ const DimensionMaster = () => {
     count: 0
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = useCallback((action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.DIMENSION_MASTER,
+      PAGES.PRODUCT_SPECIFICATIONS,
+      action
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Get allowed actions for this page
+  const allowedActions = useCallback(() => {
+    if (isSuperAdmin) {
+      return [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE];
+    }
+    return getAllowedActions(
+      userPermissions,
+      MODULES.DIMENSION_MASTER,
+      PAGES.PRODUCT_SPECIFICATIONS
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -228,7 +335,7 @@ const DimensionMaster = () => {
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -265,10 +372,12 @@ const DimensionMaster = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  // Fetch dimensions when dependencies change
+  // Fetch dimensions when dependencies change - only if user has permission
   useEffect(() => {
-    fetchDimensions();
-  }, [fetchDimensions]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDimensions();
+    }
+  }, [fetchDimensions, canViewPage, isSuperAdmin, permissionsLoaded]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -276,8 +385,10 @@ const DimensionMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(dimensions.map(dimension => dimension._id));
     } else {
@@ -285,8 +396,10 @@ const DimensionMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -302,7 +415,7 @@ const DimensionMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -310,11 +423,12 @@ const DimensionMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -350,6 +464,7 @@ const DimensionMaster = () => {
 
   // Open edit modal
   const openEditDimensionModal = (dimension) => {
+    if (!canUpdate) return;
     setSelectedDimension(dimension);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -357,6 +472,7 @@ const DimensionMaster = () => {
   
   // Open view modal
   const openViewDimensionModal = (dimension) => {
+    if (!canViewPage) return;
     setSelectedDimension(dimension);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -364,6 +480,7 @@ const DimensionMaster = () => {
   
   // Open delete confirmation
   const openDeleteDimensionDialog = (dimension) => {
+    if (!canDelete) return;
     setSelectedDimension(dimension);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -422,6 +539,16 @@ const DimensionMaster = () => {
     return weight.toFixed(3);
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -442,8 +569,6 @@ const DimensionMaster = () => {
           Manage and calculate material weights based on dimensions and density
         </Typography>
       </Box>
-
-      
 
       {/* Action Bar */}
       <Paper sx={{ 
@@ -494,12 +619,12 @@ const DimensionMaster = () => {
               }}
               disabled={loading}
             />
-            
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -523,26 +648,30 @@ const DimensionMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Dimension Weight
-            </Button>
+            
+            {/* Add Dimension Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Dimension Weight
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -566,26 +695,29 @@ const DimensionMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < dimensions.length}
-                    checked={dimensions.length > 0 && selected.length === dimensions.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < dimensions.length}
+                      checked={dimensions.length > 0 && selected.length === dimensions.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || dimensions.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || dimensions.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -650,14 +782,6 @@ const DimensionMaster = () => {
                 }} align="center">
                   Weight (kg)
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }} align="center">
-                  Created
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -672,7 +796,7 @@ const DimensionMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading dimension weights...
@@ -681,7 +805,7 @@ const DimensionMaster = () => {
                 </TableRow>
               ) : dimensions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No dimension weights found' : 'No dimension weights available'}
@@ -722,21 +846,24 @@ const DimensionMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(dimension._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(dimension._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -817,16 +944,6 @@ const DimensionMaster = () => {
                           }}
                         />
                       </TableCell>
-                      {/* <TableCell align="center">
-                        <Tooltip title={formatDate(dimension.createdAt || dimension.CreatedAt)}>
-                          <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
-                            <CalendarIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                              {formatDate(dimension.createdAt || dimension.CreatedAt)}
-                            </Typography>
-                          </Stack>
-                        </Tooltip>
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={dimension}
@@ -836,6 +953,7 @@ const DimensionMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, dimension)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -871,47 +989,57 @@ const DimensionMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddDimensions 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddDimension}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddDimensions 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddDimension}
+        />
+      )}
 
       {selectedDimension && (
         <>
-          <EditDimensions 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedDimension(null);
-            }}
-            dimension={selectedDimension}
-            onUpdate={handleEditDimension}
-          />
+          {canUpdate && (
+            <EditDimensions 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedDimension(null);
+              }}
+              dimension={selectedDimension}
+              onUpdate={handleEditDimension}
+            />
+          )}
 
-          <ViewDimensions 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedDimension(null);
-            }}
-            dimension={selectedDimension}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewDimensions 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedDimension(null);
+              }}
+              dimension={selectedDimension}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteDimensions 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedDimension(null);
-            }}
-            dimension={selectedDimension}
-            onDelete={handleDeleteDimension}
-          />
+          {canDelete && (
+            <DeleteDimensions 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedDimension(null);
+              }}
+              dimension={selectedDimension}
+              onDelete={handleDeleteDimension}
+            />
+          )}
         </>
       )}
 

@@ -18,28 +18,27 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
+  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from "../../../utils/modulePermissions";
 
 // Import modal components
 import AddDepartments from "./AddDepartments";
@@ -47,26 +46,63 @@ import EditDepartments from "./EditDepartments";
 import ViewDepartments from "./ViewDepartments";
 import DeleteDepartments from "./DeleteDepartments";
 
-// Color constants - EXACT SAME as header gradient
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)";
-const STRIPE_COLOR_ODD = "#FFFFFF";
-const STRIPE_COLOR_EVEN = "#f8fafc"; // slate-50
-const HOVER_COLOR = "#f1f5f9"; // slate-100
-const PRIMARY_BLUE = "#00B4D8";
-const TEXT_COLOR_HEADER = "#FFFFFF";
-const TEXT_COLOR_MAIN = "#0f172a"; // slate-900
+// Color constants - Single color #063C3F throughout (matching CompanyMaster)
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
-// Action Menu Component
-const ActionMenu = ({
-  department,
-  onView,
-  onEdit,
-  onDelete,
-  anchorEl,
-  onClose,
-  onOpen,
-}) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ department, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.DEPARTMENT_MASTER, PAGES.DEPARTMENT_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.DEPARTMENT_MASTER, PAGES.DEPARTMENT_MASTER, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.DEPARTMENT_MASTER, PAGES.DEPARTMENT_MASTER, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -74,10 +110,10 @@ const ActionMenu = ({
           size="small"
           onClick={onOpen}
           sx={{
-            color: "#64748b", // slate-500
-            "&:hover": {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1),
-            },
+            color: COLORS.text.secondary,
+            '&:hover': {
+              bgcolor: `${COLORS.primary}20`
+            }
           }}
         >
           <MoreVertIcon fontSize="small" />
@@ -93,59 +129,69 @@ const ActionMenu = ({
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: "1px solid #e2e8f0",
-          },
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }
         }}
       >
-        <MenuItem
-          onClick={() => {
-            onView(department);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onEdit(department);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: "#10B981", minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem
-          onClick={() => {
-            onDelete(department);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: "#EF4444", minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(department);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(department);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(department);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -156,155 +202,279 @@ const DepartmentMaster = () => {
   const [departments, setDepartments] = useState([]);
   const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
-
+  
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-  const [selectedDepartmentForAction, setSelectedDepartmentForAction] =
-    useState(null);
-
+  const [selectedDepartmentForAction, setSelectedDepartmentForAction] = useState(null);
+  
   // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-
+  
   // Selected department
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-
+  
   // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: "",
-    severity: "success",
+    message: '',
+    severity: 'success'
   });
 
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: "asc",
-  });
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Fetch departments from API
+  // Fetch user permissions
   useEffect(() => {
-    fetchDepartments();
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
   }, []);
 
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.DEPARTMENT_MASTER,
+      PAGES.DEPARTMENT_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch departments from API
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/departments`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.data.success) {
-        setDepartments(response.data.data || []);
-        setFilteredDepartments(response.data.data || []);
+        // Ensure each department has all required fields with consistent naming
+        const formattedData = (response.data.data || []).map(dept => ({
+          _id: dept._id || dept.id,
+          DepartmentName: dept.DepartmentName || dept.departmentName || dept.name || '',
+          Description: dept.Description || dept.description || '',
+          CreatedAt: dept.CreatedAt || dept.createdAt || dept.created_at || new Date().toISOString(),
+          UpdatedAt: dept.UpdatedAt || dept.updatedAt || dept.updated_at || new Date().toISOString()
+        }));
+        
+        setDepartments(formattedData);
+        setFilteredDepartments(formattedData);
       } else {
-        showNotification("Failed to load departments", "error");
+        showNotification('Failed to load departments', 'error');
       }
     } catch (err) {
-      console.error("Error fetching departments:", err);
-      showNotification(
-        "Failed to load departments. Please try again.",
-        "error",
-      );
+      console.error('Error fetching departments:', err);
+      showNotification('Failed to load departments. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
-
-    const filtered = departments.filter(
-      (department) =>
-        department.DepartmentName.toLowerCase().includes(value) ||
-        (department.Description &&
-          department.Description.toLowerCase().includes(value)),
+  // Fetch departments when permissions are loaded and user has view permission
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDepartments();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
+  
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchDepartments();
+    showNotification('Data refreshed', 'success');
+  };
+  
+  // Handle search (client-side filtering)
+  const handleSearch = () => {
+    if (!searchTerm) {
+      setFilteredDepartments(departments);
+      return;
+    }
+    
+    const value = searchTerm.toLowerCase();
+    const filtered = departments.filter(department =>
+      department.DepartmentName?.toLowerCase().includes(value) ||
+      (department.Description && department.Description.toLowerCase().includes(value))
     );
-
+    
     setFilteredDepartments(filtered);
-    setPage(0);
   };
 
-  // Handle select all
+  // Apply search when searchTerm changes
+  useEffect(() => {
+    handleSearch();
+  }, [searchTerm, departments]);
+  
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
-      setSelected(filteredDepartments.map((department) => department._id));
+      setSelected(filteredDepartments.map(department => department._id));
     } else {
       setSelected([]);
     }
   };
-
-  // Handle single selection
+  
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-
+    
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
-      newSelected = selected.filter((item) => item !== id);
+      newSelected = selected.filter(item => item !== id);
     }
-
+    
     setSelected(newSelected);
   };
-
+  
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]);
   };
-
+  
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setSelected([]);
   };
-
+  
   // Handle add department
   const handleAddDepartment = (newDepartment) => {
-    setDepartments([...departments, newDepartment]);
-    setFilteredDepartments([...filteredDepartments, newDepartment]);
+    console.log("NEW:", newDepartment);
+
+    let departmentData = newDepartment;
+
+    // Normalize API response
+    if (newDepartment.data) departmentData = newDepartment.data;
+    if (newDepartment.success && newDepartment.department) {
+      departmentData = newDepartment.department;
+    }
+
+    const formattedDepartment = {
+      _id: departmentData._id || Date.now().toString(),
+      DepartmentName:
+        departmentData.DepartmentName ||
+        departmentData.departmentName ||
+        departmentData.name ||
+        "",
+      Description:
+        departmentData.Description ||
+        departmentData.description ||
+        "",
+      CreatedAt: new Date().toISOString(),
+      UpdatedAt: new Date().toISOString(),
+    };
+
+    // Use functional update
+    setDepartments((prev) => {
+      const updated = [formattedDepartment, ...prev];
+      setFilteredDepartments(updated);
+      return updated;
+    });
+
+    // Reset search properly
+    setSearchInput("");
+    setSearchTerm("");
+
+    // Go to first page
+    setPage(0);
+
     showNotification("Department added successfully!", "success");
   };
-
+  
   // Handle edit department
   const handleEditDepartment = (updatedDepartment) => {
-    const updatedDepartments = departments.map((department) =>
-      department._id === updatedDepartment._id ? updatedDepartment : department,
+    const updatedDepartments = departments.map(department =>
+      department._id === updatedDepartment._id ? updatedDepartment : department
     );
-
+    
     setDepartments(updatedDepartments);
     setFilteredDepartments(updatedDepartments);
-    showNotification("Department updated successfully!", "success");
+    showNotification('Department updated successfully!', 'success');
   };
-
+  
   // Handle delete department
   const handleDeleteDepartment = (departmentId) => {
-    const updatedDepartments = departments.filter(
-      (department) => department._id !== departmentId,
-    );
+    const updatedDepartments = departments.filter(department => department._id !== departmentId);
     setDepartments(updatedDepartments);
     setFilteredDepartments(updatedDepartments);
-    setSelected(selected.filter((id) => id !== departmentId));
-    showNotification("Department deleted successfully!", "success");
+    setSelected(selected.filter(id => id !== departmentId));
+    showNotification('Department deleted successfully!', 'success');
   };
-
+  
   // Handle bulk delete
   const handleBulkDelete = () => {
-    showNotification("Bulk delete requires API implementation", "warning");
+    if (!canDelete) return;
+    showNotification('Bulk delete requires API implementation', 'warning');
   };
-
+  
   // Action menu handlers
   const handleActionMenuOpen = (event, department) => {
     setActionMenuAnchor(event.currentTarget);
@@ -315,329 +485,306 @@ const DepartmentMaster = () => {
     setActionMenuAnchor(null);
     setSelectedDepartmentForAction(null);
   };
-
+  
   // Open edit modal
   const openEditDepartmentModal = (department) => {
+    if (!canUpdate) return;
     setSelectedDepartment(department);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-
+  
   // Open view modal
   const openViewDepartmentModal = (department) => {
+    if (!canViewPage) return;
     setSelectedDepartment(department);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-
+  
   // Open delete confirmation
   const openDeleteDepartmentDialog = (department) => {
+    if (!canDelete) return;
     setSelectedDepartment(department);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-
+  
   // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
       message,
-      severity,
+      severity
     });
   };
-
+  
   // Format date
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const handleSort = (key) => {
-    let direction = "asc";
-
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
+    if (!dateString) return '-';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return '-';
     }
-
-    const sortedData = [...filteredDepartments].sort((a, b) => {
-      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
-      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    setFilteredDepartments(sortedData);
-    setSortConfig({ key, direction });
   };
-
+  
+  // Get department initials for avatar
+  const getDepartmentInitials = (departmentName) => {
+    if (!departmentName) return 'D';
+    
+    const words = departmentName.split(' ');
+    if (words.length >= 2) {
+      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+    }
+    
+    return departmentName.substring(0, 2).toUpperCase();
+  };
+  
+  // Get avatar color based on department name
+  const getAvatarColor = (departmentName) => {
+    if (!departmentName) return COLORS.primary;
+    
+    const colors = [
+      COLORS.primary,
+      COLORS.primaryDark,
+      '#074346',
+      '#0D696C',
+      '#128C7E'
+    ];
+    
+    const charCode = departmentName.charCodeAt(0) || 0;
+    return colors[charCode % colors.length];
+  };
+  
   // Paginated departments
   const paginatedDepartments = filteredDepartments.slice(
     page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   );
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="h5"
-          component="h1"
-          fontWeight="600"
-          sx={{
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            display: "inline-block",
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
+        <Typography 
+          variant="h5" 
+          component="h1" 
+          sx={{ 
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Department Master
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage and organize company departments
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+          Manage and organize department information and details
         </Typography>
       </Box>
 
       {/* Action Bar */}
-      <Paper
-        sx={{
-          p: 2,
-          mb: 3,
-          borderRadius: 2,
-          bgcolor: "#FFFFFF",
-          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid #e2e8f0",
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          {/* Search and Filters */}
-          <Stack
-            direction="row"
-            spacing={2}
-            alignItems="center"
-            sx={{ flex: 1 }}
-          >
+      <Paper sx={{ 
+        p: 1.5, 
+        mb: 2.5, 
+        borderRadius: 2,
+        bgcolor: COLORS.background.white,
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: `1px solid ${COLORS.border}`
+      }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by name or description..."
+              placeholder="Search by department name or description..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
-              sx={{
-                width: { xs: "100%", sm: 320 },
-                "& .MuiOutlinedInput-root": {
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              sx={{ 
+                width: { xs: '100%', sm: 360 },
+                '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
-                  "&:hover fieldset": {
-                    borderColor: PRIMARY_BLUE,
+                  fontSize: '0.75rem',
+                  '&:hover fieldset': {
+                    borderColor: COLORS.primary,
                   },
-                },
+                }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#64748B" }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                sx: {
-                  height: 40,
-                  bgcolor: "#f8fafc",
-                  "& input": {
-                    padding: "8px 12px",
-                    fontSize: "0.875rem",
-                  },
-                },
+                sx: { 
+                  height: 36,
+                  bgcolor: COLORS.background.light,
+                  '& input': {
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
+                  }
+                }
               }}
               disabled={loading}
             />
           </Stack>
 
-          {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
-            {selected.length > 0 && (
+          {/* Action Buttons - Conditionally rendered based on permissions */}
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
-                sx={{
-                  height: 40,
+                sx={{ 
+                  height: 36,
                   borderRadius: 1.5,
-                  textTransform: "none",
-                  fontSize: "0.875rem",
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
                   fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 40,
-                borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: "0.875rem",
-                fontWeight: 500,
-                textTransform: "none",
-                "&:hover": {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
-                },
-              }}
-              disabled={loading}
-            >
-              Add Department
-            </Button>
+            
+            {/* Add Department Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Department
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
 
       {/* Departments Table */}
-      <Paper
-        sx={{
-          width: "100%",
-          borderRadius: 2,
-          overflow: "hidden",
-          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid #e2e8f0",
-        }}
-      >
+      <Paper sx={{ 
+        width: '100%', 
+        borderRadius: 2, 
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: `1px solid ${COLORS.border}`
+      }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
-              <TableRow
-                sx={{
-                  background: HEADER_GRADIENT,
-                  "& .MuiTableCell-root": {
-                    borderBottom: "none",
-                    color: TEXT_COLOR_HEADER,
-                  },
-                }}
-              >
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
-                  <Checkbox
-                    indeterminate={
-                      selected.length > 0 &&
-                      selected.length < filteredDepartments.length
-                    }
-                    checked={
-                      filteredDepartments.length > 0 &&
-                      selected.length === filteredDepartments.length
-                    }
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: TEXT_COLOR_HEADER,
-                      "&.Mui-checked": {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      "&.MuiCheckbox-indeterminate": {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      "& .MuiSvgIcon-root": {
-                        fontSize: 20,
-                      },
-                    }}
-                    disabled={loading}
-                  />
+              <TableRow sx={{ 
+                bgcolor: COLORS.background.tableHeader,
+                '& .MuiTableCell-root': {
+                  borderBottom: 'none',
+                  color: COLORS.text.light,
+                  py: 1.5
+                }
+              }}>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredDepartments.length}
+                      checked={filteredDepartments.length > 0 && selected.length === filteredDepartments.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || filteredDepartments.length === 0}
+                    />
+                  </TableCell>
+                )}
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }}>
+                  Department
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    py: 2,
-                    color: TEXT_COLOR_HEADER,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    onClick={() => handleSort("DepartmentName")}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Department Name
-                    <ArrowUpwardIcon sx={{ fontSize: 14 }} />
-                  </Stack>
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }}>
+                  Description
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    py: 2,
-                    color: TEXT_COLOR_HEADER,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    onClick={() => handleSort("Description")}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Description
-                    <ArrowUpwardIcon sx={{ fontSize: 14 }} />
-                  </Stack>
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }}>
+                  Created At
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    py: 2,
-                    color: TEXT_COLOR_HEADER,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    onClick={() => handleSort("CreatedAt")}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Created At
-                    <ArrowUpwardIcon sx={{ fontSize: 14 }} />
-                  </Stack>
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }}>
+                  Last Updated
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    py: 2,
-                    color: TEXT_COLOR_HEADER,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    onClick={() => handleSort("UpdatedAt")}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    Last Update
-                    <ArrowUpwardIcon sx={{ fontSize: 14 }} />
-                  </Stack>
-                </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    py: 2,
-                    width: 100,
-                    color: TEXT_COLOR_HEADER,
-                  }}
-                  align="center"
-                >
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
+                }} align="center">
                   Actions
                 </TableCell>
               </TableRow>
@@ -645,36 +792,22 @@ const DepartmentMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Typography
-                      color="textSecondary"
-                      sx={{ fontStyle: "italic" }}
-                    >
+                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading departments...
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : paginatedDepartments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Typography
-                        variant="body1"
-                        color="#64748B"
-                        fontWeight={500}
-                      >
-                        {searchTerm
-                          ? "No departments found"
-                          : "No departments available"}
+                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+                        {searchTerm ? 'No departments found' : 'No departments available'}
                       </Typography>
-                      <Typography
-                        variant="body2"
-                        color="#94A3B8"
-                        sx={{ mt: 1 }}
-                      >
-                        {searchTerm
-                          ? "Try adjusting your search terms"
-                          : "Add your first department to get started"}
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first department to get started'}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -682,79 +815,98 @@ const DepartmentMaster = () => {
               ) : (
                 paginatedDepartments.map((department, index) => {
                   const isSelected = selected.includes(department._id);
-                  const isOddRow = index % 2 === 0;
-                  const isActionMenuOpen =
-                    Boolean(actionMenuAnchor) &&
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedDepartmentForAction?._id === department._id;
+                  const avatarColor = getAvatarColor(department.DepartmentName);
 
                   return (
                     <TableRow
-                      key={department._id}
+                      key={department._id || index}
                       hover
                       selected={isSelected}
-                      sx={{
-                        bgcolor: isOddRow
-                          ? STRIPE_COLOR_ODD
-                          : STRIPE_COLOR_EVEN,
-                        "&:hover": {
-                          bgcolor: HOVER_COLOR,
+                      sx={{ 
+                        bgcolor: COLORS.background.white,
+                        '&:hover': {
+                          bgcolor: COLORS.background.hover
                         },
-                        "&.Mui-selected": {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
-                          "&:hover": {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12),
-                          },
+                        '&.Mui-selected': {
+                          bgcolor: `${COLORS.primary}10`,
+                          '&:hover': {
+                            bgcolor: `${COLORS.primary}20`
+                          }
                         },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
+                        }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(department._id)}
-                          sx={{
-                            color: PRIMARY_BLUE,
-                            "&.Mui-checked": {
-                              color: PRIMARY_BLUE,
-                            },
-                          }}
-                        />
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(department._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Avatar 
+                            sx={{ 
+                              width: 32, 
+                              height: 32, 
+                              bgcolor: avatarColor,
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            {getDepartmentInitials(department.DepartmentName)}
+                          </Avatar>
+                          <Box>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                              {department.DepartmentName}
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          color={TEXT_COLOR_MAIN}
-                        >
-                          {department.DepartmentName}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          color="#475569"
-                          sx={{
-                            display: "-webkit-box",
+                        <Typography 
+                          sx={{ 
+                            fontSize: '0.75rem', 
+                            color: COLORS.text.secondary,
+                            display: '-webkit-box',
                             WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            overflow: "hidden",
-                            maxWidth: 300,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            maxWidth: 300
                           }}
                         >
-                          {department.Description || "No description"}
+                          {department.Description || 'No description'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {formatDate(department.CreatedAt)}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {formatDate(department.UpdatedAt)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
-                        <ActionMenu
+                      <TableCell align="center" sx={{ width: 60 }}>
+                        <ActionMenu 
                           department={department}
                           onView={openViewDepartmentModal}
                           onEdit={openEditDepartmentModal}
@@ -762,6 +914,7 @@ const DepartmentMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, department)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -774,7 +927,7 @@ const DepartmentMaster = () => {
 
         {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
           count={filteredDepartments.length}
           rowsPerPage={rowsPerPage}
@@ -782,60 +935,72 @@ const DepartmentMaster = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: "1px solid #e2e8f0",
-            "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
-              {
-                fontSize: "0.875rem",
-                color: "#64748B",
-              },
-            "& .MuiTablePagination-actions button": {
-              color: PRIMARY_BLUE,
+            borderTop: `1px solid ${COLORS.border}`,
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
             },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
+            },
+            '& .MuiTablePagination-actions button': {
+              color: COLORS.primary,
+            }
           }}
         />
       </Paper>
 
-      {/* Separate Modal Components */}
-      <AddDepartments
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddDepartment}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddDepartments 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddDepartment}
+        />
+      )}
 
       {selectedDepartment && (
         <>
-          <EditDepartments
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedDepartment(null);
-            }}
-            department={selectedDepartment}
-            onUpdate={handleEditDepartment}
-          />
+          {canUpdate && (
+            <EditDepartments 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedDepartment(null);
+              }}
+              department={selectedDepartment}
+              onUpdate={handleEditDepartment}
+            />
+          )}
 
-          <ViewDepartments
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedDepartment(null);
-            }}
-            department={selectedDepartment}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewDepartments 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedDepartment(null);
+              }}
+              department={selectedDepartment}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteDepartments
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedDepartment(null);
-            }}
-            department={selectedDepartment}
-            onDelete={handleDeleteDepartment}
-          />
+          {canDelete && (
+            <DeleteDepartments 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedDepartment(null);
+              }}
+              department={selectedDepartment}
+              onDelete={handleDeleteDepartment}
+            />
+          )}
         </>
       )}
 
@@ -843,17 +1008,21 @@ const DepartmentMaster = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        <Alert 
+          onClose={() => setSnackbar({...snackbar, open: false})} 
           severity={snackbar.severity}
           variant="filled"
-          sx={{
-            width: "100%",
+          sx={{ 
+            width: '100%',
             borderRadius: 1.5,
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

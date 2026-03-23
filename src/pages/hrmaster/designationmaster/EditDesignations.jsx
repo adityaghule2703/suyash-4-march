@@ -1,351 +1,4 @@
-// import React, { useState, useEffect } from 'react';
-// import {
-//   Dialog,
-//   DialogTitle,
-//   DialogContent,
-//   DialogActions,
-//   Button,
-//   TextField,
-//   Stack,
-//   Alert
-// } from '@mui/material';
-// import { Edit as EditIcon } from '@mui/icons-material';
-// import axios from 'axios';
-// import BASE_URL from '../../../config/Config';
-
-// const HEADER_GRADIENT =
-//   "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
-
-// const EditDesignations = ({ open, onClose, designation, onUpdate }) => {
-//   const [formData, setFormData] = useState({
-//     DesignationName: '',
-//     Level: '',
-//     Description: ''
-//   });
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const [fieldErrors, setFieldErrors] = useState({
-//     DesignationName: '',
-//     Level: '',
-//     Description: ''
-//   });
-
-//   useEffect(() => {
-//     if (designation) {
-//       setFormData({
-//         DesignationName: designation.DesignationName || '',
-//         Level: designation.Level ? designation.Level.toString() : '',
-//         Description: designation.Description || ''
-//       });
-//       // Clear errors when opening with new designation
-//       setError('');
-//       setFieldErrors({
-//         DesignationName: '',
-//         Level: '',
-//         Description: ''
-//       });
-//     }
-//   }, [designation]);
-
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData(prev => ({
-//       ...prev,
-//       [name]: name === 'Level' ? value : value
-//     }));
-//     // Clear field-specific error when user starts typing
-//     if (fieldErrors[name]) {
-//       setFieldErrors(prev => ({
-//         ...prev,
-//         [name]: ''
-//       }));
-//     }
-//     // Clear general error when user makes changes
-//     if (error) {
-//       setError('');
-//     }
-//   };
-
-//   const validateForm = () => {
-//     const newFieldErrors = {};
-//     let isValid = true;
-
-//     if (!formData.DesignationName.trim()) {
-//       newFieldErrors.DesignationName = 'Designation name is required';
-//       isValid = false;
-//     } else if (formData.DesignationName.trim().length < 2) {
-//       newFieldErrors.DesignationName = 'Designation name must be at least 2 characters';
-//       isValid = false;
-//     }
-
-//     if (!formData.Level.trim()) {
-//       newFieldErrors.Level = 'Level is required';
-//       isValid = false;
-//     } else {
-//       const levelNum = parseInt(formData.Level, 10);
-//       if (isNaN(levelNum) || levelNum < 1) {
-//         newFieldErrors.Level = 'Level must be a positive number';
-//         isValid = false;
-//       }
-//     }
-
-//     setFieldErrors(newFieldErrors);
-//     return isValid;
-//   };
-
-//   const handleSubmit = async () => {
-//     // Clear previous errors
-//     setError('');
-//     setFieldErrors({
-//       DesignationName: '',
-//       Level: '',
-//       Description: ''
-//     });
-
-//     // Validate form
-//     if (!validateForm()) {
-//       return;
-//     }
-
-//     setLoading(true);
-
-//     try {
-//       const token = localStorage.getItem('token');
-//       const levelNum = parseInt(formData.Level, 10);
-      
-//       const response = await axios.put(`${BASE_URL}/api/designations/${designation._id}`, {
-//         DesignationName: formData.DesignationName.trim(),
-//         Level: levelNum,
-//         Description: formData.Description.trim() || ''
-//       }, {
-//         headers: {
-//           'Authorization': `Bearer ${token}`,
-//           'Content-Type': 'application/json'
-//         }
-//       });
-
-//       if (response.data.success) {
-//         onUpdate(response.data.data);
-//         onClose();
-//       } else {
-//         // Handle server-side validation errors
-//         setError(response.data.message || 'Failed to update designation');
-//       }
-//     } catch (err) {
-//       console.error('Error updating designation:', err);
-      
-//       // Handle different types of errors
-//       if (err.response) {
-//         // Server responded with error status
-//         const serverError = err.response.data;
-        
-//         // Check if it's a Mongoose validation error
-//         if (serverError.error && serverError.error.name === 'ValidationError') {
-//           // Handle mongoose validation errors
-//           const validationErrors = serverError.error.errors;
-//           const newFieldErrors = {};
-          
-//           Object.keys(validationErrors).forEach(key => {
-//             if (key === 'Level' || key === 'DesignationName' || key === 'Description') {
-//               newFieldErrors[key] = validationErrors[key].message;
-//             }
-//           });
-          
-//           setFieldErrors(newFieldErrors);
-//         } 
-//         // Check for the specific Level maximum error
-//         else if (serverError.message && serverError.message.includes('Level') && 
-//                  serverError.message.includes('maximum allowed value')) {
-//           setFieldErrors(prev => ({
-//             ...prev,
-//             Level: serverError.message
-//           }));
-//         }
-//         // Handle other server messages
-//         else {
-//           setError(serverError.message || serverError.error || 'Failed to update designation');
-//         }
-//       } else if (err.request) {
-//         // Request was made but no response
-//         setError('Network error. Please check your connection and try again.');
-//       } else {
-//         // Something else happened
-//         setError('An unexpected error occurred. Please try again.');
-//       }
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Helper function to get error message for a field
-//   const getFieldError = (fieldName) => {
-//     return fieldErrors[fieldName];
-//   };
-
-//   // Helper function to check if a field has error
-//   const hasFieldError = (fieldName) => {
-//     return !!fieldErrors[fieldName];
-//   };
-
-//   return (
-//     <Dialog 
-//       open={open} 
-//       onClose={onClose} 
-//       maxWidth="sm" 
-//       fullWidth
-//       PaperProps={{
-//         sx: { borderRadius: 2 }
-//       }}
-//     >
-//       <DialogTitle sx={{ 
-//         borderBottom: '1px solid #E0E0E0', 
-//         pb: 2,
-//         backgroundColor: '#F8FAFC'
-//       }}>
-//         <div style={{ 
-//           fontSize: '20px', 
-//           fontWeight: '600', 
-//           color: '#101010',
-//           paddingTop: '8px'
-//         }}>
-//           Edit Designation
-//         </div>
-//       </DialogTitle>
-      
-//       <DialogContent sx={{ pt: 3 }}>
-//         <Stack spacing={3}>
-//           {/* Add padding from top for the first field */}
-//           <div style={{ marginTop: '16px' }}>
-//             <TextField
-//               fullWidth
-//               label="Designation Name"
-//               name="DesignationName"
-//               value={formData.DesignationName}
-//               onChange={handleChange}
-//               required
-//               error={hasFieldError('DesignationName')}
-//               helperText={getFieldError('DesignationName')}
-//               disabled={loading}
-//               size="medium"
-//               variant="outlined"
-//               sx={{
-//                 '& .MuiOutlinedInput-root': {
-//                   borderRadius: 1,
-//                 }
-//               }}
-//             />
-//           </div>
-          
-//           <TextField
-//             fullWidth
-//             label="Level"
-//             name="Level"
-//             value={formData.Level}
-//             onChange={handleChange}
-//             required
-//             type="number"
-//             inputProps={{ 
-//               min: 1,
-//               max: 99,
-//               step: 1
-//             }}
-//             error={hasFieldError('Level')}
-//             helperText={getFieldError('Level') || 'Enter a number (e.g., 1, 2, 3)'}
-//             disabled={loading}
-//             size="medium"
-//             variant="outlined"
-//             sx={{
-//               '& .MuiOutlinedInput-root': {
-//                 borderRadius: 1,
-//               }
-//             }}
-//           />
-          
-//           <TextField
-//             fullWidth
-//             label="Description"
-//             name="Description"
-//             value={formData.Description}
-//             onChange={handleChange}
-//             multiline
-//             rows={4}
-//             error={hasFieldError('Description')}
-//             helperText={getFieldError('Description')}
-//             disabled={loading}
-//             size="medium"
-//             variant="outlined"
-//             sx={{
-//               '& .MuiOutlinedInput-root': {
-//                 borderRadius: 1,
-//               }
-//             }}
-//           />
-          
-//           {/* Display general error message if exists */}
-//           {error && (
-//             <Alert 
-//               severity="error" 
-//               sx={{ 
-//                 borderRadius: 1,
-//                 '& .MuiAlert-icon': {
-//                   alignItems: 'center'
-//                 }
-//               }}
-//               onClose={() => setError('')}
-//             >
-//               {error}
-//             </Alert>
-//           )}
-//         </Stack>
-//       </DialogContent>
-      
-//       <DialogActions sx={{ 
-//         px: 3, 
-//         pb: 3, 
-//         borderTop: '1px solid #E0E0E0', 
-//         pt: 2,
-//         backgroundColor: '#F8FAFC'
-//       }}>
-//         <Button 
-//           onClick={onClose} 
-//           disabled={loading}
-//           sx={{
-//             borderRadius: 1,
-//             px: 3,
-//             py: 1,
-//             textTransform: 'none',
-//             fontWeight: 500
-//           }}
-//         >
-//           Cancel
-//         </Button>
-//         <Button
-//           variant="contained"
-//           onClick={handleSubmit}
-//           disabled={loading}
-//           startIcon={loading ? null : <EditIcon />}
-//           sx={{
-//             borderRadius: 1,
-//             px: 3,
-//             py: 1,
-//             textTransform: 'none',
-//             fontWeight: 500,
-//             backgroundColor: '#1976D2',
-//             '&:hover': {
-//               backgroundColor: '#1565C0'
-//             }
-//           }}
-//         >
-//           {loading ? 'Updating...' : 'Update Designation'}
-//         </Button>
-//       </DialogActions>
-//     </Dialog>
-//   );
-// };
-
-// export default EditDesignations;
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -355,178 +8,123 @@ import {
   TextField,
   Stack,
   Alert,
-  Paper,
-  Typography,
-  IconButton
-} from "@mui/material";
-import { Edit as EditIcon, Close as CloseIcon } from "@mui/icons-material";
-import axios from "axios";
-import BASE_URL from "../../../config/Config";
+  Box,
+  Typography
+} from '@mui/material';
+import { Edit as EditIcon } from '@mui/icons-material';
+import axios from 'axios';
+import BASE_URL from '../../../config/Config';
 
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+// Color constants matching Users component
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 const EditDesignations = ({ open, onClose, designation, onUpdate }) => {
   const [formData, setFormData] = useState({
-    DesignationName: "",
-    Level: "",
-    Description: ""
+    DesignationName: '',
+    Level: '',
+    Description: '',
+    IsActive: true
   });
-
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [fieldErrors, setFieldErrors] = useState({
-    DesignationName: "",
-    Level: "",
-    Description: ""
-  });
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (designation) {
       setFormData({
-        DesignationName: designation.DesignationName || "",
-        Level: designation.Level ? designation.Level.toString() : "",
-        Description: designation.Description || ""
-      });
-
-      setError("");
-      setFieldErrors({
-        DesignationName: "",
-        Level: "",
-        Description: ""
+        DesignationName: designation.DesignationName || '',
+        Level: designation.Level?.toString() || '',
+        Description: designation.Description || '',
+        IsActive: designation.IsActive !== undefined ? designation.IsActive : true
       });
     }
   }, [designation]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-
-    if (fieldErrors[name]) {
-      setFieldErrors((prev) => ({
-        ...prev,
-        [name]: ""
-      }));
-    }
-
-    if (error) setError("");
-  };
-
-  const validateForm = () => {
-    const newFieldErrors = {};
-    let isValid = true;
-
-    if (!formData.DesignationName.trim()) {
-      newFieldErrors.DesignationName = "Designation name is required";
-      isValid = false;
-    } else if (formData.DesignationName.trim().length < 2) {
-      newFieldErrors.DesignationName =
-        "Designation name must be at least 2 characters";
-      isValid = false;
-    }
-
-    if (!formData.Level.trim()) {
-      newFieldErrors.Level = "Level is required";
-      isValid = false;
-    } else {
-      const levelNum = parseInt(formData.Level, 10);
-      if (isNaN(levelNum) || levelNum < 1) {
-        newFieldErrors.Level = "Level must be a positive number";
-        isValid = false;
-      }
-    }
-
-    setFieldErrors(newFieldErrors);
-    return isValid;
   };
 
   const handleSubmit = async () => {
-    setError("");
+    // Validation
+    if (!formData.DesignationName.trim()) {
+      setError('Designation name is required');
+      return;
+    }
 
-    setFieldErrors({
-      DesignationName: "",
-      Level: "",
-      Description: ""
-    });
+    if (!formData.Level) {
+      setError('Level is required');
+      return;
+    }
 
-    if (!validateForm()) return;
+    const level = parseInt(formData.Level);
+    if (isNaN(level) || level < 1) {
+      setError('Level must be a positive number');
+      return;
+    }
 
     setLoading(true);
+    setError('');
 
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.put(
-        `${BASE_URL}/api/designations/${designation._id}`,
-        {
-          DesignationName: formData.DesignationName.trim(),
-          Level: parseInt(formData.Level, 10),
-          Description: formData.Description.trim() || ""
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${BASE_URL}/api/designations/${designation._id}`, {
+        DesignationName: formData.DesignationName.trim(),
+        Level: level,
+        Description: formData.Description.trim(),
+        IsActive: formData.IsActive
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       if (response.data.success) {
         onUpdate(response.data.data);
         onClose();
       } else {
-        setError(response.data.message || "Failed to update designation");
+        setError(response.data.message || 'Failed to update designation');
       }
     } catch (err) {
-      console.error("Error updating designation:", err);
-
-      if (err.response) {
-        const serverError = err.response.data;
-
-        if (
-          serverError.error &&
-          serverError.error.name === "ValidationError"
-        ) {
-          const validationErrors = serverError.error.errors;
-          const newFieldErrors = {};
-
-          Object.keys(validationErrors).forEach((key) => {
-            if (
-              key === "Level" ||
-              key === "DesignationName" ||
-              key === "Description"
-            ) {
-              newFieldErrors[key] = validationErrors[key].message;
-            }
-          });
-
-          setFieldErrors(newFieldErrors);
-        } else {
-          setError(
-            serverError.message ||
-              serverError.error ||
-              "Failed to update designation"
-          );
-        }
-      } else if (err.request) {
-        setError(
-          "Network error. Please check your connection and try again."
-        );
-      } else {
-        setError("An unexpected error occurred.");
-      }
+      console.error('Error updating designation:', err);
+      setError(err.response?.data?.message || 'Failed to update designation. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const getFieldError = (field) => fieldErrors[field];
-  const hasFieldError = (field) => !!fieldErrors[field];
 
   return (
     <Dialog
@@ -534,118 +132,212 @@ const EditDesignations = ({ open, onClose, designation, onUpdate }) => {
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
     >
-      {/* Header */}
-      <DialogTitle
-        sx={{
-          fontWeight: 600,
-          fontSize: 22,
-          color: "#fff",
-          px: 3,
-          py: 1.5,
-          background: HEADER_GRADIENT,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}
-      >
-        Edit Designation
-
-        <IconButton onClick={onClose} sx={{ color: "#fff" }}>
-          <CloseIcon />
-        </IconButton>
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
+          Edit Designation
+        </Typography>
       </DialogTitle>
 
-      {/* Content */}
-      <DialogContent sx={{ mt: 3 }}>
-        <Stack spacing={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid #e2e8f0"
-            }}
-          >
-            <Typography
-              sx={{
-                fontWeight: 600,
-                mb: 2,
-                color: "#2563EB"
-              }}
-            >
-              Basic Information
-            </Typography>
+      <DialogContent sx={{ p: 2.5 }}>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+            {/* Designation Name Field */}
+            <Box sx={{ gridColumn: 'span 2' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DESIGNATION NAME <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="DesignationName"
+                  value={formData.DesignationName}
+                  onChange={handleChange}
+                  disabled={loading}
+                  placeholder="Enter designation name"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
 
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Designation Name"
-                name="DesignationName"
-                value={formData.DesignationName}
-                onChange={handleChange}
-                required
-                error={hasFieldError("DesignationName")}
-                helperText={getFieldError("DesignationName")}
-                disabled={loading}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
+            {/* Level Field */}
+            <Box sx={{ gridColumn: 'span 2' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  LEVEL <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="Level"
+                  value={formData.Level}
+                  onChange={handleChange}
+                  disabled={loading}
+                  type="number"
+                  placeholder="Enter level number"
+                  size="small"
+                  variant="outlined"
+                  InputProps={{
+                    inputProps: {
+                      step: "1",
+                      min: "1"
+                    }
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                  Must be a positive number
+                </Typography>
+              </Box>
+            </Box>
 
-              <TextField
-                fullWidth
-                label="Level"
-                name="Level"
-                type="number"
-                value={formData.Level}
-                onChange={handleChange}
-                inputProps={{ min: 1, max: 99 }}
-                required
-                error={hasFieldError("Level")}
-                helperText={
-                  getFieldError("Level") ||
-                  "Enter a number (e.g., 1, 2, 3)"
-                }
-                disabled={loading}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Description"
-                name="Description"
-                value={formData.Description}
-                onChange={handleChange}
-                multiline
-                rows={4}
-                error={hasFieldError("Description")}
-                helperText={getFieldError("Description")}
-                disabled={loading}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-            </Stack>
-          </Paper>
+            {/* Description Field */}
+            <Box sx={{ gridColumn: 'span 2' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DESCRIPTION
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="Description"
+                  value={formData.Description}
+                  onChange={handleChange}
+                  multiline
+                  rows={3}
+                  disabled={loading}
+                  placeholder="Enter designation description..."
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
 
           {error && (
             <Alert
               severity="error"
-              sx={{ borderRadius: 2 }}
-              onClose={() => setError("")}
+              sx={{
+                borderRadius: 1.5,
+                mt: 1,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.25rem',
+                  alignItems: 'center'
+                },
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
             >
               {error}
             </Alert>
@@ -653,45 +345,59 @@ const EditDesignations = ({ open, onClose, designation, onUpdate }) => {
         </Stack>
       </DialogContent>
 
-      {/* Footer */}
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 1.5,
-          pt: 1.5,
-          borderTop: "1px solid #e2e8f0",
-          background: "#f8fafc"
-        }}
-      >
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 1
+      }}>
         <Button
           onClick={onClose}
           disabled={loading}
           sx={{
-            textTransform: "none",
-            fontWeight: 500
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
           Cancel
         </Button>
-
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          disabled={loading || !formData.DesignationName.trim() || !formData.Level}
+          startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
           sx={{
-            textTransform: "none",
-            fontWeight: 500,
+            height: 32,
+            px: 2,
             borderRadius: 1.5,
-            px: 3,
-            background: HEADER_GRADIENT,
-            "&:hover": {
-              opacity: 0.9,
-              background: HEADER_GRADIENT
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              bgcolor: COLORS.primaryDark,
+            },
+            '&:disabled': {
+              bgcolor: COLORS.border,
+              color: COLORS.text.tertiary
             }
           }}
         >
-          {loading ? "Updating..." : "Update Designation"}
+          {loading ? 'Updating...' : 'Update Designation'}
         </Button>
       </DialogActions>
     </Dialog>

@@ -26,7 +26,8 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import EmployeeIncrementSummary from './EmployeeIncrementSummary';
@@ -40,10 +41,12 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon
+  Sort as SortIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddEmployees from './AddEmployees';
@@ -51,17 +54,63 @@ import EditEmployees from './EditEmployees';
 import ViewEmployees from './ViewEmployees';
 import DeleteEmployees from './DeleteEmployees';
 
-// Color constants - EXACT SAME as header gradient
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc'; // slate-50
-const HOVER_COLOR = '#f1f5f9'; // slate-100
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a'; // slate-900
+// Color constants - Matching CompanyMaster exactly
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
-// Action Menu Component
-const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.EMPLOYEE_MASTER, PAGES.EMPLOYEE_REGISTRY, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.EMPLOYEE_MASTER, PAGES.EMPLOYEE_REGISTRY, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.EMPLOYEE_MASTER, PAGES.EMPLOYEE_REGISTRY, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -69,9 +118,9 @@ const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onO
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b', // slate-500
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -88,55 +137,69 @@ const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onO
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(employee);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(employee);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Edit</Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(employee);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(employee);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(employee);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(employee);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -151,7 +214,7 @@ const EmployeeMaster = () => {
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -175,10 +238,72 @@ const EmployeeMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.EMPLOYEE_MASTER,
+      PAGES.EMPLOYEE_REGISTRY,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canImport = checkPermission(ACTIONS.IMPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
   // Fetch employees from API
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchEmployees();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
   const fetchEmployees = async () => {
     try {
@@ -204,6 +329,12 @@ const EmployeeMaster = () => {
     }
   };
   
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchEmployees();
+    showNotification('Data refreshed', 'success');
+  };
+  
   // Handle search
   const handleSearch = (event) => {
     const value = event.target.value.toLowerCase();
@@ -222,8 +353,10 @@ const EmployeeMaster = () => {
     setPage(0);
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(filteredEmployees.map(employee => employee._id));
     } else {
@@ -231,8 +364,10 @@ const EmployeeMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -248,12 +383,14 @@ const EmployeeMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]);
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setSelected([]);
   };
   
   // Handle add employee
@@ -285,6 +422,7 @@ const EmployeeMaster = () => {
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -301,6 +439,7 @@ const EmployeeMaster = () => {
 
   // Open edit modal
   const openEditEmployeeModal = (employee) => {
+    if (!canUpdate) return;
     setSelectedEmployee(employee);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -308,6 +447,7 @@ const EmployeeMaster = () => {
   
   // Open view modal
   const openViewEmployeeModal = (employee) => {
+    if (!canViewPage) return;
     setSelectedEmployee(employee);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -315,6 +455,7 @@ const EmployeeMaster = () => {
   
   // Open delete confirmation
   const openDeleteEmployeeDialog = (employee) => {
+    if (!canDelete) return;
     setSelectedEmployee(employee);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -393,19 +534,14 @@ const EmployeeMaster = () => {
   
   // Get avatar color based on name
   const getAvatarColor = (firstName) => {
-    if (!firstName) return PRIMARY_BLUE;
+    if (!firstName) return COLORS.primary;
     
     const colors = [
-      '#164e63', // cyan-900
-      '#0e7490', // cyan-700
-      '#0891b2', // cyan-600
-      '#0c4a6e', // blue-900
-      '#1d4ed8', // blue-700
-      '#7c3aed', // violet-600
-      '#7e22ce', // purple-700
-      '#be185d', // pink-700
-      '#c2410c', // orange-700
-      '#059669'  // emerald-600
+      COLORS.primary,
+      COLORS.primaryDark,
+      '#074346',
+      '#0D696C',
+      '#128C7E'
     ];
     
     const charCode = firstName.charCodeAt(0) || 0;
@@ -418,42 +554,49 @@ const EmployeeMaster = () => {
     page * rowsPerPage + rowsPerPage
   );
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Employee Registery
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-          Manage and organize company employees and their information
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+          Manage and organize employee information and details
         </Typography>
       </Box>
 
       {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          {/* Search and Filters */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               placeholder="Search by name, ID, email or department..."
               size="small"
@@ -463,23 +606,29 @@ const EmployeeMaster = () => {
                 width: { xs: '100%', sm: 360 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
@@ -487,67 +636,82 @@ const EmployeeMaster = () => {
             />
           </Stack>
 
-          {/* Action Buttons */}
-          <Stack direction="row" spacing={2} alignItems="center">
-            {selected.length > 0 && (
+          {/* Action Buttons - Conditionally rendered based on permissions */}
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<AssessmentIcon />}
-              onClick={() => setOpenIncrementSummaryModal(true)}
-              sx={{
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Increment Summary
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 40,
-                borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Employee
-            </Button>
+            
+            {/* Increment Summary Button - Only show if user has view permission */}
+            {canViewPage && (
+              <Button
+                variant="outlined"
+                startIcon={<AssessmentIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenIncrementSummaryModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  borderColor: COLORS.border,
+                  color: COLORS.text.secondary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+                disabled={loading}
+              >
+                Increment Summary
+              </Button>
+            )}
+            
+            {/* Add Employee Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Employee
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -558,110 +722,96 @@ const EmployeeMaster = () => {
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredEmployees.length}
-                    checked={filteredEmployees.length > 0 && selected.length === filteredEmployees.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: TEXT_COLOR_HEADER,
-                      '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: 20
-                      }
-                    }}
-                    disabled={loading}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredEmployees.length}
+                      checked={filteredEmployees.length > 0 && selected.length === filteredEmployees.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || filteredEmployees.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Employee
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Employee
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Employee ID
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Employee ID
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Contact
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Contact
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Department
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Department
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Designation
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Designation
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Employment Type
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
-                  </Stack>
+                  Employment Type
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -670,20 +820,21 @@ const EmployeeMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading employees...
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : paginatedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No employees found' : 'No employees available'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Add your first employee to get started'}
                       </Typography>
                     </Box>
@@ -692,7 +843,6 @@ const EmployeeMaster = () => {
               ) : (
                 paginatedEmployees.map((employee, index) => {
                   const isSelected = selected.includes(employee._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedEmployeeForAction?._id === employee._id;
                   const avatarColor = getAvatarColor(employee.FirstName);
@@ -703,52 +853,63 @@ const EmployeeMaster = () => {
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(employee._id)}
-                          sx={{
-                            color: PRIMARY_BLUE,
-                            '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
-                            },
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(employee._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
-                        <Stack direction="row" spacing={2} alignItems="center">
+                        <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
                             sx={{ 
-                              width: 40, 
-                              height: 40, 
+                              width: 32, 
+                              height: 32, 
                               bgcolor: avatarColor,
-                              fontSize: '0.875rem',
+                              fontSize: '0.7rem',
                               fontWeight: 600
                             }}
                           >
                             {getAvatarInitials(employee.FirstName, employee.LastName)}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                               {employee.FirstName} {employee.LastName}
                             </Typography>
                             <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography variant="caption" color="#64748B">
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                                 {getGenderIcon(employee.Gender)} {getGenderText(employee.Gender)}
                               </Typography>
-                              <Typography variant="caption" color="#64748B">
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                                 • DOB: {formatDate(employee.DateOfBirth)}
                               </Typography>
                             </Stack>
@@ -756,18 +917,18 @@ const EmployeeMaster = () => {
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                           {employee.EmployeeID}
                         </Typography>
-                        <Typography variant="caption" color="#64748B" display="block">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           Joined: {formatDate(employee.DateOfJoining)}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                           {employee.Email}
                         </Typography>
-                        <Typography variant="caption" color="#64748B">
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                           {employee.Phone || 'No phone'}
                         </Typography>
                       </TableCell>
@@ -776,19 +937,23 @@ const EmployeeMaster = () => {
                           label={employee.DepartmentID?.DepartmentName || 'No Dept'}
                           size="small"
                           sx={{ 
+                            height: 20,
+                            fontSize: '0.65rem',
                             fontWeight: 500,
-                            backgroundColor: '#e0f2fe',
-                            color: '#0c4a6e',
-                            border: '1px solid #bae6fd'
+                            backgroundColor: COLORS.primaryLight,
+                            color: COLORS.primary,
+                            '& .MuiChip-label': {
+                              px: 1
+                            }
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {employee.DesignationID?.DesignationName || 'No Designation'}
                         </Typography>
                         {employee.DesignationID?.Level && (
-                          <Typography variant="caption" color="#64748B">
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                             Level {employee.DesignationID.Level}
                           </Typography>
                         )}
@@ -798,14 +963,18 @@ const EmployeeMaster = () => {
                           label={getEmploymentTypeText(employee.EmploymentType)}
                           size="small"
                           sx={{ 
+                            height: 20,
+                            fontSize: '0.65rem',
                             fontWeight: 500,
                             backgroundColor: '#dbeafe',
                             color: '#1e40af',
-                            border: '1px solid #bfdbfe'
+                            '& .MuiChip-label': {
+                              px: 1
+                            }
                           }}
                         />
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           employee={employee}
                           onView={openViewEmployeeModal}
@@ -814,6 +983,7 @@ const EmployeeMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, employee)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -826,7 +996,7 @@ const EmployeeMaster = () => {
 
         {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
           count={filteredEmployees.length}
           rowsPerPage={rowsPerPage}
@@ -834,67 +1004,82 @@ const EmployeeMaster = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
-      {/* Separate Modal Components */}
-      <AddEmployees 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddEmployee}
-      />
+      {/* Separate Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddEmployees 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddEmployee}
+        />
+      )}
 
       {selectedEmployee && (
         <>
-          <EditEmployees 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedEmployee(null);
-            }}
-            employee={selectedEmployee}
-            onUpdate={handleEditEmployee}
-          />
+          {canUpdate && (
+            <EditEmployees 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedEmployee(null);
+              }}
+              employee={selectedEmployee}
+              onUpdate={handleEditEmployee}
+            />
+          )}
 
-          <ViewEmployees 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedEmployee(null);
-            }}
-            employee={selectedEmployee}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewEmployees 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedEmployee(null);
+              }}
+              employee={selectedEmployee}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteEmployees 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedEmployee(null);
-            }}
-            employee={selectedEmployee}
-            onDelete={handleDeleteEmployee}
-          />
+          {canDelete && (
+            <DeleteEmployees 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedEmployee(null);
+              }}
+              employee={selectedEmployee}
+              onDelete={handleDeleteEmployee}
+            />
+          )}
         </>
       )}
 
-      {/* Employee Increment Summary Modal */}
-      <EmployeeIncrementSummary 
-        open={openIncrementSummaryModal}
-        onClose={() => setOpenIncrementSummaryModal(false)}
-      />
+      {/* Employee Increment Summary Modal - Only show if user has view permission */}
+      {canViewPage && (
+        <EmployeeIncrementSummary 
+          open={openIncrementSummaryModal}
+          onClose={() => setOpenIncrementSummaryModal(false)}
+        />
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar
@@ -910,7 +1095,11 @@ const EmployeeMaster = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

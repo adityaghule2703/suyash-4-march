@@ -43,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddRawMaterial from './AddRawMaterial';
@@ -77,8 +78,36 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.RAW_MATERIAL_MASTER, PAGES.RAW_MATERIAL, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.RAW_MATERIAL_MASTER, PAGES.RAW_MATERIAL, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.RAW_MATERIAL_MASTER, PAGES.RAW_MATERIAL, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -110,55 +139,64 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -173,7 +211,7 @@ const RawMaterialMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -200,11 +238,83 @@ const RawMaterialMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = useCallback((action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.RAW_MATERIAL_MASTER,
+      PAGES.RAW_MATERIAL,
+      action
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Get allowed actions for this page
+  const allowedActions = useCallback(() => {
+    if (isSuperAdmin) {
+      return [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.IMPORT];
+    }
+    return getAllowedActions(
+      userPermissions,
+      MODULES.RAW_MATERIAL_MASTER,
+      PAGES.RAW_MATERIAL
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canImport = checkPermission(ACTIONS.IMPORT);
+
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -218,7 +328,7 @@ const RawMaterialMaster = () => {
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -248,10 +358,12 @@ const RawMaterialMaster = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  // Fetch materials when dependencies change
+  // Fetch materials when dependencies change - only if user has permission
   useEffect(() => {
-    fetchMaterials();
-  }, [fetchMaterials]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchMaterials();
+    }
+  }, [fetchMaterials, canViewPage, isSuperAdmin, permissionsLoaded]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -259,8 +371,10 @@ const RawMaterialMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(materials.map(material => material._id));
     } else {
@@ -268,8 +382,10 @@ const RawMaterialMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -285,7 +401,7 @@ const RawMaterialMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -293,11 +409,12 @@ const RawMaterialMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -333,6 +450,7 @@ const RawMaterialMaster = () => {
 
   // Open edit modal
   const openEditMaterialModal = (material) => {
+    if (!canUpdate) return;
     setSelectedMaterial(material);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -340,6 +458,7 @@ const RawMaterialMaster = () => {
   
   // Open view modal
   const openViewMaterialModal = (material) => {
+    if (!canViewPage) return;
     setSelectedMaterial(material);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -347,6 +466,7 @@ const RawMaterialMaster = () => {
   
   // Open delete confirmation
   const openDeleteMaterialDialog = (material) => {
+    if (!canDelete) return;
     setSelectedMaterial(material);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -432,7 +552,7 @@ const RawMaterialMaster = () => {
   // Calculate effective rate
   const calculateEffectiveRate = (rate, scrapPercentage, transportLossPercentage) => {
     const effectiveRate = rate + (rate * (scrapPercentage + transportLossPercentage) / 100);
-    return Math.round(effectiveRate * 100) / 100; // Round to 2 decimal places
+    return Math.round(effectiveRate * 100) / 100;
   };
   
   // Get rate badge color
@@ -442,6 +562,16 @@ const RawMaterialMaster = () => {
     if (rate < 1000) return 'warning';
     return 'error';
   };
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -513,12 +643,12 @@ const RawMaterialMaster = () => {
               }}
               disabled={loading}
             />
-           
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -542,26 +672,30 @@ const RawMaterialMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Raw Material
-            </Button>
+            
+            {/* Add Raw Material Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Raw Material
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -585,26 +719,29 @@ const RawMaterialMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < materials.length}
-                    checked={materials.length > 0 && selected.length === materials.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < materials.length}
+                      checked={materials.length > 0 && selected.length === materials.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || materials.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || materials.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -653,22 +790,6 @@ const RawMaterialMaster = () => {
                 }}>
                   Effective Rate (/kg)
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Effective Date
-                </TableCell> */}
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -683,7 +804,7 @@ const RawMaterialMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading raw materials...
@@ -692,7 +813,7 @@ const RawMaterialMaster = () => {
                 </TableRow>
               ) : materials.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No materials found' : 'No raw materials available'}
@@ -709,7 +830,6 @@ const RawMaterialMaster = () => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedMaterialForAction?._id === material._id;
                   const avatarColor = getAvatarColor(material.MaterialName);
-                  const statusStyles = getStatusStyles(material.IsActive);
                   const effectiveRate = calculateEffectiveRate(
                     material.RatePerKG,
                     material.ScrapPercentage,
@@ -739,21 +859,24 @@ const RawMaterialMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(material._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(material._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -833,31 +956,6 @@ const RawMaterialMaster = () => {
                           +{(material.ScrapPercentage + material.TransportLossPercentage).toFixed(1)}%
                         </Typography>
                       </TableCell>
-                      {/* <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <DateIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                            {formatDate(material.DateEffective).split(',')[0]}
-                          </Typography>
-                        </Stack>
-                      </TableCell> */}
-                      {/* <TableCell>
-                        <Chip
-                          label={getStatusText(material.IsActive)}
-                          size="small"
-                          sx={{ 
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 20,
-                            bgcolor: statusStyles.bg,
-                            color: statusStyles.text,
-                            border: `1px solid ${statusStyles.border}`,
-                            '& .MuiChip-label': {
-                              px: 1
-                            }
-                          }}
-                        />
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={material}
@@ -867,6 +965,7 @@ const RawMaterialMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, material)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -902,47 +1001,57 @@ const RawMaterialMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddRawMaterial 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddMaterial}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddRawMaterial 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddMaterial}
+        />
+      )}
 
       {selectedMaterial && (
         <>
-          <EditRawMaterial 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedMaterial(null);
-            }}
-            material={selectedMaterial}
-            onUpdate={handleEditMaterial}
-          />
+          {canUpdate && (
+            <EditRawMaterial 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedMaterial(null);
+              }}
+              material={selectedMaterial}
+              onUpdate={handleEditMaterial}
+            />
+          )}
 
-          <ViewRawMaterial 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedMaterial(null);
-            }}
-            material={selectedMaterial}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewRawMaterial 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedMaterial(null);
+              }}
+              material={selectedMaterial}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteRawMaterial 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedMaterial(null);
-            }}
-            material={selectedMaterial}
-            onDelete={handleDeleteMaterial}
-          />
+          {canDelete && (
+            <DeleteRawMaterial 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedMaterial(null);
+              }}
+              material={selectedMaterial}
+              onDelete={handleDeleteMaterial}
+            />
+          )}
         </>
       )}
 

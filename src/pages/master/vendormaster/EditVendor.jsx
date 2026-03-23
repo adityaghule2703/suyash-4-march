@@ -24,6 +24,7 @@ import {
   FormControlLabel,
   Switch,
   Chip,
+  Autocomplete,
   styled
 } from '@mui/material';
 import { 
@@ -67,54 +68,83 @@ const COLORS = {
   }
 };
 
-// Modern Stepper Connector with Primary Color
+// Modern Stepper Connector with Gradient
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundColor: COLORS.primary,
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundColor: COLORS.primary,
+      backgroundImage: 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)',
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
-    height: 2,
+    height: 3,
     border: 0,
     backgroundColor: '#eaeaf0',
     borderRadius: 1,
   },
 }));
 
-const steps = ['Basic Information', 'Contact & Address', 'Tax & Status'];
+const steps = ['Basic Information', 'Contact Details', 'Tax & Compliance', 'Bank & Payment'];
 
 // Validation helper functions
 const validateGST = (gst) => {
-  if (!gst) return true; // Optional field
+  if (!gst) return false; // Required field
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/;
   return gstRegex.test(gst);
 };
 
+const validatePAN = (pan) => {
+  if (!pan) return true; // Optional field
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+  return panRegex.test(pan);
+};
+
 const validateEmail = (email) => {
-  if (!email) return true; // Optional field
+  if (!email) return false; // Required field
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return emailRegex.test(email);
 };
 
 const validatePhone = (phone) => {
   if (!phone) return false; // Required field
-  // Remove all spaces, hyphens, and +91 prefix for validation
   const cleanPhone = phone.replace(/[\s\-]/g, '').replace(/^\+91/, '');
-  // Check if it's exactly 10 digits and starts with 6-9
   const phoneRegex = /^[6-9]\d{9}$/;
   return phoneRegex.test(cleanPhone);
 };
 
 const validateStateCode = (code) => {
-  if (!code) return true; // Optional field
+  if (!code) return false; // Required field
   const numCode = Number(code);
-  return numCode >= 1 && numCode <= 99;
+  return numCode >= 1 && numCode <= 37; // Indian state codes
+};
+
+const validateUrl = (url) => {
+  if (!url) return true;
+  const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+  return urlRegex.test(url);
+};
+
+const validateBankAccount = (accountNo) => {
+  if (!accountNo) return true;
+  return accountNo.length >= 9 && accountNo.length <= 18;
+};
+
+const validateIFSC = (ifsc) => {
+  if (!ifsc) return true;
+  const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+  return ifscRegex.test(ifsc);
+};
+
+const validateCreditDays = (days) => {
+  if (days === '' || days === null || days === undefined) return true;
+  const numDays = Number(days);
+  if (isNaN(numDays)) return 'Credit days must be a number';
+  if (numDays < 0 || numDays > 365) return 'Credit days must be between 0 and 365';
+  return '';
 };
 
 const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
@@ -122,36 +152,88 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
   const [formData, setFormData] = useState({
     vendor_code: '',
     vendor_name: '',
-    vendor_type: 'Both',
+    vendor_type: 'Raw Material',
+    supply_category: [],
     address: '',
     gstin: '',
+    pan: '',
     state: '',
     state_code: '',
+    msme_number: '',
+    msme_category: '',
     contact_person: '',
     phone: '',
+    alternate_phone: '',
     email: '',
+    website: '',
+    payment_terms: 'Net 30',
+    credit_days: '30',
+    currency: 'INR',
+    bank_details: {
+      bank_name: '',
+      account_no: '',
+      ifsc: '',
+      branch: '',
+      account_name: '',
+      account_type: 'Current'
+    },
     is_active: true
   });
+  
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [supplyCategoryInput, setSupplyCategoryInput] = useState('');
 
-  // Vendor type options from enum
+  // Vendor type options (updated to match schema enum)
   const vendorTypes = [
-    { value: 'RM', label: 'Raw Material' },
-    { value: 'Process', label: 'Process' },
-    { value: 'Both', label: 'Both' }
+    { value: 'Raw Material', label: 'Raw Material' },
+    { value: 'Consumable', label: 'Consumable' },
+    { value: 'Subcontractor', label: 'Subcontractor' },
+    { value: 'Capital Goods', label: 'Capital Goods' },
+    { value: 'Service', label: 'Service' },
+    { value: 'Utilities', label: 'Utilities' },
+    { value: 'Other', label: 'Other' }
   ];
 
-  // Helper function to get value from vendor object with fallback for different field naming conventions
-  const getVendorValue = (vendor, fieldNames) => {
-    for (const fieldName of fieldNames) {
-      if (vendor[fieldName] !== undefined && vendor[fieldName] !== null) {
-        return vendor[fieldName];
-      }
-    }
-    return '';
-  };
+  // Payment Terms options (updated to match schema enum)
+  const paymentTermsOptions = [
+    { value: 'Advance', label: 'Advance' },
+    { value: 'On Delivery', label: 'On Delivery' },
+    { value: 'Net 15', label: 'Net 15' },
+    { value: 'Net 30', label: 'Net 30' },
+    { value: 'Net 45', label: 'Net 45' },
+    { value: 'Net 60', label: 'Net 60' },
+    { value: 'Net 90', label: 'Net 90' },
+    { value: 'LC', label: 'Letter of Credit (LC)' },
+    { value: 'Custom', label: 'Custom' }
+  ];
+
+  // Currency options (updated to match schema enum)
+  const currencies = [
+    { value: 'INR', label: 'INR - Indian Rupee' },
+    { value: 'USD', label: 'USD - US Dollar' },
+    { value: 'EUR', label: 'EUR - Euro' },
+    { value: 'GBP', label: 'GBP - British Pound' },
+    { value: 'AED', label: 'AED - UAE Dirham' },
+    { value: 'JPY', label: 'JPY - Japanese Yen' }
+  ];
+
+  // MSME Category options (updated to match schema)
+  const msmeCategories = [
+    { value: 'Micro', label: 'Micro' },
+    { value: 'Small', label: 'Small' },
+    { value: 'Medium', label: 'Medium' },
+    { value: 'Not MSME', label: 'Not MSME' }
+  ];
+
+  // Account type options (updated to match schema enum)
+  const accountTypes = [
+    { value: 'Current', label: 'Current' },
+    { value: 'Savings', label: 'Savings' },
+    { value: 'Cash Credit', label: 'Cash Credit' },
+    { value: 'Overdraft', label: 'Overdraft' }
+  ];
 
   // Load vendor data when dialog opens
   useEffect(() => {
@@ -159,17 +241,34 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
       console.log('Loading vendor data for edit:', vendor);
       
       setFormData({
-        vendor_code: getVendorValue(vendor, ['vendor_code', 'VendorCode', 'vendorCode']),
-        vendor_name: getVendorValue(vendor, ['vendor_name', 'VendorName', 'vendorName']),
-        vendor_type: getVendorValue(vendor, ['vendor_type', 'vendorType', 'VendorType']) || 'Both',
-        address: getVendorValue(vendor, ['address', 'Address']),
-        gstin: getVendorValue(vendor, ['gstin', 'GSTIN']),
-        state: getVendorValue(vendor, ['state', 'State']),
-        state_code: getVendorValue(vendor, ['state_code', 'StateCode', 'stateCode']),
-        contact_person: getVendorValue(vendor, ['contact_person', 'ContactPerson', 'contactPerson']),
-        phone: getVendorValue(vendor, ['phone', 'Phone']),
-        email: getVendorValue(vendor, ['email', 'Email']),
-        is_active: getVendorValue(vendor, ['is_active', 'isActive', 'IsActive']) !== false
+        vendor_code: vendor.vendor_code || '',
+        vendor_name: vendor.vendor_name || '',
+        vendor_type: vendor.vendor_type || 'Raw Material',
+        supply_category: vendor.supply_category || [],
+        address: vendor.address || '',
+        gstin: vendor.gstin || '',
+        pan: vendor.pan || '',
+        state: vendor.state || '',
+        state_code: vendor.state_code || '',
+        msme_number: vendor.msme_number || '',
+        msme_category: vendor.msme_category || '',
+        contact_person: vendor.contact_person || '',
+        phone: vendor.phone || '',
+        alternate_phone: vendor.alternate_phone || '',
+        email: vendor.email || '',
+        website: vendor.website || '',
+        payment_terms: vendor.payment_terms || 'Net 30',
+        credit_days: vendor.credit_days?.toString() || '30',
+        currency: vendor.currency || 'INR',
+        bank_details: {
+          bank_name: vendor.bank_details?.bank_name || '',
+          account_no: vendor.bank_details?.account_no || '',
+          ifsc: vendor.bank_details?.ifsc || '',
+          branch: vendor.bank_details?.branch || '',
+          account_name: vendor.bank_details?.account_name || '',
+          account_type: vendor.bank_details?.account_type || 'Current'
+        },
+        is_active: vendor.is_active !== undefined ? vendor.is_active : true
       });
     }
   }, [vendor]);
@@ -177,7 +276,6 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Clear field error when user starts typing
     setFieldErrors(prev => ({
       ...prev,
       [name]: ''
@@ -191,22 +289,39 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
       return;
     }
     
-    // Handle different field types
-    if (name === 'gstin') {
-      // Auto uppercase for GSTIN
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else if (name === 'gstin') {
       setFormData(prev => ({
         ...prev,
         [name]: value.toUpperCase()
       }));
-    } else if (name === 'phone') {
-      // Allow only digits, +, space, hyphen for phone
+    } else if (name === 'pan') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.toUpperCase()
+      }));
+    } else if (name === 'phone' || name === 'alternate_phone') {
       const cleanValue = value.replace(/[^\d\s\-\+]/g, '');
       setFormData(prev => ({
         ...prev,
         [name]: cleanValue
       }));
     } else if (name === 'state_code') {
-      // Only allow digits
+      if (value === '' || /^\d*$/.test(value)) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    } else if (name === 'credit_days') {
       if (value === '' || /^\d*$/.test(value)) {
         setFormData(prev => ({
           ...prev,
@@ -233,53 +348,109 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
     }));
   };
 
+  const handleBankDetailsChange = (field, value) => {
+    setFieldErrors(prev => ({
+      ...prev,
+      [`bank_details.${field}`]: ''
+    }));
+    setFormData(prev => ({
+      ...prev,
+      bank_details: {
+        ...prev.bank_details,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSupplyCategoryAdd = () => {
+    if (supplyCategoryInput.trim() && !formData.supply_category.includes(supplyCategoryInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        supply_category: [...prev.supply_category, supplyCategoryInput.trim()]
+      }));
+      setSupplyCategoryInput('');
+    }
+  };
+
+  const handleSupplyCategoryDelete = (categoryToDelete) => {
+    setFormData(prev => ({
+      ...prev,
+      supply_category: prev.supply_category.filter(cat => cat !== categoryToDelete)
+    }));
+  };
+
   const validateField = (name, value) => {
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      if (parent === 'bank_details') {
+        switch (child) {
+          case 'account_no':
+            return validateBankAccount(value) ? '' : 'Account number should be 9-18 digits';
+          case 'ifsc':
+            return validateIFSC(value) ? '' : 'Please enter a valid IFSC code (e.g., HDFC0001234)';
+          default:
+            return '';
+        }
+      }
+      return '';
+    }
+
     switch (name) {
       case 'vendor_code':
-        if (!value?.trim()) {
-          return 'Vendor code is required';
-        } else if (value.length > 20) {
-          return 'Vendor code should not exceed 20 characters';
-        }
+        if (!value?.trim()) return 'Vendor code is required';
+        if (value.length > 20) return 'Vendor code should not exceed 20 characters';
         break;
       case 'vendor_name':
-        if (!value?.trim()) {
-          return 'Vendor name is required';
-        } else if (value.length > 100) {
-          return 'Vendor name should not exceed 100 characters';
-        }
+        if (!value?.trim()) return 'Vendor name is required';
+        if (value.length > 100) return 'Vendor name should not exceed 100 characters';
         break;
       case 'vendor_type':
-        if (!value) {
-          return 'Vendor type is required';
-        }
+        if (!value) return 'Vendor type is required';
         break;
-      case 'contact_person':
-        if (!value?.trim()) {
-          return 'Contact person is required';
-        }
+      case 'address':
+        if (!value?.trim()) return 'Address is required';
         break;
-      case 'phone':
-        if (!value?.trim()) {
-          return 'Phone number is required';
-        } else if (!validatePhone(value)) {
-          return 'Please enter a valid 10-digit Indian mobile number starting with 6-9';
-        }
-        break;
-      case 'email':
-        if (value && !validateEmail(value)) {
-          return 'Please enter a valid email address (e.g., vendor@gmail.com)';
-        }
-        break;
-      case 'gstin':
-        if (value && !validateGST(value)) {
-          return 'Please enter a valid GSTIN (e.g., 27AAPFU0939F1Z5)';
-        }
+      case 'state':
+        if (!value?.trim()) return 'State is required';
         break;
       case 'state_code':
-        if (value && !validateStateCode(value)) {
-          return 'State code must be between 1 and 99';
-        }
+        if (!value) return 'State code is required';
+        if (!validateStateCode(value)) return 'State code must be between 1 and 37';
+        break;
+      case 'contact_person':
+        if (!value?.trim()) return 'Contact person is required';
+        break;
+      case 'phone':
+        if (!value?.trim()) return 'Phone number is required';
+        if (!validatePhone(value)) return 'Please enter a valid 10-digit Indian mobile number starting with 6-9';
+        break;
+      case 'alternate_phone':
+        if (value && !validatePhone(value)) return 'Please enter a valid 10-digit Indian mobile number';
+        break;
+      case 'email':
+        if (!value?.trim()) return 'Email is required';
+        if (!validateEmail(value)) return 'Please enter a valid email address';
+        break;
+      case 'website':
+        if (value && !validateUrl(value)) return 'Please enter a valid URL (e.g., www.example.com)';
+        break;
+      case 'gstin':
+        if (!value?.trim()) return 'GSTIN is required';
+        if (!validateGST(value)) return 'Please enter a valid GSTIN (e.g., 27AAPFU0939F1Z5)';
+        break;
+      case 'pan':
+        if (value && !validatePAN(value)) return 'Please enter a valid PAN (e.g., AAAAA1234A)';
+        break;
+      case 'msme_number':
+        if (value && value.length > 30) return 'MSME number should not exceed 30 characters';
+        break;
+      case 'payment_terms':
+        if (!value) return 'Payment terms is required';
+        break;
+      case 'credit_days':
+        return validateCreditDays(value);
+      case 'currency':
+        if (!value) return 'Currency is required';
         break;
       default:
         return '';
@@ -293,75 +464,136 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
 
     switch (step) {
       case 0: // Basic Information
-        // Vendor Code
-        if (!formData.vendor_code?.trim()) {
-          errors.vendor_code = 'Vendor code is required';
-          isValid = false;
-        } else if (formData.vendor_code.length > 20) {
-          errors.vendor_code = 'Vendor code should not exceed 20 characters';
+        const vendorCodeError = validateField('vendor_code', formData.vendor_code);
+        if (vendorCodeError) {
+          errors.vendor_code = vendorCodeError;
           isValid = false;
         }
 
-        // Vendor Name
-        if (!formData.vendor_name?.trim()) {
-          errors.vendor_name = 'Vendor name is required';
-          isValid = false;
-        } else if (formData.vendor_name.length > 100) {
-          errors.vendor_name = 'Vendor name should not exceed 100 characters';
+        const vendorNameError = validateField('vendor_name', formData.vendor_name);
+        if (vendorNameError) {
+          errors.vendor_name = vendorNameError;
           isValid = false;
         }
 
-        // Vendor Type
-        if (!formData.vendor_type) {
-          errors.vendor_type = 'Vendor type is required';
+        const vendorTypeError = validateField('vendor_type', formData.vendor_type);
+        if (vendorTypeError) {
+          errors.vendor_type = vendorTypeError;
+          isValid = false;
+        }
+
+        const addressError = validateField('address', formData.address);
+        if (addressError) {
+          errors.address = addressError;
           isValid = false;
         }
         break;
       
-      case 1: // Contact & Address
-        // Contact Person
-        if (!formData.contact_person?.trim()) {
-          errors.contact_person = 'Contact person is required';
+      case 1: // Contact Details
+        const contactPersonError = validateField('contact_person', formData.contact_person);
+        if (contactPersonError) {
+          errors.contact_person = contactPersonError;
           isValid = false;
         }
 
-        // Phone
-        if (!formData.phone?.trim()) {
-          errors.phone = 'Phone number is required';
+        const phoneError = validateField('phone', formData.phone);
+        if (phoneError) {
+          errors.phone = phoneError;
           isValid = false;
-        } else {
-          const phoneError = validateField('phone', formData.phone);
-          if (phoneError) {
-            errors.phone = phoneError;
+        }
+
+        const emailError = validateField('email', formData.email);
+        if (emailError) {
+          errors.email = emailError;
+          isValid = false;
+        }
+
+        if (formData.alternate_phone) {
+          const altPhoneError = validateField('alternate_phone', formData.alternate_phone);
+          if (altPhoneError) {
+            errors.alternate_phone = altPhoneError;
             isValid = false;
           }
         }
 
-        // Email (optional)
-        if (formData.email) {
-          const emailError = validateField('email', formData.email);
-          if (emailError) {
-            errors.email = emailError;
+        if (formData.website) {
+          const websiteError = validateField('website', formData.website);
+          if (websiteError) {
+            errors.website = websiteError;
             isValid = false;
           }
         }
 
-        // State Code (optional)
-        if (formData.state_code) {
-          const stateCodeError = validateField('state_code', formData.state_code);
-          if (stateCodeError) {
-            errors.state_code = stateCodeError;
+        const stateError = validateField('state', formData.state);
+        if (stateError) {
+          errors.state = stateError;
+          isValid = false;
+        }
+
+        const stateCodeError = validateField('state_code', formData.state_code);
+        if (stateCodeError) {
+          errors.state_code = stateCodeError;
+          isValid = false;
+        }
+        break;
+      
+      case 2: // Tax & Compliance
+        const gstError = validateField('gstin', formData.gstin);
+        if (gstError) {
+          errors.gstin = gstError;
+          isValid = false;
+        }
+
+        if (formData.pan) {
+          const panError = validateField('pan', formData.pan);
+          if (panError) {
+            errors.pan = panError;
+            isValid = false;
+          }
+        }
+
+        if (formData.msme_number) {
+          const msmeError = validateField('msme_number', formData.msme_number);
+          if (msmeError) {
+            errors.msme_number = msmeError;
             isValid = false;
           }
         }
         break;
       
-      case 2: // Tax & Status
-        // GSTIN (optional)
-        if (formData.gstin) {
-          const gstError = validateField('gstin', formData.gstin);
-          if (gstError) {
-            errors.gstin = gstError;
+      case 3: // Bank & Payment
+        const paymentTermsError = validateField('payment_terms', formData.payment_terms);
+        if (paymentTermsError) {
+          errors.payment_terms = paymentTermsError;
+          isValid = false;
+        }
+
+        const currencyError = validateField('currency', formData.currency);
+        if (currencyError) {
+          errors.currency = currencyError;
+          isValid = false;
+        }
+
+        if (formData.credit_days) {
+          const creditDaysError = validateField('credit_days', formData.credit_days);
+          if (creditDaysError) {
+            errors.credit_days = creditDaysError;
+            isValid = false;
+          }
+        }
+
+        if (formData.bank_details.account_no) {
+          const accountError = validateField('bank_details.account_no', formData.bank_details.account_no);
+          if (accountError) {
+            errors['bank_details.account_no'] = accountError;
+            isValid = false;
+          }
+        }
+
+        if (formData.bank_details.ifsc) {
+          const ifscError = validateField('bank_details.ifsc', formData.bank_details.ifsc);
+          if (ifscError) {
+            errors['bank_details.ifsc'] = ifscError;
             isValid = false;
           }
         }
@@ -379,78 +611,80 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
   };
 
   const validateAllFields = () => {
-    const errors = {};
-    let isValid = true;
+  const errors = {};
+  let isValid = true;
 
-    // Vendor Code
-    if (!formData.vendor_code?.trim()) {
-      errors.vendor_code = 'Vendor code is required';
+  // Required fields validation
+  const requiredFields = [
+    { name: 'vendor_code', label: 'Vendor code' },
+    { name: 'vendor_name', label: 'Vendor name' },
+    { name: 'vendor_type', label: 'Vendor type' },
+    { name: 'address', label: 'Address' },
+    { name: 'state', label: 'State' },
+    { name: 'state_code', label: 'State code' },
+    { name: 'contact_person', label: 'Contact person' },
+    { name: 'phone', label: 'Phone number' },
+    { name: 'email', label: 'Email' },
+    { name: 'gstin', label: 'GSTIN' },
+    { name: 'payment_terms', label: 'Payment terms' },
+    { name: 'currency', label: 'Currency' }
+  ];
+
+  requiredFields.forEach(field => {
+    const value = formData[field.name];
+    // Check if value is a string and trim it, or if it's a number convert to string
+    const isEmpty = value === undefined || 
+                    value === null || 
+                    value === '' || 
+                    (typeof value === 'string' && !value.trim());
+    
+    if (isEmpty) {
+      errors[field.name] = `${field.label} is required`;
       isValid = false;
     }
+  });
 
-    // Vendor Name
-    if (!formData.vendor_name?.trim()) {
-      errors.vendor_name = 'Vendor name is required';
-      isValid = false;
-    }
+  // Validate all fields with custom validations
+  const fieldsToValidate = [
+    'vendor_code', 'vendor_name', 'vendor_type', 'address', 'state', 'state_code',
+    'contact_person', 'phone', 'email', 'gstin', 'payment_terms', 'currency',
+    'alternate_phone', 'website', 'pan', 'msme_number', 'credit_days',
+    'bank_details.account_no', 'bank_details.ifsc'
+  ];
 
-    // Vendor Type
-    if (!formData.vendor_type) {
-      errors.vendor_type = 'Vendor type is required';
-      isValid = false;
-    }
-
-    // Contact Person
-    if (!formData.contact_person?.trim()) {
-      errors.contact_person = 'Contact person is required';
-      isValid = false;
-    }
-
-    // Phone
-    if (!formData.phone?.trim()) {
-      errors.phone = 'Phone number is required';
-      isValid = false;
+  fieldsToValidate.forEach(field => {
+    let value;
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      value = formData[parent]?.[child];
     } else {
-      const phoneError = validateField('phone', formData.phone);
-      if (phoneError) {
-        errors.phone = phoneError;
+      value = formData[field];
+    }
+    
+    // Check if field has a value (not empty, null, or undefined)
+    const hasValue = value !== undefined && 
+                     value !== null && 
+                     value !== '' && 
+                     !(typeof value === 'string' && !value.trim());
+    
+    // Check if this is a required field that we already validated above
+    const isRequiredField = requiredFields.some(f => f.name === field);
+    
+    if (hasValue || (isRequiredField && !hasValue)) {
+      const error = validateField(field, value);
+      if (error) {
+        errors[field] = error;
         isValid = false;
       }
     }
+  });
 
-    // Email (optional)
-    if (formData.email) {
-      const emailError = validateField('email', formData.email);
-      if (emailError) {
-        errors.email = emailError;
-        isValid = false;
-      }
-    }
-
-    // GSTIN (optional)
-    if (formData.gstin) {
-      const gstError = validateField('gstin', formData.gstin);
-      if (gstError) {
-        errors.gstin = gstError;
-        isValid = false;
-      }
-    }
-
-    // State Code (optional)
-    if (formData.state_code) {
-      const stateCodeError = validateField('state_code', formData.state_code);
-      if (stateCodeError) {
-        errors.state_code = stateCodeError;
-        isValid = false;
-      }
-    }
-
-    setFieldErrors(errors);
-    if (!isValid) {
-      setError('Please fix all validation errors');
-    }
-    return isValid;
-  };
+  setFieldErrors(errors);
+  if (!isValid) {
+    setError('Please fix all validation errors');
+  }
+  return isValid;
+};
 
   const handleNext = () => {
     if (validateStep(activeStep)) {
@@ -474,22 +708,43 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
 
     try {
       const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
       
-      // Clean phone number before sending
+      // Clean phone numbers
       const cleanPhone = formData.phone.replace(/[\s\-]/g, '').replace(/^\+91/, '');
+      const cleanAlternatePhone = formData.alternate_phone ? 
+        formData.alternate_phone.replace(/[\s\-]/g, '').replace(/^\+91/, '') : '';
       
       const submissionData = {
         vendor_code: formData.vendor_code,
         vendor_name: formData.vendor_name,
         vendor_type: formData.vendor_type,
-        address: formData.address || '',
-        gstin: formData.gstin || '',
-        state: formData.state || '',
-        state_code: formData.state_code ? parseInt(formData.state_code) : null,
+        supply_category: formData.supply_category,
+        address: formData.address,
+        gstin: formData.gstin,
+        pan: formData.pan || null,
+        state: formData.state,
+        state_code: parseInt(formData.state_code),
+        msme_number: formData.msme_number || null,
+        msme_category: formData.msme_category || null,
         contact_person: formData.contact_person,
         phone: cleanPhone,
-        email: formData.email || '',
-        is_active: formData.is_active
+        alternate_phone: cleanAlternatePhone || null,
+        email: formData.email,
+        website: formData.website || null,
+        payment_terms: formData.payment_terms,
+        credit_days: formData.credit_days ? parseInt(formData.credit_days) : 30,
+        currency: formData.currency,
+        bank_details: formData.bank_details.bank_name ? {
+          bank_name: formData.bank_details.bank_name,
+          account_no: formData.bank_details.account_no,
+          ifsc: formData.bank_details.ifsc,
+          branch: formData.bank_details.branch,
+          account_name: formData.bank_details.account_name,
+          account_type: formData.bank_details.account_type
+        } : undefined,
+        is_active: formData.is_active,
+        updated_by: user._id
       };
 
       console.log('Submitting vendor update:', submissionData);
@@ -520,16 +775,34 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
     setFormData({
       vendor_code: '',
       vendor_name: '',
-      vendor_type: 'Both',
+      vendor_type: 'Raw Material',
+      supply_category: [],
       address: '',
       gstin: '',
+      pan: '',
       state: '',
       state_code: '',
+      msme_number: '',
+      msme_category: '',
       contact_person: '',
       phone: '',
+      alternate_phone: '',
       email: '',
+      website: '',
+      payment_terms: 'Net 30',
+      credit_days: '30',
+      currency: 'INR',
+      bank_details: {
+        bank_name: '',
+        account_no: '',
+        ifsc: '',
+        branch: '',
+        account_name: '',
+        account_type: 'Current'
+      },
       is_active: true
     });
+    setSupplyCategoryInput('');
     setFieldErrors({});
     setError('');
     setActiveStep(0);
@@ -547,24 +820,13 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
       case 0: // Basic Information
         return (
           <Stack spacing={2}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Basic Information
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       VENDOR CODE <span style={{ color: '#EF4444' }}>*</span>
@@ -578,35 +840,26 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., VEN001"
                       error={!!fieldErrors.vendor_code}
+                      helperText={fieldErrors.vendor_code}
                       inputProps={{ maxLength: 20 }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    {fieldErrors.vendor_code && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.vendor_code}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       VENDOR NAME <span style={{ color: '#EF4444' }}>*</span>
@@ -620,35 +873,26 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., ABC Enterprises"
                       error={!!fieldErrors.vendor_name}
+                      helperText={fieldErrors.vendor_name}
                       inputProps={{ maxLength: 100 }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    {fieldErrors.vendor_name && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.vendor_name}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       VENDOR TYPE <span style={{ color: '#EF4444' }}>*</span>
@@ -663,21 +907,10 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
                           },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                            borderWidth: 1
-                          },
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: fieldErrors.vendor_type ? '#EF4444' : COLORS.border
-                          }
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
                         }}
                       >
                         {vendorTypes.map((type) => (
@@ -694,33 +927,137 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                     )}
                   </Box>
                 </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ADDRESS <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      multiline
+                      rows={2}
+                      disabled={loading}
+                      placeholder="Street address, city, pincode"
+                      error={!!fieldErrors.address}
+                      helperText={fieldErrors.address}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SUPPLY CATEGORY
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={supplyCategoryInput}
+                        onChange={(e) => setSupplyCategoryInput(e.target.value)}
+                        disabled={loading}
+                        placeholder="e.g., Copper Strip"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSupplyCategoryAdd();
+                          }
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleSupplyCategoryAdd}
+                        disabled={loading || !supplyCategoryInput.trim()}
+                        sx={{
+                          height: 32,
+                          minWidth: 70,
+                          borderRadius: 1.5,
+                          borderColor: COLORS.border,
+                          color: COLORS.primary,
+                          fontSize: '0.7rem',
+                          textTransform: 'none',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                    {formData.supply_category.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                        {formData.supply_category.map((category, index) => (
+                          <Chip
+                            key={index}
+                            label={category}
+                            size="small"
+                            onDelete={() => handleSupplyCategoryDelete(category)}
+                            disabled={loading}
+                            sx={{
+                              fontSize: '0.7rem',
+                              height: 24,
+                              bgcolor: COLORS.primaryLight,
+                              color: COLORS.primary,
+                              '& .MuiChip-deleteIcon': {
+                                color: COLORS.primary,
+                                fontSize: '0.8rem',
+                                '&:hover': { color: COLORS.primaryDark }
+                              }
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+                      Press Enter or click Add to add supply categories
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
             </Paper>
           </Stack>
         );
       
-      case 1: // Contact & Address
+      case 1: // Contact Details
         return (
           <Stack spacing={2}>
-            {/* Contact Information */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Contact Information
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       CONTACT PERSON <span style={{ color: '#EF4444' }}>*</span>
@@ -734,34 +1071,25 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., John Doe"
                       error={!!fieldErrors.contact_person}
+                      helperText={fieldErrors.contact_person}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    {fieldErrors.contact_person && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.contact_person}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       PHONE <span style={{ color: '#EF4444' }}>*</span>
@@ -775,41 +1103,65 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., 9876543210"
                       error={!!fieldErrors.phone}
+                      helperText={fieldErrors.phone}
                       inputProps={{ maxLength: 15 }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                       10-digit mobile number starting with 6-9
                     </Typography>
-                    {fieldErrors.phone && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.phone}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      EMAIL
+                      ALTERNATE PHONE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="alternate_phone"
+                      value={formData.alternate_phone}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 9876543211"
+                      error={!!fieldErrors.alternate_phone}
+                      helperText={fieldErrors.alternate_phone}
+                      inputProps={{ maxLength: 15 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      EMAIL <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -821,69 +1173,7 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="vendor@gmail.com"
                       error={!!fieldErrors.email}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
-                    />
-                    {fieldErrors.email && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.email}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Address Information */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
-                Address Information
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      ADDRESS
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      multiline
-                      rows={2}
-                      disabled={loading}
-                      placeholder="Street address, city, pincode"
+                      helperText={fieldErrors.email}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -892,23 +1182,51 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                           '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      STATE
+                      WEBSITE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="website"
+                      value={formData.website}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="www.example.com"
+                      error={!!fieldErrors.website}
+                      helperText={fieldErrors.website}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      STATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -918,6 +1236,8 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       onChange={handleChange}
                       disabled={loading}
                       placeholder="e.g., Maharashtra"
+                      error={!!fieldErrors.state}
+                      helperText={fieldErrors.state}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -926,23 +1246,19 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                           '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      STATE CODE
+                      STATE CODE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -953,47 +1269,26 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., 27"
                       error={!!fieldErrors.state_code}
-                      inputProps={{ 
-                        min: 1, 
-                        max: 99,
-                        step: 1,
-                        onWheel: (e) => e.target.blur()
-                      }}
+                      helperText={fieldErrors.state_code}
+                      inputProps={{ min: 1, max: 37, onWheel: (e) => e.target.blur() }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
                         },
-                        '& input[type=number]': {
-                          MozAppearance: 'textfield'
-                        },
-                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                          WebkitAppearance: 'none',
-                          margin: 0
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
-                      Between 1-99
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Between 1-37 (Indian state codes)
                     </Typography>
-                    {fieldErrors.state_code && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.state_code}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
               </Grid>
@@ -1001,31 +1296,19 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
           </Stack>
         );
       
-      case 2: // Tax & Status
+      case 2: // Tax & Compliance
         return (
           <Stack spacing={2}>
-            {/* Tax Information */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Tax Information
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      GSTIN
+                      GSTIN <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -1036,38 +1319,433 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                       disabled={loading}
                       placeholder="e.g., 27AAACM1234A1Z5"
                       error={!!fieldErrors.gstin}
-                      inputProps={{ 
-                        maxLength: 15,
-                        style: { textTransform: 'uppercase' }
-                      }}
+                      helperText={fieldErrors.gstin}
+                      inputProps={{ maxLength: 15, style: { textTransform: 'uppercase' } }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
                         }
                       }}
                     />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                       15 characters: 2 digits + 10 PAN + 3 chars
                     </Typography>
-                    {fieldErrors.gstin && (
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PAN NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="pan"
+                      value={formData.pan}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., AAAAA1234A"
+                      error={!!fieldErrors.pan}
+                      helperText={fieldErrors.pan}
+                      inputProps={{ maxLength: 10, style: { textTransform: 'uppercase' } }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      10 characters: 5 letters + 4 digits + 1 letter
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                MSME Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      MSME NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="msme_number"
+                      value={formData.msme_number}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., UDYAM-MH-01-1234567"
+                      error={!!fieldErrors.msme_number}
+                      helperText={fieldErrors.msme_number}
+                      inputProps={{ maxLength: 30 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      MSME CATEGORY
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        name="msme_category"
+                        value={formData.msme_category}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
+                      >
+                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Select category</MenuItem>
+                        {msmeCategories.map((cat) => (
+                          <MenuItem key={cat.value} value={cat.value} sx={{ fontSize: '0.75rem' }}>
+                            {cat.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+      
+      case 3: // Bank & Payment
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Payment Terms
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PAYMENT TERMS <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small" error={!!fieldErrors.payment_terms}>
+                      <Select
+                        name="payment_terms"
+                        value={formData.payment_terms}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
+                      >
+                        {paymentTermsOptions.map((term) => (
+                          <MenuItem key={term.value} value={term.value} sx={{ fontSize: '0.75rem' }}>
+                            {term.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {fieldErrors.payment_terms && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.gstin}
+                        {fieldErrors.payment_terms}
                       </Typography>
                     )}
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CREDIT DAYS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="credit_days"
+                      value={formData.credit_days}
+                      onChange={handleChange}
+                      disabled={loading}
+                      type="number"
+                      placeholder="e.g., 30"
+                      error={!!fieldErrors.credit_days}
+                      helperText={fieldErrors.credit_days}
+                      inputProps={{ min: 0, max: 365, onWheel: (e) => e.target.blur() }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CURRENCY <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small" error={!!fieldErrors.currency}>
+                      <Select
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
+                      >
+                        {currencies.map((curr) => (
+                          <MenuItem key={curr.value} value={curr.value} sx={{ fontSize: '0.75rem' }}>
+                            {curr.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {fieldErrors.currency && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
+                        {fieldErrors.currency}
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Bank Details
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      BANK NAME
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={formData.bank_details.bank_name}
+                      onChange={(e) => handleBankDetailsChange('bank_name', e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., HDFC Bank"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      BRANCH
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={formData.bank_details.branch}
+                      onChange={(e) => handleBankDetailsChange('branch', e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., MIDC Industrial Area"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ACCOUNT NAME
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={formData.bank_details.account_name}
+                      onChange={(e) => handleBankDetailsChange('account_name', e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., ABC Metals Pvt Ltd"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ACCOUNT NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={formData.bank_details.account_no}
+                      onChange={(e) => handleBankDetailsChange('account_no', e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., 50100123456789"
+                      error={!!fieldErrors['bank_details.account_no']}
+                      helperText={fieldErrors['bank_details.account_no']}
+                      inputProps={{ maxLength: 18 }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      IFSC CODE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={formData.bank_details.ifsc}
+                      onChange={(e) => handleBankDetailsChange('ifsc', e.target.value.toUpperCase())}
+                      disabled={loading}
+                      placeholder="e.g., HDFC0001234"
+                      error={!!fieldErrors['bank_details.ifsc']}
+                      helperText={fieldErrors['bank_details.ifsc']}
+                      inputProps={{ maxLength: 11, style: { textTransform: 'uppercase' } }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ACCOUNT TYPE
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        value={formData.bank_details.account_type}
+                        onChange={(e) => handleBankDetailsChange('account_type', e.target.value)}
+                        disabled={loading}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                          },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
+                      >
+                        {accountTypes.map((type) => (
+                          <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.75rem' }}>
+                            {type.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Box>
                 </Grid>
               </Grid>
@@ -1088,10 +1766,11 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          borderRadius: 5,
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          maxHeight: '95vh'
         }
       }}
     >
@@ -1101,68 +1780,63 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
         px: 2.5,
         bgcolor: COLORS.background.white,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        flexDirection: 'column',
+        gap: 1
       }}>
-        <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.primary }}>
-          Edit Vendor
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          {vendor?._id && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Edit Vendor
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {vendor?._id && (
+              <Chip
+                label={`ID: ${vendor._id.slice(-6)}`}
+                size="small"
+                sx={{ 
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  height: 24,
+                  bgcolor: COLORS.background.light,
+                  color: COLORS.text.secondary,
+                  border: `1px solid ${COLORS.border}`
+                }}
+              />
+            )}
             <Chip
-              label={`ID: ${vendor._id.slice(-6)}`}
+              label={formData.is_active ? 'Active' : 'Inactive'}
               size="small"
               sx={{ 
                 fontSize: '0.65rem',
                 fontWeight: 500,
-                height: 20,
-                bgcolor: COLORS.background.light,
-                color: COLORS.text.secondary,
-                border: `1px solid ${COLORS.border}`,
-                '& .MuiChip-label': {
-                  px: 1
-                }
+                height: 24,
+                bgcolor: formData.is_active ? COLORS.chips.active : COLORS.chips.inactive,
+                color: formData.is_active ? COLORS.primaryDark : COLORS.text.secondary,
+                border: `1px solid ${formData.is_active ? '#86efac' : COLORS.border}`
               }}
             />
-          )}
-          {/* <Chip
-            label={formData.is_active ? 'Active' : 'Inactive'}
-            size="small"
-            sx={{ 
-              fontSize: '0.65rem',
-              fontWeight: 500,
-              height: 20,
-              bgcolor: formData.is_active ? COLORS.chips.active : COLORS.chips.inactive,
-              color: formData.is_active ? COLORS.primaryDark : COLORS.text.secondary,
-              border: `1px solid ${formData.is_active ? '#86efac' : COLORS.border}`,
-              '& .MuiChip-label': {
-                px: 1
-              }
-            }}
-          /> */}
+          </Box>
         </Box>
-      </DialogTitle>
 
-      {/* Modern Stepper with Primary Color */}
-      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+        {/* Modern Stepper with Gradient Connector */}
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
+          sx={{ mb: 0.5, mt: 0.5 }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
                   {label}
                 </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
-      </Box>
+      </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
         {renderStepContent(activeStep)}
 
         {error && (
@@ -1171,9 +1845,9 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
             sx={{ 
               mt: 2, 
               borderRadius: 1.5,
+              '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
               fontSize: '0.75rem',
-              py: 0.5,
-              '& .MuiAlert-icon': { fontSize: '1.25rem' }
+              py: 0.5
             }}
           >
             {error}
@@ -1186,12 +1860,13 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
         py: 1.5,
         borderTop: `1px solid ${COLORS.border}`,
         bgcolor: COLORS.background.white,
-        justifyContent: 'space-between'
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
       }}>
         <Button
           onClick={handleBack}
           disabled={activeStep === 0 || loading}
-          size="small"
           startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,
@@ -1210,15 +1885,13 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
         >
           Back
         </Button>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             onClick={handleClose}
             disabled={loading}
-            size="small"
             sx={{
               height: 32,
               px: 2,
-              mr: 1,
               borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text.secondary,
@@ -1238,8 +1911,7 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
               variant="contained"
               onClick={handleSubmit}
               disabled={loading}
-              size="small"
-              startIcon={<EditIcon sx={{ fontSize: '1rem' }} />}
+              startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
@@ -1249,9 +1921,7 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                 fontWeight: 500,
                 textTransform: 'none',
                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
+                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
               {loading ? 'Updating...' : 'Update Vendor'}
@@ -1261,7 +1931,6 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
               variant="contained"
               onClick={handleNext}
               disabled={loading}
-              size="small"
               endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
@@ -1272,9 +1941,7 @@ const EditVendor = ({ open, onClose, vendor, onUpdate }) => {
                 fontWeight: 500,
                 textTransform: 'none',
                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
+                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
               Next

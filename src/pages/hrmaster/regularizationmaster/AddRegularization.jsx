@@ -1,22 +1,319 @@
+// import React, { useEffect, useState } from "react";
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   TextField,
+//   Stack,
+//   Alert,
+//   MenuItem,
+//   Autocomplete,
+//   CircularProgress,
+// } from "@mui/material";
+// import { Add as AddIcon } from "@mui/icons-material";
+// import axios from "axios";
+// import BASE_URL from "../../../config/Config";
+
+// const AddRegularization = ({ open, onClose, onAdd }) => {
+//   const [formData, setFormData] = useState({
+//     employeeId: "",
+//     date: "",
+//     requestType: "missed-punch",
+//     requestedIn: "",
+//     requestedOut: "",
+//     reason: "",
+//     supportingDocument: "",
+//   });
+
+//   const [employees, setEmployees] = useState([]);
+//   const [selectedEmployee, setSelectedEmployee] = useState(null);
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState("");
+
+//   /* ==============================
+//      FETCH EMPLOYEES
+//   ============================== */
+//   useEffect(() => {
+//     if (open) {
+//       fetchEmployees();
+//     }
+//   }, [open]);
+
+//   const fetchEmployees = async () => {
+//     try {
+//       const token = localStorage.getItem("token");
+
+//       const res = await axios.get(`${BASE_URL}/api/employees`, {
+//         headers: { Authorization: `Bearer ${token}` },
+//       });
+
+//       if (res.data.success) {
+//         setEmployees(res.data.data || []);
+//       }
+//     } catch (err) {
+//       console.error(err);
+//       setError("Failed to load employees");
+//     }
+//   };
+
+//   /* ==============================
+//      HANDLE INPUT CHANGE
+//   ============================== */
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+//     setFormData((prev) => ({
+//       ...prev,
+//       [name]: value,
+//     }));
+//   };
+
+//   /* ==============================
+//      VALIDATION
+//   ============================== */
+//   const validate = () => {
+//     if (!formData.employeeId) return "Employee is required";
+//     if (!formData.date) return "Date is required";
+//     if (!formData.reason.trim()) return "Reason is required";
+//     return null;
+//   };
+
+//   /* ==============================
+//      SUBMIT
+//   ============================== */
+//   const handleSubmit = async () => {
+//     const validationError = validate();
+//     if (validationError) {
+//       setError(validationError);
+//       return;
+//     }
+
+//     setLoading(true);
+//     setError("");
+
+//     try {
+//       const token = localStorage.getItem("token");
+
+//       const payload = {
+//         employeeId: formData.employeeId,
+//         date: formData.date,
+//         requestType: formData.requestType,
+//         requestedIn: formData.requestedIn
+//           ? new Date(formData.requestedIn).toISOString()
+//           : null,
+//         requestedOut: formData.requestedOut
+//           ? new Date(formData.requestedOut).toISOString()
+//           : null,
+//         reason: formData.reason,
+//         supportingDocument: formData.supportingDocument || "",
+//       };
+
+//       const response = await axios.post(
+//         `${BASE_URL}/api/regularization`,
+//         payload,
+//         {
+//           headers: {
+//             Authorization: `Bearer ${token}`,
+//             "Content-Type": "application/json",
+//           },
+//         },
+//       );
+
+//       if (response.data.success) {
+//         onAdd(response.data.data);
+//         handleClose();
+//       } else {
+//         setError(response.data.message || "Failed to submit request");
+//       }
+//     } catch (err) {
+//       console.error(err.response?.data);
+//       setError(
+//         err.response?.data?.message ||
+//           "Failed to submit regularization request",
+//       );
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   /* ==============================
+//      RESET
+//   ============================== */
+//   const resetForm = () => {
+//     setFormData({
+//       employeeId: "",
+//       date: "",
+//       requestType: "missed-punch",
+//       requestedIn: "",
+//       requestedOut: "",
+//       reason: "",
+//       supportingDocument: "",
+//     });
+//     setSelectedEmployee(null);
+//     setError("");
+//   };
+
+//   const handleClose = () => {
+//     resetForm();
+//     onClose();
+//   };
+
+//   /* ==============================
+//      UI
+//   ============================== */
+//   return (
+//     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+//       <DialogTitle
+//         sx={{
+//           background: "linear-gradient(135deg, #164e63, #00B4D8)",
+//           color: "#fff",
+//           fontWeight: 600,
+//         }}
+//       >
+//         Create Regularization Request
+//       </DialogTitle>
+
+//       <DialogContent sx={{ pt: 3, margin: 1 }}>
+//         <Stack spacing={3}>
+//           {error && <Alert severity="error">{error}</Alert>}
+
+//           {/* Employee Dropdown */}
+//           <Autocomplete
+//             options={employees}
+//             value={selectedEmployee}
+//             onChange={(event, newValue) => {
+//               setSelectedEmployee(newValue);
+//               setFormData((prev) => ({
+//                 ...prev,
+//                 employeeId: newValue?._id || "",
+//               }));
+//             }}
+//             getOptionLabel={(option) => {
+//               if (!option) return "";
+//               return `${option.FirstName || ""} ${option.LastName || ""} (${option.EmployeeID || ""})`;
+//             }}
+//             isOptionEqualToValue={(option, value) => option._id === value?._id}
+//             renderInput={(params) => (
+//               <TextField {...params} label="Employee *" required />
+//             )}
+//           />
+
+//           <TextField
+//             type="date"
+//             label="Date *"
+//             name="date"
+//             value={formData.date}
+//             onChange={handleChange}
+//             InputLabelProps={{ shrink: true }}
+//             fullWidth
+//           />
+
+//           <TextField
+//             select
+//             label="Request Type"
+//             name="requestType"
+//             value={formData.requestType}
+//             onChange={handleChange}
+//             fullWidth
+//           >
+//             <MenuItem value="missed-punch">Missed Punch</MenuItem>
+//             <MenuItem value="correct-time">Correct Time</MenuItem>
+//             <MenuItem value="work-from-home">Work From Home</MenuItem>
+//             <MenuItem value="on-duty">On Duty</MenuItem>
+//           </TextField>
+
+//           <TextField
+//             type="datetime-local"
+//             label="Requested In"
+//             name="requestedIn"
+//             value={formData.requestedIn}
+//             onChange={handleChange}
+//             InputLabelProps={{ shrink: true }}
+//             fullWidth
+//           />
+
+//           <TextField
+//             type="datetime-local"
+//             label="Requested Out"
+//             name="requestedOut"
+//             value={formData.requestedOut}
+//             onChange={handleChange}
+//             InputLabelProps={{ shrink: true }}
+//             fullWidth
+//           />
+
+//           <TextField
+//             multiline
+//             rows={3}
+//             label="Reason *"
+//             name="reason"
+//             value={formData.reason}
+//             onChange={handleChange}
+//             fullWidth
+//           />
+
+//           <TextField
+//             label="Supporting Document URL"
+//             name="supportingDocument"
+//             value={formData.supportingDocument}
+//             onChange={handleChange}
+//             fullWidth
+//           />
+//         </Stack>
+//       </DialogContent>
+
+//       <DialogActions sx={{ p: 3 }}>
+//         <Button onClick={handleClose} disabled={loading}>
+//           Cancel
+//         </Button>
+
+//         <Button
+//           variant="contained"
+//           onClick={handleSubmit}
+//           disabled={loading}
+//           startIcon={!loading && <AddIcon />}
+//           sx={{
+//             background: "linear-gradient(135deg, #164e63, #00B4D8)",
+//             px: 4,
+//           }}
+//         >
+//           {loading ? <CircularProgress size={20} /> : "Submit Request"}
+//         </Button>
+//       </DialogActions>
+//     </Dialog>
+//   );
+// };
+
+// export default AddRegularization;
+
 import React, { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Stack,
-  Alert,
-  MenuItem,
-  Autocomplete,
-  CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, TextField, Stack, Alert, Typography,
+  CircularProgress, Box, MenuItem, Autocomplete
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 
+// 🎨 SAME DESIGN SYSTEM (EXACT ADD TAX)
+const COLORS = {
+  primary: "#063C3F",
+  primaryDark: "#05292B",
+  text: {
+    primary: "#151C26",
+    secondary: "#4B5568",
+    tertiary: "#94A3B8"
+  },
+  background: {
+    white: "#FFFFFF"
+  },
+  border: "#E3E8EF"
+};
+
 const AddRegularization = ({ open, onClose, onAdd }) => {
+
   const [formData, setFormData] = useState({
     employeeId: "",
     date: "",
@@ -24,7 +321,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
     requestedIn: "",
     requestedOut: "",
     reason: "",
-    supportingDocument: "",
+    supportingDocument: ""
   });
 
   const [employees, setEmployees] = useState([]);
@@ -32,13 +329,9 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* ==============================
-     FETCH EMPLOYEES
-  ============================== */
+  /* ================= FETCH EMPLOYEES ================= */
   useEffect(() => {
-    if (open) {
-      fetchEmployees();
-    }
+    if (open) fetchEmployees();
   }, [open]);
 
   const fetchEmployees = async () => {
@@ -46,32 +339,24 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(`${BASE_URL}/api/employees`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (res.data.success) {
         setEmployees(res.data.data || []);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Failed to load employees");
     }
   };
 
-  /* ==============================
-     HANDLE INPUT CHANGE
-  ============================== */
+  /* ================= HANDLE CHANGE ================= */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  /* ==============================
-     VALIDATION
-  ============================== */
+  /* ================= VALIDATION ================= */
   const validate = () => {
     if (!formData.employeeId) return "Employee is required";
     if (!formData.date) return "Date is required";
@@ -79,13 +364,11 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
     return null;
   };
 
-  /* ==============================
-     SUBMIT
-  ============================== */
+  /* ================= SUBMIT ================= */
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    const errMsg = validate();
+    if (errMsg) {
+      setError(errMsg);
       return;
     }
 
@@ -96,50 +379,38 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       const token = localStorage.getItem("token");
 
       const payload = {
-        employeeId: formData.employeeId,
-        date: formData.date,
-        requestType: formData.requestType,
+        ...formData,
         requestedIn: formData.requestedIn
           ? new Date(formData.requestedIn).toISOString()
           : null,
         requestedOut: formData.requestedOut
           ? new Date(formData.requestedOut).toISOString()
-          : null,
-        reason: formData.reason,
-        supportingDocument: formData.supportingDocument || "",
+          : null
       };
 
-      const response = await axios.post(
+      const res = await axios.post(
         `${BASE_URL}/api/regularization`,
         payload,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        },
+          headers: { Authorization: `Bearer ${token}` }
+        }
       );
 
-      if (response.data.success) {
-        onAdd(response.data.data);
+      if (res.data.success) {
+        onAdd(res.data.data);
         handleClose();
       } else {
-        setError(response.data.message || "Failed to submit request");
+        setError("Failed to submit request");
       }
+
     } catch (err) {
-      console.error(err.response?.data);
-      setError(
-        err.response?.data?.message ||
-          "Failed to submit regularization request",
-      );
+      setError(err.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ==============================
-     RESET
-  ============================== */
+  /* ================= RESET ================= */
   const resetForm = () => {
     setFormData({
       employeeId: "",
@@ -148,7 +419,7 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
       requestedIn: "",
       requestedOut: "",
       reason: "",
-      supportingDocument: "",
+      supportingDocument: ""
     });
     setSelectedEmployee(null);
     setError("");
@@ -159,112 +430,213 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
     onClose();
   };
 
-  /* ==============================
-     UI
-  ============================== */
+  /* ================= COMMON INPUT STYLE ================= */
+  const inputStyle = {
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 1.5,
+      fontSize: "0.75rem",
+      "&:hover fieldset": { borderColor: COLORS.primary },
+      "&.Mui-focused fieldset": {
+        borderColor: COLORS.primary,
+        borderWidth: 1
+      }
+    },
+    "& .MuiInputBase-input": {
+      py: 1,
+      px: 1.5,
+      fontSize: "0.75rem",
+      color: COLORS.text.primary,
+      "&::placeholder": {
+        color: COLORS.text.tertiary
+      }
+    }
+  };
+
+  const labelStyle = {
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: "0.5px"
+  };
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle
-        sx={{
-          background: "linear-gradient(135deg, #164e63, #00B4D8)",
-          color: "#fff",
-          fontWeight: 600,
-        }}
-      >
-        Create Regularization Request
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          border: `1px solid ${COLORS.border}`,
+          overflow: "hidden"
+        }
+      }}
+    >
+      {/* HEADER */}
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 1.5,
+      }}>
+        <Typography sx={{
+          fontSize: "1.2rem",
+          fontWeight: 700,
+          color: COLORS.text.primary
+        }}>
+          Add Request
+        </Typography>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3, margin: 1 }}>
-        <Stack spacing={3}>
-          {error && <Alert severity="error">{error}</Alert>}
+      {/* CONTENT */}
+      <DialogContent sx={{ p: 2.5 }}>
+        <Stack spacing={2}>
 
-          {/* Employee Dropdown */}
-          <Autocomplete
-            options={employees}
-            value={selectedEmployee}
-            onChange={(event, newValue) => {
-              setSelectedEmployee(newValue);
-              setFormData((prev) => ({
-                ...prev,
-                employeeId: newValue?._id || "",
-              }));
-            }}
-            getOptionLabel={(option) => {
-              if (!option) return "";
-              return `${option.FirstName || ""} ${option.LastName || ""} (${option.EmployeeID || ""})`;
-            }}
-            isOptionEqualToValue={(option, value) => option._id === value?._id}
-            renderInput={(params) => (
-              <TextField {...params} label="Employee *" required />
-            )}
-          />
+          {/* EMPLOYEE */}
+          <Box>
+            <Typography sx={labelStyle}>
+              EMPLOYEE <span style={{ color: "#EF4444" }}>*</span>
+            </Typography>
 
-          <TextField
-            type="date"
-            label="Date *"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
+            <Autocomplete
+              options={employees}
+              value={selectedEmployee}
+              onChange={(e, val) => {
+                setSelectedEmployee(val);
+                setFormData(prev => ({
+                  ...prev,
+                  employeeId: val?._id || ""
+                }));
+              }}
+              getOptionLabel={(o) =>
+                `${o?.FirstName || ""} ${o?.LastName || ""}`
+              }
+              renderInput={(params) => (
+                <TextField {...params} placeholder="Select employee" size="small" sx={inputStyle}/>
+              )}
+            />
+          </Box>
 
-          <TextField
-            select
-            label="Request Type"
-            name="requestType"
-            value={formData.requestType}
-            onChange={handleChange}
-            fullWidth
-          >
-            <MenuItem value="missed-punch">Missed Punch</MenuItem>
-            <MenuItem value="correct-time">Correct Time</MenuItem>
-            <MenuItem value="work-from-home">Work From Home</MenuItem>
-            <MenuItem value="on-duty">On Duty</MenuItem>
-          </TextField>
+          {/* DATE */}
+          <Box>
+            <Typography sx={labelStyle}>
+              DATE <span style={{ color: "#EF4444" }}>*</span>
+            </Typography>
+            <TextField
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              InputLabelProps={{ shrink: true }}
+              sx={inputStyle}
+            />
+          </Box>
 
-          <TextField
-            type="datetime-local"
-            label="Requested In"
-            name="requestedIn"
-            value={formData.requestedIn}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
+          {/* REQUEST TYPE */}
+          <Box>
+            <Typography sx={labelStyle}>REQUEST TYPE</Typography>
+            <TextField
+              select
+              name="requestType"
+              value={formData.requestType}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              sx={inputStyle}
+            >
+              <MenuItem value="missed-punch">Missed Punch</MenuItem>
+              <MenuItem value="correct-time">Correct Time</MenuItem>
+              <MenuItem value="work-from-home">Work From Home</MenuItem>
+              <MenuItem value="on-duty">On Duty</MenuItem>
+            </TextField>
+          </Box>
 
-          <TextField
-            type="datetime-local"
-            label="Requested Out"
-            name="requestedOut"
-            value={formData.requestedOut}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
+          {/* IN / OUT */}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <TextField
+              type="datetime-local"
+              label="In Time"
+              name="requestedIn"
+              value={formData.requestedIn}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              sx={inputStyle}
+            />
+            <TextField
+              type="datetime-local"
+              label="Out Time"
+              name="requestedOut"
+              value={formData.requestedOut}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              sx={inputStyle}
+            />
+          </Box>
 
-          <TextField
-            multiline
-            rows={3}
-            label="Reason *"
-            name="reason"
-            value={formData.reason}
-            onChange={handleChange}
-            fullWidth
-          />
+          {/* REASON */}
+          <Box>
+            <Typography sx={labelStyle}>
+              REASON <span style={{ color: "#EF4444" }}>*</span>
+            </Typography>
+            <TextField
+              multiline
+              rows={3}
+              name="reason"
+              value={formData.reason}
+              onChange={handleChange}
+              placeholder="Enter reason..."
+              fullWidth
+              size="small"
+              sx={inputStyle}
+            />
+          </Box>
 
-          <TextField
-            label="Supporting Document URL"
-            name="supportingDocument"
-            value={formData.supportingDocument}
-            onChange={handleChange}
-            fullWidth
-          />
+          {/* DOC */}
+          <Box>
+            <Typography sx={labelStyle}>SUPPORTING DOCUMENT</Typography>
+            <TextField
+              name="supportingDocument"
+              value={formData.supportingDocument}
+              onChange={handleChange}
+              placeholder="Enter document URL"
+              fullWidth
+              size="small"
+              sx={inputStyle}
+            />
+          </Box>
+
+          {error && (
+            <Alert sx={{ fontSize: "0.75rem" }} severity="error">
+              {error}
+            </Alert>
+          )}
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ p: 3 }}>
-        <Button onClick={handleClose} disabled={loading}>
+      {/* ACTIONS */}
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        gap: 1
+      }}>
+        <Button
+          onClick={handleClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            fontSize: "0.7rem"
+          }}
+        >
           Cancel
         </Button>
 
@@ -272,13 +644,17 @@ const AddRegularization = ({ open, onClose, onAdd }) => {
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          startIcon={!loading && <AddIcon />}
+          startIcon={!loading && <AddIcon sx={{ fontSize: "1rem" }} />}
           sx={{
-            background: "linear-gradient(135deg, #164e63, #00B4D8)",
-            px: 4,
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            fontSize: "0.7rem",
+            "&:hover": { bgcolor: COLORS.primaryDark }
           }}
         >
-          {loading ? <CircularProgress size={20} /> : "Submit Request"}
+          {loading ? "Submitting..." : "Submit"}
         </Button>
       </DialogActions>
     </Dialog>

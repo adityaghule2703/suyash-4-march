@@ -50,6 +50,11 @@ import MediclaimMaster from './pages/hrmaster/mediclaimmaster/MediclaimMaster'
 import LeadsMaster from './pages/master/leadsmaster/LeadsMaster'
 import AddRoles from './pages/roles/AddRoles'
 import AddUser from './pages/users/AddUser'
+import CustomerMaster from './pages/master/customermaster/CustomerMaster'
+import GRNMaster from './pages/procurementmaster/GRN/GRNMaster'
+import PurchaseOrderMaster from './pages/procurementmaster/purchaseorder/PurchaseOrderMaster'
+import PurchaseRequisitionMaster from './pages/procurementmaster/purchaserequisitions/PurchaseRequisitionMaster'
+import RFQMaster from './pages/procurementmaster/RFQ/RfqMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -88,6 +93,7 @@ const App = () => {
           <Route path="master/dimentionmaster" element={<DimentionMaster />} />
           {/* <Route path="master/operationmaster" element={<OperationMaster />} /> */}
           <Route path="master/processmaster" element={<ProcessMaster />} />
+           <Route path="master/customermaster" element={<CustomerMaster />} />
            <Route path="master/leadsmaster" element={<LeadsMaster />} />
           <Route path="master/quotationmaster" element={<QuotationMaster />} />
           <Route path="master/taxmaster" element={<TaxMaster />} />
@@ -120,6 +126,12 @@ const App = () => {
 
           <Route path='hrmaster/employeeleavemaster' element={<EmployeeLeaveMaster/>} />
           <Route path='hrmaster/adminleavemaster' element={<AdminLeaveApproval/>} />
+
+
+          <Route path='procurementmaster/grnmaster' element={<GRNMaster/>} />
+          <Route path='procurementmaster/purchaseordermaster' element={<PurchaseOrderMaster/>} />
+          <Route path='procurementmaster/purchaserequisitionmaster' element={<PurchaseRequisitionMaster/>} />
+          <Route path='procurementmaster/rfqmaster' element={<RFQMaster/>} />
 
         </Route>
 

@@ -125,6 +125,7 @@ const EditLead = ({ open, onClose, lead, onUpdate }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
@@ -145,7 +146,7 @@ const EditLead = ({ open, onClose, lead, onUpdate }) => {
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
             {/* Lead ID and Subject Info */}
-            <Box sx={{ gridColumn: 'span 2', mb: 1 }}>
+            {/* <Box sx={{ gridColumn: 'span 2', mb: 1 }}>
               <Paper sx={{ 
                 p: 1.5, 
                 bgcolor: COLORS.primaryLight, 
@@ -173,7 +174,7 @@ const EditLead = ({ open, onClose, lead, onUpdate }) => {
                   </Stack>
                 </Stack>
               </Paper>
-            </Box>
+            </Box> */}
 
             {/* Priority Field */}
             <Box sx={{ gridColumn: 'span 2' }}>
@@ -470,7 +471,7 @@ const EditLead = ({ open, onClose, lead, onUpdate }) => {
             </Box>
 
             {/* Current Values Preview */}
-            <Box sx={{ gridColumn: 'span 2' }}>
+            {/* <Box sx={{ gridColumn: 'span 2' }}>
               <Box sx={{ 
                 p: 2, 
                 bgcolor: COLORS.primaryLight, 
@@ -528,7 +529,7 @@ const EditLead = ({ open, onClose, lead, onUpdate }) => {
                   )}
                 </Stack>
               </Box>
-            </Box>
+            </Box> */}
           </Box>
           
           {error && (

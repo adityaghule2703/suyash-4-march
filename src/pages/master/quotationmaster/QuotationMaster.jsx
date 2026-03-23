@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddQuotation from './AddQuotation';
@@ -110,8 +111,39 @@ const debounce = (func, wait) => {
   };
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.QUOTATION_MASTER, PAGES.QUOTATION, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.QUOTATION_MASTER, PAGES.QUOTATION, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.QUOTATION_MASTER, PAGES.QUOTATION, ACTIONS.DELETE);
+  const canPrint = hasPermission(permissions, MODULES.QUOTATION_MASTER, PAGES.QUOTATION, ACTIONS.PRINT);
+
+  // Check if any actions are available
+  const hasAnyAction = canView || canUpdate || canDelete || canPrint;
+  
+  if (!hasAnyAction) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -143,55 +175,64 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onPrint, anchorEl, onClose
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onPrint(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#6B7280', minWidth: 36 }}>
-            <PrintIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Generate PDF
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canPrint && (
+          <MenuItem 
+            onClick={() => {
+              onPrint(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#6B7280', minWidth: 36 }}>
+              <PrintIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Generate PDF
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canPrint) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -214,7 +255,7 @@ const QuotationMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -255,11 +296,72 @@ const QuotationMaster = () => {
   // Filter options
   const [vendors, setVendors] = useState([]);
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = useCallback((action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.QUOTATION_MASTER,
+      PAGES.QUOTATION,
+      action
+    );
+  }, [userPermissions, isSuperAdmin]);
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -273,7 +375,7 @@ const QuotationMaster = () => {
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -344,11 +446,13 @@ const QuotationMaster = () => {
     }
   }, []);
 
-  // Initial load
+  // Initial load - only if user has permission
   useEffect(() => {
-    fetchQuotations();
-    fetchVendors();
-  }, [fetchQuotations, fetchVendors]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchQuotations();
+      fetchVendors();
+    }
+  }, [fetchQuotations, fetchVendors, canViewPage, isSuperAdmin, permissionsLoaded]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -397,8 +501,10 @@ const QuotationMaster = () => {
     return count;
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(quotations.map(quotation => quotation._id));
     } else {
@@ -406,8 +512,10 @@ const QuotationMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -423,7 +531,7 @@ const QuotationMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -431,16 +539,17 @@ const QuotationMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = async () => {
+    if (!canDelete) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // You'll need to implement a bulk delete endpoint on the backend
       await Promise.all(selected.map(id => 
         axios.delete(`${BASE_URL}/api/quotations/${id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -449,7 +558,7 @@ const QuotationMaster = () => {
       
       showNotification(`${selected.length} quotations deleted successfully!`, 'success');
       setSelected([]);
-      fetchQuotations(); // Refresh data
+      fetchQuotations();
     } catch (err) {
       console.error('Error deleting quotations:', err);
       showNotification('Failed to delete quotations', 'error');
@@ -490,6 +599,7 @@ const QuotationMaster = () => {
 
   // Open edit modal
   const openEditQuotationModal = (quotation) => {
+    if (!canUpdate) return;
     setSelectedQuotation(quotation);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -497,6 +607,7 @@ const QuotationMaster = () => {
   
   // Open view modal
   const openViewQuotationModal = (quotation) => {
+    if (!canViewPage) return;
     setSelectedQuotation(quotation);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -504,6 +615,7 @@ const QuotationMaster = () => {
   
   // Open delete confirmation
   const openDeleteQuotationDialog = (quotation) => {
+    if (!canDelete) return;
     setSelectedQuotation(quotation);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -511,6 +623,7 @@ const QuotationMaster = () => {
 
   // Open print modal
   const openPrintQuotation = (quotation) => {
+    if (!canPrint) return;
     setSelectedQuotation(quotation);
     setOpenPrintModal(true);
     handleActionMenuClose();
@@ -586,6 +699,16 @@ const QuotationMaster = () => {
     );
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -606,8 +729,6 @@ const QuotationMaster = () => {
           Manage and track vendor quotations and purchase requests
         </Typography>
       </Box>
-
-   
 
       {/* Action Bar */}
       <Paper sx={{ 
@@ -686,9 +807,10 @@ const QuotationMaster = () => {
             )}
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -712,26 +834,30 @@ const QuotationMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Quotation
-            </Button>
+            
+            {/* Add Quotation Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Quotation
+              </Button>
+            )}
           </Stack>
         </Stack>
 
@@ -833,26 +959,29 @@ const QuotationMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < quotations.length}
-                    checked={quotations.length > 0 && selected.length === quotations.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < quotations.length}
+                      checked={quotations.length > 0 && selected.length === quotations.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || quotations.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || quotations.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -893,14 +1022,6 @@ const QuotationMaster = () => {
                 }} align="right">
                   Amount
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Status
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -915,7 +1036,7 @@ const QuotationMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading quotations...
@@ -924,7 +1045,7 @@ const QuotationMaster = () => {
                 </TableRow>
               ) : quotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {hasActiveFilters() ? 'No quotations found matching your filters' : 'No quotations available'}
@@ -974,21 +1095,24 @@ const QuotationMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(quotation._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(quotation._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -1052,9 +1176,6 @@ const QuotationMaster = () => {
                           GST: {quotation.GSTPercentage}%
                         </Typography>
                       </TableCell>
-                      {/* <TableCell>
-                        {getStatusChip(quotation.Status)}
-                      </TableCell> */}
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={quotation}
@@ -1065,6 +1186,7 @@ const QuotationMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, quotation)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -1100,56 +1222,68 @@ const QuotationMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddQuotation 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddQuotation}
-      />
+      {/* Modal Components - Only render modals if user has appropriate permissions */}
+      {canCreate && (
+        <AddQuotation 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddQuotation}
+        />
+      )}
 
       {selectedQuotation && (
         <>
-          <EditQuotation 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedQuotation(null);
-            }}
-            quotation={selectedQuotation}
-            onUpdate={handleEditQuotation}
-          />
+          {canUpdate && (
+            <EditQuotation 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedQuotation(null);
+              }}
+              quotation={selectedQuotation}
+              onUpdate={handleEditQuotation}
+            />
+          )}
 
-          <ViewQuotation 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedQuotation(null);
-            }}
-            quotation={selectedQuotation}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewQuotation 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedQuotation(null);
+              }}
+              quotation={selectedQuotation}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <PrintQuotation
-            open={openPrintModal}
-            onClose={() => {
-              setOpenPrintModal(false);
-              setSelectedQuotation(null);
-            }}
-            quotation={selectedQuotation}
-          />
+          {canPrint && (
+            <PrintQuotation
+              open={openPrintModal}
+              onClose={() => {
+                setOpenPrintModal(false);
+                setSelectedQuotation(null);
+              }}
+              quotation={selectedQuotation}
+            />
+          )}
 
-          <DeleteQuotation 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedQuotation(null);
-            }}
-            quotation={selectedQuotation}
-            onDelete={handleDeleteQuotation}
-          />
+          {canDelete && (
+            <DeleteQuotation 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedQuotation(null);
+              }}
+              quotation={selectedQuotation}
+              onDelete={handleDeleteQuotation}
+            />
+          )}
         </>
       )}
 

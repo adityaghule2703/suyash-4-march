@@ -43,6 +43,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../utils/modulePermissions';
 
 // Import modal components (only for Edit, View and Delete)
 import EditUser from './EditUser';
@@ -75,6 +76,25 @@ const COLORS = {
     locked: '#FEE2E2'
   }
 };
+
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
 
 // All available actions
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
@@ -260,8 +280,18 @@ const PermissionsMatrix = ({ permissions = [] }) => {
   );
 };
 
-// Action Menu Component
-const ActionMenu = ({ user, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with permission checks
+const ActionMenu = ({ user, onView, onEdit, onDelete, anchorEl, onClose, onOpen, currentUserPermissions }) => {
+  // Check if the current logged-in user has permissions for USERS module
+  const canView = hasPermission(currentUserPermissions, MODULES.USERS, PAGES.USERS, ACTIONS.VIEW);
+  const canUpdate = hasPermission(currentUserPermissions, MODULES.USERS, PAGES.USERS, ACTIONS.UPDATE);
+  const canDelete = hasPermission(currentUserPermissions, MODULES.USERS, PAGES.USERS, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -293,55 +323,64 @@ const ActionMenu = ({ user, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(user);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(user);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(user);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(user);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(user);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(user);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -381,6 +420,63 @@ const Users = () => {
     severity: 'success'
   });
 
+  // User permissions state (current logged-in user's permissions)
+  const [currentUserPermissions, setCurrentUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch current user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setCurrentUserPermissions(userData.permissions);
+          } else {
+            setCurrentUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setCurrentUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      currentUserPermissions,
+      MODULES.USERS,
+      PAGES.USERS,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -390,7 +486,7 @@ const Users = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch users from API
+  // Fetch users from API - only if user has permission
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -427,8 +523,10 @@ const Users = () => {
   }, [page, rowsPerPage, searchTerm]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchUsers();
+    }
+  }, [fetchUsers, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   const handleRefresh = () => {
     fetchUsers();
@@ -448,6 +546,7 @@ const Users = () => {
   };
   
   const handleAddUser = () => {
+    if (!canCreate) return;
     navigate('/users/adduser');
   };
   
@@ -474,18 +573,21 @@ const Users = () => {
   };
 
   const openEditUserModal = (user) => {
+    if (!canUpdate) return;
     setSelectedUser(user);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
   const openViewUserModal = (user) => {
+    if (!canViewPage) return;
     setSelectedUser(user);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
   const openDeleteUserDialog = (user) => {
+    if (!canDelete) return;
     setSelectedUser(user);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -579,6 +681,16 @@ const Users = () => {
 
   const paginatedUsers = users;
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -649,44 +761,32 @@ const Users = () => {
               }}
               disabled={loading}
             />
-            {/* <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Only show Add User button if user has create permission */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handleAddUser}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add User
-            </Button>
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleAddUser}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add User
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -743,14 +843,14 @@ const Users = () => {
                 }}>
                   Role
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Employee
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -902,14 +1002,14 @@ const Users = () => {
                             />
                           )}
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                             {user.EmployeeID ? getEmployeeID(user.EmployeeID) : 'No Employee'}
                           </Typography>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                             {user.EmployeeID ? `${user.EmployeeID.FirstName || ''} ${user.EmployeeID.LastName || ''}`.trim() : '-'}
                           </Typography>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                             {formatDate(user.LastLogin)}
@@ -927,6 +1027,7 @@ const Users = () => {
                             anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                             onClose={handleActionMenuClose}
                             onOpen={(e) => handleActionMenuOpen(e, user)}
+                            currentUserPermissions={currentUserPermissions}
                           />
                         </TableCell>
                       </TableRow>
@@ -977,41 +1078,49 @@ const Users = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
+      {/* Modal Components - Only render if user has appropriate permissions */}
       {selectedUser && (
         <>
-          <EditUser 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedUser(null);
-            }}
-            user={selectedUser}
-            onUpdate={handleEditUser}
-          />
+          {canUpdate && (
+            <EditUser 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedUser(null);
+              }}
+              user={selectedUser}
+              onUpdate={handleEditUser}
+            />
+          )}
 
-          <ViewUser 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedUser(null);
-            }}
-            user={selectedUser}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewUser 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedUser(null);
+              }}
+              user={selectedUser}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteUser 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedUser(null);
-            }}
-            user={selectedUser}
-            onDelete={handleDeleteUser}
-          />
+          {canDelete && (
+            <DeleteUser 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedUser(null);
+              }}
+              user={selectedUser}
+              onDelete={handleDeleteUser}
+            />
+          )}
         </>
       )}
 

@@ -500,6 +500,688 @@
 
 // export default ViewEmployees;
 
+// import React, { useState } from 'react';
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   Stack,
+//   Typography,
+//   Chip,
+//   Divider,
+//   Avatar,
+//   Box,
+//   Grid,
+//   Paper,
+//   Stepper,
+//   Step,
+//   StepLabel,
+//   StepConnector,
+//   styled,
+//   IconButton,
+//   Tooltip,
+//   alpha
+// } from '@mui/material';
+// import { 
+//   Edit as EditIcon, 
+//   Email, 
+//   Phone, 
+//   Home, 
+//   Cake, 
+//   Work, 
+//   Business, 
+//   Person,
+//   Badge,
+//   Numbers,
+//   LocationOn,
+//   AccountBalance,
+//   Emergency,
+//   AttachMoney,
+//   Speed,
+//   Factory,
+//   ArrowBack as ArrowBackIcon,
+//   ArrowForward as ArrowForwardIcon,
+//   Receipt as ReceiptIcon,
+//   Info as InfoIcon
+// } from '@mui/icons-material';
+
+// // Color constants
+// const PRIMARY_BLUE = '#00B4D8';
+// const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+
+// // Custom styled connector for stepper
+// const ColorConnector = styled(StepConnector)(({ theme }) => ({
+//   '& .MuiStepConnector-line': {
+//     height: 4,
+//     border: 0,
+//     backgroundColor: '#e0e0e0',
+//     borderRadius: 10,
+//   },
+//   '&.Mui-active .MuiStepConnector-line': {
+//     background: HEADER_GRADIENT,
+//   },
+//   '&.Mui-completed .MuiStepConnector-line': {
+//     background: HEADER_GRADIENT,
+//   },
+// }));
+
+// const steps = ['Personal Info', 'Employment', 'Work & Tax', 'Bank & Emergency'];
+
+// const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
+//   const [activeStep, setActiveStep] = useState(0);
+
+//   if (!employee) return null;
+
+//   const formatDate = (dateString) => {
+//     if (!dateString) return '-';
+//     return new Date(dateString).toLocaleDateString('en-US', {
+//       year: 'numeric',
+//       month: 'long',
+//       day: 'numeric'
+//     });
+//   };
+
+//   const formatCurrency = (amount) => {
+//     if (!amount && amount !== 0) return '-';
+//     return new Intl.NumberFormat('en-IN', {
+//       style: 'currency',
+//       currency: 'INR',
+//       minimumFractionDigits: 0,
+//       maximumFractionDigits: 0
+//     }).format(amount);
+//   };
+
+//   const getStatusColor = (status) => {
+//     switch(status) {
+//       case 'active': return 'success';
+//       case 'resigned': return 'default';
+//       case 'terminated': return 'error';
+//       case 'retired': return 'warning';
+//       default: return 'default';
+//     }
+//   };
+
+//   const getStatusText = (status) => {
+//     switch(status) {
+//       case 'active': return 'Active';
+//       case 'resigned': return 'Resigned';
+//       case 'terminated': return 'Terminated';
+//       case 'retired': return 'Retired';
+//       default: return status;
+//     }
+//   };
+
+//   const getGenderText = (gender) => {
+//     if (gender === 'M') return 'Male';
+//     if (gender === 'F') return 'Female';
+//     if (gender === 'O') return 'Other';
+//     return gender;
+//   };
+
+//   const getEmploymentTypeText = (type) => {
+//     switch(type) {
+//       case 'Monthly': return 'Monthly Salary';
+//       case 'Hourly': return 'Hourly Wage';
+//       case 'PieceRate': return 'Piece Rate';
+//       default: return type;
+//     }
+//   };
+
+//   const getPayStructureTypeText = (type) => {
+//     switch(type) {
+//       case 'Fixed': return 'Fixed';
+//       case 'Variable': return 'Variable';
+//       case 'Commission': return 'Commission';
+//       case 'PieceRate': return 'Piece Rate';
+//       default: return type;
+//     }
+//   };
+
+//   const getSkillLevelText = (level) => {
+//     switch(level) {
+//       case 'Unskilled': return 'Unskilled';
+//       case 'Semi-Skilled': return 'Semi-Skilled';
+//       case 'Skilled': return 'Skilled';
+//       case 'Highly Skilled': return 'Highly Skilled';
+//       default: return level;
+//     }
+//   };
+
+//   const getAvatarInitials = (firstName, lastName) => {
+//     const first = firstName ? firstName.charAt(0) : '';
+//     const last = lastName ? lastName.charAt(0) : '';
+//     return `${first}${last}`.toUpperCase() || 'U';
+//   };
+
+//   // Fixed renderInfoItem function - now accepts value and optional formatter
+//   const renderInfoItem = (icon, label, value, formatter = null) => {
+//     const displayValue = formatter ? formatter(value) : (value || '-');
+    
+//     return (
+//       <Stack direction="row" spacing={1.5} alignItems="flex-start">
+//         <Box sx={{ color: 'text.secondary', minWidth: 24, mt: 0.3 }}>
+//           {icon}
+//         </Box>
+//         <Box>
+//           <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
+//             {label}
+//           </Typography>
+//           <Typography variant="body2" sx={{ 
+//             fontWeight: value ? 500 : 400, 
+//             color: value ? 'text.primary' : 'text.disabled',
+//             wordBreak: 'break-word'
+//           }}>
+//             {displayValue}
+//           </Typography>
+//         </Box>
+//       </Stack>
+//     );
+//   };
+
+//   const handleNext = () => {
+//     setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+//   };
+
+//   const handleBack = () => {
+//     setActiveStep((prev) => Math.max(prev - 1, 0));
+//   };
+
+//   // Render content based on active step
+//   const renderStepContent = () => {
+//     switch(activeStep) {
+//       case 0: // Personal Info
+//         return (
+//           <Grid container spacing={3}>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Cake fontSize="small" />, 'Date of Birth', formatDate(employee.DateOfBirth))}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Email fontSize="small" />, 'Email', employee.Email)}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Phone fontSize="small" />, 'Phone', employee.Phone)}
+//             </Grid>
+//             <Grid item xs={12}>
+//               {renderInfoItem(<Home fontSize="small" />, 'Address', employee.Address)}
+//             </Grid>
+//           </Grid>
+//         );
+
+//       case 1: // Employment
+//         return (
+//           <Grid container spacing={3}>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Business fontSize="small" />, 'Department', employee.DepartmentID?.DepartmentName)}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Work fontSize="small" />, 'Designation', 
+//                 employee.DesignationID ? `${employee.DesignationID.DesignationName} (Level ${employee.DesignationID.Level})` : '-'
+//               )}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Person fontSize="small" />, 'Date of Joining', formatDate(employee.DateOfJoining))}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<Numbers fontSize="small" />, 'Employment Type', getEmploymentTypeText(employee.EmploymentType))}
+//             </Grid>
+//             <Grid item xs={12} sm={6} md={4}>
+//               {renderInfoItem(<AttachMoney fontSize="small" />, 'Pay Structure', getPayStructureTypeText(employee.PayStructureType))}
+//             </Grid>
+            
+//             {/* Employment Type Specific Fields */}
+//             {employee.EmploymentType === 'Monthly' && (
+//               <Grid item xs={12} sm={6} md={4}>
+//                 {renderInfoItem(<AttachMoney fontSize="small" />, 'Basic Salary', 
+//                   employee.BasicSalary,
+//                   (val) => formatCurrency(val) + '/month'
+//                 )}
+//               </Grid>
+//             )}
+            
+//             {employee.EmploymentType === 'Hourly' && (
+//               <Grid item xs={12} sm={6} md={4}>
+//                 {renderInfoItem(<AttachMoney fontSize="small" />, 'Hourly Rate', 
+//                   employee.HourlyRate,
+//                   (val) => formatCurrency(val) + '/hr'
+//                 )}
+//               </Grid>
+//             )}
+            
+//             {(employee.EmploymentType === 'Monthly' || employee.EmploymentType === 'Hourly') && employee.OvertimeRateMultiplier && (
+//               <Grid item xs={12} sm={6} md={4}>
+//                 {renderInfoItem(<Speed fontSize="small" />, 'Overtime Multiplier', 
+//                   employee.OvertimeRateMultiplier,
+//                   (val) => `${val}x`
+//                 )}
+//               </Grid>
+//             )}
+//           </Grid>
+//         );
+
+//       case 2: // Work & Tax
+//         return (
+//           <>
+//             {/* Work Details */}
+//             {(employee.SkillLevel || employee.WorkStation || employee.LineNumber) && (
+//               <Box sx={{ mb: 3 }}>
+//                 <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
+//                   <Factory fontSize="small" /> Work Details
+//                 </Typography>
+//                 <Grid container spacing={3}>
+//                   {employee.SkillLevel && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'Skill Level', getSkillLevelText(employee.SkillLevel))}
+//                     </Grid>
+//                   )}
+//                   {employee.WorkStation && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<LocationOn fontSize="small" />, 'Work Station', employee.WorkStation)}
+//                     </Grid>
+//                   )}
+//                   {employee.LineNumber && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Numbers fontSize="small" />, 'Line Number', employee.LineNumber)}
+//                     </Grid>
+//                   )}
+//                 </Grid>
+//               </Box>
+//             )}
+
+//             {/* Tax & Identification */}
+//             {(employee.PAN || employee.AadharNumber || employee.PFNumber || employee.UAN || employee.ESINumber) && (
+//               <Box>
+//                 <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
+//                   <Badge fontSize="small" /> Tax & Identification
+//                 </Typography>
+//                 <Grid container spacing={3}>
+//                   {employee.PAN && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'PAN', employee.PAN)}
+//                     </Grid>
+//                   )}
+//                   {employee.AadharNumber && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'Aadhar Number', employee.AadharNumber)}
+//                     </Grid>
+//                   )}
+//                   {employee.PFNumber && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'PF Number', employee.PFNumber)}
+//                     </Grid>
+//                   )}
+//                   {employee.UAN && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'UAN', employee.UAN)}
+//                     </Grid>
+//                   )}
+//                   {employee.ESINumber && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'ESI Number', employee.ESINumber)}
+//                     </Grid>
+//                   )}
+//                 </Grid>
+//               </Box>
+//             )}
+//           </>
+//         );
+
+//       case 3: // Bank & Emergency
+//         return (
+//           <>
+//             {/* Bank Details */}
+//             {employee.BankDetails && Object.keys(employee.BankDetails).some(key => employee.BankDetails[key]) && (
+//               <Box sx={{ mb: 3 }}>
+//                 <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
+//                   <AccountBalance fontSize="small" /> Bank Details
+//                 </Typography>
+//                 <Grid container spacing={3}>
+//                   {employee.BankDetails.accountNumber && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<AccountBalance fontSize="small" />, 'Account Number', employee.BankDetails.accountNumber)}
+//                     </Grid>
+//                   )}
+//                   {employee.BankDetails.accountHolderName && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Person fontSize="small" />, 'Account Holder', employee.BankDetails.accountHolderName)}
+//                     </Grid>
+//                   )}
+//                   {employee.BankDetails.bankName && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Business fontSize="small" />, 'Bank Name', employee.BankDetails.bankName)}
+//                     </Grid>
+//                   )}
+//                   {employee.BankDetails.branch && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<LocationOn fontSize="small" />, 'Branch', employee.BankDetails.branch)}
+//                     </Grid>
+//                   )}
+//                   {employee.BankDetails.ifscCode && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Numbers fontSize="small" />, 'IFSC Code', employee.BankDetails.ifscCode)}
+//                     </Grid>
+//                   )}
+//                   {employee.BankDetails.accountType && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'Account Type', employee.BankDetails.accountType)}
+//                     </Grid>
+//                   )}
+//                 </Grid>
+//               </Box>
+//             )}
+
+//             {/* Emergency Contact */}
+//             {employee.EmergencyContact && Object.keys(employee.EmergencyContact).some(key => employee.EmergencyContact[key]) && (
+//               <Box>
+//                 <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
+//                   <Emergency fontSize="small" /> Emergency Contact
+//                 </Typography>
+//                 <Grid container spacing={3}>
+//                   {employee.EmergencyContact.name && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Person fontSize="small" />, 'Contact Name', employee.EmergencyContact.name)}
+//                     </Grid>
+//                   )}
+//                   {employee.EmergencyContact.relationship && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Badge fontSize="small" />, 'Relationship', employee.EmergencyContact.relationship)}
+//                     </Grid>
+//                   )}
+//                   {employee.EmergencyContact.phone && (
+//                     <Grid item xs={12} sm={6} md={4}>
+//                       {renderInfoItem(<Phone fontSize="small" />, 'Phone', employee.EmergencyContact.phone)}
+//                     </Grid>
+//                   )}
+//                   {employee.EmergencyContact.address && (
+//                     <Grid item xs={12}>
+//                       {renderInfoItem(<Home fontSize="small" />, 'Address', employee.EmergencyContact.address)}
+//                     </Grid>
+//                   )}
+//                 </Grid>
+//               </Box>
+//             )}
+//           </>
+//         );
+
+//       default:
+//         return null;
+//     }
+//   };
+
+//   return (
+//    <Dialog
+//   open={open}
+//   onClose={onClose}
+//   maxWidth="md"
+//   fullWidth
+//   PaperProps={{
+//     sx: {
+//       borderRadius: 3,
+//       maxHeight: "92vh",
+//       boxShadow: "0 20px 60px rgba(0,0,0,0.15)"
+//     }
+//   }}
+// >
+//   <DialogTitle
+//     sx={{
+//       borderBottom: "1px solid #e2e8f0",
+//       py: 2,
+//       px: 3,
+//       background: HEADER_GRADIENT,
+//       color: "#fff"
+//     }}
+//   >
+//     <Stack direction="row" justifyContent="space-between" alignItems="center">
+//       <Stack direction="row" spacing={1} alignItems="center">
+//         <ReceiptIcon />
+//         <Typography variant="h6" fontWeight={600}>
+//           Employee Details
+//         </Typography>
+//       </Stack>
+
+//       <Chip
+//         label={`ID: ${employee.EmployeeID || "N/A"}`}
+//         size="small"
+//         sx={{
+//           bgcolor: "rgba(255,255,255,0.15)",
+//           color: "#fff",
+//           fontWeight: 500
+//         }}
+//       />
+//     </Stack>
+//   </DialogTitle>
+
+//   <DialogContent
+//     sx={{
+//       pt: 3,
+//       px: 4,
+//       mt: 2,
+//       overflowY: "auto",
+//       background: "#f8fafc"
+//     }}
+//   >
+//     <Stack spacing={2}>
+//       {/* Avatar + Name */}
+//       <Paper
+//   elevation={0}
+//   sx={{
+//     p: 2,
+//     borderRadius: 2,
+//     border: "1px solid #e2e8f0",
+//     bgcolor: "#fff"
+//   }}
+// >
+//   <Grid container alignItems="center" spacing={4}>
+    
+//     {/* Avatar */}
+//     <Grid item>
+//       <Avatar
+//         sx={{
+//           width: 60,
+//           height: 60,
+//           fontSize: "1.5rem",
+//           fontWeight: 700,
+//           bgcolor:
+//             employee.Gender === "M"
+//               ? "#164e63"
+//               : employee.Gender === "F"
+//               ? "#be185d"
+//               : "#7c3aed",
+//           boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+//         }}
+//       >
+//         {getAvatarInitials(employee.FirstName, employee.LastName)}
+//       </Avatar>
+//     </Grid>
+
+//     {/* Name + ID */}
+//     <Grid item xs>
+//       <Typography variant="h6" fontWeight={600} color="#164e63">
+//         {employee.FirstName} {employee.LastName}
+//       </Typography>
+
+//       <Typography variant="body2" color="#64748B">
+//         Employee ID: {employee.EmployeeID || "N/A"}
+//       </Typography>
+//     </Grid>
+
+//     {/* Status Chips */}
+//     <Grid item>
+//       <Stack direction="row" spacing={3}>
+//         <Chip
+//           label={getStatusText(employee.EmploymentStatus)}
+//           size="small"
+//           color={getStatusColor(employee.EmploymentStatus)}
+//         />
+
+//         <Chip
+//           label={getGenderText(employee.Gender)}
+//           size="small"
+//           variant="outlined"
+//         />
+
+//         <Chip
+//           label={getEmploymentTypeText(employee.EmploymentType)}
+//           size="small"
+//           sx={{
+//             bgcolor: "#e0f2fe",
+//             color: "#075985",
+//             fontWeight: 500
+//           }}
+//         />
+//       </Stack>
+//     </Grid>
+
+//   </Grid>
+// </Paper>
+
+//       {/* Stepper */}
+//       <Paper
+//         elevation={0}
+//         sx={{
+//           p: 2,
+//           borderRadius: 2,
+//           border: "1px solid #e2e8f0",
+//           bgcolor: "#fff"
+//         }}
+//       >
+//         <Stepper
+//           activeStep={activeStep}
+//           alternativeLabel
+//           connector={<ColorConnector />}
+//         >
+//           {steps.map((label) => (
+//             <Step key={label}>
+//               <StepLabel>
+//                 <Typography variant="caption" fontWeight={600}>
+//                   {label}
+//                 </Typography>
+//               </StepLabel>
+//             </Step>
+//           ))}
+//         </Stepper>
+//       </Paper>
+
+//       {/* Step Content */}
+//       <Paper
+//         elevation={0}
+//         sx={{
+//           p: 3,
+//           borderRadius: 2,
+//           border: "1px solid #e2e8f0",
+//           backgroundColor: "#ffffff",
+//           minHeight: 300
+//         }}
+//       >
+//         {renderStepContent()}
+//       </Paper>
+
+//       {/* System Info */}
+//       <Paper
+//         elevation={0}
+//         sx={{
+//           p: 2,
+//           borderRadius: 2,
+//           border: "1px solid #e2e8f0",
+//           bgcolor: "#f1f5f9"
+//         }}
+//       >
+//         <Grid container spacing={2} alignItems="center">
+//           <Grid item xs={12} sm={5}>
+//             <Typography variant="caption" color="#64748B">
+//               Created: {formatDate(employee.CreatedAt)}
+//             </Typography>
+//           </Grid>
+
+//           <Grid item xs={12} sm={5}>
+//             <Typography variant="caption" color="#64748B">
+//               Updated: {formatDate(employee.UpdatedAt)}
+//             </Typography>
+//           </Grid>
+
+//           <Grid item xs={12} sm={2}>
+//             <Tooltip title="Internal ID">
+//               <Chip
+//                 label="System Info"
+//                 size="small"
+//                 icon={<InfoIcon />}
+//                 variant="outlined"
+//               />
+//             </Tooltip>
+//           </Grid>
+//         </Grid>
+//       </Paper>
+//     </Stack>
+//   </DialogContent>
+
+//   <DialogActions
+//   sx={{
+//     px: 3,
+//     py: 2,
+//     borderTop: "1px solid #e2e8f0",
+//     backgroundColor: "#f8fafc",
+//     display: "flex",
+//     justifyContent: "space-between",
+//     alignItems: "center"
+//   }}
+// >
+//   {/* BACK BUTTON */}
+//   <Button
+//     onClick={handleBack}
+//     disabled={activeStep === 0}
+//     startIcon={<ArrowBackIcon />}
+//     sx={{
+//       textTransform: "none",
+//       fontWeight: 500,
+//       color: activeStep === 0 ? "#cbd5e1" : "#475569"
+//     }}
+//   >
+//     BACK
+//   </Button>
+
+//   {/* RIGHT SIDE BUTTONS */}
+//   <Stack direction="row" spacing={2}>
+    
+//     <Button
+//       onClick={onClose}
+//       sx={{
+//         textTransform: "none",
+//         fontWeight: 500,
+//         color: "#475569"
+//       }}
+//     >
+//       CLOSE
+//     </Button>
+
+//     <Button
+//       variant="contained"
+//       onClick={handleNext}
+//       disabled={activeStep === steps.length - 1}
+//       endIcon={<ArrowForwardIcon />}
+//       sx={{
+//         textTransform: "none",
+//         fontWeight: 500,
+//         px: 3,
+//         borderRadius: 1,
+//         background: HEADER_GRADIENT,
+//         "&:hover": {
+//           opacity: 0.9,
+//           background: HEADER_GRADIENT
+//         }
+//       }}
+//     >
+//       NEXT
+//     </Button>
+
+//   </Stack>
+// </DialogActions>
+// </Dialog>
+//   );
+// };
+
+// export default ViewEmployees;
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -510,7 +1192,6 @@ import {
   Stack,
   Typography,
   Chip,
-  Divider,
   Avatar,
   Box,
   Grid,
@@ -519,13 +1200,14 @@ import {
   Step,
   StepLabel,
   StepConnector,
+  stepConnectorClasses,
   styled,
-  IconButton,
-  Tooltip,
-  alpha
+  Tooltip
 } from '@mui/material';
 import { 
-  Edit as EditIcon, 
+  Edit as EditIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
   Email, 
   Phone, 
   Home, 
@@ -534,36 +1216,68 @@ import {
   Business, 
   Person,
   Badge,
-  Numbers,
   LocationOn,
   AccountBalance,
   Emergency,
   AttachMoney,
   Speed,
   Factory,
-  ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon,
   Receipt as ReceiptIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  CalendarToday,
+  AccessTime
 } from '@mui/icons-material';
 
-// Color constants
-const PRIMARY_BLUE = '#00B4D8';
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+// Color constants matching EditCompanies component
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
-// Custom styled connector for stepper
+// Modern Stepper Connector with Primary Color
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
-  '& .MuiStepConnector-line': {
-    height: 4,
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
     border: 0,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
-  },
-  '&.Mui-active .MuiStepConnector-line': {
-    background: HEADER_GRADIENT,
-  },
-  '&.Mui-completed .MuiStepConnector-line': {
-    background: HEADER_GRADIENT,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
   },
 }));
 
@@ -595,11 +1309,16 @@ const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'active': return 'success';
-      case 'resigned': return 'default';
-      case 'terminated': return 'error';
-      case 'retired': return 'warning';
-      default: return 'default';
+      case 'active': 
+        return { bg: COLORS.chips.active, color: COLORS.primaryDark, border: '#86efac' };
+      case 'resigned': 
+        return { bg: COLORS.chips.inactive, color: COLORS.text.secondary, border: COLORS.border };
+      case 'terminated': 
+        return { bg: COLORS.status.error, color: '#991B1B', border: '#FECACA' };
+      case 'retired': 
+        return { bg: COLORS.status.warning, color: '#92400E', border: '#FDE68A' };
+      default: 
+        return { bg: COLORS.chips.inactive, color: COLORS.text.secondary, border: COLORS.border };
     }
   };
 
@@ -655,30 +1374,59 @@ const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
     return `${first}${last}`.toUpperCase() || 'U';
   };
 
-  // Fixed renderInfoItem function - now accepts value and optional formatter
   const renderInfoItem = (icon, label, value, formatter = null) => {
     const displayValue = formatter ? formatter(value) : (value || '-');
+    const hasValue = value !== null && value !== undefined && value !== '';
     
     return (
-      <Stack direction="row" spacing={1.5} alignItems="flex-start">
-        <Box sx={{ color: 'text.secondary', minWidth: 24, mt: 0.3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+        <Box sx={{ 
+          color: hasValue ? COLORS.primary : COLORS.text.tertiary, 
+          minWidth: 20,
+          display: 'flex',
+          alignItems: 'center',
+          mt: 0.2
+        }}>
           {icon}
         </Box>
-        <Box>
-          <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ 
+            fontSize: '0.65rem', 
+            fontWeight: 500, 
+            color: COLORS.text.tertiary,
+            letterSpacing: '0.3px',
+            mb: 0.3
+          }}>
             {label}
           </Typography>
-          <Typography variant="body2" sx={{ 
-            fontWeight: value ? 500 : 400, 
-            color: value ? 'text.primary' : 'text.disabled',
-            wordBreak: 'break-word'
+          <Typography sx={{ 
+            fontSize: '0.8rem', 
+            fontWeight: hasValue ? 500 : 400, 
+            color: hasValue ? COLORS.text.primary : COLORS.text.tertiary,
+            wordBreak: 'break-word',
+            lineHeight: 1.4
           }}>
             {displayValue}
           </Typography>
         </Box>
-      </Stack>
+      </Box>
     );
   };
+
+  const renderSectionHeader = (icon, title) => (
+    <Typography sx={{ 
+      fontSize: '0.8rem', 
+      fontWeight: 600, 
+      color: COLORS.primary, 
+      mb: 1.5,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0.5
+    }}>
+      {icon}
+      {title}
+    </Typography>
+  );
 
   const handleNext = () => {
     setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
@@ -693,215 +1441,274 @@ const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
     switch(activeStep) {
       case 0: // Personal Info
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Cake fontSize="small" />, 'Date of Birth', formatDate(employee.DateOfBirth))}
+          <Paper sx={{ 
+            p: 2, 
+            bgcolor: COLORS.background.white, 
+            borderRadius: 1.5, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            {renderSectionHeader(<Person sx={{ fontSize: '1rem' }} />, 'Personal Details')}
+            
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                {renderInfoItem(<Cake sx={{ fontSize: '1rem' }} />, 'Date of Birth', employee.DateOfBirth, formatDate)}
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                {renderInfoItem(<Email sx={{ fontSize: '1rem' }} />, 'Email', employee.Email)}
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                {renderInfoItem(<Phone sx={{ fontSize: '1rem' }} />, 'Phone', employee.Phone)}
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                {renderInfoItem(<Home sx={{ fontSize: '1rem' }} />, 'Address', employee.Address)}
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Email fontSize="small" />, 'Email', employee.Email)}
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Phone fontSize="small" />, 'Phone', employee.Phone)}
-            </Grid>
-            <Grid item xs={12}>
-              {renderInfoItem(<Home fontSize="small" />, 'Address', employee.Address)}
-            </Grid>
-          </Grid>
+          </Paper>
         );
 
       case 1: // Employment
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Business fontSize="small" />, 'Department', employee.DepartmentID?.DepartmentName)}
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Work fontSize="small" />, 'Designation', 
-                employee.DesignationID ? `${employee.DesignationID.DesignationName} (Level ${employee.DesignationID.Level})` : '-'
-              )}
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Person fontSize="small" />, 'Date of Joining', formatDate(employee.DateOfJoining))}
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<Numbers fontSize="small" />, 'Employment Type', getEmploymentTypeText(employee.EmploymentType))}
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              {renderInfoItem(<AttachMoney fontSize="small" />, 'Pay Structure', getPayStructureTypeText(employee.PayStructureType))}
-            </Grid>
-            
-            {/* Employment Type Specific Fields */}
-            {employee.EmploymentType === 'Monthly' && (
-              <Grid item xs={12} sm={6} md={4}>
-                {renderInfoItem(<AttachMoney fontSize="small" />, 'Basic Salary', 
-                  employee.BasicSalary,
-                  (val) => formatCurrency(val) + '/month'
+          <Stack spacing={2}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              {renderSectionHeader(<Work sx={{ fontSize: '1rem' }} />, 'Employment Details')}
+              
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  {renderInfoItem(<Business sx={{ fontSize: '1rem' }} />, 'Department', employee.DepartmentID?.DepartmentName)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  {renderInfoItem(<Work sx={{ fontSize: '1rem' }} />, 'Designation', 
+                    employee.DesignationID ? `${employee.DesignationID.DesignationName} (Level ${employee.DesignationID.Level})` : '-'
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  {renderInfoItem(<CalendarToday sx={{ fontSize: '1rem' }} />, 'Date of Joining', employee.DateOfJoining, formatDate)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              {renderSectionHeader(<AttachMoney sx={{ fontSize: '1rem' }} />, 'Pay Structure')}
+              
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Employment Type', getEmploymentTypeText(employee.EmploymentType))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  {renderInfoItem(<AttachMoney sx={{ fontSize: '1rem' }} />, 'Pay Structure', getPayStructureTypeText(employee.PayStructureType))}
+                </Grid>
+                
+                {employee.EmploymentType === 'Monthly' && (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    {renderInfoItem(<AttachMoney sx={{ fontSize: '1rem' }} />, 'Basic Salary', 
+                      employee.BasicSalary,
+                      (val) => formatCurrency(val) + '/month'
+                    )}
+                  </Grid>
+                )}
+                
+                {employee.EmploymentType === 'Hourly' && (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    {renderInfoItem(<AttachMoney sx={{ fontSize: '1rem' }} />, 'Hourly Rate', 
+                      employee.HourlyRate,
+                      (val) => formatCurrency(val) + '/hr'
+                    )}
+                  </Grid>
+                )}
+                
+                {(employee.EmploymentType === 'Monthly' || employee.EmploymentType === 'Hourly') && employee.OvertimeRateMultiplier && (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    {renderInfoItem(<Speed sx={{ fontSize: '1rem' }} />, 'Overtime Multiplier', 
+                      employee.OvertimeRateMultiplier,
+                      (val) => `${val}x`
+                    )}
+                  </Grid>
                 )}
               </Grid>
-            )}
-            
-            {employee.EmploymentType === 'Hourly' && (
-              <Grid item xs={12} sm={6} md={4}>
-                {renderInfoItem(<AttachMoney fontSize="small" />, 'Hourly Rate', 
-                  employee.HourlyRate,
-                  (val) => formatCurrency(val) + '/hr'
-                )}
-              </Grid>
-            )}
-            
-            {(employee.EmploymentType === 'Monthly' || employee.EmploymentType === 'Hourly') && employee.OvertimeRateMultiplier && (
-              <Grid item xs={12} sm={6} md={4}>
-                {renderInfoItem(<Speed fontSize="small" />, 'Overtime Multiplier', 
-                  employee.OvertimeRateMultiplier,
-                  (val) => `${val}x`
-                )}
-              </Grid>
-            )}
-          </Grid>
+            </Paper>
+          </Stack>
         );
 
       case 2: // Work & Tax
         return (
-          <>
+          <Stack spacing={2}>
             {/* Work Details */}
             {(employee.SkillLevel || employee.WorkStation || employee.LineNumber) && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Factory fontSize="small" /> Work Details
-                </Typography>
-                <Grid container spacing={3}>
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                {renderSectionHeader(<Factory sx={{ fontSize: '1rem' }} />, 'Work Details')}
+                
+                <Grid container spacing={2}>
                   {employee.SkillLevel && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'Skill Level', getSkillLevelText(employee.SkillLevel))}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Skill Level', getSkillLevelText(employee.SkillLevel))}
                     </Grid>
                   )}
                   {employee.WorkStation && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<LocationOn fontSize="small" />, 'Work Station', employee.WorkStation)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<LocationOn sx={{ fontSize: '1rem' }} />, 'Work Station', employee.WorkStation)}
                     </Grid>
                   )}
                   {employee.LineNumber && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Numbers fontSize="small" />, 'Line Number', employee.LineNumber)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Line Number', employee.LineNumber)}
                     </Grid>
                   )}
                 </Grid>
-              </Box>
+              </Paper>
             )}
 
             {/* Tax & Identification */}
             {(employee.PAN || employee.AadharNumber || employee.PFNumber || employee.UAN || employee.ESINumber) && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Badge fontSize="small" /> Tax & Identification
-                </Typography>
-                <Grid container spacing={3}>
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                {renderSectionHeader(<Badge sx={{ fontSize: '1rem' }} />, 'Tax & Identification')}
+                
+                <Grid container spacing={2}>
                   {employee.PAN && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'PAN', employee.PAN)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'PAN', employee.PAN)}
                     </Grid>
                   )}
                   {employee.AadharNumber && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'Aadhar Number', employee.AadharNumber)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Aadhar Number', employee.AadharNumber)}
                     </Grid>
                   )}
                   {employee.PFNumber && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'PF Number', employee.PFNumber)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'PF Number', employee.PFNumber)}
                     </Grid>
                   )}
                   {employee.UAN && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'UAN', employee.UAN)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'UAN', employee.UAN)}
                     </Grid>
                   )}
                   {employee.ESINumber && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'ESI Number', employee.ESINumber)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'ESI Number', employee.ESINumber)}
                     </Grid>
                   )}
                 </Grid>
-              </Box>
+              </Paper>
             )}
-          </>
+          </Stack>
         );
 
       case 3: // Bank & Emergency
         return (
-          <>
+          <Stack spacing={2}>
             {/* Bank Details */}
             {employee.BankDetails && Object.keys(employee.BankDetails).some(key => employee.BankDetails[key]) && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccountBalance fontSize="small" /> Bank Details
-                </Typography>
-                <Grid container spacing={3}>
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                {renderSectionHeader(<AccountBalance sx={{ fontSize: '1rem' }} />, 'Bank Details')}
+                
+                <Grid container spacing={2}>
                   {employee.BankDetails.accountNumber && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<AccountBalance fontSize="small" />, 'Account Number', employee.BankDetails.accountNumber)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<AccountBalance sx={{ fontSize: '1rem' }} />, 'Account Number', employee.BankDetails.accountNumber)}
                     </Grid>
                   )}
                   {employee.BankDetails.accountHolderName && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Person fontSize="small" />, 'Account Holder', employee.BankDetails.accountHolderName)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Person sx={{ fontSize: '1rem' }} />, 'Account Holder', employee.BankDetails.accountHolderName)}
                     </Grid>
                   )}
                   {employee.BankDetails.bankName && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Business fontSize="small" />, 'Bank Name', employee.BankDetails.bankName)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Business sx={{ fontSize: '1rem' }} />, 'Bank Name', employee.BankDetails.bankName)}
                     </Grid>
                   )}
                   {employee.BankDetails.branch && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<LocationOn fontSize="small" />, 'Branch', employee.BankDetails.branch)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<LocationOn sx={{ fontSize: '1rem' }} />, 'Branch', employee.BankDetails.branch)}
                     </Grid>
                   )}
                   {employee.BankDetails.ifscCode && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Numbers fontSize="small" />, 'IFSC Code', employee.BankDetails.ifscCode)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'IFSC Code', employee.BankDetails.ifscCode)}
                     </Grid>
                   )}
                   {employee.BankDetails.accountType && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'Account Type', employee.BankDetails.accountType)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Account Type', employee.BankDetails.accountType)}
                     </Grid>
                   )}
                 </Grid>
-              </Box>
+              </Paper>
             )}
 
             {/* Emergency Contact */}
             {employee.EmergencyContact && Object.keys(employee.EmergencyContact).some(key => employee.EmergencyContact[key]) && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Emergency fontSize="small" /> Emergency Contact
-                </Typography>
-                <Grid container spacing={3}>
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                {renderSectionHeader(<Emergency sx={{ fontSize: '1rem' }} />, 'Emergency Contact')}
+                
+                <Grid container spacing={2}>
                   {employee.EmergencyContact.name && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Person fontSize="small" />, 'Contact Name', employee.EmergencyContact.name)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Person sx={{ fontSize: '1rem' }} />, 'Contact Name', employee.EmergencyContact.name)}
                     </Grid>
                   )}
                   {employee.EmergencyContact.relationship && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Badge fontSize="small" />, 'Relationship', employee.EmergencyContact.relationship)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'Relationship', employee.EmergencyContact.relationship)}
                     </Grid>
                   )}
                   {employee.EmergencyContact.phone && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      {renderInfoItem(<Phone fontSize="small" />, 'Phone', employee.EmergencyContact.phone)}
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Phone sx={{ fontSize: '1rem' }} />, 'Phone', employee.EmergencyContact.phone)}
+                    </Grid>
+                  )}
+                  {employee.EmergencyContact.pinCode && (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      {renderInfoItem(<Badge sx={{ fontSize: '1rem' }} />, 'PIN Code', employee.EmergencyContact.pinCode)}
                     </Grid>
                   )}
                   {employee.EmergencyContact.address && (
-                    <Grid item xs={12}>
-                      {renderInfoItem(<Home fontSize="small" />, 'Address', employee.EmergencyContact.address)}
+                    <Grid size={{ xs: 12 }}>
+                      {renderInfoItem(<Home sx={{ fontSize: '1rem' }} />, 'Address', employee.EmergencyContact.address)}
                     </Grid>
                   )}
                 </Grid>
-              </Box>
+              </Paper>
             )}
-          </>
+          </Stack>
         );
 
       default:
@@ -909,274 +1716,334 @@ const ViewEmployees = ({ open, onClose, employee, onEdit }) => {
     }
   };
 
+  const statusColors = getStatusColor(employee.EmploymentStatus);
+
   return (
-   <Dialog
-  open={open}
-  onClose={onClose}
-  maxWidth="md"
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      maxHeight: "92vh",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.15)"
-    }
-  }}
->
-  <DialogTitle
-    sx={{
-      borderBottom: "1px solid #e2e8f0",
-      py: 2,
-      px: 3,
-      background: HEADER_GRADIENT,
-      color: "#fff"
-    }}
-  >
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Stack direction="row" spacing={1} alignItems="center">
-        <ReceiptIcon />
-        <Typography variant="h6" fontWeight={600}>
-          Employee Details
-        </Typography>
-      </Stack>
-
-      <Chip
-        label={`ID: ${employee.EmployeeID || "N/A"}`}
-        size="small"
-        sx={{
-          bgcolor: "rgba(255,255,255,0.15)",
-          color: "#fff",
-          fontWeight: 500
-        }}
-      />
-    </Stack>
-  </DialogTitle>
-
-  <DialogContent
-    sx={{
-      pt: 3,
-      px: 4,
-      mt: 2,
-      overflowY: "auto",
-      background: "#f8fafc"
-    }}
-  >
-    <Stack spacing={2}>
-      {/* Avatar + Name */}
-      <Paper
-  elevation={0}
-  sx={{
-    p: 2,
-    borderRadius: 2,
-    border: "1px solid #e2e8f0",
-    bgcolor: "#fff"
-  }}
->
-  <Grid container alignItems="center" spacing={4}>
-    
-    {/* Avatar */}
-    <Grid item>
-      <Avatar
-        sx={{
-          width: 60,
-          height: 60,
-          fontSize: "1.5rem",
-          fontWeight: 700,
-          bgcolor:
-            employee.Gender === "M"
-              ? "#164e63"
-              : employee.Gender === "F"
-              ? "#be185d"
-              : "#7c3aed",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-        }}
-      >
-        {getAvatarInitials(employee.FirstName, employee.LastName)}
-      </Avatar>
-    </Grid>
-
-    {/* Name + ID */}
-    <Grid item xs>
-      <Typography variant="h6" fontWeight={600} color="#164e63">
-        {employee.FirstName} {employee.LastName}
-      </Typography>
-
-      <Typography variant="body2" color="#64748B">
-        Employee ID: {employee.EmployeeID || "N/A"}
-      </Typography>
-    </Grid>
-
-    {/* Status Chips */}
-    <Grid item>
-      <Stack direction="row" spacing={3}>
-        <Chip
-          label={getStatusText(employee.EmploymentStatus)}
-          size="small"
-          color={getStatusColor(employee.EmploymentStatus)}
-        />
-
-        <Chip
-          label={getGenderText(employee.Gender)}
-          size="small"
-          variant="outlined"
-        />
-
-        <Chip
-          label={getEmploymentTypeText(employee.EmploymentType)}
-          size="small"
-          sx={{
-            bgcolor: "#e0f2fe",
-            color: "#075985",
-            fontWeight: 500
-          }}
-        />
-      </Stack>
-    </Grid>
-
-  </Grid>
-</Paper>
-
-      {/* Stepper */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          border: "1px solid #e2e8f0",
-          bgcolor: "#fff"
-        }}
-      >
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography variant="caption" fontWeight={600}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Step Content */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 2,
-          border: "1px solid #e2e8f0",
-          backgroundColor: "#ffffff",
-          minHeight: 300
-        }}
-      >
-        {renderStepContent()}
-      </Paper>
-
-      {/* System Info */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          border: "1px solid #e2e8f0",
-          bgcolor: "#f1f5f9"
-        }}
-      >
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={5}>
-            <Typography variant="caption" color="#64748B">
-              Created: {formatDate(employee.CreatedAt)}
-            </Typography>
-          </Grid>
-
-          <Grid item xs={12} sm={5}>
-            <Typography variant="caption" color="#64748B">
-              Updated: {formatDate(employee.UpdatedAt)}
-            </Typography>
-          </Grid>
-
-          <Grid item xs={12} sm={2}>
-            <Tooltip title="Internal ID">
-              <Chip
-                label="System Info"
-                size="small"
-                icon={<InfoIcon />}
-                variant="outlined"
-              />
-            </Tooltip>
-          </Grid>
-        </Grid>
-      </Paper>
-    </Stack>
-  </DialogContent>
-
-  <DialogActions
-  sx={{
-    px: 3,
-    py: 2,
-    borderTop: "1px solid #e2e8f0",
-    backgroundColor: "#f8fafc",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  }}
->
-  {/* BACK BUTTON */}
-  <Button
-    onClick={handleBack}
-    disabled={activeStep === 0}
-    startIcon={<ArrowBackIcon />}
-    sx={{
-      textTransform: "none",
-      fontWeight: 500,
-      color: activeStep === 0 ? "#cbd5e1" : "#475569"
-    }}
-  >
-    BACK
-  </Button>
-
-  {/* RIGHT SIDE BUTTONS */}
-  <Stack direction="row" spacing={2}>
-    
-    <Button
-      onClick={onClose}
-      sx={{
-        textTransform: "none",
-        fontWeight: 500,
-        color: "#475569"
-      }}
-    >
-      CLOSE
-    </Button>
-
-    <Button
-      variant="contained"
-      onClick={handleNext}
-      disabled={activeStep === steps.length - 1}
-      endIcon={<ArrowForwardIcon />}
-      sx={{
-        textTransform: "none",
-        fontWeight: 500,
-        px: 3,
-        borderRadius: 1,
-        background: HEADER_GRADIENT,
-        "&:hover": {
-          opacity: 0.9,
-          background: HEADER_GRADIENT
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
+          maxHeight: '92vh'
         }
       }}
     >
-      NEXT
-    </Button>
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <ReceiptIcon sx={{ fontSize: '1.2rem', color: COLORS.primary }} />
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Employee Details
+          </Typography>
+        </Stack>
 
-  </Stack>
-</DialogActions>
-</Dialog>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {employee.EmployeeID && (
+            <Chip
+              label={`ID: ${employee.EmployeeID}`}
+              size="small"
+              sx={{ 
+                fontSize: '0.65rem',
+                fontWeight: 500,
+                height: 20,
+                bgcolor: COLORS.background.light,
+                color: COLORS.text.secondary,
+                border: `1px solid ${COLORS.border}`,
+                '& .MuiChip-label': {
+                  px: 1
+                }
+              }}
+            />
+          )}
+          <Chip
+            label={getStatusText(employee.EmploymentStatus)}
+            size="small"
+            sx={{ 
+              fontSize: '0.65rem',
+              fontWeight: 500,
+              height: 20,
+              bgcolor: statusColors.bg,
+              color: statusColors.color,
+              border: `1px solid ${statusColors.border}`,
+              '& .MuiChip-label': {
+                px: 1
+              }
+            }}
+          />
+        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2, bgcolor: COLORS.background.light, overflowY: 'auto' }}>
+        <Stack spacing={2}>
+          {/* Avatar + Basic Info */}
+          <Paper sx={{ 
+            p: 1, 
+            bgcolor: COLORS.background.white, 
+            borderRadius: 1.5, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            <Grid container alignItems="center" spacing={2}>
+              <Grid size={{ xs: 12, sm: 'auto' }}>
+                <Avatar
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    fontSize: '1.5rem',
+                    fontWeight: 600,
+                    bgcolor: COLORS.primary,
+                    color: COLORS.text.light
+                  }}
+                >
+                  {getAvatarInitials(employee.FirstName, employee.LastName)}
+                </Avatar>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: true }}>
+                <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: COLORS.text.primary, mb: 0.5 }}>
+                  {employee.FirstName} {employee.LastName}
+                </Typography>
+                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                  Employee ID: {employee.EmployeeID || 'N/A'}
+                </Typography>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 'auto' }}>
+                <Stack direction="row" spacing={1}>
+                  <Chip
+                    label={getGenderText(employee.Gender)}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.65rem',
+                      fontWeight: 500,
+                      height: 20,
+                      bgcolor: COLORS.background.light,
+                      color: COLORS.text.secondary,
+                      border: `1px solid ${COLORS.border}`,
+                      '& .MuiChip-label': {
+                        px: 1
+                      }
+                    }}
+                  />
+                  <Chip
+                    label={getEmploymentTypeText(employee.EmploymentType)}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.65rem',
+                      fontWeight: 500,
+                      height: 20,
+                      bgcolor: COLORS.primaryLight,
+                      color: COLORS.primaryDark,
+                      border: `1px solid ${COLORS.primary}`,
+                      '& .MuiChip-label': {
+                        px: 1
+                      }
+                    }}
+                  />
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Stepper */}
+          <Paper sx={{ 
+            p: 2, 
+            bgcolor: COLORS.background.white, 
+            borderRadius: 1.5, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            <Stepper
+              activeStep={activeStep}
+              alternativeLabel
+              connector={<ColorConnector />}
+            >
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                      {label}
+                    </Typography>
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Paper>
+
+          {/* Step Content */}
+          {renderStepContent()}
+
+          {/* System Info */}
+          <Paper sx={{ 
+            p: 2, 
+            bgcolor: COLORS.background.white, 
+            borderRadius: 1.5, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, sm: 5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AccessTime sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                    Created: {formatDate(employee.CreatedAt)}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AccessTime sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                    Updated: {formatDate(employee.UpdatedAt)}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 2 }}>
+                <Tooltip title="Internal ID">
+                  <Chip
+                    label="System Info"
+                    size="small"
+                    icon={<InfoIcon sx={{ fontSize: '0.7rem' }} />}
+                    sx={{ 
+                      fontSize: '0.6rem',
+                      fontWeight: 500,
+                      height: 20,
+                      bgcolor: COLORS.background.light,
+                      color: COLORS.text.tertiary,
+                      border: `1px solid ${COLORS.border}`,
+                      '& .MuiChip-label': {
+                        px: 1
+                      },
+                      '& .MuiChip-icon': {
+                        ml: 0.5,
+                        fontSize: '0.7rem'
+                      }
+                    }}
+                  />
+                </Tooltip>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'space-between'
+      }}>
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: activeStep === 0 ? COLORS.text.tertiary : COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
+        </Button>
+
+        <Box>
+          <Button
+            onClick={onClose}
+            size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Close
+          </Button>
+
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={() => onEdit(employee)}
+              size="small"
+              startIcon={<EditIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
+              }}
+            >
+              Edit
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={activeStep === steps.length - 1}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
+    </Dialog>
   );
 };
 

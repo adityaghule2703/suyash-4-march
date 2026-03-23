@@ -9,73 +9,95 @@ import {
   Stack,
   Alert,
   Typography,
-  Paper
+  Box
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+// Color constants matching Users/Tax components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 const AddDepartments = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     DepartmentName: "",
     Description: ""
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
   const handleSubmit = async () => {
+    // Validation
     if (!formData.DepartmentName.trim()) {
-      setError("Department name is required");
+      setError('Department name is required');
       return;
     }
 
     if (formData.DepartmentName.trim().length < 2) {
-      setError("Department name must be at least 2 characters");
+      setError('Department name must be at least 2 characters');
       return;
     }
 
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.post(
-        `${BASE_URL}/api/departments`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/api/departments`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       if (response.data.success) {
         onAdd(response.data.data);
         resetForm();
         onClose();
       } else {
-        setError(response.data.message || "Failed to add department");
+        setError(response.data.message || 'Failed to add department');
       }
     } catch (err) {
-      console.error("Error adding department:", err);
-      setError(
-        err.response?.data?.message ||
-        "Failed to add department. Please try again."
-      );
+      console.error('Error adding department:', err);
+      setError(err.response?.data?.message || 'Failed to add department. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -83,10 +105,10 @@ const AddDepartments = ({ open, onClose, onAdd }) => {
 
   const resetForm = () => {
     setFormData({
-      DepartmentName: "",
-      Description: ""
+      DepartmentName: '',
+      Description: ''
     });
-    setError("");
+    setError('');
   };
 
   const handleClose = () => {
@@ -102,143 +124,214 @@ const AddDepartments = ({ open, onClose, onAdd }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
-      {/* Header */}
-      <DialogTitle
-        sx={{
-          fontWeight: 600,
-          fontSize: 20,
-          color: "#fff",
-          px: 3,
-          py: 2,
-          background: HEADER_GRADIENT
-        }}
-      >
-        Add New Department
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
+          Add New Department
+        </Typography>
       </DialogTitle>
 
-      <DialogContent sx={{ mt: 2 }}>
-        <Stack spacing={3}>
-          {/* Section Card */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid #e2e8f0"
-            }}
-          >
-            <Typography
+      <DialogContent sx={{ p: 2.5 }}>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1.5 }}>
+            {/* Department Name Field */}
+            <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DEPARTMENT NAME <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="DepartmentName"
+                  value={formData.DepartmentName}
+                  onChange={handleChange}
+                  disabled={loading}
+                  placeholder="Enter department name (e.g., Human Resources)"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                  Minimum 2 characters required
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Description Field */}
+            <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DESCRIPTION
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="Description"
+                  value={formData.Description}
+                  onChange={handleChange}
+                  multiline
+                  rows={4}
+                  disabled={loading}
+                  placeholder="Enter department description..."
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {error && (
+            <Alert
+              severity="error"
               sx={{
-                fontWeight: 600,
-                mb: 2,
-                color: "#2563EB"
+                borderRadius: 1.5,
+                mt: 1,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.25rem',
+                  alignItems: 'center'
+                },
+                fontSize: '0.75rem',
+                py: 0.5
               }}
             >
-              Basic Information
-            </Typography>
-
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Department Name"
-                name="DepartmentName"
-                value={formData.DepartmentName}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                error={
-                  !!error &&
-                  (error.includes("Department name") ||
-                  error.includes("name must be"))
-                }
-                helperText={
-                  error &&
-                  (error.includes("Department name") ||
-                  error.includes("name must be"))
-                    ? error
-                    : ""
-                }
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Description"
-                name="Description"
-                value={formData.Description}
-                onChange={handleChange}
-                multiline
-                rows={4}
-                disabled={loading}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-            </Stack>
-          </Paper>
-
-          {/* Error */}
-          {error &&
-            !error.includes("Department name") &&
-            !error.includes("name must be") && (
-              <Alert severity="error" sx={{ borderRadius: 2 }}>
-                {error}
-              </Alert>
+              {error}
+            </Alert>
           )}
         </Stack>
       </DialogContent>
 
-      {/* Footer */}
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 3,
-          pt: 2,
-          borderTop: "1px solid #e2e8f0",
-          background: "#f8fafc"
-        }}
-      >
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 1
+      }}>
         <Button
           onClick={handleClose}
           disabled={loading}
           sx={{
-            textTransform: "none",
-            fontWeight: 500
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
           Cancel
         </Button>
-
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading ? null : <AddIcon />}
+          disabled={loading || !formData.DepartmentName.trim()}
+          startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
           sx={{
-            textTransform: "none",
-            fontWeight: 500,
+            height: 32,
+            px: 2,
             borderRadius: 1.5,
-            px: 3,
-            background: HEADER_GRADIENT,
-            "&:hover": {
-              opacity: 0.9,
-              background: HEADER_GRADIENT
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              bgcolor: COLORS.primaryDark,
+            },
+            '&:disabled': {
+              bgcolor: COLORS.border,
+              color: COLORS.text.tertiary
             }
           }}
         >
-          {loading ? "Adding..." : "Add Department"}
+          {loading ? 'Adding...' : 'Add Department'}
         </Button>
       </DialogActions>
     </Dialog>

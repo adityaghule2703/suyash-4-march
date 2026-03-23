@@ -14,6 +14,8 @@ export const MODULES = {
   
   // Quotation Master
   COMPANY_MASTER: 'COMPANY_MASTER',
+  CUSTOMER_MASTER: 'CUSTOMER_MASTER',
+  LEAD_MASTER: 'LEAD_MASTER',
   SUPPLIER_MASTER: 'SUPPLIER_MASTER',
   TAX_MASTER: 'TAX_MASTER',
   TERMS_CONDITIONS_MASTER: 'TERMS_CONDITIONS_MASTER',
@@ -23,12 +25,23 @@ export const MODULES = {
   MATERIAL_MASTER: 'MATERIAL_MASTER',
   RAW_MATERIAL_MASTER: 'RAW_MATERIAL_MASTER',
   QUOTATION_MASTER: 'QUOTATION_MASTER',
+  COSTING_MASTER: 'COSTING_MASTER',
+  OPERATION_MASTER: 'OPERATION_MASTER',
+  PROCESS_DETAILS_MASTER: 'PROCESS_DETAILS_MASTER',
+  COMPANY_FINANCIAL_MASTER: 'COMPANY_FINANCIAL_MASTER',
+  
+  // Procurement Master
+  GRN_MASTER: 'GRN_MASTER',
+  PURCHASE_ORDER_MASTER: 'PURCHASE_ORDER_MASTER',
+  PURCHASE_REQUISITION_MASTER: 'PURCHASE_REQUISITION_MASTER',
+  RFQ_MASTER: 'RFQ_MASTER',
   
   // HR Master
   DEPARTMENT_MASTER: 'DEPARTMENT_MASTER',
   DESIGNATION_MASTER: 'DESIGNATION_MASTER',
   EMPLOYEE_MASTER: 'EMPLOYEE_MASTER',
   LEAVE_TYPE_MASTER: 'LEAVE_TYPE_MASTER',
+  SHIFT_MASTER: 'SHIFT_MASTER',
   ACCIDENT_MASTER: 'ACCIDENT_MASTER',
   REQUISITION_MASTER: 'REQUISITION_MASTER',
   JOB_OPENING_MASTER: 'JOB_OPENING_MASTER',
@@ -60,6 +73,8 @@ export const PAGES = {
   
   // Quotation Master Pages
   ORGANIZATION_COMPANY: 'Organization / Company',
+  CUSTOMER_MASTER: 'Customer Master',
+  LEAD_MASTER: 'Lead Master',
   SUPPLIER: 'Supplier',
   TAX_CONFIGURATION: 'Tax Configuration / Tax Rule',
   TERMS_AND_CONDITIONS: 'Terms And Conditions',
@@ -69,12 +84,23 @@ export const PAGES = {
   MATERIAL_CATALOG: 'Material Catalog',
   RAW_MATERIAL: 'Raw Material',
   QUOTATION: 'Quotation',
+  COSTING_MASTER: 'Costing Master',
+  OPERATION_MASTER: 'Operation Master',
+  PROCESS_DETAILS_MASTER: 'Process Details Master',
+  COMPANY_FINANCIAL_MASTER: 'Company Financial Master',
+  
+  // Procurement Master Pages
+  GRN_MASTER: 'GRN Master',
+  PURCHASE_ORDER_MASTER: 'Purchase Order Master',
+  PURCHASE_REQUISITION_MASTER: 'Purchase Requisition Master',
+  RFQ_MASTER: 'RFQ Master',
   
   // HR Master Pages
   DEPARTMENT_MASTER: 'Department Master',
   DESIGNATION_MASTER: 'Designation Master',
   EMPLOYEE_REGISTRY: 'Employee Registry',
   LEAVE_POLICIES: 'Leave Policies',
+  SHIFT_MASTER: 'Shift Master',
   ACCIDENT_REPORTING: 'Accident Reporting',
   HIRING_REQUESTS: 'Hiring Requests',
   CAREER_OPPORTUNITIES: 'Career Opportunities',
@@ -152,6 +178,20 @@ export const MODULE_PERMISSIONS_CONFIG = [
               ACTIONS.EXPORT, ACTIONS.IMPORT, ACTIONS.PRINT]
   },
   {
+    moduleKey: MODULES.CUSTOMER_MASTER,
+    page: PAGES.CUSTOMER_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.IMPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.LEAD_MASTER,
+    page: PAGES.LEAD_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.IMPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
     moduleKey: MODULES.SUPPLIER_MASTER,
     page: PAGES.SUPPLIER,
     category: 'Quotation Master',
@@ -210,6 +250,65 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
+  {
+    moduleKey: MODULES.COSTING_MASTER,
+    page: PAGES.COSTING_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.OPERATION_MASTER,
+    page: PAGES.OPERATION_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE]
+  },
+  {
+    moduleKey: MODULES.PROCESS_DETAILS_MASTER,
+    page: PAGES.PROCESS_DETAILS_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.COMPANY_FINANCIAL_MASTER,
+    page: PAGES.COMPANY_FINANCIAL_MASTER,
+    category: 'Quotation Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PROCUREMENT MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.GRN_MASTER,
+    page: PAGES.GRN_MASTER,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.PURCHASE_ORDER_MASTER,
+    page: PAGES.PURCHASE_ORDER_MASTER,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.PURCHASE_REQUISITION_MASTER,
+    page: PAGES.PURCHASE_REQUISITION_MASTER,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.RFQ_MASTER,
+    page: PAGES.RFQ_MASTER,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // HR MASTER
@@ -236,6 +335,12 @@ export const MODULE_PERMISSIONS_CONFIG = [
   {
     moduleKey: MODULES.LEAVE_TYPE_MASTER,
     page: PAGES.LEAVE_POLICIES,
+    category: 'HR Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE]
+  },
+  {
+    moduleKey: MODULES.SHIFT_MASTER,
+    page: PAGES.SHIFT_MASTER,
     category: 'HR Master',
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE]
   },

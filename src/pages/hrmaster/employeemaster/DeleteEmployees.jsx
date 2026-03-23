@@ -102,7 +102,7 @@ const DeleteEmployees = ({ open, onClose, employee, onDelete }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.delete(`${BASE_URL}/api/employees/${employee._id}`, {
+      const response = await axios.delete(`${BASE_URL}/api/employees/${employee._id}/hard`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

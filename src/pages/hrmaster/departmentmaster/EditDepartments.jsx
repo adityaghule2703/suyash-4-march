@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -9,23 +8,51 @@ import {
   TextField,
   Stack,
   Alert,
-  Paper,
   Typography,
-  IconButton
+  Box
 } from "@mui/material";
-import { Edit as EditIcon, Close as CloseIcon } from "@mui/icons-material";
+import { Edit as EditIcon } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 
-const HEADER_GRADIENT =
-  "linear-gradient(135deg, #0f5f6e 0%, #1da1b9 100%)";
+// Color constants matching EditTax component
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 const EditDepartments = ({ open, onClose, department, onUpdate }) => {
   const [formData, setFormData] = useState({
     DepartmentName: "",
     Description: ""
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,41 +62,47 @@ const EditDepartments = ({ open, onClose, department, onUpdate }) => {
         DepartmentName: department.DepartmentName || "",
         Description: department.Description || ""
       });
+      setError("");
     }
   }, [department]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    // Clear error when user starts typing
+    if (error) setError("");
   };
 
   const handleSubmit = async () => {
+    // Simple validation - exactly like EditTax
     if (!formData.DepartmentName.trim()) {
-      setError("Department name is required");
+      setError('Department name is required');
       return;
     }
 
     if (formData.DepartmentName.trim().length < 2) {
-      setError("Department name must be at least 2 characters");
+      setError('Department name must be at least 2 characters');
       return;
     }
 
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
-      const token = localStorage.getItem("token");
-
+      const token = localStorage.getItem('token');
       const response = await axios.put(
         `${BASE_URL}/api/departments/${department._id}`,
-        formData,
+        {
+          DepartmentName: formData.DepartmentName.trim(),
+          Description: formData.Description.trim() || null
+        },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -78,17 +111,25 @@ const EditDepartments = ({ open, onClose, department, onUpdate }) => {
         onUpdate(response.data.data);
         onClose();
       } else {
-        setError(response.data.message || "Failed to update department");
+        setError(response.data.message || 'Failed to update department');
       }
     } catch (err) {
-      console.error("Error updating department:", err);
-      setError(
-        err.response?.data?.message ||
-        "Failed to update department. Please try again."
-      );
+      console.error('Error updating department:', err);
+      
+      // Handle specific error cases
+      if (err.response?.status === 409) {
+        setError('A department with this name already exists');
+      } else {
+        setError(err.response?.data?.message || 'Failed to update department. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Simple validation for button disable - exactly like EditTax
+  const isFormValid = () => {
+    return formData.DepartmentName.trim() && formData.DepartmentName.trim().length >= 2;
   };
 
   return (
@@ -98,149 +139,226 @@ const EditDepartments = ({ open, onClose, department, onUpdate }) => {
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 3 }
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
       }}
     >
-      {/* Header */}
-      <DialogTitle
-        sx={{
-          fontWeight: 600,
-          fontSize: 22,
-          color: "#fff",
-          px: 3,
-          py: 2,
-          background: HEADER_GRADIENT,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}
-      >
-        Edit Department
-
-        <IconButton onClick={onClose} sx={{ color: "#fff" }}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-
-      {/* Content */}
-      <DialogContent sx={{ mt: 3 }}>
-        <Stack spacing={3}>
-          <Paper
-            elevation={0}
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography
+          sx={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            color: COLORS.text.primary
+          }}
+        >
+          Edit Department
+        </Typography>
+        {department?._id && (
+          <Typography
             sx={{
-              p: 3,
-              borderRadius: 2,
-              border: "1px solid #e2e8f0"
+              fontSize: '0.65rem',
+              border: `1px solid ${COLORS.border}`
             }}
           >
-            <Typography
+            {/* ID: {department._id.slice(-6)} */}
+          </Typography>
+        )}
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5 }}>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1.5 }}>
+            {/* Department Name Field */}
+            <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DEPARTMENT NAME <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="DepartmentName"
+                  value={formData.DepartmentName}
+                  onChange={handleChange}
+                  disabled={loading}
+                  placeholder="Enter department name"
+                  size="small"
+                  variant="outlined"
+                  error={!!error && error.includes('Department name')}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                  Minimum 2 characters required
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Description Field */}
+            <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  DESCRIPTION
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="Description"
+                  value={formData.Description}
+                  onChange={handleChange}
+                  multiline
+                  rows={4}
+                  disabled={loading}
+                  placeholder="Enter department description (optional)"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': {
+                        borderColor: COLORS.primary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: COLORS.primary,
+                        borderWidth: 1
+                      }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {error && (
+            <Alert
+              severity="error"
               sx={{
-                fontWeight: 600,
-                mb: 2,
-                color: "#2563EB",
-                fontSize: "1rem"
+                borderRadius: 1.5,
+                mt: 1,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.25rem',
+                  alignItems: 'center'
+                },
+                fontSize: '0.75rem',
+                py: 0.5
               }}
             >
-              Basic Information
-            </Typography>
-
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Department Name"
-                name="DepartmentName"
-                value={formData.DepartmentName}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                error={
-                  !!error &&
-                  (error.includes("Department name") ||
-                  error.includes("name must be"))
-                }
-                helperText={
-                  error &&
-                  (error.includes("Department name") ||
-                  error.includes("name must be"))
-                    ? error
-                    : ""
-                }
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Description"
-                name="Description"
-                value={formData.Description}
-                onChange={handleChange}
-                multiline
-                rows={4}
-                disabled={loading}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1.5,
-                    background: "#f8fafc"
-                  }
-                }}
-              />
-            </Stack>
-          </Paper>
-
-          {error &&
-            !error.includes("Department name") &&
-            !error.includes("name must be") && (
-              <Alert severity="error" sx={{ borderRadius: 2 }}>
-                {error}
-              </Alert>
+              {error}
+            </Alert>
           )}
         </Stack>
       </DialogContent>
 
-      {/* Footer */}
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 3,
-          pt: 2,
-          borderTop: "1px solid #e2e8f0",
-          background: "#f8fafc"
-        }}
-      >
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 1
+      }}>
         <Button
           onClick={onClose}
           disabled={loading}
           sx={{
-            textTransform: "none",
-            fontWeight: 500
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
           Cancel
         </Button>
-
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading ? null : <EditIcon />}
+          disabled={loading || !isFormValid()}
+          startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
           sx={{
-            textTransform: "none",
-            fontWeight: 500,
+            height: 32,
+            px: 2,
             borderRadius: 1.5,
-            px: 3,
-            background: HEADER_GRADIENT,
-            "&:hover": {
-              opacity: 0.9,
-              background: HEADER_GRADIENT
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              bgcolor: COLORS.primaryDark,
+            },
+            '&:disabled': {
+              bgcolor: COLORS.border,
+              color: COLORS.text.tertiary
             }
           }}
         >
-          {loading ? "Updating..." : "Update Department"}
+          {loading ? 'Updating...' : 'Update Department'}
         </Button>
       </DialogActions>
     </Dialog>

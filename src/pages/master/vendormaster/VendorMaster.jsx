@@ -26,7 +26,7 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -35,7 +35,9 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  CheckCircle as CheckCircleIcon,
+   Block as BlockIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -45,6 +47,8 @@ import AddVendor from './AddVendor';
 import EditVendor from './EditVendor';
 import ViewVendor from './ViewVendor';
 import DeleteVendor from './DeleteVendor';
+import ApproveVendor from './ApproveVendor';
+import BlacklistVendor from './BlacklistVendor';
 
 // Color constants - Single color #063C3F throughout
 const COLORS = {
@@ -74,7 +78,7 @@ const COLORS = {
 };
 
 // Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+const ActionMenu = ({ item, onView, onEdit, onDelete, onApprove, onBlacklist, anchorEl, onClose, onOpen }) => {
   return (
     <>
       <Tooltip title="Actions">
@@ -138,6 +142,39 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
             </Typography>
           </ListItemText>
         </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            onApprove(item);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+            <CheckCircleIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              Approve AVL
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+       
+      <MenuItem 
+        onClick={() => {
+          onBlacklist(item);
+          onClose();
+        }}
+        sx={{ py: 1.5 }}
+      >
+        <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+          <BlockIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>
+          <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+            Blacklist
+          </Typography>
+        </ListItemText>
+      </MenuItem>
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         <MenuItem 
           onClick={() => {
@@ -169,7 +206,7 @@ const VendorMaster = () => {
   
   // Pagination state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
@@ -185,10 +222,12 @@ const VendorMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openApproveModal, setOpenApproveModal] = useState(false);
   
   // Selected vendor
   const [selectedVendor, setSelectedVendor] = useState(null);
-  
+  const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
+
   // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -200,7 +239,7 @@ const VendorMaster = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -212,9 +251,8 @@ const VendorMaster = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1, // API uses 1-based pagination
+        page: page + 1,
         limit: rowsPerPage
       });
       
@@ -248,17 +286,10 @@ const VendorMaster = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  // Fetch vendors when dependencies change
   useEffect(() => {
     fetchVendors();
   }, [fetchVendors]);
 
-  // Handle refresh
-  const handleRefresh = () => {
-    fetchVendors();
-    showNotification('Data refreshed', 'success');
-  };
-  
   // Handle select all
   const handleSelectAll = (event) => {
     if (event.target.checked) {
@@ -268,6 +299,19 @@ const VendorMaster = () => {
     }
   };
   
+  // Handle blacklist vendor
+const handleBlacklistVendor = () => {
+  fetchVendors();
+  showNotification('Vendor blacklisted successfully!', 'success');
+};
+
+// Open blacklist confirmation
+const openBlacklistVendorDialog = (vendor) => {
+  setSelectedVendor(vendor);
+  setOpenBlacklistDialog(true);
+  handleActionMenuClose();
+};
+
   // Handle single selection
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
@@ -285,7 +329,7 @@ const VendorMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
@@ -293,7 +337,7 @@ const VendorMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle bulk delete
@@ -342,6 +386,12 @@ const VendorMaster = () => {
     showNotification('Vendor deleted successfully!', 'success');
   };
   
+  // Handle approve vendor
+  const handleApproveVendor = () => {
+    fetchVendors();
+    showNotification('Vendor approved for AVL successfully!', 'success');
+  };
+  
   // Action menu handlers
   const handleActionMenuOpen = (event, vendor) => {
     setActionMenuAnchor(event.currentTarget);
@@ -374,6 +424,13 @@ const VendorMaster = () => {
     handleActionMenuClose();
   };
   
+  // Open approve modal
+  const openApproveVendorModal = (vendor) => {
+    setSelectedVendor(vendor);
+    setOpenApproveModal(true);
+    handleActionMenuClose();
+  };
+  
   // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
@@ -398,23 +455,56 @@ const VendorMaster = () => {
   // Get vendor type chip styles
   const getVendorTypeStyles = (type) => {
     const styles = {
-      'RM': {
+      'Raw Material': {
+        bg: '#e0f2fe',
+        text: '#0c4a6e',
+        border: '#bae6fd'
+      },
+      'Consumable': {
         bg: '#fee2e2',
         text: '#991b1b',
         border: '#fecaca'
       },
-      'Process': {
+      'Subcontractor': {
         bg: '#fef3c7',
         text: '#92400e',
         border: '#fde68a'
       },
-      'Both': {
+      'Capital Goods': {
+        bg: '#dcfce7',
+        text: '#166534',
+        border: '#86efac'
+      },
+      'Service': {
         bg: '#e0f2fe',
         text: '#0c4a6e',
         border: '#bae6fd'
+      },
+      'Utilities': {
+        bg: '#fef3c7',
+        text: '#92400e',
+        border: '#fde68a'
+      },
+      'Other': {
+        bg: '#f1f5f9',
+        text: '#475569',
+        border: '#cbd5e1'
       }
     };
-    return styles[type] || styles['Both'];
+    return styles[type] || styles['Other'];
+  };
+  
+  // Get AVL status styles
+  const getAvlStatusStyles = (avlApproved) => {
+    return avlApproved ? {
+      bg: COLORS.chips.active,
+      text: COLORS.primaryDark,
+      border: '#86efac'
+    } : {
+      bg: COLORS.chips.inactive,
+      text: COLORS.text.secondary,
+      border: COLORS.border
+    };
   };
   
   // Get status styles
@@ -428,11 +518,6 @@ const VendorMaster = () => {
       text: COLORS.text.secondary,
       border: COLORS.border
     };
-  };
-  
-  // Get status text
-  const getStatusText = (isActive) => {
-    return isActive ? 'Active' : 'Inactive';
   };
   
   // Get avatar initials
@@ -531,20 +616,6 @@ const VendorMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           {/* Action Buttons */}
@@ -684,14 +755,15 @@ const VendorMaster = () => {
                 }}>
                   State
                 </TableCell>
-                {/* <TableCell sx={{ 
+                <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
-                  color: COLORS.text.light
+                  color: COLORS.text.light,
+                  width: 80
                 }}>
-                  Status
-                </TableCell> */}
+                  AVL Status
+                </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -733,6 +805,7 @@ const VendorMaster = () => {
                     selectedVendorForAction?._id === vendor._id;
                   const avatarColor = getAvatarColor(vendor.vendor_name);
                   const typeStyles = getVendorTypeStyles(vendor.vendor_type);
+                  const avlStatusStyles = getAvlStatusStyles(vendor.avl_approved);
                   const statusStyles = getStatusStyles(vendor.is_active);
 
                   return (
@@ -806,7 +879,7 @@ const VendorMaster = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={vendor.vendor_type || 'Both'}
+                          label={vendor.vendor_type || 'N/A'}
                           size="small"
                           sx={{ 
                             fontSize: '0.65rem',
@@ -845,29 +918,31 @@ const VendorMaster = () => {
                           Code: {vendor.state_code || 'N/A'}
                         </Typography>
                       </TableCell>
-                      {/* <TableCell>
+                      <TableCell>
                         <Chip
-                          label={getStatusText(vendor.is_active)}
+                          label={vendor.avl_approved ? 'AVL Approved' : 'Not Approved'}
                           size="small"
                           sx={{ 
                             fontSize: '0.65rem',
                             fontWeight: 500,
                             height: 20,
-                            bgcolor: statusStyles.bg,
-                            color: statusStyles.text,
-                            border: `1px solid ${statusStyles.border}`,
+                            bgcolor: avlStatusStyles.bg,
+                            color: avlStatusStyles.text,
+                            border: `1px solid ${avlStatusStyles.border}`,
                             '& .MuiChip-label': {
                               px: 1
                             }
                           }}
                         />
-                      </TableCell> */}
+                      </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           item={vendor}
                           onView={openViewVendorModal}
                           onEdit={openEditVendorModal}
                           onDelete={openDeleteVendorDialog}
+                          onApprove={openApproveVendorModal}
+                          onBlacklist={openBlacklistVendorDialog}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, vendor)}
@@ -937,6 +1012,15 @@ const VendorMaster = () => {
               setOpenEditModal(true);
             }}
           />
+           <BlacklistVendor
+              open={openBlacklistDialog}
+              onClose={() => {
+                setOpenBlacklistDialog(false);
+                setSelectedVendor(null);
+              }}
+              vendor={selectedVendor}
+              onBlacklist={handleBlacklistVendor}
+            />
 
           <DeleteVendor
             open={openDeleteDialog}
@@ -946,6 +1030,16 @@ const VendorMaster = () => {
             }}
             vendor={selectedVendor}
             onDelete={handleDeleteVendor}
+          />
+
+          <ApproveVendor
+            open={openApproveModal}
+            onClose={() => {
+              setOpenApproveModal(false);
+              setSelectedVendor(null);
+            }}
+            vendor={selectedVendor}
+            onApprove={handleApproveVendor}
           />
         </>
       )}
