@@ -60,7 +60,7 @@ const COLORS = {
 // All available actions from your permission catalog
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules from your permission catalog
+// All pages/modules from your permission catalog - Updated with all new modules
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -69,23 +69,36 @@ const ALL_PAGES = [
   { module: 'USERS', page: 'Users', category: 'Administration' },
   { module: 'ROLES', page: 'Roles', category: 'Administration' },
   
-  // Quotation Master
+  // Quotation Master - Updated with new modules
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
+  { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
+  { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
   { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
   { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
   { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
   { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
   { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
+  { module: 'PROCESS_DETAILS_MASTER', page: 'Process Details Master', category: 'Quotation Master' },
   { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
   { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
   { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'COSTING_MASTER', page: 'Costing Master', category: 'Quotation Master' },
+  { module: 'OPERATION_MASTER', page: 'Operation Master', category: 'Quotation Master' },
+  { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
   { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
-  // HR Master
+  // Procurement Master - New Category
+  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
+  { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
+  
+  // HR Master - Updated with new modules
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
   { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
   { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
   { module: 'LEAVE_TYPE_MASTER', page: 'Leave Policies', category: 'HR Master' },
+  { module: 'SHIFT_MASTER', page: 'Shift Master', category: 'HR Master' },
   { module: 'ACCIDENT_MASTER', page: 'Accident Reporting', category: 'HR Master' },
   { module: 'REQUISITION_MASTER', page: 'Hiring Requests', category: 'HR Master' },
   { module: 'JOB_OPENING_MASTER', page: 'Career Opportunities', category: 'HR Master' },
@@ -371,7 +384,6 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
         borderBottom: `1px solid ${COLORS.border}`, 
         py: 1.5,
         px: 2.5,
-        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
@@ -387,7 +399,7 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
           >
             Edit User
           </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
             Modify user details and permissions
           </Typography>
         </Box>
@@ -527,11 +539,11 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
                   renderOption={(props, option) => (
                     <li {...props}>
                       <Box>
-                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                           {option.RoleName}
                         </Typography>
                         {option.Description && (
-                          <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
                             {option.Description}
                           </Typography>
                         )}
@@ -580,163 +592,166 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
           </Box>
 
           {/* Permissions Section */}
-          <Box>
-            <Typography
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: COLORS.text.secondary,
-                textTransform: 'uppercase',
+        {/* Permissions Section */}
+<Box>
+  <Typography
+    sx={{
+      fontSize: '0.75rem',
+      fontWeight: 600,
+      color: COLORS.text.secondary,
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      mb: 2
+    }}
+  >
+    User Permissions
+  </Typography>
+  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mb: 2, display: 'block' }}>
+    Based on role: {selectedRole?.RoleName || 'None selected'} - You can customize permissions below
+  </Typography>
+  
+  <Box sx={{ overflowX: 'auto' }}>
+    <TableContainer>
+      <Table size="small" sx={{ minWidth: 800 }}>
+        <TableHead>
+          <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+            <TableCell 
+              sx={{ 
+                fontWeight: 600, 
+                fontSize: '0.7rem',
                 letterSpacing: '0.5px',
-                mb: 2
+                color: COLORS.text.light,
+                position: 'sticky',
+                left: 0,
+                bgcolor: COLORS.background.tableHeader,
+                zIndex: 1,
+                minWidth: 200
               }}
             >
-              User Permissions
-            </Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mb: 2, display: 'block' }}>
-              Based on role: {selectedRole?.RoleName || 'None selected'} - You can customize permissions below
-            </Typography>
-            
-            <Box sx={{ overflowX: 'auto' }}>
-              <TableContainer>
-                <Table size="small" sx={{ minWidth: 800 }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
-                      <TableCell sx={{ 
-                        fontWeight: 600, 
-                        fontSize: '0.7rem',
-                        letterSpacing: '0.5px',
-                        color: COLORS.text.light,
+              Pages / Modules
+            </TableCell>
+            {ALL_ACTIONS.map((action) => (
+              <TableCell 
+                key={action} 
+                align="center"
+                sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light,
+                  minWidth: 70
+                }}
+              >
+                {action}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {Object.entries(groupedPages).map(([category, pages]) => (
+            <React.Fragment key={category}>
+              {/* Category Header Row */}
+              <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
+                <TableCell 
+                  colSpan={ALL_ACTIONS.length + 1}
+                  sx={{ 
+                    fontWeight: 600, 
+                    fontSize: '0.7rem', 
+                    color: COLORS.primary,
+                    py: 1,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => toggleCategory(category)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton size="small" sx={{ p: 0 }}>
+                      {expandedCategories[category] ? 
+                        <KeyboardArrowDownIcon fontSize="small" /> : 
+                        <KeyboardArrowRightIcon fontSize="small" />
+                      }
+                    </IconButton>
+                    {category}
+                  </Box>
+                </TableCell>
+              </TableRow>
+              
+              {/* Pages Rows - Only show if category is expanded */}
+              {expandedCategories[category] && pages.map((page) => {
+                const selectedCount = getPageSelectedCount(page.module);
+                const allSelected = selectedCount === ALL_ACTIONS.length;
+                const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
+                
+                return (
+                  <TableRow key={page.module} hover>
+                    <TableCell 
+                      sx={{ 
+                        fontSize: '0.75rem', 
+                        color: COLORS.text.primary,
                         position: 'sticky',
                         left: 0,
-                        bgcolor: COLORS.background.tableHeader,
+                        bgcolor: COLORS.background.white,
                         zIndex: 1,
-                        minWidth: 200
-                      }}>
-                        Pages / Modules
-                      </TableCell>
-                      {ALL_ACTIONS.map((action) => (
-                        <TableCell 
-                          key={action} 
-                          align="center"
-                          sx={{ 
-                            fontWeight: 600, 
-                            fontSize: '0.7rem',
-                            letterSpacing: '0.5px',
-                            color: COLORS.text.light,
-                            minWidth: 70
-                          }}
-                        >
-                          {action}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.entries(groupedPages).map(([category, pages]) => (
-                      <React.Fragment key={category}>
-                        {/* Category Header Row */}
-                        <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
-                          <TableCell 
-                            colSpan={ALL_ACTIONS.length + 1}
-                            sx={{ 
-                              fontWeight: 600, 
-                              fontSize: '0.7rem', 
+                        borderRight: `1px solid ${COLORS.border}`,
+                        py: 1.5
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                            {page.page}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            {page.module}
+                          </Typography>
+                        </Box>
+                        <Checkbox
+                          size="small"
+                          checked={allSelected}
+                          indeterminate={someSelected}
+                          onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
+                          sx={{
+                            color: COLORS.primary,
+                            '&.Mui-checked': {
                               color: COLORS.primary,
-                              py: 1,
-                              cursor: 'pointer'
+                            },
+                            '&.MuiCheckbox-indeterminate': {
+                              color: COLORS.primary,
+                            }
+                          }}
+                        />
+                      </Box>
+                    </TableCell>
+                    {ALL_ACTIONS.map((action) => {
+                      const isChecked = permissions[`${page.module}_${action}`] || false;
+                      return (
+                        <TableCell key={action} align="center" sx={{ p: 1 }}>
+                          <Checkbox
+                            checked={isChecked}
+                            onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
+                            size="small"
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1rem'
+                              }
                             }}
-                            onClick={() => toggleCategory(category)}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <IconButton size="small" sx={{ p: 0 }}>
-                                {expandedCategories[category] ? 
-                                  <KeyboardArrowDownIcon fontSize="small" /> : 
-                                  <KeyboardArrowRightIcon fontSize="small" />
-                                }
-                              </IconButton>
-                              {category}
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                        
-                        {/* Pages Rows - Only show if category is expanded */}
-                        {expandedCategories[category] && pages.map((page) => {
-                          const selectedCount = getPageSelectedCount(page.module);
-                          const allSelected = selectedCount === ALL_ACTIONS.length;
-                          const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
-                          
-                          return (
-                            <TableRow key={page.module} hover>
-                              <TableCell 
-                                sx={{ 
-                                  fontSize: '0.75rem', 
-                                  color: COLORS.text.primary,
-                                  position: 'sticky',
-                                  left: 0,
-                                  bgcolor: COLORS.background.white,
-                                  zIndex: 1,
-                                  borderRight: `1px solid ${COLORS.border}`,
-                                  py: 1.5
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                  <Box>
-                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                                      {page.page}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                                      {page.module}
-                                    </Typography>
-                                  </Box>
-                                  <Checkbox
-                                    size="small"
-                                    checked={allSelected}
-                                    indeterminate={someSelected}
-                                    onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
-                                    sx={{
-                                      color: COLORS.primary,
-                                      '&.Mui-checked': {
-                                        color: COLORS.primary,
-                                      },
-                                      '&.MuiCheckbox-indeterminate': {
-                                        color: COLORS.primary,
-                                      }
-                                    }}
-                                  />
-                                </Box>
-                              </TableCell>
-                              {ALL_ACTIONS.map((action) => {
-                                const isChecked = permissions[`${page.module}_${action}`] || false;
-                                return (
-                                  <TableCell key={action} align="center" sx={{ p: 1 }}>
-                                    <Checkbox
-                                      checked={isChecked}
-                                      onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
-                                      size="small"
-                                      sx={{
-                                        color: COLORS.primary,
-                                        '&.Mui-checked': {
-                                          color: COLORS.primary,
-                                        },
-                                        '& .MuiSvgIcon-root': {
-                                          fontSize: '1rem'
-                                        }
-                                      }}
-                                    />
-                                  </TableCell>
-                                );
-                              })}
-                            </TableRow>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          </Box>
+                          />
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </Box>
+</Box> {/* This is the closing tag for the main Permissions Box - only ONE closing tag here */}
         </Stack>
       </DialogContent>
       

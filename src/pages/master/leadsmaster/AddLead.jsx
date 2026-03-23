@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -24,7 +24,8 @@ import {
   Select,
   MenuItem,
   Autocomplete,
-  styled
+  styled,
+  CircularProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -107,6 +108,12 @@ const AddLead = ({ open, onClose, onAdd }) => {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // Data fetching states
+  const [materials, setMaterials] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
+
   // Exhibition lead form data
   const [formData, setFormData] = useState({
     lead_source: 'Exhibition',
@@ -131,7 +138,7 @@ const AddLead = ({ open, onClose, onAdd }) => {
     contact_name: ''
   });
 
-  // Enquired items
+  // Enquired items with material grade and part no from masters
   const [enquiredItems, setEnquiredItems] = useState([
     {
       description: '',
@@ -147,6 +154,56 @@ const AddLead = ({ open, onClose, onAdd }) => {
   const [selectedLeadSource, setSelectedLeadSource] = useState('Exhibition');
   const [selectedPriority, setSelectedPriority] = useState('Medium');
   const [selectedIndustry, setSelectedIndustry] = useState('');
+
+  // Fetch materials from Material Master
+  const fetchMaterials = useCallback(async () => {
+    try {
+      setLoadingMaterials(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/materials`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setMaterials(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching materials:', err);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  }, []);
+
+  // Fetch items from Item Master
+  const fetchItems = useCallback(async () => {
+    try {
+      setLoadingItems(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/items`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setItems(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching items:', err);
+    } finally {
+      setLoadingItems(false);
+    }
+  }, []);
+
+  // Fetch data when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchMaterials();
+      fetchItems();
+    }
+  }, [open, fetchMaterials, fetchItems]);
 
   const handleLeadTypeChange = (type) => {
     setLeadType(type);
@@ -208,6 +265,23 @@ const AddLead = ({ open, onClose, onAdd }) => {
   const handleEnquiredItemChange = (index, field, value) => {
     const updatedItems = [...enquiredItems];
     updatedItems[index][field] = value;
+    
+    // Auto-fill description if part_no is selected
+    if (field === 'part_no' && value) {
+      const selectedItem = items.find(item => item.part_no === value);
+      if (selectedItem && !updatedItems[index].description) {
+        updatedItems[index].description = selectedItem.part_description || '';
+      }
+    }
+    
+    // Auto-fill material grade if selected from material master
+    if (field === 'material_grade' && value) {
+      const selectedMaterial = materials.find(m => m.Grade === value);
+      if (selectedMaterial && !updatedItems[index].description && !updatedItems[index].part_no) {
+        updatedItems[index].description = selectedMaterial.MaterialName || '';
+      }
+    }
+    
     setEnquiredItems(updatedItems);
     
     setFieldErrors(prev => ({
@@ -1140,30 +1214,42 @@ const AddLead = ({ open, onClose, onAdd }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                           MATERIAL GRADE
                         </Typography>
-                        <TextField
+                        <Autocomplete
                           fullWidth
-                          size="small"
+                          options={materials.map(m => m.Grade).filter(g => g)}
+                          loading={loadingMaterials}
                           value={item.material_grade}
-                          onChange={(e) => handleEnquiredItemChange(index, 'material_grade', e.target.value)}
-                          placeholder="C11000"
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
+                          onChange={(event, newValue) => handleEnquiredItemChange(index, 'material_grade', newValue || '')}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select or type grade"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                              InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                  <>
+                                    {loadingMaterials && <CircularProgress size={16} />}
+                                    {params.InputProps.endAdornment}
+                                  </>
+                                ),
+                              }}
+                            />
+                          )}
                         />
                       </Box>
                     </Grid>
@@ -1173,30 +1259,42 @@ const AddLead = ({ open, onClose, onAdd }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                           PART NO
                         </Typography>
-                        <TextField
+                        <Autocomplete
                           fullWidth
-                          size="small"
+                          options={items.map(i => i.part_no).filter(p => p)}
+                          loading={loadingItems}
                           value={item.part_no}
-                          onChange={(e) => handleEnquiredItemChange(index, 'part_no', e.target.value)}
-                          placeholder="BR-001"
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
+                          onChange={(event, newValue) => handleEnquiredItemChange(index, 'part_no', newValue || '')}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select or type part no"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                              InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                  <>
+                                    {loadingItems && <CircularProgress size={16} />}
+                                    {params.InputProps.endAdornment}
+                                  </>
+                                ),
+                              }}
+                            />
+                          )}
                         />
                       </Box>
                     </Grid>

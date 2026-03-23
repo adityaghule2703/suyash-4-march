@@ -99,7 +99,7 @@ const AccessDenied = () => (
 // All available actions
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules
+// All pages/modules - Updated with all new modules
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -108,23 +108,36 @@ const ALL_PAGES = [
   { module: 'USERS', page: 'Users', category: 'Administration' },
   { module: 'ROLES', page: 'Roles', category: 'Administration' },
   
-  // Quotation Master
+  // Quotation Master - Updated with new modules
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
+  { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
+  { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
   { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
   { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
   { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
   { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
   { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
+  { module: 'PROCESS_DETAILS_MASTER', page: 'Process Details Master', category: 'Quotation Master' },
   { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
   { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
   { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'COSTING_MASTER', page: 'Costing Master', category: 'Quotation Master' },
+  { module: 'OPERATION_MASTER', page: 'Operation Master', category: 'Quotation Master' },
+  { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
   { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
-  // HR Master
+  // Procurement Master - New Category
+  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
+  { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
+  
+  // HR Master - Updated with new modules
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
   { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
   { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
   { module: 'LEAVE_TYPE_MASTER', page: 'Leave Policies', category: 'HR Master' },
+  { module: 'SHIFT_MASTER', page: 'Shift Master', category: 'HR Master' },
   { module: 'ACCIDENT_MASTER', page: 'Accident Reporting', category: 'HR Master' },
   { module: 'REQUISITION_MASTER', page: 'Hiring Requests', category: 'HR Master' },
   { module: 'JOB_OPENING_MASTER', page: 'Career Opportunities', category: 'HR Master' },
@@ -765,6 +778,20 @@ const Users = () => {
 
           {/* Action Buttons - Only show Add User button if user has create permission */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            <Tooltip title="Refresh">
+              <IconButton 
+                onClick={handleRefresh} 
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon sx={{ fontSize: '1rem' }} />
+              </IconButton>
+            </Tooltip>
             {canCreate && (
               <Button
                 variant="contained"
@@ -843,14 +870,6 @@ const Users = () => {
                 }}>
                   Role
                 </TableCell>
-                {/* <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Employee
-                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -873,7 +892,7 @@ const Users = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading users...
@@ -882,7 +901,7 @@ const Users = () => {
                 </TableRow>
               ) : paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No users found' : 'No users available'}
@@ -1002,14 +1021,6 @@ const Users = () => {
                             />
                           )}
                         </TableCell>
-                        {/* <TableCell>
-                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                            {user.EmployeeID ? getEmployeeID(user.EmployeeID) : 'No Employee'}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                            {user.EmployeeID ? `${user.EmployeeID.FirstName || ''} ${user.EmployeeID.LastName || ''}`.trim() : '-'}
-                          </Typography>
-                        </TableCell> */}
                         <TableCell>
                           <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
                             {formatDate(user.LastLogin)}
@@ -1034,7 +1045,7 @@ const Users = () => {
                       
                       {/* Expanded Row with Permissions Matrix */}
                       <TableRow>
-                        <TableCell colSpan={8} sx={{ p: 0 }}>
+                        <TableCell colSpan={7} sx={{ p: 0 }}>
                           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                             <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderTop: `1px solid ${COLORS.border}` }}>
                               <Typography variant="subtitle2" sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, mb: 2 }}>

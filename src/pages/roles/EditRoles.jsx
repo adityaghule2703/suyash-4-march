@@ -59,7 +59,7 @@ const COLORS = {
 // All available actions from your permission catalog
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules from your permission catalog
+// All pages/modules from your permission catalog - Updated with all new modules
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -68,23 +68,36 @@ const ALL_PAGES = [
   { module: 'USERS', page: 'Users', category: 'Administration' },
   { module: 'ROLES', page: 'Roles', category: 'Administration' },
   
-  // Quotation Master
+  // Quotation Master - Updated with new modules
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
+  { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
+  { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
   { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
   { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
   { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
   { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
   { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
+  { module: 'PROCESS_DETAILS_MASTER', page: 'Process Details Master', category: 'Quotation Master' },
   { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
   { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
   { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'COSTING_MASTER', page: 'Costing Master', category: 'Quotation Master' },
+  { module: 'OPERATION_MASTER', page: 'Operation Master', category: 'Quotation Master' },
+  { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
   { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
-  // HR Master
+  // Procurement Master - New Category
+  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
+  { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
+  
+  // HR Master - Updated with new modules
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
   { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
   { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
   { module: 'LEAVE_TYPE_MASTER', page: 'Leave Policies', category: 'HR Master' },
+  { module: 'SHIFT_MASTER', page: 'Shift Master', category: 'HR Master' },
   { module: 'ACCIDENT_MASTER', page: 'Accident Reporting', category: 'HR Master' },
   { module: 'REQUISITION_MASTER', page: 'Hiring Requests', category: 'HR Master' },
   { module: 'JOB_OPENING_MASTER', page: 'Career Opportunities', category: 'HR Master' },
@@ -322,16 +335,10 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
         alignItems: 'center'
       }}>
         <Box>
-          <Typography
-            sx={{
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: COLORS.text.primary
-            }}
-          >
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
             Edit Role
           </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
             Modify role details and permissions
           </Typography>
         </Box>
@@ -369,16 +376,7 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
         <Stack spacing={3}>
           {/* Basic Information Section */}
           <Box>
-            <Typography
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: COLORS.text.secondary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                mb: 2
-              }}
-            >
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.secondary, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 2 }}>
               Basic Information
             </Typography>
             
@@ -500,16 +498,7 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
 
           {/* Permissions Section */}
           <Box>
-            <Typography
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: COLORS.text.secondary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                mb: 2
-              }}
-            >
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.secondary, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 2 }}>
               Module Permissions
             </Typography>
             

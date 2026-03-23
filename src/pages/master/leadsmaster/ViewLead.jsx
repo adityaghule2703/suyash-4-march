@@ -211,7 +211,7 @@ const ViewLead = ({ open, onClose, lead, onEdit }) => {
           )}
         </Grid>
       </DialogContent>
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}` }}>
+      {/* <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}` }}>
         <Button onClick={onClose}>Close</Button>
         <Button 
           variant="contained" 
@@ -220,7 +220,7 @@ const ViewLead = ({ open, onClose, lead, onEdit }) => {
         >
           Edit Lead
         </Button>
-      </DialogActions>
+      </DialogActions> */}
     </Dialog>
   );
 };
