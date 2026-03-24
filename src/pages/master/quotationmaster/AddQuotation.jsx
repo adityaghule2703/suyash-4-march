@@ -24,14 +24,19 @@ import {
   Divider,
   IconButton,
   CircularProgress,
-  styled
+  styled,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  FormHelperText
 } from '@mui/material';
 import { 
   Add as AddIcon, 
   Delete as DeleteIcon, 
   AddCircle as AddCircleIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  NavigateBefore as NavigateBeforeIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -69,6 +74,13 @@ const COLORS = {
   }
 };
 
+// Template types
+const TEMPLATE_TYPES = {
+  BUSBAR: 'busbar',
+  LANDED_COST: 'landed_cost',
+  LASER_FABRICATION: 'laser_fabrication'
+};
+
 // 🔥 Modern Stepper Connector with Gradient
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
@@ -91,9 +103,10 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 
 const AddQuotation = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [vendorType, setVendorType] = useState('Existing');
+  const [customerType, setCustomerType] = useState('Existing');
+  const [selectedTemplateType, setSelectedTemplateType] = useState(null);
   const [formData, setFormData] = useState({
-    vendor: {
+    customer: {
       type: 'Existing',
       id: ''
     },
@@ -110,30 +123,52 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       credit_on_input_days: -30,
       wip_fg_days: 30,
       credit_to_customer_days: 45,
-      cost_of_capital: 0.10
+      cost_of_capital: 0.10,
+      plating_cost_per_kg: 70
     },
     items: []
   });
   
-  const [newVendor, setNewVendor] = useState({
-    vendor_name: '',
-    vendor_type: 'RM',
+  const [newCustomer, setNewCustomer] = useState({
+    customer_name: '',
+    customer_type: 'Regular',
     gstin: '',
-    state: '',
-    state_code: '',
-    address: '',
-    city: '',
-    pincode: '',
     contact_person: '',
-    phone: '',
     email: '',
-    pan: ''
+    billing_address: {
+      line1: '',
+      city: '',
+      state: '',
+      state_code: '',
+      pincode: ''
+    }
   });
   
+  // Common item fields
   const [itemInput, setItemInput] = useState({
-    part_no: '',
-    quantity: '',
+    PartNo: '',
+    Quantity: '',
     part_name: ''
+  });
+  
+  // Busbar specific fields
+  const [busbarItemInput, setBusbarItemInput] = useState({
+    PartNo: '',
+    Quantity: '',
+    processes: []
+  });
+  
+  // Laser fabrication specific fields
+  const [laserItemInput, setLaserItemInput] = useState({
+    PartNo: '',
+    Quantity: '',
+    path_length_sq_mm: '',
+    laser_rate_per_sq_mm: '',
+    start_points: '',
+    start_point_rate: '',
+    flatning_cost: '',
+    bending_cost: '',
+    fabrication_cost: ''
   });
   
   const [processes, setProcesses] = useState([]);
@@ -143,66 +178,65 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     process_id: '',
     rate_per_hour: '',
     hours: '',
-    outsourced_vendor_id: null
+    machine: ''
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   
-  const [vendors, setVendors] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
   const [templates, setTemplates] = useState([]);
   
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Steps definition
-  const steps = ['Template & Vendor', 'Items & Processes', 'Financials & Review'];
+  const steps = ['Template & Customer', 'Items & Processes', 'Financials & Review'];
 
-  // Vendor type options
-  const vendorTypeOptions = ['RM', 'Process', 'Both'];
+  // Customer type options
+  const customerTypeOptions = ['Regular', 'Premium', 'Wholesale', 'Retail', 'OEM'];
 
   useEffect(() => {
     if (open) {
-      fetchVendors();
+      fetchCustomers();
       fetchItems();
       fetchProcesses();
       fetchTemplates();
     }
   }, [open]);
 
-  const fetchVendors = async () => {
+  const fetchCustomers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/vendors`, {
+      const response = await axios.get(`${BASE_URL}/api/customers?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.data.success) {
-        const mappedVendors = (response.data.data || []).map(vendor => ({
-          _id: vendor._id,
-          vendor_name: vendor.vendor_name || vendor.VendorName,
-          gstin: vendor.gstin || vendor.GSTIN,
-          vendor_code: vendor.vendor_code || vendor.VendorCode,
-          address: vendor.address || vendor.Address,
-          city: vendor.city || vendor.City,
-          state: vendor.state || vendor.State,
-          state_code: vendor.state_code || vendor.StateCode,
-          pincode: vendor.pincode || vendor.Pincode,
-          contact_person: vendor.contact_person || vendor.ContactPerson,
-          phone: vendor.phone || vendor.Phone,
-          email: vendor.email || vendor.Email,
-          pan: vendor.pan || vendor.PAN,
-          vendor_type: vendor.vendor_type,
-          is_active: vendor.is_active
+        const mappedCustomers = (response.data.data || []).map(customer => ({
+          _id: customer._id,
+          customer_name: customer.customer_name,
+          customer_code: customer.customer_code,
+          customer_id: customer.customer_id,
+          customer_type: customer.customer_type,
+          gstin: customer.gstin,
+          billing_address: customer.billing_address,
+          contacts: customer.contacts,
+          pan: customer.pan,
+          credit_limit: customer.credit_limit,
+          credit_days: customer.credit_days,
+          priority: customer.priority,
+          is_export: customer.is_export,
+          is_active: customer.is_active
         }));
         
-        setVendors(mappedVendors);
+        setCustomers(mappedCustomers);
       }
     } catch (err) {
-      console.error('Error fetching vendors:', err);
-      setError('Failed to load vendors. Please try again.');
+      console.error('Error fetching customers:', err);
+      setError('Failed to load customers. Please try again.');
     }
   };
 
@@ -277,13 +311,67 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }
   };
 
-  const handleVendorTypeChange = (event) => {
-    const type = event.target.value;
-    setVendorType(type);
+  const handleTemplateChange = (event, newValue) => {
+    setSelectedTemplate(newValue);
+    setFieldErrors(prev => ({ ...prev, template_id: '' }));
     setFormData(prev => ({
       ...prev,
-      vendor: { ...prev.vendor, type }
+      template_id: newValue?._id || ''
     }));
+    
+    // Detect template type from template name or metadata
+    if (newValue) {
+      const templateName = newValue.template_name?.toLowerCase() || '';
+      if (templateName.includes('busbar')) {
+        setSelectedTemplateType(TEMPLATE_TYPES.BUSBAR);
+      } else if (templateName.includes('landed') || templateName.includes('cost')) {
+        setSelectedTemplateType(TEMPLATE_TYPES.LANDED_COST);
+      } else if (templateName.includes('laser') || templateName.includes('fabrication')) {
+        setSelectedTemplateType(TEMPLATE_TYPES.LASER_FABRICATION);
+      } else {
+        setSelectedTemplateType(null);
+      }
+      
+      // Reset items when template changes
+      setFormData(prev => ({ ...prev, items: [] }));
+    }
+  };
+
+  const handleCustomerTypeChange = (event) => {
+    const type = event.target.value;
+    setCustomerType(type);
+    setFormData(prev => ({
+      ...prev,
+      customer: { ...prev.customer, type }
+    }));
+  };
+
+  const handleCustomerChange = (event, newValue) => {
+    setSelectedCustomer(newValue);
+    setFieldErrors(prev => ({ ...prev, 'customer.id': '' }));
+    setFormData(prev => ({
+      ...prev,
+      customer: { ...prev.customer, id: newValue?._id || '' }
+    }));
+  };
+
+  const handleNewCustomerChange = (e) => {
+    const { name, value } = e.target;
+    if (name.includes('billing_address.')) {
+      const field = name.split('.')[1];
+      setNewCustomer(prev => ({
+        ...prev,
+        billing_address: {
+          ...prev.billing_address,
+          [field]: value
+        }
+      }));
+    } else {
+      setNewCustomer(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleChange = (e) => {
@@ -335,30 +423,35 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const handleNewVendorChange = (e) => {
-    const { name, value } = e.target;
-    setNewVendor(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleTemplateChange = (event, newValue) => {
-    setSelectedTemplate(newValue);
-    setFieldErrors(prev => ({ ...prev, template_id: '' }));
-    setFormData(prev => ({
-      ...prev,
-      template_id: newValue?._id || ''
-    }));
-  };
-
-  const handleVendorChange = (event, newValue) => {
-    setSelectedVendor(newValue);
-    setFieldErrors(prev => ({ ...prev, 'vendor.id': '' }));
-    setFormData(prev => ({
-      ...prev,
-      vendor: { ...prev.vendor, id: newValue?._id || '' }
-    }));
+  const handlePartNoChange = (event, value) => {
+    if (value) {
+      const selectedItem = items.find(item => item.part_no === value);
+      setItemInput(prev => ({
+        ...prev,
+        PartNo: value,
+        part_name: selectedItem ? selectedItem.part_name : ''
+      }));
+      
+      if (selectedTemplateType === TEMPLATE_TYPES.BUSBAR) {
+        setBusbarItemInput(prev => ({
+          ...prev,
+          PartNo: value,
+          part_name: selectedItem ? selectedItem.part_name : ''
+        }));
+      } else if (selectedTemplateType === TEMPLATE_TYPES.LASER_FABRICATION) {
+        setLaserItemInput(prev => ({
+          ...prev,
+          PartNo: value,
+          part_name: selectedItem ? selectedItem.part_name : ''
+        }));
+      }
+    } else {
+      setItemInput(prev => ({
+        ...prev,
+        PartNo: '',
+        part_name: ''
+      }));
+    }
   };
 
   const handleItemInputChange = (e) => {
@@ -369,49 +462,41 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const handlePartNoChange = (event, value) => {
-    if (value) {
-      const selectedItem = items.find(item => item.part_no === value);
-      setItemInput(prev => ({
-        ...prev,
-        part_no: value,
-        part_name: selectedItem ? selectedItem.part_name : ''
-      }));
-    } else {
-      setItemInput(prev => ({
-        ...prev,
-        part_no: '',
-        part_name: ''
-      }));
-    }
+  const handleBusbarItemChange = (e) => {
+    const { name, value } = e.target;
+    setBusbarItemInput(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleAddItem = () => {
-    if (!itemInput.part_no || !itemInput.quantity || parseInt(itemInput.quantity) <= 0) {
+  const handleLaserItemChange = (e) => {
+    const { name, value } = e.target;
+    setLaserItemInput(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddBusbarItem = () => {
+    if (!busbarItemInput.PartNo || !busbarItemInput.Quantity || parseInt(busbarItemInput.Quantity) <= 0) {
       setError('Please enter valid Part No and Quantity');
       return;
     }
 
-    const selectedItem = items.find(item => item.part_no === itemInput.part_no);
+    const selectedItem = items.find(item => item.part_no === busbarItemInput.PartNo);
     if (!selectedItem) {
       setError('Selected Part No not found in items list');
       return;
     }
 
     const newItem = {
-      part_no: itemInput.part_no,
-      quantity: parseInt(itemInput.quantity),
-      part_name: selectedItem.part_name || '',
+      PartNo: busbarItemInput.PartNo,
+      Quantity: parseInt(busbarItemInput.Quantity),
+      processes: busbarItemInput.processes || [],
       costing_parameters: {
-        ohp_percent_on_material: 10,
-        ohp_percent_on_labour: 15,
-        inspection_cost_per_nos: 0,
-        tool_maintenance_cost_per_nos: 0,
-        packing_cost_per_nos: 0,
-        plating_cost_per_kg: 0,
         margin_percent: 15
-      },
-      processes: []
+      }
     };
 
     setFormData(prev => ({
@@ -419,7 +504,85 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       items: [...prev.items, newItem]
     }));
 
-    setItemInput({ part_no: '', quantity: '', part_name: '' });
+    setBusbarItemInput({ PartNo: '', Quantity: '', processes: [], part_name: '' });
+    setError('');
+  };
+
+  const handleAddLaserItem = () => {
+    if (!laserItemInput.PartNo || !laserItemInput.Quantity || parseInt(laserItemInput.Quantity) <= 0) {
+      setError('Please enter valid Part No and Quantity');
+      return;
+    }
+
+    const selectedItem = items.find(item => item.part_no === laserItemInput.PartNo);
+    if (!selectedItem) {
+      setError('Selected Part No not found in items list');
+      return;
+    }
+
+    const newItem = {
+      PartNo: laserItemInput.PartNo,
+      Quantity: parseInt(laserItemInput.Quantity),
+      path_length_sq_mm: parseFloat(laserItemInput.path_length_sq_mm) || 0,
+      laser_rate_per_sq_mm: parseFloat(laserItemInput.laser_rate_per_sq_mm) || 0,
+      start_points: parseInt(laserItemInput.start_points) || 0,
+      start_point_rate: parseFloat(laserItemInput.start_point_rate) || 0,
+      flatning_cost: parseFloat(laserItemInput.flatning_cost) || 0,
+      bending_cost: parseFloat(laserItemInput.bending_cost) || 0,
+      fabrication_cost: parseFloat(laserItemInput.fabrication_cost) || 0,
+      costing_parameters: {
+        margin_percent: 15
+      }
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+
+    setLaserItemInput({
+      PartNo: '',
+      Quantity: '',
+      path_length_sq_mm: '',
+      laser_rate_per_sq_mm: '',
+      start_points: '',
+      start_point_rate: '',
+      flatning_cost: '',
+      bending_cost: '',
+      fabrication_cost: '',
+      part_name: ''
+    });
+    setError('');
+  };
+
+  const handleAddItem = () => {
+    if (!itemInput.PartNo || !itemInput.Quantity || parseInt(itemInput.Quantity) <= 0) {
+      setError('Please enter valid Part No and Quantity');
+      return;
+    }
+
+    const selectedItem = items.find(item => item.part_no === itemInput.PartNo);
+    if (!selectedItem) {
+      setError('Selected Part No not found in items list');
+      return;
+    }
+
+    const newItem = {
+      PartNo: itemInput.PartNo,
+      Quantity: parseInt(itemInput.Quantity),
+      processes: [],
+      costing_parameters: {
+        margin_percent: 15,
+        ohp_percent_on_material: 10
+      }
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+
+    setItemInput({ PartNo: '', Quantity: '', part_name: '' });
     setError('');
   };
 
@@ -432,6 +595,9 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
   const handleItemCostingParamChange = (itemIndex, paramName, value) => {
     const updatedItems = [...formData.items];
+    if (!updatedItems[itemIndex].costing_parameters) {
+      updatedItems[itemIndex].costing_parameters = {};
+    }
     updatedItems[itemIndex].costing_parameters[paramName] = parseFloat(value) || 0;
     
     setFormData(prev => ({
@@ -446,7 +612,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       process_id: '',
       rate_per_hour: '',
       hours: '',
-      outsourced_vendor_id: null
+      machine: ''
     });
     setOpenProcessDialog(true);
   };
@@ -458,7 +624,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       process_id: '',
       rate_per_hour: '',
       hours: '',
-      outsourced_vendor_id: null
+      machine: ''
     });
   };
 
@@ -484,13 +650,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const handleOutsourcedVendorChange = (event, newValue) => {
-    setCurrentProcessSelection(prev => ({
-      ...prev,
-      outsourced_vendor_id: newValue?._id || null
-    }));
-  };
-
   const handleAddProcessToItem = () => {
     if (!currentProcessSelection.process_id || 
         !currentProcessSelection.rate_per_hour || 
@@ -507,22 +666,27 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       return;
     }
 
-    const itemProcesses = formData.items[selectedItemForProcess].processes;
+    const itemProcesses = formData.items[selectedItemForProcess].processes || [];
     if (itemProcesses.some(p => p.process_id === currentProcessSelection.process_id)) {
       setError('This process has already been added to the item');
       return;
     }
 
     const updatedItems = [...formData.items];
-    updatedItems[selectedItemForProcess].processes.push({
+    const processToAdd = {
       process_id: currentProcessSelection.process_id,
       rate_per_hour: parseFloat(currentProcessSelection.rate_per_hour),
-      hours: parseFloat(currentProcessSelection.hours),
-      outsourced_vendor_id: currentProcessSelection.outsourced_vendor_id || null,
-      process_name: selectedProcess.process_name,
-      rate_type: selectedProcess.rate_type,
-      vendor_or_inhouse: selectedProcess.vendor_or_inhouse
-    });
+      hours: parseFloat(currentProcessSelection.hours)
+    };
+    
+    if (currentProcessSelection.machine) {
+      processToAdd.machine = currentProcessSelection.machine;
+    }
+    
+    if (!updatedItems[selectedItemForProcess].processes) {
+      updatedItems[selectedItemForProcess].processes = [];
+    }
+    updatedItems[selectedItemForProcess].processes.push(processToAdd);
 
     setFormData(prev => ({
       ...prev,
@@ -554,17 +718,17 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       if (!formData.template_id) {
         errors.template_id = 'Template is required';
       }
-      if (vendorType === 'Existing' && !formData.vendor.id) {
-        errors['vendor.id'] = 'Please select a vendor';
+      if (customerType === 'Existing' && !formData.customer.id) {
+        errors['customer.id'] = 'Please select a customer';
       }
-      if (vendorType === 'New') {
-        if (!newVendor.vendor_name?.trim()) errors.vendor_name = 'Vendor name is required';
-        if (!newVendor.gstin?.trim()) errors.gstin = 'GSTIN is required';
-        if (!newVendor.state?.trim()) errors.state = 'State is required';
-        if (!newVendor.address?.trim()) errors.address = 'Address is required';
-        if (!newVendor.contact_person?.trim()) errors.contact_person = 'Contact person is required';
-        if (!newVendor.phone?.trim()) errors.phone = 'Phone is required';
-        if (!newVendor.email?.trim()) errors.email = 'Email is required';
+      if (customerType === 'New') {
+        if (!newCustomer.customer_name?.trim()) errors.customer_name = 'Customer name is required';
+        if (!newCustomer.gstin?.trim()) errors.gstin = 'GSTIN is required';
+        if (!newCustomer.contact_person?.trim()) errors.contact_person = 'Contact person is required';
+        if (!newCustomer.email?.trim()) errors.email = 'Email is required';
+        if (!newCustomer.billing_address?.line1?.trim()) errors['billing_address.line1'] = 'Address is required';
+        if (!newCustomer.billing_address?.city?.trim()) errors['billing_address.city'] = 'City is required';
+        if (!newCustomer.billing_address?.state?.trim()) errors['billing_address.state'] = 'State is required';
       }
       if (!formData.valid_till) {
         errors.valid_till = 'Valid till date is required';
@@ -593,15 +757,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     setError('');
   };
 
-  const handleSubmit = async () => {
-    if (!validateStep(1)) {
-      setError('Please fill in all required fields correctly');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
+  const buildPayload = () => {
     const payload = {
       template_id: formData.template_id,
       valid_till: formData.valid_till,
@@ -612,60 +768,103 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
       financials: {
         gst_percentage: parseFloat(formData.financials.gst_percentage) || 18
       },
-      icc: {
+      items: formData.items.map(item => {
+        const baseItem = {
+          PartNo: item.PartNo,
+          Quantity: parseInt(item.Quantity) || 0,
+          costing_parameters: {
+            margin_percent: parseFloat(item.costing_parameters?.margin_percent) || 15
+          }
+        };
+
+        // Add template-specific fields
+        if (selectedTemplateType === TEMPLATE_TYPES.BUSBAR) {
+          if (item.processes && item.processes.length > 0) {
+            baseItem.processes = item.processes.map(process => ({
+              process_id: process.process_id,
+              rate_per_hour: parseFloat(process.rate_per_hour) || 0,
+              hours: parseFloat(process.hours) || 0,
+              machine: process.machine || ''
+            }));
+          }
+          if (item.costing_parameters?.ohp_percent_on_material) {
+            baseItem.costing_parameters.ohp_percent_on_material = parseFloat(item.costing_parameters.ohp_percent_on_material);
+          }
+        } else if (selectedTemplateType === TEMPLATE_TYPES.LANDED_COST) {
+          if (item.processes && item.processes.length > 0) {
+            baseItem.processes = item.processes.map(process => ({
+              process_id: process.process_id,
+              rate_per_hour: parseFloat(process.rate_per_hour) || 0,
+              hours: parseFloat(process.hours) || 0
+            }));
+          }
+          if (item.costing_parameters?.ohp_percent_on_material) {
+            baseItem.costing_parameters.ohp_percent_on_material = parseFloat(item.costing_parameters.ohp_percent_on_material);
+          }
+        } else if (selectedTemplateType === TEMPLATE_TYPES.LASER_FABRICATION) {
+          baseItem.path_length_sq_mm = parseFloat(item.path_length_sq_mm) || 0;
+          baseItem.laser_rate_per_sq_mm = parseFloat(item.laser_rate_per_sq_mm) || 0;
+          baseItem.start_points = parseInt(item.start_points) || 0;
+          baseItem.start_point_rate = parseFloat(item.start_point_rate) || 0;
+          baseItem.flatning_cost = parseFloat(item.flatning_cost) || 0;
+          baseItem.bending_cost = parseFloat(item.bending_cost) || 0;
+          baseItem.fabrication_cost = parseFloat(item.fabrication_cost) || 0;
+        }
+
+        return baseItem;
+      })
+    };
+
+    // Add ICC for landed cost template
+    if (selectedTemplateType === TEMPLATE_TYPES.LANDED_COST) {
+      payload.icc = {
         credit_on_input_days: parseInt(formData.icc.credit_on_input_days) || -30,
         wip_fg_days: parseInt(formData.icc.wip_fg_days) || 30,
         credit_to_customer_days: parseInt(formData.icc.credit_to_customer_days) || 45,
-        cost_of_capital: parseFloat(formData.icc.cost_of_capital) || 0.10
-      },
-      items: formData.items.map(item => ({
-        part_no: item.part_no,
-        quantity: parseInt(item.quantity) || 0,
-        costing_parameters: {
-          ohp_percent_on_material: parseFloat(item.costing_parameters?.ohp_percent_on_material) || 10,
-          ohp_percent_on_labour: parseFloat(item.costing_parameters?.ohp_percent_on_labour) || 15,
-          inspection_cost_per_nos: parseFloat(item.costing_parameters?.inspection_cost_per_nos) || 0,
-          tool_maintenance_cost_per_nos: parseFloat(item.costing_parameters?.tool_maintenance_cost_per_nos) || 0,
-          packing_cost_per_nos: parseFloat(item.costing_parameters?.packing_cost_per_nos) || 0,
-          plating_cost_per_kg: parseFloat(item.costing_parameters?.plating_cost_per_kg) || 0,
-          margin_percent: parseFloat(item.costing_parameters?.margin_percent) || 15
-        },
-        processes: item.processes.map(process => ({
-          process_id: process.process_id,
-          rate_per_hour: parseFloat(process.rate_per_hour) || 0,
-          hours: parseFloat(process.hours) || 0,
-          outsourced_vendor_id: process.outsourced_vendor_id || null
-        }))
-      }))
-    };
+        cost_of_capital: parseFloat(formData.icc.cost_of_capital) || 0.10,
+        plating_cost_per_kg: parseFloat(formData.icc.plating_cost_per_kg) || 70
+      };
+    }
 
-    // Set vendor based on type
-    if (vendorType === 'Existing') {
-      payload.vendor = {
+    // Set customer based on type
+    if (customerType === 'Existing') {
+      payload.customer = {
         type: 'Existing',
-        id: formData.vendor.id
+        id: formData.customer.id
       };
     } else {
-      // For New vendor
-      payload.vendor = {
+      payload.customer = {
         type: 'New',
         new: {
-          vendor_name: newVendor.vendor_name,
-          vendor_type: newVendor.vendor_type || 'RM',
-          address: newVendor.address,
-          gstin: newVendor.gstin,
-          state: newVendor.state,
-          state_code: newVendor.state_code ? parseInt(newVendor.state_code) : null,
-          contact_person: newVendor.contact_person,
-          phone: newVendor.phone,
-          email: newVendor.email,
-          pan: newVendor.pan || ''
+          customer_name: newCustomer.customer_name,
+          customer_type: newCustomer.customer_type || 'Regular',
+          gstin: newCustomer.gstin,
+          contact_person: newCustomer.contact_person,
+          email: newCustomer.email,
+          billing_address: {
+            line1: newCustomer.billing_address.line1,
+            city: newCustomer.billing_address.city,
+            state: newCustomer.billing_address.state,
+            state_code: newCustomer.billing_address.state_code ? parseInt(newCustomer.billing_address.state_code) : null,
+            pincode: newCustomer.billing_address.pincode || ''
+          }
         }
       };
-      
-      if (newVendor.city) payload.vendor.new.city = newVendor.city;
-      if (newVendor.pincode) payload.vendor.new.pincode = newVendor.pincode;
     }
+
+    return payload;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(1)) {
+      setError('Please fill in all required fields correctly');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const payload = buildPayload();
 
     try {
       const token = localStorage.getItem('token');
@@ -721,9 +920,10 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
   };
 
   const resetForm = () => {
-    setVendorType('Existing');
+    setCustomerType('Existing');
+    setSelectedTemplateType(null);
     setFormData({
-      vendor: {
+      customer: {
         type: 'Existing',
         id: ''
       },
@@ -740,27 +940,41 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
         credit_on_input_days: -30,
         wip_fg_days: 30,
         credit_to_customer_days: 45,
-        cost_of_capital: 0.10
+        cost_of_capital: 0.10,
+        plating_cost_per_kg: 70
       },
       items: []
     });
-    setNewVendor({
-      vendor_name: '',
-      vendor_type: 'RM',
+    setNewCustomer({
+      customer_name: '',
+      customer_type: 'Regular',
       gstin: '',
-      state: '',
-      state_code: '',
-      address: '',
-      city: '',
-      pincode: '',
       contact_person: '',
-      phone: '',
       email: '',
-      pan: ''
+      billing_address: {
+        line1: '',
+        city: '',
+        state: '',
+        state_code: '',
+        pincode: ''
+      }
     });
     setSelectedTemplate(null);
-    setSelectedVendor(null);
-    setItemInput({ part_no: '', quantity: '', part_name: '' });
+    setSelectedCustomer(null);
+    setItemInput({ PartNo: '', Quantity: '', part_name: '' });
+    setBusbarItemInput({ PartNo: '', Quantity: '', processes: [], part_name: '' });
+    setLaserItemInput({
+      PartNo: '',
+      Quantity: '',
+      path_length_sq_mm: '',
+      laser_rate_per_sq_mm: '',
+      start_points: '',
+      start_point_rate: '',
+      flatning_cost: '',
+      bending_cost: '',
+      fabrication_cost: '',
+      part_name: ''
+    });
     setError('');
     setFieldErrors({});
     setActiveStep(0);
@@ -818,16 +1032,874 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
     </li>
   );
 
-  const renderVendorOption = (props, option) => (
+  const renderCustomerOption = (props, option) => (
     <li {...props}>
       <Box>
-        <Typography sx={{ fontSize: '0.75rem' }}>{option.vendor_name}</Typography>
+        <Typography sx={{ fontSize: '0.75rem' }}>{option.customer_name}</Typography>
         <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-          {option.gstin} • {option.vendor_code}
+          {option.gstin} • {option.customer_code}
         </Typography>
       </Box>
     </li>
   );
+
+  const renderItemForm = () => {
+    if (!selectedTemplateType) {
+      return (
+        <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+            Please select a template first to configure items
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (selectedTemplateType === TEMPLATE_TYPES.BUSBAR) {
+      return (
+        <Stack spacing={2.5}>
+          {/* Add Item Form for Busbar */}
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+              Add Busbar Item
+            </Typography>
+            
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                    PART NO <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Autocomplete
+                    fullWidth
+                    freeSolo
+                    options={partNoOptions}
+                    value={busbarItemInput.PartNo}
+                    onChange={handlePartNoChange}
+                    onInputChange={(event, newInputValue) => {
+                      setBusbarItemInput(prev => ({ ...prev, PartNo: newInputValue }));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Search or select part number"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    )}
+                    renderOption={renderItemOption}
+                  />
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                    QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="Quantity"
+                    value={busbarItemInput.Quantity}
+                    onChange={handleBusbarItemChange}
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    placeholder="Enter quantity"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleAddBusbarItem}
+                    startIcon={<AddCircleIcon sx={{ fontSize: '1rem' }} />}
+                    disabled={!busbarItemInput.PartNo || !busbarItemInput.Quantity}
+                    sx={{
+                      height: 36,
+                      borderRadius: 1.5,
+                      bgcolor: COLORS.primary,
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: COLORS.primaryDark },
+                      '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                    }}
+                  >
+                    Add Item
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+
+          {/* Items List */}
+          {renderItemsList()}
+        </Stack>
+      );
+    }
+
+    if (selectedTemplateType === TEMPLATE_TYPES.LASER_FABRICATION) {
+      return (
+        <Stack spacing={2.5}>
+          {/* Add Item Form for Laser Fabrication */}
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+              Add Laser Fabrication Item
+            </Typography>
+            
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                    PART NO <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Autocomplete
+                    fullWidth
+                    freeSolo
+                    options={partNoOptions}
+                    value={laserItemInput.PartNo}
+                    onChange={handlePartNoChange}
+                    onInputChange={(event, newInputValue) => {
+                      setLaserItemInput(prev => ({ ...prev, PartNo: newInputValue }));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Search or select part number"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    )}
+                    renderOption={renderItemOption}
+                  />
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                    QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="Quantity"
+                    value={laserItemInput.Quantity}
+                    onChange={handleLaserItemChange}
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    placeholder="Enter quantity"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleAddLaserItem}
+                    startIcon={<AddCircleIcon sx={{ fontSize: '1rem' }} />}
+                    disabled={!laserItemInput.PartNo || !laserItemInput.Quantity}
+                    sx={{
+                      height: 36,
+                      borderRadius: 1.5,
+                      bgcolor: COLORS.primary,
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      '&:hover': { bgcolor: COLORS.primaryDark },
+                      '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                    }}
+                  >
+                    Add Item
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={1.5} sx={{ mt: 1 }}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Path Length (sq mm)"
+                  name="path_length_sq_mm"
+                  value={laserItemInput.path_length_sq_mm}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Laser Rate (per sq mm)"
+                  name="laser_rate_per_sq_mm"
+                  value={laserItemInput.laser_rate_per_sq_mm}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Start Points"
+                  name="start_points"
+                  value={laserItemInput.start_points}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Start Point Rate"
+                  name="start_point_rate"
+                  value={laserItemInput.start_point_rate}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Flattening Cost"
+                  name="flatning_cost"
+                  value={laserItemInput.flatning_cost}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Bending Cost"
+                  name="bending_cost"
+                  value={laserItemInput.bending_cost}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Fabrication Cost"
+                  name="fabrication_cost"
+                  value={laserItemInput.fabrication_cost}
+                  onChange={handleLaserItemChange}
+                  type="number"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          {/* Items List */}
+          {renderItemsList()}
+        </Stack>
+      );
+    }
+
+    // Default item form for landed cost
+    return (
+      <Stack spacing={2.5}>
+        {/* Add Item Form */}
+        <Box>
+          <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            Add Item
+          </Typography>
+          
+          <Grid container spacing={1.5}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                  PART NO <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  freeSolo
+                  options={partNoOptions}
+                  value={itemInput.PartNo}
+                  onChange={handlePartNoChange}
+                  onInputChange={(event, newInputValue) => {
+                    setItemInput(prev => ({ ...prev, PartNo: newInputValue }));
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Search or select part number"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  )}
+                  renderOption={renderItemOption}
+                />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                  QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  name="Quantity"
+                  value={itemInput.Quantity}
+                  onChange={handleItemInputChange}
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  placeholder="Enter quantity"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleAddItem}
+                  startIcon={<AddCircleIcon sx={{ fontSize: '1rem' }} />}
+                  disabled={!itemInput.PartNo || !itemInput.Quantity}
+                  sx={{
+                    height: 36,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark },
+                    '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                  }}
+                >
+                  Add Item
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* Items List */}
+        {renderItemsList()}
+      </Stack>
+    );
+  };
+
+  const renderItemsList = () => {
+    if (formData.items.length === 0) {
+      return (
+        <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+            No items added yet. Add items using the form above.
+          </Typography>
+        </Box>
+      );
+    }
+
+    return formData.items.map((item, itemIndex) => (
+      <Box key={itemIndex}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary }}>
+            Item {itemIndex + 1}: {item.PartNo}
+          </Typography>
+          <IconButton size="small" onClick={() => handleRemoveItem(itemIndex)} sx={{ color: '#EF4444' }}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                PART NAME
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={item.part_name || items.find(i => i.part_no === item.PartNo)?.part_name || ''}
+                disabled
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    bgcolor: COLORS.background.light
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
+                  }
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                QUANTITY
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={item.Quantity}
+                disabled
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    bgcolor: COLORS.background.light
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
+                  }
+                }}
+              />
+            </Box>
+          </Grid>
+          
+          {/* Show Add Process button only for busbar and landed cost templates */}
+          {(selectedTemplateType === TEMPLATE_TYPES.BUSBAR || selectedTemplateType === TEMPLATE_TYPES.LANDED_COST) && (
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                  onClick={() => handleOpenProcessDialog(itemIndex)}
+                  sx={{
+                    height: 36,
+                    borderRadius: 1.5,
+                    borderColor: COLORS.primary,
+                    color: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: COLORS.primaryDark,
+                      bgcolor: COLORS.primaryLight
+                    }
+                  }}
+                >
+                  Add Process
+                </Button>
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+
+        {/* Costing Parameters */}
+        <Box sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
+            Costing Parameters
+          </Typography>
+          <Grid container spacing={1}>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Margin %"
+                type="number"
+                value={item.costing_parameters?.margin_percent || 15}
+                onChange={(e) => handleItemCostingParamChange(itemIndex, 'margin_percent', e.target.value)}
+                inputProps={{ min: 0, step: 0.1 }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary },
+                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                    color: COLORS.text.secondary
+                  }
+                }}
+              />
+            </Grid>
+            
+            {/* Show additional costing parameters for landed cost template */}
+            {(selectedTemplateType === TEMPLATE_TYPES.LANDED_COST || selectedTemplateType === TEMPLATE_TYPES.BUSBAR) && (
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="OHP % on Material"
+                  type="number"
+                  value={item.costing_parameters?.ohp_percent_on_material || 10}
+                  onChange={(e) => handleItemCostingParamChange(itemIndex, 'ohp_percent_on_material', e.target.value)}
+                  inputProps={{ min: 0, step: 0.1 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '0.75rem',
+                      color: COLORS.text.secondary
+                    }
+                  }}
+                />
+              </Grid>
+            )}
+            
+            {/* Show laser specific fields */}
+            {selectedTemplateType === TEMPLATE_TYPES.LASER_FABRICATION && (
+              <>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Path Length (sq mm)"
+                    value={item.path_length_sq_mm || 0}
+                    disabled
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        bgcolor: COLORS.background.light
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Laser Rate"
+                    value={item.laser_rate_per_sq_mm || 0}
+                    disabled
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        bgcolor: COLORS.background.light
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Start Points"
+                    value={item.start_points || 0}
+                    disabled
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        bgcolor: COLORS.background.light
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Fabrication Cost"
+                    value={item.fabrication_cost || 0}
+                    disabled
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        bgcolor: COLORS.background.light
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Grid>
+              </>
+            )}
+          </Grid>
+        </Box>
+
+        {/* Processes */}
+        {item.processes && item.processes.length > 0 && (
+          <Box>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
+              Processes
+            </Typography>
+            <Stack spacing={1}>
+              {item.processes.map((process, processIndex) => (
+                <Box key={processIndex} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        {process.process_name || getProcessName(process.process_id)}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                        Rate: ₹{process.rate_per_hour}/hr • Hours: {process.hours} • Total: ₹{(process.rate_per_hour * process.hours).toFixed(2)}
+                        {process.machine && ` • Machine: ${process.machine}`}
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" onClick={() => handleRemoveProcessFromItem(itemIndex, processIndex)} sx={{ color: '#EF4444' }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
+      </Box>
+    ));
+  };
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -898,46 +1970,46 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               </Box>
             </Box>
 
-            {/* Vendor Type Selection */}
+            {/* Customer Type Selection */}
             <Box>
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                Vendor Details
+                Customer Details
               </Typography>
               
-              <RadioGroup row value={vendorType} onChange={handleVendorTypeChange} sx={{ mb: 1.5 }}>
+              <RadioGroup row value={customerType} onChange={handleCustomerTypeChange} sx={{ mb: 1.5 }}>
                 <FormControlLabel 
                   value="Existing" 
                   control={<Radio size="small" />} 
-                  label={<Typography sx={{ fontSize: '0.75rem' }}>Existing Vendor</Typography>} 
+                  label={<Typography sx={{ fontSize: '0.75rem' }}>Existing Customer</Typography>} 
                 />
                 <FormControlLabel 
                   value="New" 
                   control={<Radio size="small" />} 
-                  label={<Typography sx={{ fontSize: '0.75rem' }}>New Vendor</Typography>} 
+                  label={<Typography sx={{ fontSize: '0.75rem' }}>New Customer</Typography>} 
                 />
               </RadioGroup>
 
-              {vendorType === 'Existing' ? (
+              {customerType === 'Existing' ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                    SELECT VENDOR <span style={{ color: '#EF4444' }}>*</span>
+                    SELECT CUSTOMER <span style={{ color: '#EF4444' }}>*</span>
                   </Typography>
                   <Autocomplete
                     fullWidth
-                    options={vendors}
-                    value={selectedVendor}
-                    onChange={handleVendorChange}
-                    getOptionLabel={(option) => option.vendor_name || ''}
+                    options={customers}
+                    value={selectedCustomer}
+                    onChange={handleCustomerChange}
+                    getOptionLabel={(option) => option.customer_name || ''}
                     isOptionEqualToValue={(option, value) => option._id === value._id}
                     disabled={loading}
                     renderInput={(params) => (
                       <TextField
                         {...params}
                         size="small"
-                        placeholder="Select vendor"
+                        placeholder="Select customer"
                         required
-                        error={!!fieldErrors['vendor.id']}
-                        helperText={fieldErrors['vendor.id']}
+                        error={!!fieldErrors['customer.id']}
+                        helperText={fieldErrors['customer.id']}
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1.5,
@@ -959,7 +2031,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                         }}
                       />
                     )}
-                    renderOption={renderVendorOption}
+                    renderOption={renderCustomerOption}
                     ListboxProps={{
                       sx: {
                         '& .MuiAutocomplete-option': {
@@ -976,18 +2048,18 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        VENDOR NAME <span style={{ color: '#EF4444' }}>*</span>
+                        CUSTOMER NAME <span style={{ color: '#EF4444' }}>*</span>
                       </Typography>
                       <TextField
                         fullWidth
                         size="small"
-                        name="vendor_name"
-                        value={newVendor.vendor_name}
-                        onChange={handleNewVendorChange}
+                        name="customer_name"
+                        value={newCustomer.customer_name}
+                        onChange={handleNewCustomerChange}
                         required
-                        error={!!fieldErrors.vendor_name}
-                        helperText={fieldErrors.vendor_name}
-                        placeholder="Enter vendor name"
+                        error={!!fieldErrors.customer_name}
+                        helperText={fieldErrors.customer_name}
+                        placeholder="Enter customer name"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1.5,
@@ -1013,20 +2085,20 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        VENDOR TYPE <span style={{ color: '#EF4444' }}>*</span>
+                        CUSTOMER TYPE
                       </Typography>
                       <Autocomplete
                         fullWidth
-                        options={vendorTypeOptions}
-                        value={newVendor.vendor_type}
+                        options={customerTypeOptions}
+                        value={newCustomer.customer_type}
                         onChange={(event, newValue) => {
-                          setNewVendor(prev => ({ ...prev, vendor_type: newValue || 'RM' }));
+                          setNewCustomer(prev => ({ ...prev, customer_type: newValue || 'Regular' }));
                         }}
                         renderInput={(params) => (
                           <TextField
                             {...params}
                             size="small"
-                            placeholder="Select vendor type"
+                            placeholder="Select customer type"
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 1.5,
@@ -1069,8 +2141,8 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                         fullWidth
                         size="small"
                         name="gstin"
-                        value={newVendor.gstin}
-                        onChange={handleNewVendorChange}
+                        value={newCustomer.gstin}
+                        onChange={handleNewCustomerChange}
                         required
                         error={!!fieldErrors.gstin}
                         helperText={fieldErrors.gstin}
@@ -1100,15 +2172,18 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        PAN
+                        CONTACT PERSON <span style={{ color: '#EF4444' }}>*</span>
                       </Typography>
                       <TextField
                         fullWidth
                         size="small"
-                        name="pan"
-                        value={newVendor.pan}
-                        onChange={handleNewVendorChange}
-                        placeholder="Enter PAN"
+                        name="contact_person"
+                        value={newCustomer.contact_person}
+                        onChange={handleNewCustomerChange}
+                        required
+                        error={!!fieldErrors.contact_person}
+                        helperText={fieldErrors.contact_person}
+                        placeholder="Enter contact person"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1.5,
@@ -1121,6 +2196,125 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                             px: 1.5,
                             fontSize: '0.75rem',
                             color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        EMAIL <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="email"
+                        value={newCustomer.email}
+                        onChange={handleNewCustomerChange}
+                        required
+                        type="email"
+                        error={!!fieldErrors.email}
+                        helperText={fieldErrors.email}
+                        placeholder="Enter email"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        ADDRESS <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="billing_address.line1"
+                        value={newCustomer.billing_address.line1}
+                        onChange={handleNewCustomerChange}
+                        required
+                        multiline
+                        rows={2}
+                        error={!!fieldErrors['billing_address.line1']}
+                        helperText={fieldErrors['billing_address.line1']}
+                        placeholder="Enter address"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CITY <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="billing_address.city"
+                        value={newCustomer.billing_address.city}
+                        onChange={handleNewCustomerChange}
+                        required
+                        error={!!fieldErrors['billing_address.city']}
+                        helperText={fieldErrors['billing_address.city']}
+                        placeholder="Enter city"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          },
+                          '& .MuiFormHelperText-root': {
+                            fontSize: '0.65rem',
+                            marginLeft: 0,
+                            marginTop: 0.25
                           }
                         }}
                       />
@@ -1134,12 +2328,12 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                       <TextField
                         fullWidth
                         size="small"
-                        name="state"
-                        value={newVendor.state}
-                        onChange={handleNewVendorChange}
+                        name="billing_address.state"
+                        value={newCustomer.billing_address.state}
+                        onChange={handleNewCustomerChange}
                         required
-                        error={!!fieldErrors.state}
-                        helperText={fieldErrors.state}
+                        error={!!fieldErrors['billing_address.state']}
+                        helperText={fieldErrors['billing_address.state']}
                         placeholder="Enter state"
                         sx={{
                           '& .MuiOutlinedInput-root': {
@@ -1171,79 +2365,11 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                       <TextField
                         fullWidth
                         size="small"
-                        name="state_code"
-                        value={newVendor.state_code}
-                        onChange={handleNewVendorChange}
+                        name="billing_address.state_code"
+                        value={newCustomer.billing_address.state_code}
+                        onChange={handleNewCustomerChange}
                         type="number"
                         placeholder="Enter state code"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary },
-                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                          },
-                          '& .MuiInputBase-input': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        ADDRESS <span style={{ color: '#EF4444' }}>*</span>
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        name="address"
-                        value={newVendor.address}
-                        onChange={handleNewVendorChange}
-                        required
-                        multiline
-                        rows={2}
-                        error={!!fieldErrors.address}
-                        helperText={fieldErrors.address}
-                        placeholder="Enter address"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary },
-                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                          },
-                          '& .MuiInputBase-input': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '& .MuiFormHelperText-root': {
-                            fontSize: '0.65rem',
-                            marginLeft: 0,
-                            marginTop: 0.25
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        CITY
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        name="city"
-                        value={newVendor.city}
-                        onChange={handleNewVendorChange}
-                        placeholder="Enter city"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1.5,
@@ -1269,9 +2395,9 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                       <TextField
                         fullWidth
                         size="small"
-                        name="pincode"
-                        value={newVendor.pincode}
-                        onChange={handleNewVendorChange}
+                        name="billing_address.pincode"
+                        value={newCustomer.billing_address.pincode}
+                        onChange={handleNewCustomerChange}
                         placeholder="Enter pincode"
                         sx={{
                           '& .MuiOutlinedInput-root': {
@@ -1285,118 +2411,6 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                             px: 1.5,
                             fontSize: '0.75rem',
                             color: COLORS.text.primary
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        CONTACT PERSON <span style={{ color: '#EF4444' }}>*</span>
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        name="contact_person"
-                        value={newVendor.contact_person}
-                        onChange={handleNewVendorChange}
-                        required
-                        error={!!fieldErrors.contact_person}
-                        helperText={fieldErrors.contact_person}
-                        placeholder="Enter contact person"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary },
-                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                          },
-                          '& .MuiInputBase-input': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '& .MuiFormHelperText-root': {
-                            fontSize: '0.65rem',
-                            marginLeft: 0,
-                            marginTop: 0.25
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        PHONE <span style={{ color: '#EF4444' }}>*</span>
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        name="phone"
-                        value={newVendor.phone}
-                        onChange={handleNewVendorChange}
-                        required
-                        error={!!fieldErrors.phone}
-                        helperText={fieldErrors.phone}
-                        placeholder="Enter phone number"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary },
-                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                          },
-                          '& .MuiInputBase-input': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '& .MuiFormHelperText-root': {
-                            fontSize: '0.65rem',
-                            marginLeft: 0,
-                            marginTop: 0.25
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                        EMAIL <span style={{ color: '#EF4444' }}>*</span>
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        name="email"
-                        value={newVendor.email}
-                        onChange={handleNewVendorChange}
-                        required
-                        type="email"
-                        error={!!fieldErrors.email}
-                        helperText={fieldErrors.email}
-                        placeholder="Enter email"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary },
-                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                          },
-                          '& .MuiInputBase-input': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '& .MuiFormHelperText-root': {
-                            fontSize: '0.65rem',
-                            marginLeft: 0,
-                            marginTop: 0.25
                           }
                         }}
                       />
@@ -1452,477 +2466,7 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
         );
 
       case 1:
-        return (
-          <Stack spacing={2.5}>
-            {/* Add Item Form */}
-            <Box>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                Add New Item
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      PART NO <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Autocomplete
-                      fullWidth
-                      freeSolo
-                      options={partNoOptions}
-                      value={itemInput.part_no}
-                      onChange={handlePartNoChange}
-                      onInputChange={(event, newInputValue) => {
-                        setItemInput(prev => ({ ...prev, part_no: newInputValue }));
-                      }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Search or select part number"
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      )}
-                      renderOption={renderItemOption}
-                      ListboxProps={{
-                        sx: {
-                          '& .MuiAutocomplete-option': {
-                            fontSize: '0.75rem',
-                            py: 1,
-                            px: 1.5
-                          }
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      QUANTITY <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="quantity"
-                      value={itemInput.quantity}
-                      onChange={handleItemInputChange}
-                      type="number"
-                      inputProps={{ min: 1 }}
-                      placeholder="Enter quantity"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={handleAddItem}
-                      startIcon={<AddCircleIcon sx={{ fontSize: '1rem' }} />}
-                      disabled={!itemInput.part_no || !itemInput.quantity}
-                      sx={{
-                        height: 36,
-                        borderRadius: 1.5,
-                        bgcolor: COLORS.primary,
-                        fontSize: '0.7rem',
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        '&:hover': { bgcolor: COLORS.primaryDark },
-                        '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </Box>
-                </Grid>
-                {itemInput.part_name && (
-                  <Grid size={{ xs: 12 }}>
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      Selected: {itemInput.part_name}
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </Box>
-
-            {/* Items List */}
-            {formData.items.length > 0 ? (
-              formData.items.map((item, itemIndex) => (
-                <Box key={itemIndex}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary }}>
-                      Item {itemIndex + 1}: {item.part_no}
-                    </Typography>
-                    <IconButton size="small" onClick={() => handleRemoveItem(itemIndex)} sx={{ color: '#EF4444' }}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-
-                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          PART NAME
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.part_name || items.find(i => i.part_no === item.part_no)?.part_name || ''}
-                          disabled
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              bgcolor: COLORS.background.light
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          QUANTITY
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.quantity}
-                          disabled
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              bgcolor: COLORS.background.light
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          size="small"
-                          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                          onClick={() => handleOpenProcessDialog(itemIndex)}
-                          sx={{
-                            height: 36,
-                            borderRadius: 1.5,
-                            borderColor: COLORS.primary,
-                            color: COLORS.primary,
-                            fontSize: '0.7rem',
-                            fontWeight: 500,
-                            textTransform: 'none',
-                            '&:hover': {
-                              borderColor: COLORS.primaryDark,
-                              bgcolor: COLORS.primaryLight
-                            }
-                          }}
-                        >
-                          Add Process
-                        </Button>
-                      </Box>
-                    </Grid>
-                  </Grid>
-
-                  {/* Costing Parameters */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
-                      Costing Parameters
-                    </Typography>
-                    <Grid container spacing={1}>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="OHP % Material"
-                          type="number"
-                          value={item.costing_parameters.ohp_percent_on_material}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'ohp_percent_on_material', e.target.value)}
-                          inputProps={{ min: 0, step: 0.1 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="OHP % Labour"
-                          type="number"
-                          value={item.costing_parameters.ohp_percent_on_labour}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'ohp_percent_on_labour', e.target.value)}
-                          inputProps={{ min: 0, step: 0.1 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Inspection Cost"
-                          type="number"
-                          value={item.costing_parameters.inspection_cost_per_nos}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'inspection_cost_per_nos', e.target.value)}
-                          inputProps={{ min: 0, step: 0.01 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Tool Maint."
-                          type="number"
-                          value={item.costing_parameters.tool_maintenance_cost_per_nos}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'tool_maintenance_cost_per_nos', e.target.value)}
-                          inputProps={{ min: 0, step: 0.01 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Packing Cost"
-                          type="number"
-                          value={item.costing_parameters.packing_cost_per_nos}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'packing_cost_per_nos', e.target.value)}
-                          inputProps={{ min: 0, step: 0.01 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Plating Cost"
-                          type="number"
-                          value={item.costing_parameters.plating_cost_per_kg}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'plating_cost_per_kg', e.target.value)}
-                          inputProps={{ min: 0, step: 0.01 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 3 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Margin %"
-                          type="number"
-                          value={item.costing_parameters.margin_percent}
-                          onChange={(e) => handleItemCostingParamChange(itemIndex, 'margin_percent', e.target.value)}
-                          inputProps={{ min: 0, step: 0.1 }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            },
-                            '& .MuiInputLabel-root': {
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  {/* Processes */}
-                  {item.processes.length > 0 && (
-                    <Box>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px', mb: 1 }}>
-                        Processes
-                      </Typography>
-                      <Stack spacing={1}>
-                        {item.processes.map((process, processIndex) => (
-                          <Box key={processIndex} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                                  {process.process_name || getProcessName(process.process_id)}
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-                                  Rate: ₹{process.rate_per_hour}/hr • Hours: {process.hours} • Total: ₹{(process.rate_per_hour * process.hours).toFixed(2)}
-                                </Typography>
-                              </Box>
-                              <IconButton size="small" onClick={() => handleRemoveProcessFromItem(itemIndex, processIndex)} sx={{ color: '#EF4444' }}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Box>
-                  )}
-                </Box>
-              ))
-            ) : (
-              <Box sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-                  No items added yet. Add items using the form above.
-                </Typography>
-              </Box>
-            )}
-
-            {fieldErrors.items && (
-              <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
-                {fieldErrors.items}
-              </Alert>
-            )}
-          </Stack>
-        );
+        return renderItemForm();
 
       case 2:
         return (
@@ -1966,139 +2510,171 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
               </Grid>
             </Box>
 
-            {/* ICC Section */}
-            <Box>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                Investment & Cost of Capital (ICC)
-              </Typography>
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CREDIT ON INPUT DAYS
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="credit_on_input_days"
-                      type="number"
-                      value={formData.icc.credit_on_input_days}
-                      onChange={handleICCChange}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      Negative for credit received
-                    </Typography>
-                  </Box>
+            {/* ICC Section - Only for Landed Cost template */}
+            {selectedTemplateType === TEMPLATE_TYPES.LANDED_COST && (
+              <Box>
+                <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  Investment & Cost of Capital (ICC)
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CREDIT ON INPUT DAYS
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="credit_on_input_days"
+                        type="number"
+                        value={formData.icc.credit_on_input_days}
+                        onChange={handleICCChange}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        Negative for credit received
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        WIP/FG DAYS
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="wip_fg_days"
+                        type="number"
+                        value={formData.icc.wip_fg_days}
+                        onChange={handleICCChange}
+                        inputProps={{ min: 0 }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CREDIT TO CUSTOMER DAYS
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="credit_to_customer_days"
+                        type="number"
+                        value={formData.icc.credit_to_customer_days}
+                        onChange={handleICCChange}
+                        inputProps={{ min: 0 }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        COST OF CAPITAL
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="cost_of_capital"
+                        type="number"
+                        value={formData.icc.cost_of_capital}
+                        onChange={handleICCChange}
+                        inputProps={{ min: 0, max: 1, step: 0.01 }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        e.g., 0.10 for 10%
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        PLATING COST (per kg)
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="plating_cost_per_kg"
+                        type="number"
+                        value={formData.icc.plating_cost_per_kg}
+                        onChange={handleICCChange}
+                        inputProps={{ min: 0, step: 0.01 }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      WIP/FG DAYS
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="wip_fg_days"
-                      type="number"
-                      value={formData.icc.wip_fg_days}
-                      onChange={handleICCChange}
-                      inputProps={{ min: 0 }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CREDIT TO CUSTOMER DAYS
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="credit_to_customer_days"
-                      type="number"
-                      value={formData.icc.credit_to_customer_days}
-                      onChange={handleICCChange}
-                      inputProps={{ min: 0 }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      COST OF CAPITAL
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="cost_of_capital"
-                      type="number"
-                      value={formData.icc.cost_of_capital}
-                      onChange={handleICCChange}
-                      inputProps={{ min: 0, max: 1, step: 0.01 }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      e.g., 0.10 for 10%
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Box>
+              </Box>
+            )}
 
             {/* Remarks */}
             <Box>
@@ -2185,15 +2761,15 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Vendor Type</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{vendorType}</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Customer Type</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{customerType}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Vendor</Typography>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>Customer</Typography>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                    {vendorType === 'Existing' 
-                      ? selectedVendor?.vendor_name || 'Not selected'
-                      : newVendor.vendor_name || 'New vendor'}
+                    {customerType === 'Existing' 
+                      ? selectedCustomer?.customer_name || 'Not selected'
+                      : newCustomer.customer_name || 'New customer'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -2220,9 +2796,9 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
                   <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block', mb: 1 }}>Items Summary</Typography>
                   {formData.items.map((item, idx) => (
                     <Box key={idx} sx={{ p: 1, mb: 1, bgcolor: COLORS.background.white, borderRadius: 1.5 }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.part_no}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.PartNo}</Typography>
                       <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-                        Qty: {item.quantity} • Processes: {item.processes.length}
+                        Qty: {item.Quantity} • Processes: {item.processes?.length || 0}
                       </Typography>
                     </Box>
                   ))}
@@ -2547,44 +3123,27 @@ const AddQuotation = ({ open, onClose, onAdd }) => {
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                OUTSOURCED VENDOR (Optional)
+                MACHINE (Optional)
               </Typography>
-              <Autocomplete
+              <TextField
                 fullWidth
-                options={vendors}
-                value={vendors.find(v => v._id === currentProcessSelection.outsourced_vendor_id) || null}
-                onChange={handleOutsourcedVendorChange}
-                getOptionLabel={(option) => option.vendor_name || ''}
-                isOptionEqualToValue={(option, value) => option._id === value._id}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    placeholder="Select outsourced vendor"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem',
-                        color: COLORS.text.primary
-                      }
-                    }}
-                  />
-                )}
-                renderOption={renderVendorOption}
-                ListboxProps={{
-                  sx: {
-                    '& .MuiAutocomplete-option': {
-                      fontSize: '0.75rem',
-                      py: 1,
-                      px: 1.5
-                    }
+                size="small"
+                name="machine"
+                value={currentProcessSelection.machine}
+                onChange={handleProcessFieldChange}
+                placeholder="Enter machine name"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary },
+                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary
                   }
                 }}
               />

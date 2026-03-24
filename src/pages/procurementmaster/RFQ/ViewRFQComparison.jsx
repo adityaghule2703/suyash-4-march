@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogTitle,  // Add this
-  DialogActions,  // Add this
+  DialogTitle,
+  DialogActions,
   Box,
   Typography,
   Button,
@@ -29,7 +29,8 @@ import {
   StepLabel,
   StepConnector,
   stepConnectorClasses,
-  styled
+  styled,
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -42,6 +43,7 @@ import {
   EmojiEvents as EmojiEventsIcon,
   Star as StarIcon,
   CheckCircle as CheckCircleIcon,
+  RadioButtonUnchecked as RadioButtonUncheckedIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
   Info as InfoIcon
@@ -144,10 +146,19 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
   const [recommendationNotes, setRecommendationNotes] = useState('');
   const [showSelectForm, setShowSelectForm] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState('');
+  const [selectedVendorKey, setSelectedVendorKey] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [closingDialog, setClosingDialog] = useState(false);
 
   useEffect(() => {
     if (open && rfqId) {
       fetchComparison();
+      // Reset states when dialog opens
+      setActiveStep(0);
+      setShowSelectForm(false);
+      setSelectedVendorKey(null);
+      setSelectedVendorId(null);
+      setRecommendationNotes('');
     }
   }, [open, rfqId]);
 
@@ -173,11 +184,22 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
     }
   };
 
-  const handleSelectVendor = (vendorId, vendorName, item = null) => {
+  const handleSelectVendor = (vendorId, vendorName, item = null, itemIndex = null, quoteIndex = null) => {
+    // Create a unique key for the selected vendor-item combination
+    const vendorKey = `${itemIndex}-${quoteIndex}`;
+    
+    setSelectedVendorKey(vendorKey);
     setSelectedVendorId(vendorId);
     setSelectedVendorName(vendorName);
     setSelectedVendorItem(item);
     setShowSelectForm(true);
+    
+    // Show success message that vendor is selected
+    setSnackbar({
+      open: true,
+      message: `${vendorName} has been selected. Please add notes and confirm.`,
+      severity: 'success'
+    });
   };
 
   const handleSubmitVendorSelection = async () => {
@@ -188,6 +210,7 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
 
     setSelectingVendor(true);
     setError('');
+    setClosingDialog(true);
 
     try {
       const token = localStorage.getItem('token');
@@ -206,20 +229,53 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
         if (onVendorSelected) {
           onVendorSelected(response.data.data);
         }
-        setShowSelectForm(false);
-        setSelectedVendorId(null);
-        setSelectedVendorItem(null);
-        setRecommendationNotes('');
-        fetchComparison();
+        
+        setSnackbar({
+          open: true,
+          message: `Successfully selected ${selectedVendorName} as the vendor!`,
+          severity: 'success'
+        });
+        
+        // Close the modal after a short delay to show success message
+        setTimeout(() => {
+          // Reset all states
+          setShowSelectForm(false);
+          setSelectedVendorId(null);
+          setSelectedVendorItem(null);
+          setSelectedVendorKey(null);
+          setRecommendationNotes('');
+          setActiveStep(0);
+          setClosingDialog(false);
+          // Close the dialog
+          onClose();
+        }, 1500);
+        
       } else {
         setError(response.data.message || 'Failed to select vendor');
+        setSnackbar({
+          open: true,
+          message: response.data.message || 'Failed to select vendor',
+          severity: 'error'
+        });
+        setClosingDialog(false);
+        setSelectingVendor(false);
       }
     } catch (err) {
       console.error('Error selecting vendor:', err);
-      setError(err.response?.data?.message || 'Failed to select vendor. Please try again.');
-    } finally {
+      const errorMsg = err.response?.data?.message || 'Failed to select vendor. Please try again.';
+      setError(errorMsg);
+      setSnackbar({
+        open: true,
+        message: errorMsg,
+        severity: 'error'
+      });
+      setClosingDialog(false);
       setSelectingVendor(false);
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   const formatDate = (dateString) => {
@@ -467,55 +523,91 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {item.quotes?.map((quote, qIdx) => (
-                        <TableRow key={qIdx}>
-                          <TableCell sx={{ fontSize: '0.7rem', fontWeight: quote.rank === 'L1' ? 600 : 400 }}>
-                            {quote.vendor_name}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: '0.7rem' }} align="right">
-                            {formatCurrency(quote.quoted_rate)}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: '0.7rem' }} align="right">
-                            {formatCurrency(quote.total_value)}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: '0.7rem' }} align="center">
-                            {quote.delivery_days}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: '0.7rem' }}>
-                            {quote.payment_terms}
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={quote.rank}
-                              size="small"
-                              sx={{
-                                fontSize: '0.6rem',
-                                height: 18,
-                                bgcolor: getRankColor(quote.rank) + '20',
-                                color: getRankColor(quote.rank),
-                                fontWeight: 600,
-                                '& .MuiChip-label': { px: 1 }
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Tooltip title="Select this vendor">
-                              <IconButton
+                      {item.quotes?.map((quote, qIdx) => {
+                        const vendorKey = `${idx}-${qIdx}`;
+                        const isSelected = selectedVendorKey === vendorKey;
+                        
+                        return (
+                          <TableRow 
+                            key={qIdx}
+                            sx={{
+                              bgcolor: isSelected ? COLORS.successLight : 'transparent',
+                              transition: 'background-color 0.3s ease',
+                              '&:hover': {
+                                bgcolor: isSelected ? COLORS.successLight : COLORS.background.hover
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: quote.rank === 'L1' ? 600 : 400 }}>
+                              {quote.vendor_name}
+                              {isSelected && (
+                                <Chip 
+                                  label="Selected" 
+                                  size="small" 
+                                  sx={{ 
+                                    ml: 1, 
+                                    fontSize: '0.6rem', 
+                                    height: 18,
+                                    bgcolor: COLORS.success,
+                                    color: 'white',
+                                    fontWeight: 600
+                                  }} 
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">
+                              {formatCurrency(quote.quoted_rate)}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">
+                              {formatCurrency(quote.total_value)}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="center">
+                              {quote.delivery_days}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }}>
+                              {quote.payment_terms}
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={quote.rank}
                                 size="small"
-                                onClick={() => handleSelectVendor(quote.vendor_id, quote.vendor_name, item)}
-                                disabled={showSelectForm}
                                 sx={{
-                                  color: COLORS.primary,
-                                  p: 0.5,
-                                  '&:hover': { bgcolor: `${COLORS.primary}20` }
+                                  fontSize: '0.6rem',
+                                  height: 18,
+                                  bgcolor: getRankColor(quote.rank) + '20',
+                                  color: getRankColor(quote.rank),
+                                  fontWeight: 600,
+                                  '& .MuiChip-label': { px: 1 }
                                 }}
-                              >
-                                <CheckCircleIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Tooltip title={isSelected ? "Selected vendor" : "Select this vendor"}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleSelectVendor(quote.vendor_id, quote.vendor_name, item, idx, qIdx)}
+                                  disabled={(showSelectForm && !isSelected) || selectingVendor || closingDialog}
+                                  sx={{
+                                    color: isSelected ? COLORS.success : COLORS.text.tertiary,
+                                    p: 0.5,
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                      bgcolor: isSelected ? `${COLORS.success}20` : `${COLORS.primary}20`,
+                                      transform: 'scale(1.1)'
+                                    }
+                                  }}
+                                >
+                                  {isSelected ? (
+                                    <CheckCircleIcon sx={{ fontSize: 20 }} />
+                                  ) : (
+                                    <RadioButtonUncheckedIcon sx={{ fontSize: 20 }} />
+                                  )}
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -533,7 +625,7 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
                   Select Vendor
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 2 }}>
-                  Click the checkmark icon next to any vendor in the comparison table to select them.
+                  Click the checkmark icon next to any vendor in the comparison table to select them. Selected vendors will be highlighted in green.
                 </Typography>
                 <Alert severity="info" sx={{ borderRadius: 1.5, fontSize: '0.7rem' }}>
                   Select a vendor from the previous step to proceed with vendor selection.
@@ -547,11 +639,11 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
                 
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12 }}>
-                    <Box sx={{ mb: 2, p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Box sx={{ mb: 2, p: 1.5, bgcolor: COLORS.successLight, borderRadius: 1.5 }}>
                       <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
                         Selected Vendor
                       </Typography>
-                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: COLORS.primary }}>
+                      <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: COLORS.success }}>
                         {selectedVendorName}
                       </Typography>
                     </Box>
@@ -577,13 +669,21 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
                         },
                         '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
                       }}
+                      disabled={selectingVendor || closingDialog}
                     />
                     
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Button
                         size="small"
                         variant="outlined"
-                        onClick={() => setShowSelectForm(false)}
+                        onClick={() => {
+                          setShowSelectForm(false);
+                          setSelectedVendorKey(null);
+                          setSelectedVendorId(null);
+                          setSelectedVendorItem(null);
+                          setRecommendationNotes('');
+                        }}
+                        disabled={selectingVendor || closingDialog}
                         sx={{ borderRadius: 1.5, fontSize: '0.7rem', height: 32 }}
                       >
                         Cancel
@@ -592,9 +692,9 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
                         size="small"
                         variant="contained"
                         onClick={handleSubmitVendorSelection}
-                        disabled={selectingVendor}
-                        startIcon={<CheckCircleIcon sx={{ fontSize: '1rem' }} />}
-                        sx={{ borderRadius: 1.5, fontSize: '0.7rem', bgcolor: COLORS.primary, height: 32 }}
+                        disabled={selectingVendor || closingDialog}
+                        startIcon={selectingVendor ? <CircularProgress size={14} /> : <CheckCircleIcon sx={{ fontSize: '1rem' }} />}
+                        sx={{ borderRadius: 1.5, fontSize: '0.7rem', bgcolor: COLORS.success, height: 32 }}
                       >
                         {selectingVendor ? 'Selecting...' : 'Confirm Selection'}
                       </Button>
@@ -612,116 +712,99 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <CompareIcon sx={{ color: COLORS.primary, fontSize: 20 }} />
-            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-              RFQ Comparison
-            </Typography>
-          </Stack>
-          {comparisonData && (
-            <Chip 
-              label={`RFQ: ${comparisonData.rfq_number}`} 
-              size="small" 
-              sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primary, fontSize: '0.7rem' }} 
-            />
-          )}
-        </Stack>
-
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 0.5, mt: 0.5 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel StepIconComponent={CustomStepIcon}>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <CircularProgress size={40} sx={{ color: COLORS.primary }} />
-            <Typography sx={{ ml: 2, fontSize: '0.75rem', color: COLORS.text.secondary }}>
-              Loading comparison data...
-            </Typography>
-          </Box>
-        ) : error ? (
-          <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
-            {error}
-          </Alert>
-        ) : comparisonData ? (
-          renderStepContent(activeStep)
-        ) : null}
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={(event, reason) => {
+          // Prevent closing while selection is in progress
+          if (selectingVendor || closingDialog) return;
+          onClose();
+        }}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <CompareIcon sx={{ color: COLORS.primary, fontSize: 20 }} />
+              <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+                RFQ Comparison
+              </Typography>
+            </Stack>
+            {comparisonData && (
+              <Chip 
+                label={`RFQ: ${comparisonData.rfq_number}`} 
+                size="small" 
+                sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primary, fontSize: '0.7rem' }} 
+              />
+            )}
+          </Stack>
+
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 0.5, mt: 0.5 }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel StepIconComponent={CustomStepIcon}>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+              <Typography sx={{ ml: 2, fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                Loading comparison data...
+              </Typography>
+            </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          ) : comparisonData ? (
+            renderStepContent(activeStep)
+          ) : null}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
           <Button
-            onClick={onClose}
-            disabled={loading}
-            startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading || selectingVendor || closingDialog}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -737,32 +820,75 @@ const ViewRFQComparison = ({ open, onClose, rfqId, onVendorSelected }) => {
               }
             }}
           >
-            Close
+            Back
           </Button>
-          {activeStep < steps.length - 1 && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              onClick={onClose}
+              disabled={loading || selectingVendor || closingDialog}
+              startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
               }}
             >
-              Next
+              Close
             </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep < steps.length - 1 && (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading || selectingVendor || closingDialog}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ 
+            width: '100%', 
+            borderRadius: 1.5,
+            fontSize: '0.75rem',
+            '& .MuiAlert-icon': { fontSize: '1rem' }
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 

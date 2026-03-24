@@ -26,7 +26,8 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Grid
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -35,14 +36,19 @@ import {
   Visibility as ViewIcon,
   MoreVert as MoreVertIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Approval as ApprovalIcon,
+  CompareArrows as CompareArrowsIcon,
+  PictureAsPdf as PdfIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
-import AddGRN from './AddGRN';
-import ViewGRN from './ViewGRN';
-import QcResultModal from './QcResultModal';
+import AddPurchaseInvoice from './AddPurchaseInvoice';
+import ViewPurchaseInvoice from './ViewPurchaseInvoice';
+import ThreeWayMatchModal from './ThreeWayMatchModal';
+import ApproveInvoiceModal from './ApproveInvoiceModal';
+import PrintPurchaseInvoice from './PrintPurchaseInvoice';
 
 const COLORS = {
   primary: '#063C3F',
@@ -88,35 +94,74 @@ const AccessDenied = () => (
 
 const getStatusStyles = (status) => {
   const styles = {
-    Created: { bg: '#E0F2FE', text: '#0C4A6E', border: '#BAE6FD' },
-    'QC Passed': { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
-    'QC Failed': { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
-    'Partially Accepted': { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
-    Accepted: { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
-    Rejected: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
-    Closed: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' }
-  };
-  return styles[status] || styles.Created;
-};
-
-const getQCStatusStyles = (status) => {
-  const styles = {
     Pending: { bg: '#E0F2FE', text: '#0C4A6E', border: '#BAE6FD' },
-    'In Progress': { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
-    Completed: { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' }
+    Approved: { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    Rejected: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
+    Paid: { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    Cancelled: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' }
   };
   return styles[status] || styles.Pending;
 };
 
-const ActionMenu = ({ item, onView, onQcResult, onClose, anchorEl, onOpen, permissions }) => {
-  const canView = hasPermission(permissions, MODULES.GRN_MASTER, PAGES.GRN_MASTER, ACTIONS.VIEW);
-  const canUpdate = hasPermission(permissions, MODULES.GRN_MASTER, PAGES.GRN_MASTER, ACTIONS.UPDATE);
+const getMatchingStatusStyles = (status) => {
+  const styles = {
+    'Not Started': { bg: '#E0F2FE', text: '#0C4A6E', border: '#BAE6FD' },
+    '2-way Matched': { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    '3-way Matched': { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    'Matched': { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    'Exception': { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
+    'Hold': { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
+    'Pending': { bg: '#E0F2FE', text: '#0C4A6E', border: '#BAE6FD' }
+  };
+  return styles[status] || styles.Pending;
+};
+
+const getPaymentStatusStyles = (status) => {
+  const styles = {
+    Paid: { bg: '#D1FAE5', text: '#065F46', border: '#86EFAC' },
+    'Partially Paid': { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
+    Unpaid: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' }
+  };
+  return styles[status] || styles.Unpaid;
+};
+
+const ActionMenu = ({ item, onView, onThreeWayMatch, onApprove, onDownloadPDF, onClose, anchorEl, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.PURCHASE_INVOICE_MASTER, PAGES.PURCHASE_INVOICE_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.PURCHASE_INVOICE_MASTER, PAGES.PURCHASE_INVOICE_MASTER, ACTIONS.UPDATE);
+  const canPrint = hasPermission(permissions, MODULES.PURCHASE_INVOICE_MASTER, PAGES.PURCHASE_INVOICE_MASTER, ACTIONS.PRINT);
+  const canApprove = hasPermission(permissions, MODULES.PURCHASE_INVOICE_MASTER, PAGES.PURCHASE_INVOICE_MASTER, ACTIONS.APPROVE);
   
-  // Show QC Result button only for GRNs with status 'Created' and qc_status 'Pending' AND if user has update permission
-  const canDoQC = item.status === 'Created' && item.qc_status === 'Pending' && canUpdate;
+  // Helper function to check if invoice has been matched
+  const isMatched = (matchingStatus) => {
+    const matchedStatuses = ['2-way Matched', '3-way Matched', 'Matched'];
+    return matchedStatuses.includes(matchingStatus);
+  };
+  
+  // Can perform 3-way match if:
+  // 1. Status is 'Pending'
+  // 2. Not already matched (not 2-way or 3-way matched)
+  // 3. Has items to match
+  // 4. User has update permission
+  const canThreeWayMatch = item.status === 'Pending' && 
+    !isMatched(item.matching_status) && 
+    item.items?.length > 0 &&
+    canUpdate;
+  
+  // Can approve if:
+  // 1. Status is 'Pending'
+  // 2. Has matching status (either 3-way Matched or Exception)
+  // 3. User has approve permission
+  const canApproveAction = item.status === 'Pending' && 
+    (item.matching_status === '3-way Matched' || 
+     item.matching_status === 'Exception' ||
+     item.matching_status === '2-way Matched') &&
+    canApprove;
+  
+  // Can download PDF if user has print permission
+  const canDownloadPDF = canPrint;
   
   // Check if any actions are available
-  const hasAnyAction = canView || canDoQC;
+  const hasAnyAction = canView || canDownloadPDF || canThreeWayMatch || canApproveAction;
   
   if (!hasAnyAction) {
     return null;
@@ -162,13 +207,41 @@ const ActionMenu = ({ item, onView, onQcResult, onClose, anchorEl, onOpen, permi
           </MenuItem>
         )}
         
-        {canDoQC && (
-          <MenuItem onClick={() => { onQcResult(item); onClose(); }} sx={{ py: 1.5 }}>
-            <ListItemIcon sx={{ color: COLORS.success, minWidth: 36 }}>
-              <CheckCircleIcon fontSize="small" />
+        {canDownloadPDF && (
+          <MenuItem onClick={() => { onDownloadPDF(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.info, minWidth: 36 }}>
+              <PdfIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.success, fontSize: '0.75rem' }}>QC Result</Typography>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.info, fontSize: '0.75rem' }}>
+                Generate PDF
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canThreeWayMatch && (
+          <MenuItem onClick={() => { onThreeWayMatch(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.info, minWidth: 36 }}>
+              <CompareArrowsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.info, fontSize: '0.75rem' }}>
+                3-Way Match
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canApproveAction && (
+          <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.success, minWidth: 36 }}>
+              <ApprovalIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.success, fontSize: '0.75rem' }}>
+                Approve
+              </Typography>
             </ListItemText>
           </MenuItem>
         )}
@@ -177,21 +250,24 @@ const ActionMenu = ({ item, onView, onQcResult, onClose, anchorEl, onOpen, permi
   );
 };
 
-const GRNMaster = () => {
-  const [grns, setGrns] = useState([]);
+const PurchaseInvoiceMaster = () => {
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+  const [statistics, setStatistics] = useState(null);
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-  const [selectedGrnForAction, setSelectedGrnForAction] = useState(null);
+  const [selectedInvoiceForAction, setSelectedInvoiceForAction] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
-  const [openQcModal, setOpenQcModal] = useState(false);
-  const [selectedGrn, setSelectedGrn] = useState(null);
+  const [openThreeWayMatchModal, setOpenThreeWayMatchModal] = useState(false);
+  const [openApproveModal, setOpenApproveModal] = useState(false);
+  const [openPrintModal, setOpenPrintModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // User permissions state
@@ -218,9 +294,9 @@ const GRNMaster = () => {
           if (userData.permissions && Array.isArray(userData.permissions)) {
             setUserPermissions(userData.permissions);
             
-            // Debug: Log permissions for GRN_MASTER
-            const grnPermissions = userData.permissions.filter(p => p.module === 'GRN_MASTER');
-            console.log('GRN Master Permissions from API:', grnPermissions);
+            // Debug: Log permissions for PURCHASE_INVOICE_MASTER
+            const invoicePermissions = userData.permissions.filter(p => p.module === 'PURCHASE_INVOICE_MASTER');
+            console.log('Purchase Invoice Master Permissions from API:', invoicePermissions);
           } else {
             setUserPermissions([]);
           }
@@ -243,12 +319,12 @@ const GRNMaster = () => {
     
     const hasPerm = hasPermission(
       userPermissions,
-      MODULES.GRN_MASTER,
-      PAGES.GRN_MASTER,
+      MODULES.PURCHASE_INVOICE_MASTER,
+      PAGES.PURCHASE_INVOICE_MASTER,
       action
     );
     
-    console.log(`GRN Master - Permission check for ${action}: ${hasPerm}`);
+    console.log(`Purchase Invoice Master - Permission check for ${action}: ${hasPerm}`);
     return hasPerm;
   };
 
@@ -257,26 +333,28 @@ const GRNMaster = () => {
   const canCreate = checkPermission(ACTIONS.CREATE);
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
   const canExport = checkPermission(ACTIONS.EXPORT);
   const canImport = checkPermission(ACTIONS.IMPORT);
-  const canPrint = checkPermission(ACTIONS.PRINT);
 
   // Debug: Log all permission values
   useEffect(() => {
     if (permissionsLoaded) {
-      console.log('GRN Master Permission Values:', {
+      console.log('Purchase Invoice Master Permission Values:', {
         canViewPage,
         canCreate,
         canUpdate,
         canDelete,
+        canPrint,
+        canApprove,
         canExport,
         canImport,
-        canPrint,
         isSuperAdmin,
         userPermissionsCount: userPermissions.length
       });
     }
-  }, [permissionsLoaded, canViewPage, canCreate, canUpdate, canDelete, canExport, canImport, canPrint, isSuperAdmin, userPermissions.length]);
+  }, [permissionsLoaded, canViewPage, canCreate, canUpdate, canDelete, canPrint, canApprove, canExport, canImport, isSuperAdmin, userPermissions.length]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -286,38 +364,31 @@ const GRNMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const fetchGRNs = useCallback(async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: page + 1,
-        limit: rowsPerPage,
-        sort_by: 'createdAt',
-        sort_order: 'desc'
+        limit: rowsPerPage
       });
       if (searchTerm) params.append('search', searchTerm);
       
-      const response = await axios.get(`${BASE_URL}/api/grns?${params.toString()}`, {
+      const response = await axios.get(`${BASE_URL}/api/purchase-invoices?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
         timeout: 10000
       });
 
       if (response.data.success) {
-        setGrns(response.data.data || []);
+        setInvoices(response.data.data || []);
         setTotalItems(response.data.pagination?.total || 0);
+        setStatistics(response.data.statistics || null);
       } else {
-        showNotification(response.data.message || 'Failed to load GRNs', 'error');
+        showNotification(response.data.message || 'Failed to load invoices', 'error');
       }
     } catch (err) {
-      console.error('Error fetching GRNs:', err);
-      if (err.code === 'ECONNABORTED') {
-        showNotification('Request timeout - Server not responding', 'error');
-      } else if (err.response?.status === 401) {
-        showNotification('Session expired. Please login again.', 'error');
-      } else {
-        showNotification('Failed to load GRNs. Please try again.', 'error');
-      }
+      console.error('Error fetching invoices:', err);
+      showNotification('Failed to load invoices. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -325,16 +396,16 @@ const GRNMaster = () => {
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchGRNs();
+      fetchInvoices();
     }
-  }, [fetchGRNs, permissionsLoaded, canViewPage, isSuperAdmin]);
+  }, [fetchInvoices, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
     if (event.target.checked) {
-      setSelected(grns.map(grn => grn._id));
+      setSelected(invoices.map(inv => inv._id));
     } else {
       setSelected([]);
     }
@@ -371,42 +442,61 @@ const GRNMaster = () => {
     setSelected([]);
   };
 
-  const handleAddGRN = () => {
+  const handleAddInvoice = () => {
     if (!canCreate) return;
     setOpenAddModal(true);
   };
   
-  const handleGRNAdded = () => {
-    fetchGRNs();
-    showNotification('GRN created successfully!', 'success');
+  const handleInvoiceAdded = () => {
+    fetchInvoices();
+    showNotification('Purchase Invoice created successfully!', 'success');
   };
 
-  const handleQcComplete = (data) => {
-    fetchGRNs();
-    showNotification(`QC results submitted for ${data.grn_number}`, 'success');
+  const handleThreeWayMatchComplete = () => {
+    fetchInvoices();
+    showNotification('3-Way Match completed!', 'success');
   };
 
-  const handleActionMenuOpen = (event, grn) => {
+  const handleApproveComplete = () => {
+    fetchInvoices();
+    showNotification('Invoice approved successfully!', 'success');
+  };
+
+  const handleActionMenuOpen = (event, invoice) => {
     setActionMenuAnchor(event.currentTarget);
-    setSelectedGrnForAction(grn);
+    setSelectedInvoiceForAction(invoice);
   };
 
   const handleActionMenuClose = () => {
     setActionMenuAnchor(null);
-    setSelectedGrnForAction(null);
+    setSelectedInvoiceForAction(null);
   };
 
-  const openViewGRNModal = (grn) => {
+  const openViewModalHandler = (invoice) => {
     if (!canViewPage) return;
-    setSelectedGrn(grn);
+    setSelectedInvoice(invoice);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
-  const openQcResultModal = (grn) => {
+  const openThreeWayMatchModalHandler = (invoice) => {
     if (!canUpdate) return;
-    setSelectedGrn(grn);
-    setOpenQcModal(true);
+    setSelectedInvoice(invoice);
+    setOpenThreeWayMatchModal(true);
+    handleActionMenuClose();
+  };
+
+  const openApproveModalHandler = (invoice) => {
+    if (!canApprove) return;
+    setSelectedInvoice(invoice);
+    setOpenApproveModal(true);
+    handleActionMenuClose();
+  };
+
+  const openPrintModalHandler = (invoice) => {
+    if (!canPrint) return;
+    setSelectedInvoice(invoice);
+    setOpenPrintModal(true);
     handleActionMenuClose();
   };
 
@@ -421,14 +511,21 @@ const GRNMaster = () => {
     });
   };
 
-  const getAvatarInitials = (grnNumber) => {
-    if (!grnNumber) return 'GR';
-    return grnNumber.substring(0, 2).toUpperCase();
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return '-';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0
+    }).format(amount);
   };
 
-  const getAvatarColor = (grnNumber) => {
+  const getAvatarInitials = (invoiceNumber) => {
+    if (!invoiceNumber) return 'PI';
+    return invoiceNumber.substring(0, 2).toUpperCase();
+  };
+
+  const getAvatarColor = (invoiceNumber) => {
     const colors = [COLORS.primary, COLORS.primaryDark, '#074346', '#0D696C', '#128C7E'];
-    const charCode = grnNumber?.charCodeAt(0) || 0;
+    const charCode = invoiceNumber?.charCodeAt(0) || 0;
     return colors[charCode % colors.length];
   };
 
@@ -446,10 +543,10 @@ const GRNMaster = () => {
     <Box sx={{ p: 2.5 }}>
       <Box sx={{ mb: 2.5 }}>
         <Typography variant="h5" component="h1" sx={{ fontSize: '1.25rem', fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}>
-          Goods Receipt Notes (GRN)
+          Purchase Invoices
         </Typography>
         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-          Create and manage goods receipt notes for incoming materials
+          Create and manage purchase invoices for procurement
         </Typography>
       </Box>
 
@@ -457,7 +554,7 @@ const GRNMaster = () => {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by GRN number, PO number, vendor..."
+              placeholder="Search by invoice number, PO number, vendor..."
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -501,16 +598,16 @@ const GRNMaster = () => {
               </Button>
             )}
             
-            {/* Create GRN Button - Only show if user has create permission */}
+            {/* Create Invoice Button - Only show if user has create permission */}
             {canCreate && (
               <Button
                 variant="contained"
                 startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                onClick={handleAddGRN}
+                onClick={handleAddInvoice}
                 sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', fontWeight: 500, textTransform: 'none' }}
                 disabled={loading}
               >
-                Create GRN
+                Create Invoice
               </Button>
             )}
           </Stack>
@@ -526,21 +623,21 @@ const GRNMaster = () => {
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < grns.length}
-                      checked={grns.length > 0 && selected.length === grns.length}
+                      indeterminate={selected.length > 0 && selected.length < invoices.length}
+                      checked={invoices.length > 0 && selected.length === invoices.length}
                       onChange={handleSelectAll}
                       sx={{ color: COLORS.text.light }}
-                      disabled={loading || grns.length === 0}
+                      disabled={loading || invoices.length === 0}
                     />
                   </TableCell>
                 )}
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>GRN Number</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>PO Number</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Invoice Number</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Vendor Invoice No</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Vendor</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Received Qty</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>GRN Date</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>PO Number</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Grand Total</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Matching Status</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>QC Status</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60, color: COLORS.text.light }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -549,81 +646,115 @@ const GRNMaster = () => {
                 <TableRow>
                   <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
-                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>Loading GRNs...</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>Loading invoices...</Typography>
                   </TableCell>
                 </TableRow>
-              ) : grns.length === 0 ? (
+              ) : invoices.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                      {searchTerm ? 'No GRNs found' : 'No GRNs available'}
+                      {searchTerm ? 'No invoices found' : 'No invoices available'}
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                grns.map((grn) => {
-                  const isSelected = selected.includes(grn._id);
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && selectedGrnForAction?._id === grn._id;
-                  const avatarColor = getAvatarColor(grn.grn_number);
-                  const statusStyles = getStatusStyles(grn.status);
-                  const qcStatusStyles = getQCStatusStyles(grn.qc_status);
+                invoices.map((invoice) => {
+                  const isSelected = selected.includes(invoice._id);
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) && selectedInvoiceForAction?._id === invoice._id;
+                  const avatarColor = getAvatarColor(invoice.purchase_invoice_number);
+                  const statusStyles = getStatusStyles(invoice.status);
+                  const matchingStatusStyles = getMatchingStatusStyles(invoice.matching_status);
 
                   return (
-                    <TableRow key={grn._id} hover selected={isSelected} sx={{ bgcolor: COLORS.background.white, '&:hover': { bgcolor: COLORS.background.hover } }}>
+                    <TableRow key={invoice._id} hover selected={isSelected} sx={{ bgcolor: COLORS.background.white, '&:hover': { bgcolor: COLORS.background.hover } }}>
                       {/* Checkbox Column - Only show if user has delete permission */}
                       {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
-                          <Checkbox checked={isSelected} onChange={() => handleSelect(grn._id)} sx={{ color: COLORS.primary }} />
+                          <Checkbox checked={isSelected} onChange={() => handleSelect(invoice._id)} sx={{ color: COLORS.primary }} />
                         </TableCell>
                       )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
-                            {getAvatarInitials(grn.grn_number)}
+                            {getAvatarInitials(invoice.purchase_invoice_number)}
                           </Avatar>
                           <Box>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>{grn.grn_number}</Typography>
-                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>Created: {formatDate(grn.createdAt)}</Typography>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                              {invoice.purchase_invoice_number}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                              Date: {formatDate(invoice.invoice_date)}
+                            </Typography>
                           </Box>
                         </Stack>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {grn.po_number}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {grn.vendor_name}
+                          {invoice.vendor_invoice_no}
                         </Typography>
                         <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Code: {grn.vendor_id?.vendor_code || '-'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                          {grn.total_received_qty || 0} units
+                          {formatDate(invoice.vendor_invoice_date)}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {formatDate(grn.grn_date)}
+                          {invoice.vendor_name}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          Code: {invoice.vendor_id?.vendor_code || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip label={grn.status} size="small" sx={{ fontSize: '0.65rem', fontWeight: 500, height: 20, bgcolor: statusStyles.bg, color: statusStyles.text, border: `1px solid ${statusStyles.border}` }} />
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {invoice.po_number}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip label={grn.qc_status || 'Pending'} size="small" sx={{ fontSize: '0.65rem', fontWeight: 500, height: 20, bgcolor: qcStatusStyles.bg, color: qcStatusStyles.text, border: `1px solid ${qcStatusStyles.border}` }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                          {formatCurrency(invoice.grand_total)}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          Net: {formatCurrency(invoice.net_payable)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={invoice.matching_status} 
+                          size="small" 
+                          sx={{ 
+                            fontSize: '0.65rem', 
+                            fontWeight: 500, 
+                            height: 20, 
+                            bgcolor: matchingStatusStyles.bg, 
+                            color: matchingStatusStyles.text, 
+                            border: `1px solid ${matchingStatusStyles.border}` 
+                          }} 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={invoice.status} 
+                          size="small" 
+                          sx={{ 
+                            fontSize: '0.65rem', 
+                            fontWeight: 500, 
+                            height: 20, 
+                            bgcolor: statusStyles.bg, 
+                            color: statusStyles.text, 
+                            border: `1px solid ${statusStyles.border}` 
+                          }} 
+                        />
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu
-                          item={grn}
-                          onView={openViewGRNModal}
-                          onQcResult={openQcResultModal}
+                          item={invoice}
+                          onView={openViewModalHandler}
+                          onThreeWayMatch={openThreeWayMatchModalHandler}
+                          onApprove={openApproveModalHandler}
+                          onDownloadPDF={openPrintModalHandler}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, grn)}
+                          onOpen={(e) => handleActionMenuOpen(e, invoice)}
                           permissions={userPermissions}
                         />
                       </TableCell>
@@ -648,34 +779,55 @@ const GRNMaster = () => {
 
       {/* Modal Components - Only render if user has appropriate permissions */}
       {canCreate && (
-        <AddGRN open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handleGRNAdded} />
+        <AddPurchaseInvoice open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handleInvoiceAdded} />
       )}
       
-      {selectedGrn && (
+      {selectedInvoice && (
         <>
           {canViewPage && (
-            <ViewGRN open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedGrn(null); }} grn={selectedGrn} />
+            <ViewPurchaseInvoice open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedInvoice(null); }} invoice={selectedInvoice} />
           )}
           
           {canUpdate && (
-            <QcResultModal
-              open={openQcModal}
-              onClose={() => {
-                setOpenQcModal(false);
-                setSelectedGrn(null);
-              }}
-              grn={selectedGrn}
-              onQcComplete={handleQcComplete}
+            <ThreeWayMatchModal
+              open={openThreeWayMatchModal}
+              onClose={() => { setOpenThreeWayMatchModal(false); setSelectedInvoice(null); }}
+              invoice={selectedInvoice}
+              onMatchComplete={handleThreeWayMatchComplete}
+            />
+          )}
+          
+          {canApprove && (
+            <ApproveInvoiceModal
+              open={openApproveModal}
+              onClose={() => { setOpenApproveModal(false); setSelectedInvoice(null); }}
+              invoice={selectedInvoice}
+              onApproveComplete={handleApproveComplete}
+            />
+          )}
+          
+          {canPrint && (
+            <PrintPurchaseInvoice
+              open={openPrintModal}
+              onClose={() => { setOpenPrintModal(false); setSelectedInvoice(null); }}
+              invoice={selectedInvoice}
             />
           )}
         </>
       )}
 
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>{snackbar.message}</Alert>
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={3000} 
+        onClose={() => setSnackbar({ ...snackbar, open: false })} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+          {snackbar.message}
+        </Alert>
       </Snackbar>
     </Box>
   );
 };
 
-export default GRNMaster;
+export default PurchaseInvoiceMaster;

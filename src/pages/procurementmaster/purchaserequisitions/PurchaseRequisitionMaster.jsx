@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddPurchaseRequisition from './AddPurchaseRequisition';
 import EditPurchaseRequisition from './EditPurchaseRequisition';
 import ViewPurchaseRequisition from './ViewPurchaseRequisition';
@@ -72,6 +73,25 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Status styles
 const getStatusStyles = (status) => {
   const styles = {
@@ -99,13 +119,25 @@ const getStatusStyles = (status) => {
   return styles[status] || styles.Pending;
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onApprove, onReject, onClose, anchorEl, onOpen }) => {
-  // Only show edit option for Draft or Submitted status
-  const canEdit = item.status === 'Draft' || item.status === 'Submitted';
-  // Only show approve/reject for Submitted status (not for Draft, Approved, Rejected)
-  const canApproveReject = item.status === 'Submitted';
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onApprove, onReject, onClose, anchorEl, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.PURCHASE_REQUISITION_MASTER, PAGES.PURCHASE_REQUISITION_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.PURCHASE_REQUISITION_MASTER, PAGES.PURCHASE_REQUISITION_MASTER, ACTIONS.UPDATE);
+  const canApprove = hasPermission(permissions, MODULES.PURCHASE_REQUISITION_MASTER, PAGES.PURCHASE_REQUISITION_MASTER, ACTIONS.APPROVE);
+  const canReject = hasPermission(permissions, MODULES.PURCHASE_REQUISITION_MASTER, PAGES.PURCHASE_REQUISITION_MASTER, ACTIONS.REJECT);
   
+  // Only show edit option for Draft or Submitted status AND if user has update permission
+  const canEdit = (item.status === 'Draft' || item.status === 'Submitted') && canUpdate;
+  // Only show approve/reject for Submitted status AND if user has approve/reject permissions
+  const canApproveReject = item.status === 'Submitted' && (canApprove || canReject);
+  
+  // Check if any actions are available
+  const hasAnyAction = canView || canEdit || canApproveReject;
+  
+  if (!hasAnyAction) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -137,22 +169,25 @@ const ActionMenu = ({ item, onView, onEdit, onApprove, onReject, onClose, anchor
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
         {canEdit && (
           <MenuItem 
             onClick={() => {
@@ -171,41 +206,46 @@ const ActionMenu = ({ item, onView, onEdit, onApprove, onReject, onClose, anchor
             </ListItemText>
           </MenuItem>
         )}
+        
         {canApproveReject && (
           <>
             <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-            <MenuItem 
-              onClick={() => {
-                onApprove(item);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-                <CheckCircleIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
-                  Approve
-                </Typography>
-              </ListItemText>
-            </MenuItem>
-            <MenuItem 
-              onClick={() => {
-                onReject(item);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-                <CancelIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
-                  Reject
-                </Typography>
-              </ListItemText>
-            </MenuItem>
+            {canApprove && (
+              <MenuItem 
+                onClick={() => {
+                  onApprove(item);
+                  onClose();
+                }}
+                sx={{ py: 1.5 }}
+              >
+                <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+                  <CheckCircleIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                    Approve
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            )}
+            {canReject && (
+              <MenuItem 
+                onClick={() => {
+                  onReject(item);
+                  onClose();
+                }}
+                sx={{ py: 1.5 }}
+              >
+                <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+                  <CancelIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
+                    Reject
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            )}
           </>
         )}
       </Menu>
@@ -235,6 +275,67 @@ const PurchaseRequisitionMaster = () => {
     message: '',
     severity: 'success'
   });
+
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.PURCHASE_REQUISITION_MASTER,
+      PAGES.PURCHASE_REQUISITION_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -278,10 +379,15 @@ const PurchaseRequisitionMaster = () => {
   }, [page, rowsPerPage, searchTerm]);
 
   useEffect(() => {
-    fetchPRs();
-  }, [fetchPRs]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPRs();
+    }
+  }, [fetchPRs, permissionsLoaded, canViewPage, isSuperAdmin]);
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(prs.map(pr => pr._id));
     } else {
@@ -289,7 +395,10 @@ const PurchaseRequisitionMaster = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -312,6 +421,7 @@ const PurchaseRequisitionMaster = () => {
   };
 
   const handleAddPR = () => {
+    if (!canCreate) return;
     setOpenAddModal(true);
   };
 
@@ -335,6 +445,12 @@ const PurchaseRequisitionMaster = () => {
     showNotification('Purchase requisition rejected successfully!', 'success');
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!canDelete) return;
+    showNotification('Bulk delete requires API implementation', 'warning');
+  };
+
   const handleActionMenuOpen = (event, pr) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedPrForAction(pr);
@@ -346,24 +462,28 @@ const PurchaseRequisitionMaster = () => {
   };
 
   const openViewPRModal = (pr) => {
+    if (!canViewPage) return;
     setSelectedPr(pr);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditPRModal = (pr) => {
+    if (!canUpdate) return;
     setSelectedPr(pr);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openApprovePRModal = (pr) => {
+    if (!canApprove) return;
     setSelectedPr(pr);
     setOpenApproveModal(true);
     handleActionMenuClose();
   };
 
   const openRejectPRModal = (pr) => {
+    if (!canReject) return;
     setSelectedPr(pr);
     setOpenRejectModal(true);
     handleActionMenuClose();
@@ -403,6 +523,16 @@ const PurchaseRequisitionMaster = () => {
     }).format(amount);
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       <Box sx={{ mb: 2.5 }}>
@@ -437,15 +567,44 @@ const PurchaseRequisitionMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handleAddPR}
-              sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', fontWeight: 500, textTransform: 'none' }}
-              disabled={loading}
-            >
-              Create Requisition
-            </Button>
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleBulkDelete}
+                sx={{ 
+                  height: 36,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
+                }}
+                disabled={loading}
+              >
+                Delete ({selected.length})
+              </Button>
+            )}
+            
+            {/* Create Requisition Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleAddPR}
+                sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', fontWeight: 500, textTransform: 'none' }}
+                disabled={loading}
+              >
+                Create Requisition
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -456,15 +615,18 @@ const PurchaseRequisitionMaster = () => {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: COLORS.background.tableHeader, '& .MuiTableCell-root': { borderBottom: 'none', color: COLORS.text.light, py: 1.5 } }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < prs.length}
-                    checked={prs.length > 0 && selected.length === prs.length}
-                    onChange={handleSelectAll}
-                    sx={{ color: COLORS.text.light, '&.Mui-checked': { color: COLORS.text.light } }}
-                    disabled={loading || prs.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < prs.length}
+                      checked={prs.length > 0 && selected.length === prs.length}
+                      onChange={handleSelectAll}
+                      sx={{ color: COLORS.text.light, '&.Mui-checked': { color: COLORS.text.light } }}
+                      disabled={loading || prs.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>PR Number</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Type</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Department</TableCell>
@@ -478,14 +640,14 @@ const PurchaseRequisitionMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>Loading purchase requisitions...</Typography>
                   </TableCell>
                 </TableRow>
               ) : prs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No purchase requisitions found' : 'No purchase requisitions available'}
@@ -506,9 +668,12 @@ const PurchaseRequisitionMaster = () => {
 
                   return (
                     <TableRow key={pr._id} hover selected={isSelected} sx={{ bgcolor: COLORS.background.white, '&:hover': { bgcolor: COLORS.background.hover }, '& .MuiTableCell-root': { py: 1.5, fontSize: '0.75rem', borderColor: COLORS.border } }}>
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox checked={isSelected} onChange={() => handleSelect(pr._id)} sx={{ color: COLORS.primary, '&.Mui-checked': { color: COLORS.primary } }} />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox checked={isSelected} onChange={() => handleSelect(pr._id)} sx={{ color: COLORS.primary, '&.Mui-checked': { color: COLORS.primary } }} />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>{getAvatarInitials(pr.pr_number)}</Avatar>
@@ -548,6 +713,7 @@ const PurchaseRequisitionMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null} 
                           onClose={handleActionMenuClose} 
                           onOpen={(e) => handleActionMenuOpen(e, pr)} 
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -570,15 +736,28 @@ const PurchaseRequisitionMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddPurchaseRequisition open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handlePRAdded} />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddPurchaseRequisition open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handlePRAdded} />
+      )}
       
       {selectedPr && (
         <>
-          <ViewPurchaseRequisition open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedPr(null); }} pr={selectedPr} />
-          <EditPurchaseRequisition open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedPr(null); }} pr={selectedPr} onUpdate={handlePREdited} />
-          <ApprovePurchaseRequisition open={openApproveModal} onClose={() => { setOpenApproveModal(false); setSelectedPr(null); }} pr={selectedPr} onApprove={handlePRApproved} />
-          <RejectPurchaseRequisition open={openRejectModal} onClose={() => { setOpenRejectModal(false); setSelectedPr(null); }} pr={selectedPr} onReject={handlePRRejected} />
+          {canViewPage && (
+            <ViewPurchaseRequisition open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedPr(null); }} pr={selectedPr} />
+          )}
+          
+          {canUpdate && (
+            <EditPurchaseRequisition open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedPr(null); }} pr={selectedPr} onUpdate={handlePREdited} />
+          )}
+          
+          {canApprove && (
+            <ApprovePurchaseRequisition open={openApproveModal} onClose={() => { setOpenApproveModal(false); setSelectedPr(null); }} pr={selectedPr} onApprove={handlePRApproved} />
+          )}
+          
+          {canReject && (
+            <RejectPurchaseRequisition open={openRejectModal} onClose={() => { setOpenRejectModal(false); setSelectedPr(null); }} pr={selectedPr} onReject={handlePRRejected} />
+          )}
         </>
       )}
 

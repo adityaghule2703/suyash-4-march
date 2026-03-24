@@ -98,7 +98,7 @@ const AccessDenied = () => (
 // All available actions from your permission catalog
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules from your permission catalog - Updated with all new modules
+// All pages/modules from your permission catalog - Updated with correct categorization
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -107,11 +107,10 @@ const ALL_PAGES = [
   { module: 'USERS', page: 'Users', category: 'Administration' },
   { module: 'ROLES', page: 'Roles', category: 'Administration' },
   
-  // Quotation Master - Updated with new modules
+  // Quotation Master - Updated (Removed Supplier)
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
   { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
   { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
-  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
   { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
   { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
   { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
@@ -125,11 +124,12 @@ const ALL_PAGES = [
   { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
   { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
-  // Procurement Master - New Category
-  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
-  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
+  // Procurement Master - New Category with correct sequence
+  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Procurement Master' },
   { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
   { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
+  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
   
   // HR Master - Updated with new modules
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },

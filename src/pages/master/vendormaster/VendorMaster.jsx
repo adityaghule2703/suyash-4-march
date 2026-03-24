@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddVendor from './AddVendor';
@@ -77,8 +78,40 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, onApprove, onBlacklist, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, onApprove, onBlacklist, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.SUPPLIER_MASTER, PAGES.SUPPLIER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.SUPPLIER_MASTER, PAGES.SUPPLIER, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.SUPPLIER_MASTER, PAGES.SUPPLIER, ACTIONS.DELETE);
+  const canApprove = hasPermission(permissions, MODULES.SUPPLIER_MASTER, PAGES.SUPPLIER, ACTIONS.APPROVE);
+  const canReject = hasPermission(permissions, MODULES.SUPPLIER_MASTER, PAGES.SUPPLIER, ACTIONS.REJECT);
+
+  // Check if any actions are available
+  const hasAnyAction = canView || canUpdate || canDelete || canApprove || canReject;
+  
+  if (!hasAnyAction) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -110,88 +143,102 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onApprove, onBlacklist, an
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onApprove(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <CheckCircleIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Approve AVL
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-       
-      <MenuItem 
-        onClick={() => {
-          onBlacklist(item);
-          onClose();
-        }}
-        sx={{ py: 1.5 }}
-      >
-        <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
-          <BlockIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>
-          <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
-            Blacklist
-          </Typography>
-        </ListItemText>
-      </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canApprove && (
+          <MenuItem 
+            onClick={() => {
+              onApprove(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <CheckCircleIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Approve AVL
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canReject && (
+          <MenuItem 
+            onClick={() => {
+              onBlacklist(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+              <BlockIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+                Blacklist
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate || canApprove || canReject) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -223,17 +270,79 @@ const VendorMaster = () => {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
+  const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   
   // Selected vendor
   const [selectedVendor, setSelectedVendor] = useState(null);
-  const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
-
+  
   // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
   });
+
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.SUPPLIER_MASTER,
+      PAGES.SUPPLIER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canImport = checkPermission(ACTIONS.IMPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
 
   // Debounce search to avoid too many API calls
   useEffect(() => {
@@ -245,7 +354,7 @@ const VendorMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch vendors from API with pagination
+  // Fetch vendors from API with pagination - only if user has permission
   const fetchVendors = useCallback(async () => {
     try {
       setLoading(true);
@@ -287,11 +396,15 @@ const VendorMaster = () => {
   }, [page, rowsPerPage, searchTerm]);
 
   useEffect(() => {
-    fetchVendors();
-  }, [fetchVendors]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchVendors();
+    }
+  }, [fetchVendors, permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(vendors.map(vendor => vendor._id));
     } else {
@@ -300,20 +413,23 @@ const VendorMaster = () => {
   };
   
   // Handle blacklist vendor
-const handleBlacklistVendor = () => {
-  fetchVendors();
-  showNotification('Vendor blacklisted successfully!', 'success');
-};
+  const handleBlacklistVendor = () => {
+    fetchVendors();
+    showNotification('Vendor blacklisted successfully!', 'success');
+  };
 
-// Open blacklist confirmation
-const openBlacklistVendorDialog = (vendor) => {
-  setSelectedVendor(vendor);
-  setOpenBlacklistDialog(true);
-  handleActionMenuClose();
-};
+  // Open blacklist confirmation
+  const openBlacklistVendorDialog = (vendor) => {
+    if (!canReject) return;
+    setSelectedVendor(vendor);
+    setOpenBlacklistDialog(true);
+    handleActionMenuClose();
+  };
 
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -342,6 +458,8 @@ const openBlacklistVendorDialog = (vendor) => {
   
   // Handle bulk delete
   const handleBulkDelete = async () => {
+    if (!canDelete) return;
+    
     if (selected.length === 0) return;
     
     try {
@@ -365,6 +483,7 @@ const openBlacklistVendorDialog = (vendor) => {
   
   // Handle add vendor
   const handleAddVendor = () => {
+    if (!canCreate) return;
     setOpenAddModal(true);
   };
 
@@ -405,6 +524,7 @@ const openBlacklistVendorDialog = (vendor) => {
 
   // Open edit modal
   const openEditVendorModal = (vendor) => {
+    if (!canUpdate) return;
     setSelectedVendor(vendor);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -412,6 +532,7 @@ const openBlacklistVendorDialog = (vendor) => {
   
   // Open view modal
   const openViewVendorModal = (vendor) => {
+    if (!canViewPage) return;
     setSelectedVendor(vendor);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -419,6 +540,7 @@ const openBlacklistVendorDialog = (vendor) => {
   
   // Open delete confirmation
   const openDeleteVendorDialog = (vendor) => {
+    if (!canDelete) return;
     setSelectedVendor(vendor);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -426,6 +548,7 @@ const openBlacklistVendorDialog = (vendor) => {
   
   // Open approve modal
   const openApproveVendorModal = (vendor) => {
+    if (!canApprove) return;
     setSelectedVendor(vendor);
     setOpenApproveModal(true);
     handleActionMenuClose();
@@ -546,6 +669,16 @@ const openBlacklistVendorDialog = (vendor) => {
     return colors[charCode % colors.length];
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -618,9 +751,10 @@ const openBlacklistVendorDialog = (vendor) => {
             />
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -644,26 +778,30 @@ const openBlacklistVendorDialog = (vendor) => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handleAddVendor}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Vendor
-            </Button>
+            
+            {/* Add Vendor Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleAddVendor}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Vendor
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -687,26 +825,29 @@ const openBlacklistVendorDialog = (vendor) => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < vendors.length}
-                    checked={vendors.length > 0 && selected.length === vendors.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < vendors.length}
+                      checked={vendors.length > 0 && selected.length === vendors.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || vendors.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || vendors.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -778,7 +919,7 @@ const openBlacklistVendorDialog = (vendor) => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading vendors...
@@ -787,7 +928,7 @@ const openBlacklistVendorDialog = (vendor) => {
                 </TableRow>
               ) : vendors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No vendors found' : 'No vendors available'}
@@ -831,21 +972,24 @@ const openBlacklistVendorDialog = (vendor) => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(vendor._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(vendor._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -946,6 +1090,7 @@ const openBlacklistVendorDialog = (vendor) => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, vendor)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -981,38 +1126,48 @@ const openBlacklistVendorDialog = (vendor) => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddVendor
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleVendorAdded}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddVendor
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleVendorAdded}
+        />
+      )}
 
       {selectedVendor && (
         <>
-          <EditVendor
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedVendor(null);
-            }}
-            vendor={selectedVendor}
-            onUpdate={handleEditVendor}
-          />
+          {canUpdate && (
+            <EditVendor
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedVendor(null);
+              }}
+              vendor={selectedVendor}
+              onUpdate={handleEditVendor}
+            />
+          )}
 
-          <ViewVendor
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedVendor(null);
-            }}
-            vendor={selectedVendor}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
-           <BlacklistVendor
+          {canViewPage && (
+            <ViewVendor
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedVendor(null);
+              }}
+              vendor={selectedVendor}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
+
+          {canReject && (
+            <BlacklistVendor
               open={openBlacklistDialog}
               onClose={() => {
                 setOpenBlacklistDialog(false);
@@ -1021,26 +1176,31 @@ const openBlacklistVendorDialog = (vendor) => {
               vendor={selectedVendor}
               onBlacklist={handleBlacklistVendor}
             />
+          )}
 
-          <DeleteVendor
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedVendor(null);
-            }}
-            vendor={selectedVendor}
-            onDelete={handleDeleteVendor}
-          />
+          {canDelete && (
+            <DeleteVendor
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedVendor(null);
+              }}
+              vendor={selectedVendor}
+              onDelete={handleDeleteVendor}
+            />
+          )}
 
-          <ApproveVendor
-            open={openApproveModal}
-            onClose={() => {
-              setOpenApproveModal(false);
-              setSelectedVendor(null);
-            }}
-            vendor={selectedVendor}
-            onApprove={handleApproveVendor}
-          />
+          {canApprove && (
+            <ApproveVendor
+              open={openApproveModal}
+              onClose={() => {
+                setOpenApproveModal(false);
+                setSelectedVendor(null);
+              }}
+              vendor={selectedVendor}
+              onApprove={handleApproveVendor}
+            />
+          )}
         </>
       )}
 

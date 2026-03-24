@@ -35,6 +35,7 @@ import {
 import {
   Search as SearchIcon,
   Add as AddIcon,
+  Delete as DeleteIcon,
   Visibility as ViewIcon,
   MoreVert as MoreVertIcon,
   Send as SendIcon,
@@ -46,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddPurchaseOrder from './AddPurchaseOrder';
 import ViewPurchaseOrder from './ViewPurchaseOrder';
 
@@ -72,6 +74,25 @@ const COLORS = {
   info: '#3B82F6'
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 const getStatusStyles = (status) => {
   const styles = {
     Draft: { bg: '#E0F2FE', text: '#0C4A6E', border: '#BAE6FD' },
@@ -87,12 +108,25 @@ const getStatusStyles = (status) => {
   return styles[status] || styles.Draft;
 };
 
-const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, onClose, anchorEl, onOpen }) => {
-  const canApprove = item.status === 'Draft';
-  const canSend = item.status === 'Approved';
-  const canAcknowledge = item.status === 'Sent';
-  const canRemind = item.status === 'Sent';
+const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, onClose, anchorEl, onOpen, sendingPoId, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.PURCHASE_ORDER_MASTER, PAGES.PURCHASE_ORDER_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.PURCHASE_ORDER_MASTER, PAGES.PURCHASE_ORDER_MASTER, ACTIONS.UPDATE);
+  const canApproveAction = hasPermission(permissions, MODULES.PURCHASE_ORDER_MASTER, PAGES.PURCHASE_ORDER_MASTER, ACTIONS.APPROVE);
   
+  // Status-based action availability with permission checks
+  const canApprove = item.status === 'Draft' && canApproveAction;
+  const canSend = item.status === 'Approved' && canUpdate;
+  const canAcknowledge = item.status === 'Sent' && canUpdate;
+  const canRemind = item.status === 'Sent' && canUpdate;
+  const isSending = sendingPoId === item._id;
+  
+  // Check if any actions are available
+  const hasAnyAction = canView || canApprove || canSend || canAcknowledge || canRemind;
+  
+  if (!hasAnyAction) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -103,6 +137,7 @@ const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, 
             color: COLORS.text.secondary,
             '&:hover': { bgcolor: `${COLORS.primary}20` }
           }}
+          disabled={isSending}
         >
           <MoreVertIcon fontSize="small" />
         </IconButton>
@@ -122,14 +157,17 @@ const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, 
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>View Details</Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>View Details</Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
         {canApprove && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.success, minWidth: 36 }}>
@@ -140,16 +178,28 @@ const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, 
             </ListItemText>
           </MenuItem>
         )}
+        
         {canSend && (
-          <MenuItem onClick={() => { onSend(item); onClose(); }} sx={{ py: 1.5 }}>
+          <MenuItem 
+            onClick={() => { onSend(item); onClose(); }} 
+            sx={{ py: 1.5 }}
+            disabled={isSending}
+          >
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
-              <SendIcon fontSize="small" />
+              {isSending ? (
+                <CircularProgress size={16} sx={{ color: '#F59E0B' }} />
+              ) : (
+                <SendIcon fontSize="small" />
+              )}
             </ListItemIcon>
             <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>Send to Vendor</Typography>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+                {isSending ? 'Sending...' : 'Send to Vendor'}
+              </Typography>
             </ListItemText>
           </MenuItem>
         )}
+        
         {canAcknowledge && (
           <MenuItem onClick={() => { onAcknowledge(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.info, minWidth: 36 }}>
@@ -160,6 +210,7 @@ const ActionMenu = ({ item, onView, onApprove, onSend, onAcknowledge, onRemind, 
             </ListItemText>
           </MenuItem>
         )}
+        
         {canRemind && (
           <MenuItem onClick={() => { onRemind(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
@@ -192,7 +243,95 @@ const PurchaseOrderMaster = () => {
   const [selectedPo, setSelectedPo] = useState(null);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [loadingAction, setLoadingAction] = useState(false);
+  const [sendingPoId, setSendingPoId] = useState(null);
+  const [showSendProgress, setShowSendProgress] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+            
+            // Debug: Log permissions for PURCHASE_ORDER_MASTER
+            const poPermissions = userData.permissions.filter(p => p.module === 'PURCHASE_ORDER_MASTER');
+            console.log('Purchase Order Master Permissions from API:', poPermissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    const hasPerm = hasPermission(
+      userPermissions,
+      MODULES.PURCHASE_ORDER_MASTER,
+      PAGES.PURCHASE_ORDER_MASTER,
+      action
+    );
+    
+    console.log(`Purchase Order Master - Permission check for ${action}: ${hasPerm}`);
+    return hasPerm;
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
+  // Debug: Log all permission values
+  useEffect(() => {
+    if (permissionsLoaded) {
+      console.log('Purchase Order Master Permission Values:', {
+        canViewPage,
+        canCreate,
+        canUpdate,
+        canDelete,
+        canApprove,
+        canReject,
+        canExport,
+        canPrint,
+        isSuperAdmin,
+        userPermissionsCount: userPermissions.length
+      });
+    }
+  }, [permissionsLoaded, canViewPage, canCreate, canUpdate, canDelete, canApprove, canReject, canExport, canPrint, isSuperAdmin, userPermissions.length]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -233,10 +372,15 @@ const PurchaseOrderMaster = () => {
   }, [page, rowsPerPage, searchTerm]);
 
   useEffect(() => {
-    fetchPOs();
-  }, [fetchPOs]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPOs();
+    }
+  }, [fetchPOs, permissionsLoaded, canViewPage, isSuperAdmin]);
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(pos.map(po => po._id));
     } else {
@@ -244,7 +388,10 @@ const PurchaseOrderMaster = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -253,6 +400,12 @@ const PurchaseOrderMaster = () => {
       newSelected = selected.filter(item => item !== id);
     }
     setSelected(newSelected);
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!canDelete) return;
+    showNotification('Bulk delete requires API implementation', 'warning');
   };
 
   const handleChangePage = (event, newPage) => {
@@ -266,7 +419,11 @@ const PurchaseOrderMaster = () => {
     setSelected([]);
   };
 
-  const handleAddPO = () => setOpenAddModal(true);
+  const handleAddPO = () => {
+    if (!canCreate) return;
+    setOpenAddModal(true);
+  };
+  
   const handlePOAdded = () => {
     fetchPOs();
     showNotification('Purchase Order created successfully!', 'success');
@@ -283,12 +440,14 @@ const PurchaseOrderMaster = () => {
   };
 
   const openViewPOModal = (po) => {
+    if (!canViewPage) return;
     setSelectedPo(po);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const handleApprovePO = (po) => {
+    if (!canApprove) return;
     setSelectedPo(po);
     setApprovalNotes('');
     setOpenApproveDialog(true);
@@ -325,32 +484,59 @@ const PurchaseOrderMaster = () => {
   };
 
   const handleSendPO = async (po) => {
+    if (!canUpdate) return;
     if (!po?._id) return;
     
-    setLoadingAction(true);
+    setSendingPoId(po._id);
+    setShowSendProgress(true);
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
         `${BASE_URL}/api/purchase-orders/${po._id}/send`,
         { send_email: true },
-        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+          },
+          timeout: 300000
+        }
       );
       
       if (response.data.success) {
+        await new Promise(resolve => setTimeout(resolve, 500));
         fetchPOs();
-        showNotification(`PO ${po.po_number} sent successfully!`, 'success');
+        showNotification(
+          response.data.message || `PO ${po.po_number} sent successfully to vendor!`, 
+          'success'
+        );
       } else {
         showNotification(response.data.message || 'Failed to send PO', 'error');
       }
     } catch (err) {
       console.error('Error sending PO:', err);
-      showNotification(err.response?.data?.message || 'Failed to send PO', 'error');
+      
+      let errorMessage = 'Failed to send PO';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout. Please try again.';
+      } else if (!err.response) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      showNotification(errorMessage, 'error');
     } finally {
-      setLoadingAction(false);
+      setSendingPoId(null);
+      setTimeout(() => {
+        setShowSendProgress(false);
+      }, 1000);
     }
   };
 
   const handleAcknowledgePO = async (po) => {
+    if (!canUpdate) return;
     if (!po?._id) return;
     
     setLoadingAction(true);
@@ -377,6 +563,7 @@ const PurchaseOrderMaster = () => {
   };
 
   const handleRemindPO = async (po) => {
+    if (!canUpdate) return;
     if (!po?._id) return;
     
     setLoadingAction(true);
@@ -430,6 +617,16 @@ const PurchaseOrderMaster = () => {
     return colors[charCode % colors.length];
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       <Box sx={{ mb: 2.5 }}>
@@ -461,15 +658,47 @@ const PurchaseOrderMaster = () => {
               disabled={loading}
             />
           </Stack>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-            onClick={handleAddPO}
-            sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', fontWeight: 500, textTransform: 'none' }}
-            disabled={loading}
-          >
-            Create Purchase Order
-          </Button>
+          
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleBulkDelete}
+                sx={{ 
+                  height: 36,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
+                }}
+                disabled={loading}
+              >
+                Delete ({selected.length})
+              </Button>
+            )}
+            
+            {/* Create Purchase Order Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleAddPO}
+                sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', fontWeight: 500, textTransform: 'none' }}
+                disabled={loading}
+              >
+                Create Purchase Order
+              </Button>
+            )}
+          </Stack>
         </Stack>
       </Paper>
 
@@ -478,15 +707,18 @@ const PurchaseOrderMaster = () => {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: COLORS.background.tableHeader, '& .MuiTableCell-root': { borderBottom: 'none', color: COLORS.text.light, py: 1.5 } }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < pos.length}
-                    checked={pos.length > 0 && selected.length === pos.length}
-                    onChange={handleSelectAll}
-                    sx={{ color: COLORS.text.light }}
-                    disabled={loading || pos.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < pos.length}
+                      checked={pos.length > 0 && selected.length === pos.length}
+                      onChange={handleSelectAll}
+                      sx={{ color: COLORS.text.light }}
+                      disabled={loading || pos.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>PO Number</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Vendor</TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', color: COLORS.text.light }}>Items</TableCell>
@@ -499,14 +731,14 @@ const PurchaseOrderMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>Loading Purchase Orders...</Typography>
                   </TableCell>
                 </TableRow>
               ) : pos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                       {searchTerm ? 'No Purchase Orders found' : 'No Purchase Orders available'}
                     </Typography>
@@ -518,19 +750,43 @@ const PurchaseOrderMaster = () => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && selectedPoForAction?._id === po._id;
                   const avatarColor = getAvatarColor(po.po_number);
                   const statusStyles = getStatusStyles(po.status);
+                  const isSending = sendingPoId === po._id;
 
                   return (
-                    <TableRow key={po._id} hover selected={isSelected} sx={{ bgcolor: COLORS.background.white, '&:hover': { bgcolor: COLORS.background.hover } }}>
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox checked={isSelected} onChange={() => handleSelect(po._id)} sx={{ color: COLORS.primary }} />
-                      </TableCell>
+                    <TableRow 
+                      key={po._id} 
+                      hover 
+                      selected={isSelected} 
+                      sx={{ 
+                        bgcolor: COLORS.background.white, 
+                        '&:hover': { bgcolor: COLORS.background.hover },
+                        opacity: isSending ? 0.7 : 1,
+                        transition: 'opacity 0.2s'
+                      }}
+                    >
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox 
+                            checked={isSelected} 
+                            onChange={() => handleSelect(po._id)} 
+                            sx={{ color: COLORS.primary }}
+                            disabled={isSending}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
                             {getAvatarInitials(po.po_number)}
                           </Avatar>
                           <Box>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>{po.po_number}</Typography>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                              {po.po_number}
+                              {isSending && (
+                                <CircularProgress size={12} sx={{ ml: 1, color: COLORS.primary }} />
+                              )}
+                            </Typography>
                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>Created: {formatDate(po.createdAt)}</Typography>
                           </Box>
                         </Stack>
@@ -559,7 +815,19 @@ const PurchaseOrderMaster = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip label={po.status} size="small" sx={{ fontSize: '0.65rem', fontWeight: 500, height: 20, bgcolor: statusStyles.bg, color: statusStyles.text, border: `1px solid ${statusStyles.border}` }} />
+                        <Chip 
+                          label={po.status} 
+                          size="small" 
+                          sx={{ 
+                            fontSize: '0.65rem', 
+                            fontWeight: 500, 
+                            height: 20, 
+                            bgcolor: statusStyles.bg, 
+                            color: statusStyles.text, 
+                            border: `1px solid ${statusStyles.border}`,
+                            opacity: isSending ? 0.7 : 1
+                          }} 
+                        />
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu
@@ -572,6 +840,8 @@ const PurchaseOrderMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, po)}
+                          sendingPoId={sendingPoId}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -593,10 +863,54 @@ const PurchaseOrderMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddPurchaseOrder open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handlePOAdded} />
+      {/* Sending Progress Dialog */}
+      <Dialog
+        open={showSendProgress}
+        onClose={() => {}}
+        disableEscapeKeyDown
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { 
+            borderRadius: 2, 
+            overflow: 'hidden',
+            bgcolor: COLORS.background.white
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <SendIcon sx={{ color: COLORS.primary, fontSize: 20 }} />
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Sending Purchase Order
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, backgroundColor: COLORS.background.light }}>
+          <Stack spacing={2.5} alignItems="center">
+            <CircularProgress size={48} sx={{ color: COLORS.primary }} />
+            <Typography variant="body2" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, textAlign: 'center' }}>
+              Please wait while we send the Purchase Order to the vendor...
+            </Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+              This may take a few moments
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddPurchaseOrder open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handlePOAdded} />
+      )}
       
-      {selectedPo && (
+      {selectedPo && canViewPage && (
         <ViewPurchaseOrder open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedPo(null); }} po={selectedPo} />
       )}
 
