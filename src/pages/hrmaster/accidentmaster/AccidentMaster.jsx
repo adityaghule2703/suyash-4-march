@@ -359,6 +359,951 @@
 // export default AccidentMaster;
 
 
+// import React, { useState, useEffect } from 'react';
+// import {
+//   Box,
+//   Paper,
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableContainer,
+//   TableHead,
+//   TableRow,
+//   IconButton,
+//   Button,
+//   TextField,
+//   InputAdornment,
+//   Tooltip,
+//   Typography,
+//   Snackbar,
+//   TablePagination,
+//   Checkbox,
+//   Stack,
+//   alpha,
+//   Alert,
+//   Chip,
+//   Menu,
+//   MenuItem,
+//   ListItemIcon,
+//   ListItemText,
+//   Divider,
+//   Grid,
+//   Card,
+//   CardContent
+// } from '@mui/material';
+// import {
+//   Search as SearchIcon,
+//   FilterList as FilterIcon,
+//   Download as DownloadIcon,
+//   Add as AddIcon,
+//   Delete as DeleteIcon,
+//   ArrowUpward as ArrowUpwardIcon,
+//   Visibility as ViewIcon,
+//   Edit as EditIcon,
+//   MoreVert as MoreVertIcon,
+//   Sort as SortIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+
+// import AddAccident from './AddAccident';
+// import EditAccident from './EditAccident';
+// import ViewAccident from './ViewAccident';
+// //import DeleteAccident from './DeleteAccident';
+
+// // Color constants
+// const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+// const STRIPE_COLOR_ODD = '#FFFFFF';
+// const STRIPE_COLOR_EVEN = '#f8fafc';
+// const HOVER_COLOR = '#f1f5f9';
+// const PRIMARY_BLUE = '#00B4D8';
+// const TEXT_COLOR_HEADER = '#FFFFFF';
+// const TEXT_COLOR_MAIN = '#0f172a';
+
+// // Action Menu Component
+// const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+//   return (
+//     <>
+//       <Tooltip title="Actions">
+//         <IconButton
+//           size="small"
+//           onClick={onOpen}
+//           sx={{
+//             color: '#64748b',
+//             '&:hover': {
+//               bgcolor: alpha(PRIMARY_BLUE, 0.1)
+//             }
+//           }}
+//         >
+//           <MoreVertIcon fontSize="small" />
+//         </IconButton>
+//       </Tooltip>
+//       <Menu
+//         anchorEl={anchorEl}
+//         open={Boolean(anchorEl)}
+//         onClose={onClose}
+//         PaperProps={{
+//           elevation: 3,
+//           sx: {
+//             mt: 1,
+//             minWidth: 180,
+//             borderRadius: 2,
+//             border: '1px solid #e2e8f0'
+//           }
+//         }}
+//       >
+//         <MenuItem 
+//           onClick={() => {
+//             onView(accident);
+//             onClose();
+//           }}
+//           sx={{ py: 1 }}
+//         >
+//           <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
+//             <ViewIcon fontSize="small" />
+//           </ListItemIcon>
+//           <ListItemText>
+//             <Typography variant="body2" fontWeight={500}>View Details</Typography>
+//           </ListItemText>
+//         </MenuItem>
+//         <MenuItem 
+//           onClick={() => {
+//             onEdit(accident);
+//             onClose();
+//           }}
+//           sx={{ py: 1 }}
+//         >
+//           <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+//             <EditIcon fontSize="small" />
+//           </ListItemIcon>
+//           <ListItemText>
+//             <Typography variant="body2" fontWeight={500}>Investigate</Typography>
+//           </ListItemText>
+//         </MenuItem>
+//         <Divider sx={{ my: 0.5 }} />
+//         <MenuItem 
+//           onClick={() => {
+//             onDelete(accident);
+//             onClose();
+//           }}
+//           sx={{ py: 1 }}
+//         >
+//           {/* <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+//             <DeleteIcon fontSize="small" />
+//           </ListItemIcon>
+//           <ListItemText>
+//             <Typography variant="body2" fontWeight={500} color="#EF4444">
+//               Delete
+//             </Typography>
+//           </ListItemText> */}
+//         </MenuItem>
+//       </Menu>
+//     </>
+//   );
+// };
+
+// const AccidentMaster = () => {
+//   const [accidents, setAccidents] = useState([]);
+//   const [filteredAccidents, setFilteredAccidents] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [searchTerm, setSearchTerm] = useState('');
+
+//   const [page, setPage] = useState(0);
+//   const [rowsPerPage, setRowsPerPage] = useState(5);
+//   const [selected, setSelected] = useState([]);
+
+//   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+//   const [selectedAccidentForAction, setSelectedAccidentForAction] = useState(null);
+
+//   const [openAddModal, setOpenAddModal] = useState(false);
+//   const [openEditModal, setOpenEditModal] = useState(false);
+//   const [openViewModal, setOpenViewModal] = useState(false);
+//   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+
+//   const [selectedAccident, setSelectedAccident] = useState(null);
+
+//   const [snackbar, setSnackbar] = useState({
+//     open: false,
+//     message: '',
+//     severity: 'success'
+//   });
+
+//   useEffect(() => {
+//     fetchAccidents();
+//   }, []);
+
+//   const fetchAccidents = async () => {
+//     try {
+//       setLoading(true);
+//       const token = localStorage.getItem('token');
+//       const response = await axios.get(
+//         `${BASE_URL}/api/safety/accidents`,
+//         { headers: { Authorization: `Bearer ${token}` } }
+//       );
+
+//       if (response.data.success) {
+//         setAccidents(response.data.data || []);
+//         setFilteredAccidents(response.data.data || []);
+//       } else {
+//         showNotification('Failed to load accidents', 'error');
+//       }
+//     } catch (err) {
+//       console.error('Error fetching accidents:', err);
+//       showNotification('Failed to load accidents. Please try again.', 'error');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const handleSearch = (event) => {
+//     const value = event.target.value.toLowerCase();
+//     setSearchTerm(value);
+
+//     const filtered = accidents.filter(accident =>
+//       accident.location?.toLowerCase().includes(value) ||
+//       accident.machineName?.toLowerCase().includes(value) ||
+//       accident.injuryType?.toLowerCase().includes(value) ||
+//       accident.severity?.toLowerCase().includes(value) ||
+//       accident.reportedBy?.name?.toLowerCase().includes(value)
+//     );
+
+//     setFilteredAccidents(filtered);
+//     setPage(0);
+//   };
+
+//   const handleSelectAll = (event) => {
+//     if (event.target.checked) {
+//       setSelected(filteredAccidents.map(accident => accident._id));
+//     } else {
+//       setSelected([]);
+//     }
+//   };
+
+//   const handleSelect = (id) => {
+//     const selectedIndex = selected.indexOf(id);
+//     let newSelected = [];
+    
+//     if (selectedIndex === -1) {
+//       newSelected = newSelected.concat(selected, id);
+//     } else {
+//       newSelected = selected.filter(item => item !== id);
+//     }
+    
+//     setSelected(newSelected);
+//   };
+
+//   const handleChangePage = (event, newPage) => {
+//     setPage(newPage);
+//   };
+
+//   const handleChangeRowsPerPage = (event) => {
+//     setRowsPerPage(parseInt(event.target.value, 10));
+//     setPage(0);
+//   };
+
+//   const handleAddAccident = (newAccident) => {
+//     setAccidents([...accidents, newAccident]);
+//     setFilteredAccidents([...filteredAccidents, newAccident]);
+//     showNotification('Accident reported successfully!', 'success');
+//   };
+
+//   const handleEditAccident = (updatedAccident) => {
+//     const updatedAccidents = accidents.map(accident =>
+//       accident._id === updatedAccident._id ? updatedAccident : accident
+//     );
+    
+//     setAccidents(updatedAccidents);
+//     setFilteredAccidents(updatedAccidents);
+//     showNotification('Investigation updated successfully!', 'success');
+//   };
+
+//   const handleDeleteAccident = (accidentId) => {
+//     const updatedAccidents = accidents.filter(accident => accident._id !== accidentId);
+//     setAccidents(updatedAccidents);
+//     setFilteredAccidents(updatedAccidents);
+//     setSelected(selected.filter(id => id !== accidentId));
+//     showNotification('Accident record deleted successfully!', 'success');
+//   };
+
+//   const handleBulkDelete = () => {
+//     // This would need API implementation for bulk delete
+//     showNotification('Bulk delete requires API implementation', 'warning');
+//   };
+
+//   const handleActionMenuOpen = (event, accident) => {
+//     setActionMenuAnchor(event.currentTarget);
+//     setSelectedAccidentForAction(accident);
+//   };
+
+//   const handleActionMenuClose = () => {
+//     setActionMenuAnchor(null);
+//     setSelectedAccidentForAction(null);
+//   };
+
+//   const openEditAccidentModal = (accident) => {
+//     setSelectedAccident(accident);
+//     setOpenEditModal(true);
+//     handleActionMenuClose();
+//   };
+
+//   const openViewAccidentModal = (accident) => {
+//     setSelectedAccident(accident);
+//     setOpenViewModal(true);
+//     handleActionMenuClose();
+//   };
+
+//   const openDeleteAccidentDialog = (accident) => {
+//     setSelectedAccident(accident);
+//     setOpenDeleteDialog(true);
+//     handleActionMenuClose();
+//   };
+
+//   const showNotification = (message, severity) => {
+//     setSnackbar({
+//       open: true,
+//       message,
+//       severity
+//     });
+//   };
+
+//   // Stats calculations
+//   const totalAccidents = accidents.length;
+//   const openCases = accidents.filter(a => a.investigationStatus === 'Open').length;
+//   const closedCases = accidents.filter(a => a.investigationStatus === 'Closed').length;
+//   const totalCost = accidents.reduce((sum, a) => sum + (a.costIncurred || 0), 0);
+
+//   const formatDate = (dateString) => {
+//     return new Date(dateString).toLocaleDateString('en-US', {
+//       year: 'numeric',
+//       month: 'short',
+//       day: 'numeric'
+//     });
+//   };
+
+//   const formatCurrency = (amount) => {
+//     return new Intl.NumberFormat('en-IN', {
+//       style: 'currency',
+//       currency: 'INR',
+//       minimumFractionDigits: 0,
+//       maximumFractionDigits: 0
+//     }).format(amount || 0);
+//   };
+
+//   const getSeverityColor = (severity) => {
+//     switch(severity?.toLowerCase()) {
+//       case 'minor':
+//         return { bgcolor: '#dcfce7', color: '#166534', border: '1px solid #86efac' };
+//       case 'moderate':
+//         return { bgcolor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #7dd3fc' };
+//       case 'severe':
+//         return { bgcolor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' };
+//       case 'fatal':
+//         return { bgcolor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
+//       default:
+//         return { bgcolor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' };
+//     }
+//   };
+
+//   const getStatusColor = (status) => {
+//     switch(status?.toLowerCase()) {
+//       case 'open':
+//         return { bgcolor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
+//       case 'investigating':
+//         return { bgcolor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #7dd3fc' };
+//       case 'closed':
+//         return { bgcolor: '#dcfce7', color: '#166534', border: '1px solid #86efac' };
+//       default:
+//         return { bgcolor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' };
+//     }
+//   };
+
+//   const paginatedData = filteredAccidents.slice(
+//     page * rowsPerPage,
+//     page * rowsPerPage + rowsPerPage
+//   );
+
+//   return (
+//     <Box sx={{ p: 3 }}>
+//       {/* Header */}
+//       <Box sx={{ mb: 3 }}>
+//         <Typography 
+//           variant="h5" 
+//           component="h1" 
+//           fontWeight="600" 
+//           sx={{ 
+//             color: TEXT_COLOR_MAIN,
+//             background: HEADER_GRADIENT,
+//             WebkitBackgroundClip: 'text',
+//             WebkitTextFillColor: 'transparent',
+//             backgroundClip: 'text',
+//             display: 'inline-block'
+//           }}
+//         >
+//           Accident / Incident Management
+//         </Typography>
+//         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+//           Track and manage workplace accidents, injuries, and safety incidents
+//         </Typography>
+//       </Box>
+
+//       {/* Stats Cards */}
+//       {/* <Grid container spacing={3} sx={{ mb: 3 }}>
+//         <Grid item xs={12} sm={6} md={3}>
+//           <Card sx={{ 
+//             borderRadius: 2,
+//             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//             border: '1px solid #e2e8f0',
+//             transition: 'transform 0.2s',
+//             '&:hover': {
+//               transform: 'translateY(-2px)',
+//               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//             }
+//           }}>
+//             <CardContent>
+//               <Typography variant="subtitle2" color="#64748B" gutterBottom>
+//                 Total Accidents
+//               </Typography>
+//               <Typography variant="h4" fontWeight={700} color={TEXT_COLOR_MAIN}>
+//                 {totalAccidents}
+//               </Typography>
+//             </CardContent>
+//           </Card>
+//         </Grid>
+
+//         <Grid item xs={12} sm={6} md={3}>
+//           <Card sx={{ 
+//             borderRadius: 2,
+//             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//             border: '1px solid #e2e8f0',
+//             transition: 'transform 0.2s',
+//             '&:hover': {
+//               transform: 'translateY(-2px)',
+//               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//             }
+//           }}>
+//             <CardContent>
+//               <Typography variant="subtitle2" color="#64748B" gutterBottom>
+//                 Open Cases
+//               </Typography>
+//               <Typography variant="h4" fontWeight={700} color="#991b1b">
+//                 {openCases}
+//               </Typography>
+//             </CardContent>
+//           </Card>
+//         </Grid>
+
+//         <Grid item xs={12} sm={6} md={3}>
+//           <Card sx={{ 
+//             borderRadius: 2,
+//             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//             border: '1px solid #e2e8f0',
+//             transition: 'transform 0.2s',
+//             '&:hover': {
+//               transform: 'translateY(-2px)',
+//               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//             }
+//           }}>
+//             <CardContent>
+//               <Typography variant="subtitle2" color="#64748B" gutterBottom>
+//                 Closed Cases
+//               </Typography>
+//               <Typography variant="h4" fontWeight={700} color="#166534">
+//                 {closedCases}
+//               </Typography>
+//             </CardContent>
+//           </Card>
+//         </Grid>
+
+//         <Grid item xs={12} sm={6} md={3}>
+//           <Card sx={{ 
+//             borderRadius: 2,
+//             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//             border: '1px solid #e2e8f0',
+//             transition: 'transform 0.2s',
+//             '&:hover': {
+//               transform: 'translateY(-2px)',
+//               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//             }
+//           }}>
+//             <CardContent>
+//               <Typography variant="subtitle2" color="#64748B" gutterBottom>
+//                 Total Cost
+//               </Typography>
+//               <Typography variant="h4" fontWeight={700} color={TEXT_COLOR_MAIN}>
+//                 {formatCurrency(totalCost)}
+//               </Typography>
+//             </CardContent>
+//           </Card>
+//         </Grid>
+//       </Grid> */}
+
+//       {/* Action Bar */}
+//       <Paper sx={{ 
+//         p: 2, 
+//         mb: 3, 
+//         borderRadius: 2,
+//         bgcolor: '#FFFFFF',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: '1px solid #e2e8f0'
+//       }}>
+//         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
+//           <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+//             <TextField
+//               placeholder="Search by location, machine, severity..."
+//               size="small"
+//               value={searchTerm}
+//               onChange={handleSearch}
+//               sx={{ 
+//                 width: { xs: '100%', sm: 320 },
+//                 '& .MuiOutlinedInput-root': {
+//                   borderRadius: 1.5,
+//                   '&:hover fieldset': {
+//                     borderColor: PRIMARY_BLUE,
+//                   },
+//                 }
+//               }}
+//               InputProps={{
+//                 startAdornment: (
+//                   <InputAdornment position="start">
+//                     <SearchIcon sx={{ color: '#64748B' }} />
+//                   </InputAdornment>
+//                 ),
+//                 sx: { 
+//                   height: 40,
+//                   bgcolor: '#f8fafc',
+//                   '& input': {
+//                     padding: '8px 12px',
+//                     fontSize: '0.875rem'
+//                   }
+//                 }
+//               }}
+//               disabled={loading}
+//             />
+//             {/* <Button
+//               variant="outlined"
+//               startIcon={<FilterIcon />}
+//               sx={{ 
+//                 height: 40,
+//                 borderRadius: 1.5,
+//                 borderColor: '#cbd5e1',
+//                 color: '#475569',
+//                 fontSize: '0.875rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 '&:hover': {
+//                   borderColor: PRIMARY_BLUE,
+//                   bgcolor: alpha(PRIMARY_BLUE, 0.04)
+//                 }
+//               }}
+//               disabled={loading}
+//             >
+//               Filter
+//             </Button>
+//             <Button
+//               variant="outlined"
+//               startIcon={<SortIcon />}
+//               sx={{ 
+//                 height: 40,
+//                 borderRadius: 1.5,
+//                 borderColor: '#cbd5e1',
+//                 color: '#475569',
+//                 fontSize: '0.875rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 '&:hover': {
+//                   borderColor: PRIMARY_BLUE,
+//                   bgcolor: alpha(PRIMARY_BLUE, 0.04)
+//                 }
+//               }}
+//               disabled={loading}
+//             >
+//               Sort
+//             </Button> */}
+//           </Stack>
+
+//           <Stack direction="row" spacing={2} alignItems="center">
+//             {selected.length > 0 && (
+//               <Button
+//                 variant="outlined"
+//                 color="error"
+//                 startIcon={<DeleteIcon />}
+//                 onClick={handleBulkDelete}
+//                 sx={{ 
+//                   height: 40,
+//                   borderRadius: 1.5,
+//                   textTransform: 'none',
+//                   fontSize: '0.875rem',
+//                   fontWeight: 500
+//                 }}
+//                 disabled={loading}
+//               >
+//                 Delete ({selected.length})
+//               </Button>
+//             )}
+//             {/* <Button
+//               variant="outlined"
+//               startIcon={<DownloadIcon />}
+//               sx={{ 
+//                 height: 40,
+//                 borderRadius: 1.5,
+//                 borderColor: '#cbd5e1',
+//                 color: '#475569',
+//                 fontSize: '0.875rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 '&:hover': {
+//                   borderColor: PRIMARY_BLUE,
+//                   bgcolor: alpha(PRIMARY_BLUE, 0.04)
+//                 }
+//               }}
+//               disabled={loading}
+//             >
+//               Export
+//             </Button> */}
+//             <Button
+//               variant="contained"
+//               startIcon={<AddIcon />}
+//               onClick={() => setOpenAddModal(true)}
+//               sx={{
+//                 height: 40,
+//                 borderRadius: 1.5,
+//                 background: HEADER_GRADIENT,
+//                 fontSize: '0.875rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 '&:hover': {
+//                   opacity: 0.9,
+//                   background: HEADER_GRADIENT,
+//                 }
+//               }}
+//               disabled={loading}
+//             >
+//               Report Accident
+//             </Button>
+//           </Stack>
+//         </Stack>
+//       </Paper>
+
+//       {/* Accidents Table */}
+//       <Paper sx={{ 
+//         width: '100%', 
+//         borderRadius: 2, 
+//         overflow: 'hidden',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: '1px solid #e2e8f0'
+//       }}>
+//         <TableContainer>
+//           <Table>
+//             <TableHead>
+//               <TableRow sx={{ 
+//                 background: HEADER_GRADIENT,
+//                 '& .MuiTableCell-root': {
+//                   borderBottom: 'none',
+//                   color: TEXT_COLOR_HEADER
+//                 }
+//               }}>
+//                 <TableCell padding="checkbox" sx={{ width: 60 }}>
+//                   <Checkbox
+//                     indeterminate={selected.length > 0 && selected.length < filteredAccidents.length}
+//                     checked={filteredAccidents.length > 0 && selected.length === filteredAccidents.length}
+//                     onChange={handleSelectAll}
+//                     sx={{
+//                       color: TEXT_COLOR_HEADER,
+//                       '&.Mui-checked': {
+//                         color: TEXT_COLOR_HEADER,
+//                       },
+//                       '&.MuiCheckbox-indeterminate': {
+//                         color: TEXT_COLOR_HEADER,
+//                       },
+//                       '& .MuiSvgIcon-root': {
+//                         fontSize: 20
+//                       }
+//                     }}
+//                     disabled={loading}
+//                   />
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   <Stack direction="row" alignItems="center" spacing={0.5}>
+//                     Date
+//                     <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+//                   </Stack>
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   Location
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   Machine
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   Severity
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   Status
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   color: TEXT_COLOR_HEADER
+//                 }}>
+//                   Reported By
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 700, 
+//                   fontSize: '0.875rem',
+//                   py: 2,
+//                   width: 100,
+//                   color: TEXT_COLOR_HEADER
+//                 }} align="center">
+//                   Actions
+//                 </TableCell>
+//               </TableRow>
+//             </TableHead>
+//             <TableBody>
+//               {loading ? (
+//                 <TableRow>
+//                   <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+//                     <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+//                       Loading accidents...
+//                     </Typography>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : paginatedData.length === 0 ? (
+//                 <TableRow>
+//                   <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+//                     <Box sx={{ textAlign: 'center' }}>
+//                       <Typography variant="body1" color="#64748B" fontWeight={500}>
+//                         {searchTerm ? 'No accidents found' : 'No accidents reported'}
+//                       </Typography>
+//                       <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+//                         {searchTerm ? 'Try adjusting your search terms' : 'Report your first accident to get started'}
+//                       </Typography>
+//                     </Box>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : (
+//                 paginatedData.map((accident, index) => {
+//                   const isSelected = selected.includes(accident._id);
+//                   const isOddRow = index % 2 === 0;
+//                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+//                     selectedAccidentForAction?._id === accident._id;
+//                   const severityStyle = getSeverityColor(accident.severity);
+//                   const statusStyle = getStatusColor(accident.investigationStatus);
+
+//                   return (
+//                     <TableRow
+//                       key={accident._id}
+//                       hover
+//                       selected={isSelected}
+//                       sx={{ 
+//                         bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+//                         '&:hover': {
+//                           bgcolor: HOVER_COLOR
+//                         },
+//                         '&.Mui-selected': {
+//                           bgcolor: alpha(PRIMARY_BLUE, 0.08),
+//                           '&:hover': {
+//                             bgcolor: alpha(PRIMARY_BLUE, 0.12)
+//                           }
+//                         }
+//                       }}
+//                     >
+//                       <TableCell padding="checkbox" sx={{ width: 60 }}>
+//                         <Checkbox
+//                           checked={isSelected}
+//                           onChange={() => handleSelect(accident._id)}
+//                           sx={{
+//                             color: PRIMARY_BLUE,
+//                             '&.Mui-checked': {
+//                               color: PRIMARY_BLUE,
+//                             },
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+//                           {formatDate(accident.date)}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography variant="body2" color="#475569">
+//                           {accident.location}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+//                           {accident.machineName}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Box
+//                           sx={{
+//                             px: 1.5,
+//                             py: 0.5,
+//                             borderRadius: 1,
+//                             fontSize: '0.75rem',
+//                             fontWeight: 600,
+//                             display: 'inline-block',
+//                             ...severityStyle
+//                           }}
+//                         >
+//                           {accident.severity}
+//                         </Box>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Box
+//                           sx={{
+//                             px: 1.5,
+//                             py: 0.5,
+//                             borderRadius: 1,
+//                             fontSize: '0.75rem',
+//                             fontWeight: 600,
+//                             display: 'inline-block',
+//                             ...statusStyle
+//                           }}
+//                         >
+//                           {accident.investigationStatus}
+//                         </Box>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography variant="body2" color="#475569">
+//                           {accident.employee?.FirstName || 'N/A'}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell align="center" sx={{ width: 100 }}>
+//                         <ActionMenu 
+//                           accident={accident}
+//                           onView={openViewAccidentModal}
+//                           onEdit={openEditAccidentModal}
+//                           onDelete={openDeleteAccidentDialog}
+//                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+//                           onClose={handleActionMenuClose}
+//                           onOpen={(e) => handleActionMenuOpen(e, accident)}
+//                         />
+//                       </TableCell>
+//                     </TableRow>
+//                   );
+//                 })
+//               )}
+//             </TableBody>
+//           </Table>
+//         </TableContainer>
+
+//         <TablePagination
+//           rowsPerPageOptions={[5, 10, 25]}
+//           component="div"
+//           count={filteredAccidents.length}
+//           rowsPerPage={rowsPerPage}
+//           page={page}
+//           onPageChange={handleChangePage}
+//           onRowsPerPageChange={handleChangeRowsPerPage}
+//           sx={{
+//             borderTop: '1px solid #e2e8f0',
+//             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+//               fontSize: '0.875rem',
+//               color: '#64748B'
+//             },
+//             '& .MuiTablePagination-actions button': {
+//               color: PRIMARY_BLUE,
+//             }
+//           }}
+//         />
+//       </Paper>
+
+//       {/* Modal Components */}
+//       <AddAccident 
+//         open={openAddModal}
+//         onClose={() => setOpenAddModal(false)}
+//         onAdd={handleAddAccident}
+//       />
+
+//       {selectedAccident && (
+//         <>
+//           <EditAccident 
+//             open={openEditModal}
+//             onClose={() => {
+//               setOpenEditModal(false);
+//               setSelectedAccident(null);
+//             }}
+//             accident={selectedAccident}
+//             onUpdate={handleEditAccident}
+//           />
+
+//           <ViewAccident 
+//             open={openViewModal}
+//             onClose={() => {
+//               setOpenViewModal(false);
+//               setSelectedAccident(null);
+//             }}
+//             accident={selectedAccident}
+//             onEdit={() => {
+//               setOpenViewModal(false);
+//               setOpenEditModal(true);
+//             }}
+//           />
+
+//           {/* <DeleteAccident 
+//             open={openDeleteDialog}
+//             onClose={() => {
+//               setOpenDeleteDialog(false);
+//               setSelectedAccident(null);
+//             }}
+//             accident={selectedAccident}
+//             onDelete={handleDeleteAccident}
+//           /> */}
+//         </>
+//       )}
+
+//       {/* Snackbar Notification */}
+//       <Snackbar
+//         open={snackbar.open}
+//         autoHideDuration={3000}
+//         onClose={() => setSnackbar({...snackbar, open: false})}
+//         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+//       >
+//         <Alert 
+//           onClose={() => setSnackbar({...snackbar, open: false})} 
+//           severity={snackbar.severity}
+//           variant="filled"
+//           sx={{ 
+//             width: '100%',
+//             borderRadius: 1.5,
+//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//           }}
+//         >
+//           {snackbar.message}
+//         </Alert>
+//       </Snackbar>
+//     </Box>
+//   );
+// };
+
+// export default AccidentMaster;
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -379,49 +1324,98 @@ import {
   TablePagination,
   Checkbox,
   Stack,
-  alpha,
-  Alert,
   Chip,
+  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
   Divider,
-  Grid,
-  Card,
-  CardContent
+  Alert,
+  CircularProgress,
+  alpha
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Sort as SortIcon
+  Refresh as RefreshIcon,
+  Warning as WarningIcon,
+  ArrowUpward as ArrowUpwardIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
+// Import modal components
 import AddAccident from './AddAccident';
 import EditAccident from './EditAccident';
 import ViewAccident from './ViewAccident';
-//import DeleteAccident from './DeleteAccident';
+// import DeleteAccident from './DeleteAccident';
 
 // Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const STRIPE_COLOR_ODD = '#FFFFFF';
-const STRIPE_COLOR_EVEN = '#f8fafc';
-const HOVER_COLOR = '#f1f5f9';
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
+const COLORS = {
+  primary: '#00B4D8',
+  primaryDark: '#0e7490',
+  primaryLight: '#E0F7FA',
+  text: {
+    primary: '#0f172a',
+    secondary: '#475569',
+    tertiary: '#94a3b8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#f8fafc',
+    hover: '#f1f5f9',
+    tableHeader: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)'
+  },
+  border: '#e2e8f0',
+  chips: {
+    minor: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+    moderate: { bg: '#e0f2fe', color: '#0c4a6e', border: '#7dd3fc' },
+    severe: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+    fatal: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+    open: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+    investigating: { bg: '#e0f2fe', color: '#0c4a6e', border: '#7dd3fc' },
+    closed: { bg: '#dcfce7', color: '#166534', border: '#86efac' }
+  }
+};
 
-// Action Menu Component
-const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+  const canView = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -429,9 +1423,9 @@ const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onO
           size="small"
           onClick={onOpen}
           sx={{
-            color: '#64748b',
+            color: COLORS.text.secondary,
             '&:hover': {
-              bgcolor: alpha(PRIMARY_BLUE, 0.1)
+              bgcolor: `${COLORS.primary}20`
             }
           }}
         >
@@ -448,98 +1442,193 @@ const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onO
             mt: 1,
             minWidth: 180,
             borderRadius: 2,
-            border: '1px solid #e2e8f0'
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(accident);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: PRIMARY_BLUE, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>View Details</Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(accident);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500}>Investigate</Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(accident);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          {/* <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444">
-              Delete
-            </Typography>
-          </ListItemText> */}
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(accident);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(accident);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Investigate
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(accident);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
 };
 
+
 const AccidentMaster = () => {
+  // State for data
   const [accidents, setAccidents] = useState([]);
   const [filteredAccidents, setFilteredAccidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [searchInput, setSearchInput] = useState('');
+  
+  // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
-
+  
+  // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedAccidentForAction, setSelectedAccidentForAction] = useState(null);
-
+  
+  // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-
+  
+  // Selected accident
   const [selectedAccident, setSelectedAccident] = useState(null);
-
+  
+  // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
   useEffect(() => {
-    fetchAccidents();
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
   }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.ACCIDENT_MASTER,
+      PAGES.ACCIDENT_REPORTING,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setPage(0);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch accidents from API - only if user has permission
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchAccidents();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
   const fetchAccidents = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${BASE_URL}/api/safety/accidents`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await axios.get(`${BASE_URL}/api/safety/accidents`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       if (response.data.success) {
         setAccidents(response.data.data || []);
@@ -554,32 +1643,53 @@ const AccidentMaster = () => {
       setLoading(false);
     }
   };
-
-  const handleSearch = (event) => {
-    const value = event.target.value.toLowerCase();
-    setSearchTerm(value);
-
+  
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchAccidents();
+    showNotification('Data refreshed', 'success');
+  };
+  
+  // Handle search (client-side filtering)
+  const handleSearch = () => {
+    if (!searchTerm) {
+      setFilteredAccidents(accidents);
+      return;
+    }
+    
+    const value = searchTerm.toLowerCase();
     const filtered = accidents.filter(accident =>
       accident.location?.toLowerCase().includes(value) ||
       accident.machineName?.toLowerCase().includes(value) ||
       accident.injuryType?.toLowerCase().includes(value) ||
       accident.severity?.toLowerCase().includes(value) ||
+      accident.employee?.FirstName?.toLowerCase().includes(value) ||
       accident.reportedBy?.name?.toLowerCase().includes(value)
     );
-
+    
     setFilteredAccidents(filtered);
-    setPage(0);
   };
 
+  // Apply search when searchTerm changes
+  useEffect(() => {
+    handleSearch();
+  }, [searchTerm, accidents]);
+  
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(filteredAccidents.map(accident => accident._id));
     } else {
       setSelected([]);
     }
   };
-
+  
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -591,45 +1701,51 @@ const AccidentMaster = () => {
     
     setSelected(newSelected);
   };
-
+  
+  // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]);
   };
-
+  
+  // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setSelected([]);
   };
-
+  
+  // Handle add accident
   const handleAddAccident = (newAccident) => {
-    setAccidents([...accidents, newAccident]);
-    setFilteredAccidents([...filteredAccidents, newAccident]);
+    setAccidents(prev => [newAccident, ...prev]);
     showNotification('Accident reported successfully!', 'success');
   };
-
+  
+  // Handle edit accident
   const handleEditAccident = (updatedAccident) => {
     const updatedAccidents = accidents.map(accident =>
       accident._id === updatedAccident._id ? updatedAccident : accident
     );
     
     setAccidents(updatedAccidents);
-    setFilteredAccidents(updatedAccidents);
     showNotification('Investigation updated successfully!', 'success');
   };
-
+  
+  // Handle delete accident
   const handleDeleteAccident = (accidentId) => {
     const updatedAccidents = accidents.filter(accident => accident._id !== accidentId);
     setAccidents(updatedAccidents);
-    setFilteredAccidents(updatedAccidents);
     setSelected(selected.filter(id => id !== accidentId));
     showNotification('Accident record deleted successfully!', 'success');
   };
-
+  
+  // Handle bulk delete
   const handleBulkDelete = () => {
-    // This would need API implementation for bulk delete
+    if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
-
+  
+  // Action menu handlers
   const handleActionMenuOpen = (event, accident) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedAccidentForAction(accident);
@@ -639,25 +1755,32 @@ const AccidentMaster = () => {
     setActionMenuAnchor(null);
     setSelectedAccidentForAction(null);
   };
-
+  
+  // Open edit modal
   const openEditAccidentModal = (accident) => {
+    if (!canUpdate) return;
     setSelectedAccident(accident);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-
+  
+  // Open view modal
   const openViewAccidentModal = (accident) => {
+    if (!canViewPage) return;
     setSelectedAccident(accident);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-
+  
+  // Open delete confirmation
   const openDeleteAccidentDialog = (accident) => {
+    if (!canDelete) return;
     setSelectedAccident(accident);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-
+  
+  // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -665,321 +1788,253 @@ const AccidentMaster = () => {
       severity
     });
   };
-
-  // Stats calculations
-  const totalAccidents = accidents.length;
-  const openCases = accidents.filter(a => a.investigationStatus === 'Open').length;
-  const closedCases = accidents.filter(a => a.investigationStatus === 'Closed').length;
-  const totalCost = accidents.reduce((sum, a) => sum + (a.costIncurred || 0), 0);
-
+  
+  // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
   };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
+  
+  // Get severity chip styles
+  const getSeverityChip = (severity) => {
+    const s = severity?.toLowerCase();
+    const styles = {
+      minor: COLORS.chips.minor,
+      moderate: COLORS.chips.moderate,
+      severe: COLORS.chips.severe,
+      fatal: COLORS.chips.fatal
+    };
+    const style = styles[s] || COLORS.chips.minor;
+    
+    return (
+      <Chip
+        label={severity || 'N/A'}
+        size="small"
+        sx={{
+          bgcolor: style.bg,
+          color: style.color,
+          border: `1px solid ${style.border}`,
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          height: 24,
+          '& .MuiChip-label': {
+            px: 1,
+            py: 0.5
+          }
+        }}
+      />
+    );
   };
-
-  const getSeverityColor = (severity) => {
-    switch(severity?.toLowerCase()) {
-      case 'minor':
-        return { bgcolor: '#dcfce7', color: '#166534', border: '1px solid #86efac' };
-      case 'moderate':
-        return { bgcolor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #7dd3fc' };
-      case 'severe':
-        return { bgcolor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' };
-      case 'fatal':
-        return { bgcolor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
-      default:
-        return { bgcolor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' };
-    }
+  
+  // Get status chip styles
+  const getStatusChip = (status) => {
+    const s = status?.toLowerCase();
+    const styles = {
+      open: COLORS.chips.open,
+      investigating: COLORS.chips.investigating,
+      closed: COLORS.chips.closed
+    };
+    const style = styles[s] || COLORS.chips.open;
+    
+    return (
+      <Chip
+        label={status || 'Open'}
+        size="small"
+        sx={{
+          bgcolor: style.bg,
+          color: style.color,
+          border: `1px solid ${style.border}`,
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          height: 24,
+          '& .MuiChip-label': {
+            px: 1,
+            py: 0.5
+          }
+        }}
+      />
+    );
   };
-
-  const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-      case 'open':
-        return { bgcolor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
-      case 'investigating':
-        return { bgcolor: '#e0f2fe', color: '#0c4a6e', border: '1px solid #7dd3fc' };
-      case 'closed':
-        return { bgcolor: '#dcfce7', color: '#166534', border: '1px solid #86efac' };
-      default:
-        return { bgcolor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' };
-    }
-  };
-
-  const paginatedData = filteredAccidents.slice(
+  
+  // Paginated accidents
+  const paginatedAccidents = filteredAccidents.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
         <Typography 
           variant="h5" 
           component="h1" 
-          fontWeight="600" 
           sx={{ 
-            color: TEXT_COLOR_MAIN,
-            background: HEADER_GRADIENT,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'inline-block'
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5
           }}
         >
           Accident / Incident Management
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Track and manage workplace accidents, injuries, and safety incidents
         </Typography>
       </Box>
 
       {/* Stats Cards */}
-      {/* <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 2,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
-            transition: 'transform 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }
-          }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="#64748B" gutterBottom>
-                Total Accidents
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color={TEXT_COLOR_MAIN}>
-                {totalAccidents}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 2,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
-            transition: 'transform 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }
-          }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="#64748B" gutterBottom>
-                Open Cases
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color="#991b1b">
-                {openCases}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 2,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
-            transition: 'transform 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }
-          }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="#64748B" gutterBottom>
-                Closed Cases
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color="#166534">
-                {closedCases}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 2,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
-            transition: 'transform 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }
-          }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="#64748B" gutterBottom>
-                Total Cost
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color={TEXT_COLOR_MAIN}>
-                {formatCurrency(totalCost)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid> */}
+      {/* <Stack direction="row" spacing={2} sx={{ mb: 2.5 }}>
+        <Paper sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+          <Typography variant="caption" sx={{ color: COLORS.text.secondary, display: 'block' }}>
+            Total Accidents
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+            {accidents.length}
+          </Typography>
+        </Paper>
+        <Paper sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+          <Typography variant="caption" sx={{ color: COLORS.text.secondary, display: 'block' }}>
+            Open Cases
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#991b1b' }}>
+            {accidents.filter(a => a.investigationStatus === 'Open').length}
+          </Typography>
+        </Paper>
+        <Paper sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+          <Typography variant="caption" sx={{ color: COLORS.text.secondary, display: 'block' }}>
+            Closed Cases
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#166534' }}>
+            {accidents.filter(a => a.investigationStatus === 'Closed').length}
+          </Typography>
+        </Paper>
+        <Paper sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+          <Typography variant="caption" sx={{ color: COLORS.text.secondary, display: 'block' }}>
+            Total Cost
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+            ₹ {accidents.reduce((sum, a) => sum + (a.costIncurred || 0), 0).toLocaleString()}
+          </Typography>
+        </Paper>
+      </Stack> */}
 
       {/* Action Bar */}
       <Paper sx={{ 
-        p: 2, 
-        mb: 3, 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          {/* Search */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
-              placeholder="Search by location, machine, severity..."
+              placeholder="Search by location, machine, severity, employee..."
               size="small"
-              value={searchTerm}
-              onChange={handleSearch}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               sx={{ 
-                width: { xs: '100%', sm: 320 },
+                width: { xs: '100%', sm: 360 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
+                  fontSize: '0.75rem',
                   '&:hover fieldset': {
-                    borderColor: PRIMARY_BLUE,
+                    borderColor: COLORS.primary,
                   },
                 }
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#64748B' }} />
+                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
                 sx: { 
-                  height: 40,
-                  bgcolor: '#f8fafc',
+                  height: 36,
+                  bgcolor: COLORS.background.light,
                   '& input': {
-                    padding: '8px 12px',
-                    fontSize: '0.875rem'
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
               disabled={loading}
             />
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Filter
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SortIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Sort
-            </Button> */}
           </Stack>
 
-          <Stack direction="row" spacing={2} alignItems="center">
-            {selected.length > 0 && (
+          {/* Action Buttons - Conditionally rendered based on permissions */}
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
                 sx={{ 
-                  height: 40,
+                  height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            {/* <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              sx={{ 
-                height: 40,
-                borderRadius: 1.5,
-                borderColor: '#cbd5e1',
-                color: '#475569',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: PRIMARY_BLUE,
-                  bgcolor: alpha(PRIMARY_BLUE, 0.04)
-                }
-              }}
-              disabled={loading}
-            >
-              Export
-            </Button> */}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 40,
-                borderRadius: 1.5,
-                background: HEADER_GRADIENT,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  opacity: 0.9,
-                  background: HEADER_GRADIENT,
-                }
-              }}
-              disabled={loading}
-            >
-              Report Accident
-            </Button>
+            
+            {/* Add Accident Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Report Accident
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -990,95 +2045,99 @@ const AccidentMaster = () => {
         borderRadius: 2, 
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0'
+        border: `1px solid ${COLORS.border}`
       }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow sx={{ 
-                background: HEADER_GRADIENT,
+                background: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
-                  color: TEXT_COLOR_HEADER
+                  color: COLORS.text.light,
+                  py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 60 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredAccidents.length}
-                    checked={filteredAccidents.length > 0 && selected.length === filteredAccidents.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: TEXT_COLOR_HEADER,
-                      '&.Mui-checked': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: TEXT_COLOR_HEADER,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: 20
-                      }
-                    }}
-                    disabled={loading}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredAccidents.length}
+                      checked={filteredAccidents.length > 0 && selected.length === filteredAccidents.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || filteredAccidents.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    Date
-                    <ArrowUpwardIcon sx={{ fontSize: 14, color: TEXT_COLOR_HEADER, opacity: 0.9 }} />
+                    <span>Date</span>
+                    <ArrowUpwardIcon sx={{ fontSize: 12, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Location
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Machine
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Severity
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Status
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  color: COLORS.text.light
                 }}>
                   Reported By
                 </TableCell>
                 <TableCell sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '0.875rem',
-                  py: 2,
-                  width: 100,
-                  color: TEXT_COLOR_HEADER
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
+                  width: 60,
+                  color: COLORS.text.light
                 }} align="center">
                   Actions
                 </TableCell>
@@ -1087,115 +2146,101 @@ const AccidentMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
-                    <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading accidents...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedData.length === 0 ? (
+              ) : paginatedAccidents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" color="#64748B" fontWeight={500}>
+                      <WarningIcon sx={{ fontSize: 32, color: COLORS.text.tertiary, mb: 1 }} />
+                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No accidents found' : 'No accidents reported'}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Report your first accident to get started'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((accident, index) => {
+                paginatedAccidents.map((accident, index) => {
                   const isSelected = selected.includes(accident._id);
-                  const isOddRow = index % 2 === 0;
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedAccidentForAction?._id === accident._id;
-                  const severityStyle = getSeverityColor(accident.severity);
-                  const statusStyle = getStatusColor(accident.investigationStatus);
 
                   return (
                     <TableRow
-                      key={accident._id}
+                      key={accident._id || index}
                       hover
                       selected={isSelected}
                       sx={{ 
-                        bgcolor: isOddRow ? STRIPE_COLOR_ODD : STRIPE_COLOR_EVEN,
+                        bgcolor: COLORS.background.white,
                         '&:hover': {
-                          bgcolor: HOVER_COLOR
+                          bgcolor: COLORS.background.hover
                         },
                         '&.Mui-selected': {
-                          bgcolor: alpha(PRIMARY_BLUE, 0.08),
+                          bgcolor: `${COLORS.primary}10`,
                           '&:hover': {
-                            bgcolor: alpha(PRIMARY_BLUE, 0.12)
+                            bgcolor: `${COLORS.primary}20`
                           }
+                        },
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.border
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 60 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(accident._id)}
-                          sx={{
-                            color: PRIMARY_BLUE,
-                            '&.Mui-checked': {
-                              color: PRIMARY_BLUE,
-                            },
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(accident._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {formatDate(accident.date)}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {accident.location}
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {accident.location || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500} color={TEXT_COLOR_MAIN}>
-                          {accident.machineName}
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                          {accident.machineName || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Box
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
-                            borderRadius: 1,
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'inline-block',
-                            ...severityStyle
-                          }}
-                        >
-                          {accident.severity}
-                        </Box>
+                        {getSeverityChip(accident.severity)}
                       </TableCell>
                       <TableCell>
-                        <Box
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
-                            borderRadius: 1,
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            display: 'inline-block',
-                            ...statusStyle
-                          }}
-                        >
-                          {accident.investigationStatus}
-                        </Box>
+                        {getStatusChip(accident.investigationStatus)}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="#475569">
-                          {accident.employee?.FirstName || 'N/A'}
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {accident.employee?.FirstName || accident.reportedBy?.name || 'N/A'}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 100 }}>
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 
                           accident={accident}
                           onView={openViewAccidentModal}
@@ -1204,6 +2249,7 @@ const AccidentMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, accident)}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -1214,8 +2260,9 @@ const AccidentMaster = () => {
           </Table>
         </TableContainer>
 
+        {/* Pagination */}
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
           count={filteredAccidents.length}
           rowsPerPage={rowsPerPage}
@@ -1223,59 +2270,72 @@ const AccidentMaster = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid #e2e8f0',
+            borderTop: `1px solid ${COLORS.border}`,
             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#64748B'
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            },
+            '& .MuiTablePagination-select': {
+              fontSize: '0.7rem'
             },
             '& .MuiTablePagination-actions button': {
-              color: PRIMARY_BLUE,
+              color: COLORS.primary,
             }
           }}
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddAccident 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddAccident}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddAccident 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddAccident}
+        />
+      )}
 
       {selectedAccident && (
         <>
-          <EditAccident 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedAccident(null);
-            }}
-            accident={selectedAccident}
-            onUpdate={handleEditAccident}
-          />
+          {canUpdate && (
+            <EditAccident 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onUpdate={handleEditAccident}
+            />
+          )}
 
-          <ViewAccident 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedAccident(null);
-            }}
-            accident={selectedAccident}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {canViewPage && (
+            <ViewAccident 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onEdit={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          {/* <DeleteAccident 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedAccident(null);
-            }}
-            accident={selectedAccident}
-            onDelete={handleDeleteAccident}
-          /> */}
+          {canDelete && (
+            <DeleteAccident 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onDelete={handleDeleteAccident}
+            />
+          )}
         </>
       )}
 
@@ -1293,7 +2353,11 @@ const AccidentMaster = () => {
           sx={{ 
             width: '100%',
             borderRadius: 1.5,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem'
+            }
           }}
         >
           {snackbar.message}

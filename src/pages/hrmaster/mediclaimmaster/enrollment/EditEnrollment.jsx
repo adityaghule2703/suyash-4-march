@@ -344,7 +344,1096 @@
 
 // export default EditEnrollment;
 
-import React, { useEffect, useState } from "react";
+// import React, { useEffect, useState } from "react";
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   Typography,
+//   Grid,
+//   Chip,
+//   Stack,
+//   CircularProgress,
+//   Box,
+//   IconButton,
+//   Stepper,
+//   Step,
+//   StepLabel,
+//   Divider,
+//   Paper,
+//   Avatar,
+//   TextField,
+//   FormControl,
+//   InputLabel,
+//   Select,
+//   MenuItem,
+//   FormControlLabel,
+//   Checkbox,
+//   Alert,
+//   Snackbar,
+// } from "@mui/material";
+// import {
+//   Close,
+//   Description,
+//   Policy,
+//   People,
+//   CheckCircle,
+//   Cancel,
+//   CalendarToday,
+//   AttachMoney,
+//   LocalHospital,
+//   Phone,
+//   Email,
+//   LocationOn,
+//   Add,
+//   Delete,
+//   Edit,
+//   Save,
+//   Person,
+// } from "@mui/icons-material";
+// import axios from "axios";
+// import BASE_URL from "../../../../config/Config";
+// import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+// import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+// import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+
+// const PRIMARY_GRADIENT = "linear-gradient(135deg, #0B4F6C 0%, #1C7C9C 100%)";
+
+// const steps = [
+//   { label: "Enrollment Info", icon: <Description /> },
+//   { label: "Policy Details", icon: <Policy /> },
+//   { label: "Members & Nominee", icon: <People /> },
+// ];
+
+// const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
+//   const [data, setData] = useState(null);
+//   const [loading, setLoading] = useState(false);
+//   const [saving, setSaving] = useState(false);
+//   const [activeStep, setActiveStep] = useState(0);
+//   const [editMode, setEditMode] = useState(false);
+//   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  
+//   // Form state
+//   const [formData, setFormData] = useState({
+//     coverageDetails: {
+//       members: [],
+//     },
+//     nomineeDetails: [],
+//     communicationDetails: {
+//       email: "",
+//       phone: "",
+//       address: "",
+//     },
+//     premiumPaid: false,
+//     status: "active",
+//   });
+
+//   // New member form
+//   const [newMember, setNewMember] = useState({
+//     name: "",
+//     relationship: "self",
+//     gender: "M",
+//     dateOfBirth: null,
+//   });
+
+//   // New nominee form
+//   const [newNominee, setNewNominee] = useState({
+//     name: "",
+//     relationship: "",
+//     percentage: "",
+//   });
+
+//   useEffect(() => {
+//     if (open && enrollmentId) fetchEnrollment();
+//   }, [open, enrollmentId]);
+
+//   const fetchEnrollment = async () => {
+//     try {
+//       setLoading(true);
+//       const token = localStorage.getItem("token");
+
+//       const res = await axios.get(
+//         `${BASE_URL}/api/mediclaim/enrollments/${enrollmentId}`,
+//         { headers: { Authorization: `Bearer ${token}` } }
+//       );
+
+//       if (res.data.success) {
+//         setData(res.data.data);
+//         // Initialize form data
+//         setFormData({
+//           coverageDetails: {
+//             members: res.data.data.coverageDetails?.members || [],
+//           },
+//           nomineeDetails: res.data.data.nomineeDetails || [],
+//           communicationDetails: res.data.data.communicationDetails || {
+//             email: "",
+//             phone: "",
+//             address: "",
+//           },
+//           premiumPaid: res.data.data.premiumPaid || false,
+//           status: res.data.data.status || "active",
+//         });
+//       }
+//     } catch (err) {
+//       console.error(err);
+//       showSnackbar("Error fetching enrollment details", "error");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const handleSave = async () => {
+//     try {
+//       setSaving(true);
+//       const token = localStorage.getItem("token");
+
+//       const payload = {
+//         coverageDetails: {
+//           members: formData.coverageDetails.members.map(m => ({
+//             name: m.name,
+//             relationship: m.relationship,
+//             gender: m.gender,
+//             dateOfBirth: m.dateOfBirth ? new Date(m.dateOfBirth).toISOString().split('T')[0] : null,
+//           })),
+//         },
+//         nomineeDetails: formData.nomineeDetails.map(n => ({
+//           name: n.name,
+//           relationship: n.relationship,
+//           percentage: n.percentage,
+//         })),
+//         communicationDetails: formData.communicationDetails,
+//         premiumPaid: formData.premiumPaid,
+//         status: formData.status,
+//       };
+
+//       const res = await axios.put(
+//         `${BASE_URL}/api/mediclaim/enrollments/${enrollmentId}`,
+//         payload,
+//         { headers: { Authorization: `Bearer ${token}` } }
+//       );
+
+//       if (res.data.success) {
+//         showSnackbar("Enrollment updated successfully", "success");
+//         setEditMode(false);
+//         fetchEnrollment(); // Refresh data
+//         if (onSuccess) onSuccess();
+//       }
+//     } catch (err) {
+//       console.error(err);
+//       showSnackbar(err.response?.data?.message || "Error updating enrollment", "error");
+//     } finally {
+//       setSaving(false);
+//     }
+//   };
+
+//   const handleAddMember = () => {
+//     if (!newMember.name || !newMember.dateOfBirth) {
+//       showSnackbar("Please fill all member fields", "warning");
+//       return;
+//     }
+
+//     const age = calculateAge(newMember.dateOfBirth);
+    
+//     const member = {
+//       name: newMember.name,
+//       relationship: newMember.relationship,
+//       gender: newMember.gender,
+//       dateOfBirth: newMember.dateOfBirth,
+//       age: age,
+//       isActive: true,
+//     };
+
+//     setFormData(prev => ({
+//       ...prev,
+//       coverageDetails: {
+//         ...prev.coverageDetails,
+//         members: [...prev.coverageDetails.members, member],
+//       },
+//     }));
+
+//     // Reset form
+//     setNewMember({
+//       name: "",
+//       relationship: "self",
+//       gender: "M",
+//       dateOfBirth: null,
+//     });
+//   };
+
+//   const handleRemoveMember = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       coverageDetails: {
+//         ...prev.coverageDetails,
+//         members: prev.coverageDetails.members.filter((_, i) => i !== index),
+//       },
+//     }));
+//   };
+
+//   const handleAddNominee = () => {
+//     if (!newNominee.name || !newNominee.relationship || !newNominee.percentage) {
+//       showSnackbar("Please fill all nominee fields", "warning");
+//       return;
+//     }
+
+//     const percentage = parseInt(newNominee.percentage);
+//     const totalPercentage = formData.nomineeDetails.reduce((sum, n) => sum + (n.percentage || 0), 0) + percentage;
+
+//     if (totalPercentage > 100) {
+//       showSnackbar("Total nominee percentage cannot exceed 100%", "error");
+//       return;
+//     }
+
+//     const nominee = {
+//       name: newNominee.name,
+//       relationship: newNominee.relationship,
+//       percentage: percentage,
+//     };
+
+//     setFormData(prev => ({
+//       ...prev,
+//       nomineeDetails: [...prev.nomineeDetails, nominee],
+//     }));
+
+//     // Reset form
+//     setNewNominee({
+//       name: "",
+//       relationship: "",
+//       percentage: "",
+//     });
+//   };
+
+//   const handleRemoveNominee = (index) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       nomineeDetails: prev.nomineeDetails.filter((_, i) => i !== index),
+//     }));
+//   };
+
+//   const calculateAge = (dob) => {
+//     if (!dob) return 0;
+//     const today = new Date();
+//     const birthDate = new Date(dob);
+//     let age = today.getFullYear() - birthDate.getFullYear();
+//     const m = today.getMonth() - birthDate.getMonth();
+//     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+//       age--;
+//     }
+//     return age;
+//   };
+
+//   const formatDate = (date) => {
+//     if (!date) return "-";
+//     return new Date(date).toLocaleDateString("en-GB");
+//   };
+
+//   const formatDateForInput = (date) => {
+//     if (!date) return "";
+//     const d = new Date(date);
+//     return d.toISOString().split('T')[0];
+//   };
+
+//   const getStatusColor = (status) => {
+//     switch (status?.toLowerCase()) {
+//       case "active":
+//         return "success";
+//       case "pending":
+//         return "warning";
+//       case "expired":
+//         return "error";
+//       default:
+//         return "default";
+//     }
+//   };
+
+//   const showSnackbar = (message, severity = "success") => {
+//     setSnackbar({ open: true, message, severity });
+//   };
+
+//   const InfoRow = ({ icon, label, value, color = "text.secondary", editable = false, onChange, type = "text" }) => (
+//     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, py: 0.5 }}>
+//       <Avatar sx={{ bgcolor: "transparent", color: "#1C7C9C", width: 24, height: 24 }}>
+//         {icon}
+//       </Avatar>
+//       <Box sx={{ flex: 1 }}>
+//         <Typography variant="caption" color="text.secondary" display="block">
+//           {label}
+//         </Typography>
+//         {editable && editMode ? (
+//           <TextField
+//             size="small"
+//             value={value || ""}
+//             onChange={(e) => onChange(e.target.value)}
+//             type={type}
+//             fullWidth
+//             sx={{ mt: 0.5 }}
+//           />
+//         ) : (
+//           <Typography variant="body2" fontWeight={500} color={color}>
+//             {value || "-"}
+//           </Typography>
+//         )}
+//       </Box>
+//     </Box>
+//   );
+
+//   const SectionCard = ({ title, children, action }) => (
+//     <Paper
+//       elevation={0}
+//       sx={{
+//         p: 2,
+//         bgcolor: "#F8FAFC",
+//         borderRadius: 2,
+//         border: "1px solid #E2E8F0",
+//         position: "relative",
+//       }}
+//     >
+//       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+//         <Typography variant="subtitle2" fontWeight={600} sx={{ color: "#0B4F6C" }}>
+//           {title}
+//         </Typography>
+//         {action}
+//       </Box>
+//       {children}
+//     </Paper>
+//   );
+
+//   const renderStepContent = () => {
+//     if (!data) return null;
+
+//     switch (activeStep) {
+//       case 0:
+//         return (
+//           <Stack spacing={2.5} sx={{ mt: 1 }}>
+//             <SectionCard title="Enrollment Information">
+//               <Grid container spacing={1}>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Description fontSize="small" />}
+//                     label="Enrollment ID"
+//                     value={data.enrollmentId}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Policy fontSize="small" />}
+//                     label="Insurance ID"
+//                     value={data.insuranceId}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={6}>
+//                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+//                     <Typography variant="caption" color="text.secondary">
+//                       Status:
+//                     </Typography>
+//                     {editMode ? (
+//                       <FormControl size="small" sx={{ minWidth: 100 }}>
+//                         <Select
+//                           value={formData.status}
+//                           onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+//                         >
+//                           <MenuItem value="active">Active</MenuItem>
+//                           <MenuItem value="pending">Pending</MenuItem>
+//                           <MenuItem value="expired">Expired</MenuItem>
+//                         </Select>
+//                       </FormControl>
+//                     ) : (
+//                       <Chip
+//                         label={data.status}
+//                         size="small"
+//                         color={getStatusColor(data.status)}
+//                         sx={{ height: 24 }}
+//                       />
+//                     )}
+//                   </Box>
+//                 </Grid>
+//                 <Grid item xs={6}>
+//                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+//                     <Typography variant="caption" color="text.secondary">
+//                       Premium:
+//                     </Typography>
+//                     {editMode ? (
+//                       <FormControlLabel
+//                         control={
+//                           <Checkbox
+//                             checked={formData.premiumPaid}
+//                             onChange={(e) => setFormData(prev => ({ ...prev, premiumPaid: e.target.checked }))}
+//                             size="small"
+//                           />
+//                         }
+//                         label="Paid"
+//                       />
+//                     ) : (
+//                       <Chip
+//                         label={data.premiumPaid ? "Paid" : "Unpaid"}
+//                         size="small"
+//                         color={data.premiumPaid ? "success" : "error"}
+//                         icon={data.premiumPaid ? <CheckCircle /> : <Cancel />}
+//                         sx={{ height: 24 }}
+//                       />
+//                     )}
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </SectionCard>
+
+//             <SectionCard title="Payment Details">
+//               <Grid container spacing={1}>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<AttachMoney fontSize="small" />}
+//                     label="Premium Amount"
+//                     value={`₹ ${data.premiumAmount?.toLocaleString()}`}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<CalendarToday fontSize="small" />}
+//                     label="Enrollment Date"
+//                     value={formatDate(data.enrollmentDate)}
+//                   />
+//                 </Grid>
+//                 {data.paymentDate && (
+//                   <Grid item xs={12}>
+//                     <InfoRow
+//                       icon={<CalendarToday fontSize="small" />}
+//                       label="Payment Date"
+//                       value={formatDate(data.paymentDate)}
+//                     />
+//                   </Grid>
+//                 )}
+//               </Grid>
+//             </SectionCard>
+
+//             <SectionCard title="Communication Details">
+//               <Grid container spacing={1}>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Email fontSize="small" />}
+//                     label="Email"
+//                     value={formData.communicationDetails.email}
+//                     editable={true}
+//                     editMode={editMode}
+//                     onChange={(val) => setFormData(prev => ({
+//                       ...prev,
+//                       communicationDetails: { ...prev.communicationDetails, email: val }
+//                     }))}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Phone fontSize="small" />}
+//                     label="Phone"
+//                     value={formData.communicationDetails.phone}
+//                     editable={true}
+//                     editMode={editMode}
+//                     onChange={(val) => setFormData(prev => ({
+//                       ...prev,
+//                       communicationDetails: { ...prev.communicationDetails, phone: val }
+//                     }))}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<LocationOn fontSize="small" />}
+//                     label="Address"
+//                     value={formData.communicationDetails.address}
+//                     editable={true}
+//                     editMode={editMode}
+//                     onChange={(val) => setFormData(prev => ({
+//                       ...prev,
+//                       communicationDetails: { ...prev.communicationDetails, address: val }
+//                     }))}
+//                   />
+//                 </Grid>
+//               </Grid>
+//             </SectionCard>
+//           </Stack>
+//         );
+
+//       case 1:
+//         return (
+//           <Stack spacing={2.5} sx={{ mt: 1 }}>
+//             <SectionCard title={data.policyId?.policyName}>
+//               <Grid container spacing={1}>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<LocalHospital fontSize="small" />}
+//                     label="Insurer"
+//                     value={data.policyId?.insurer}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Policy fontSize="small" />}
+//                     label="Policy Number"
+//                     value={data.policyId?.policyNumber}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<AttachMoney fontSize="small" />}
+//                     label="Coverage Amount"
+//                     value={`₹ ${data.policyId?.coverageAmount?.toLocaleString()}`}
+//                   />
+//                 </Grid>
+//                 <Grid item xs={12}>
+//                   <InfoRow
+//                     icon={<Description fontSize="small" />}
+//                     label="Coverage Type"
+//                     value={data.policyId?.coverageType}
+//                   />
+//                 </Grid>
+//               </Grid>
+//             </SectionCard>
+
+//             <SectionCard title="Validity Period">
+//               <Grid container spacing={1}>
+//                 <Grid item xs={6}>
+//                   <Typography variant="caption" color="text.secondary">
+//                     From
+//                   </Typography>
+//                   <Typography variant="body2" fontWeight={500}>
+//                     {formatDate(data.policyId?.validityStart)}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid item xs={6}>
+//                   <Typography variant="caption" color="text.secondary">
+//                     To
+//                   </Typography>
+//                   <Typography variant="body2" fontWeight={500}>
+//                     {formatDate(data.policyId?.validityEnd)}
+//                   </Typography>
+//                 </Grid>
+//               </Grid>
+//             </SectionCard>
+
+//             <SectionCard title="Network Hospitals">
+//               <Stack spacing={1.5}>
+//                 {data.policyId?.networkHospitals?.map((h, i) => (
+//                   <Paper
+//                     key={i}
+//                     elevation={0}
+//                     sx={{
+//                       p: 1.5,
+//                       bgcolor: "white",
+//                       borderRadius: 1.5,
+//                       border: "1px solid #E2E8F0",
+//                     }}
+//                   >
+//                     <Typography variant="body2" fontWeight={600}>
+//                       {h.name}
+//                     </Typography>
+//                     <Typography variant="caption" color="text.secondary">
+//                       {h.city} • {h.type}
+//                     </Typography>
+//                   </Paper>
+//                 ))}
+//               </Stack>
+//             </SectionCard>
+//           </Stack>
+//         );
+
+//       case 2:
+//         return (
+//           <Stack spacing={2.5} sx={{ mt: 1 }}>
+//             <SectionCard 
+//               title="Covered Members"
+//               action={editMode && (
+//                 <Button
+//                   size="small"
+//                   startIcon={<Add />}
+//                   onClick={() => document.getElementById('member-form').scrollIntoView({ behavior: 'smooth' })}
+//                   sx={{ color: "#1C7C9C" }}
+//                 >
+//                   Add Member
+//                 </Button>
+//               )}
+//             >
+//               <Stack spacing={1.5}>
+//                 {formData.coverageDetails?.members?.map((m, i) => (
+//                   <Paper
+//                     key={i}
+//                     elevation={0}
+//                     sx={{
+//                       p: 1.5,
+//                       bgcolor: "white",
+//                       borderRadius: 1.5,
+//                       border: "1px solid #E2E8F0",
+//                       position: "relative",
+//                     }}
+//                   >
+//                     {editMode && (
+//                       <IconButton
+//                         size="small"
+//                         onClick={() => handleRemoveMember(i)}
+//                         sx={{ position: "absolute", top: 4, right: 4 }}
+//                       >
+//                         <Delete fontSize="small" />
+//                       </IconButton>
+//                     )}
+//                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, pr: editMode ? 3 : 0 }}>
+//                       <Typography variant="body2" fontWeight={600}>
+//                         {m.name}
+//                       </Typography>
+//                       <Chip
+//                         label={m.relationship}
+//                         size="small"
+//                         sx={{ height: 20, fontSize: "0.7rem" }}
+//                       />
+//                     </Box>
+//                     <Typography variant="caption" color="text.secondary">
+//                       Age: {m.age || calculateAge(m.dateOfBirth)} years • Gender: {m.gender}
+//                     </Typography>
+//                     {m.dateOfBirth && (
+//                       <Typography variant="caption" color="text.secondary" display="block">
+//                         DOB: {formatDate(m.dateOfBirth)}
+//                       </Typography>
+//                     )}
+//                   </Paper>
+//                 ))}
+
+//                 {editMode && (
+//                   <Paper
+//                     id="member-form"
+//                     elevation={0}
+//                     sx={{
+//                       p: 2,
+//                       bgcolor: "#EFF6FF",
+//                       borderRadius: 1.5,
+//                       border: "1px dashed #1C7C9C",
+//                       mt: 2,
+//                     }}
+//                   >
+//                     <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1C7C9C" }}>
+//                       Add New Member
+//                     </Typography>
+//                     <Stack spacing={1.5}>
+//                       <TextField
+//                         size="small"
+//                         label="Name"
+//                         value={newMember.name}
+//                         onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
+//                         fullWidth
+//                       />
+//                       <FormControl size="small" fullWidth>
+//                         <InputLabel>Relationship</InputLabel>
+//                         <Select
+//                           value={newMember.relationship}
+//                           onChange={(e) => setNewMember(prev => ({ ...prev, relationship: e.target.value }))}
+//                           label="Relationship"
+//                         >
+//                           <MenuItem value="self">Self</MenuItem>
+//                           <MenuItem value="spouse">Spouse</MenuItem>
+//                           <MenuItem value="son">Son</MenuItem>
+//                           <MenuItem value="daughter">Daughter</MenuItem>
+//                           <MenuItem value="father">Father</MenuItem>
+//                           <MenuItem value="mother">Mother</MenuItem>
+//                         </Select>
+//                       </FormControl>
+//                       <FormControl size="small" fullWidth>
+//                         <InputLabel>Gender</InputLabel>
+//                         <Select
+//                           value={newMember.gender}
+//                           onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value }))}
+//                           label="Gender"
+//                         >
+//                           <MenuItem value="M">Male</MenuItem>
+//                           <MenuItem value="F">Female</MenuItem>
+//                           <MenuItem value="O">Other</MenuItem>
+//                         </Select>
+//                       </FormControl>
+//                       <TextField
+//                         size="small"
+//                         label="Date of Birth"
+//                         type="date"
+//                         value={formatDateForInput(newMember.dateOfBirth)}
+//                         onChange={(e) => setNewMember(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+//                         InputLabelProps={{ shrink: true }}
+//                         fullWidth
+//                       />
+//                       <Button
+//                         variant="contained"
+//                         startIcon={<Add />}
+//                         onClick={handleAddMember}
+//                         sx={{ bgcolor: "#1C7C9C" }}
+//                       >
+//                         Add Member
+//                       </Button>
+//                     </Stack>
+//                   </Paper>
+//                 )}
+//               </Stack>
+//             </SectionCard>
+
+//             <SectionCard 
+//               title="Nominee Details"
+//               action={editMode && (
+//                 <Button
+//                   size="small"
+//                   startIcon={<Add />}
+//                   onClick={() => document.getElementById('nominee-form').scrollIntoView({ behavior: 'smooth' })}
+//                   sx={{ color: "#1C7C9C" }}
+//                 >
+//                   Add Nominee
+//                 </Button>
+//               )}
+//             >
+//               <Stack spacing={1.5}>
+//                 {formData.nomineeDetails?.map((n, i) => (
+//                   <Paper
+//                     key={i}
+//                     elevation={0}
+//                     sx={{
+//                       p: 1.5,
+//                       bgcolor: "white",
+//                       borderRadius: 1.5,
+//                       border: "1px solid #E2E8F0",
+//                       position: "relative",
+//                     }}
+//                   >
+//                     {editMode && (
+//                       <IconButton
+//                         size="small"
+//                         onClick={() => handleRemoveNominee(i)}
+//                         sx={{ position: "absolute", top: 4, right: 4 }}
+//                       >
+//                         <Delete fontSize="small" />
+//                       </IconButton>
+//                     )}
+//                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, pr: editMode ? 3 : 0 }}>
+//                       <Typography variant="body2" fontWeight={600}>
+//                         {n.name}
+//                       </Typography>
+//                       <Chip
+//                         label={`${n.percentage}%`}
+//                         size="small"
+//                         color="primary"
+//                         sx={{ height: 20, fontSize: "0.7rem" }}
+//                       />
+//                     </Box>
+//                     <Typography variant="caption" color="text.secondary" display="block">
+//                       {n.relationship}
+//                     </Typography>
+//                   </Paper>
+//                 ))}
+
+//                 {editMode && (
+//                   <Paper
+//                     id="nominee-form"
+//                     elevation={0}
+//                     sx={{
+//                       p: 2,
+//                       bgcolor: "#EFF6FF",
+//                       borderRadius: 1.5,
+//                       border: "1px dashed #1C7C9C",
+//                       mt: 2,
+//                     }}
+//                   >
+//                     <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1C7C9C" }}>
+//                       Add New Nominee
+//                     </Typography>
+//                     <Stack spacing={1.5}>
+//                       <TextField
+//                         size="small"
+//                         label="Name"
+//                         value={newNominee.name}
+//                         onChange={(e) => setNewNominee(prev => ({ ...prev, name: e.target.value }))}
+//                         fullWidth
+//                       />
+//                       <FormControl size="small" fullWidth>
+//                         <InputLabel>Relationship</InputLabel>
+//                         <Select
+//                           value={newNominee.relationship}
+//                           onChange={(e) => setNewNominee(prev => ({ ...prev, relationship: e.target.value }))}
+//                           label="Relationship"
+//                         >
+//                           <MenuItem value="spouse">Spouse</MenuItem>
+//                           <MenuItem value="son">Son</MenuItem>
+//                           <MenuItem value="daughter">Daughter</MenuItem>
+//                           <MenuItem value="father">Father</MenuItem>
+//                           <MenuItem value="mother">Mother</MenuItem>
+//                           <MenuItem value="other">Other</MenuItem>
+//                         </Select>
+//                       </FormControl>
+//                       <TextField
+//                         size="small"
+//                         label="Percentage (%)"
+//                         type="number"
+//                         value={newNominee.percentage}
+//                         onChange={(e) => setNewNominee(prev => ({ ...prev, percentage: e.target.value }))}
+//                         inputProps={{ min: 1, max: 100 }}
+//                         fullWidth
+//                       />
+//                       <Typography variant="caption" color="text.secondary">
+//                         Total: {formData.nomineeDetails.reduce((sum, n) => sum + (n.percentage || 0), 0) + (parseInt(newNominee.percentage) || 0)}%
+//                       </Typography>
+//                       <Button
+//                         variant="contained"
+//                         startIcon={<Add />}
+//                         onClick={handleAddNominee}
+//                         sx={{ bgcolor: "#1C7C9C" }}
+//                       >
+//                         Add Nominee
+//                       </Button>
+//                     </Stack>
+//                   </Paper>
+//                 )}
+//               </Stack>
+//             </SectionCard>
+//           </Stack>
+//         );
+
+//       default:
+//         return null;
+//     }
+//   };
+
+//   return (
+//     <>
+//       <Dialog 
+//         open={open} 
+//         onClose={onClose} 
+//         maxWidth="md" 
+//         fullWidth
+//         PaperProps={{
+//           sx: {
+//             borderRadius: 3,
+//             overflow: "hidden",
+//           },
+//         }}
+//       >
+//         <DialogTitle
+//           sx={{
+//             background: PRIMARY_GRADIENT,
+//             color: "#fff",
+//             py: 2,
+//             px: 3,
+//           }}
+//         >
+//           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+//             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+//               <Description sx={{ fontSize: 28 }} />
+//               <Box>
+//                 <Typography variant="h6" fontWeight={600}>
+//                   {editMode ? "Edit Enrollment" : "Enrollment Details"}
+//                 </Typography>
+//                 <Typography variant="caption" sx={{ opacity: 0.9 }}>
+//                   {data?.enrollmentId || "View enrollment information"}
+//                 </Typography>
+//               </Box>
+//             </Box>
+//             <Box>
+//               {!editMode ? (
+//                 <Button
+//                   variant="outlined"
+//                   startIcon={<Edit />}
+//                   onClick={() => setEditMode(true)}
+//                   sx={{
+//                     color: "#fff",
+//                     borderColor: "#fff",
+//                     mr: 5,
+//                     "&:hover": {
+//                       borderColor: "#fff",
+//                       bgcolor: "rgba(255,255,255,0.1)",
+//                     },
+//                   }}
+//                 >
+//                   Edit
+//                 </Button>
+//               ) : (
+//                 <Button
+//                   variant="outlined"
+//                   onClick={() => {
+//                     setEditMode(false);
+//                     fetchEnrollment(); // Reset form
+//                   }}
+//                   sx={{
+//                     color: "#fff",
+//                     borderColor: "#fff",
+//                     mr: 5,
+//                     "&:hover": {
+//                       borderColor: "#fff",
+//                       bgcolor: "rgba(255,255,255,0.1)",
+//                     },
+//                   }}
+//                 >
+//                   Cancel
+//                 </Button>
+//               )}
+//               <IconButton
+//                 onClick={onClose}
+//                 sx={{
+//                   position: "absolute",
+//                   right: 12,
+//                   top: 12,
+//                   color: "#fff",
+//                   "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
+//                 }}
+//               >
+//                 <Close />
+//               </IconButton>
+//             </Box>
+//           </Box>
+//         </DialogTitle>
+
+//         <DialogContent sx={{ p: 3, minHeight: 400 }}>
+//           {loading ? (
+//             <Box
+//               sx={{
+//                 display: "flex",
+//                 flexDirection: "column",
+//                 alignItems: "center",
+//                 justifyContent: "center",
+//                 height: 300,
+//                 gap: 2,
+//               }}
+//             >
+//               <CircularProgress sx={{ color: "#1C7C9C" }} />
+//               <Typography variant="body2" color="text.secondary">
+//                 Loading enrollment details...
+//               </Typography>
+//             </Box>
+//           ) : data ? (
+//             <>
+//               <Stepper 
+//                 activeStep={activeStep} 
+//                 sx={{ 
+//                   mb: 4, 
+//                   mt: 1,
+//                   "& .MuiStepLabel-root .Mui-completed": {
+//                     color: "#1C7C9C",
+//                   },
+//                   "& .MuiStepLabel-root .Mui-active": {
+//                     color: "#0B4F6C",
+//                   },
+//                 }}
+//               >
+//                 {steps.map((step, index) => (
+//                   <Step key={step.label}>
+//                     <StepLabel StepIconComponent={() => (
+//                       <Avatar
+//                         sx={{
+//                           width: 32,
+//                           height: 32,
+//                           bgcolor: activeStep >= index ? "#1C7C9C" : "#E2E8F0",
+//                           color: activeStep >= index ? "#fff" : "#64748B",
+//                         }}
+//                       >
+//                         {step.icon}
+//                       </Avatar>
+//                     )}>
+//                       {step.label}
+//                     </StepLabel>
+//                   </Step>
+//                 ))}
+//               </Stepper>
+
+//               {renderStepContent()}
+//             </>
+//           ) : (
+//             <Box
+//               sx={{
+//                 display: "flex",
+//                 flexDirection: "column",
+//                 alignItems: "center",
+//                 justifyContent: "center",
+//                 height: 300,
+//                 gap: 2,
+//               }}
+//             >
+//               <Description sx={{ fontSize: 48, color: "#E2E8F0" }} />
+//               <Typography variant="body1" color="text.secondary">
+//                 No enrollment data found
+//               </Typography>
+//             </Box>
+//           )}
+//         </DialogContent>
+
+//         <DialogActions sx={{ p: 2.5, borderTop: "1px solid #E2E8F0", bgcolor: "#F8FAFC" }}>
+//           <Button
+//             disabled={activeStep === 0}
+//             onClick={() => setActiveStep((prev) => prev - 1)}
+//             sx={{
+//               color: "#64748B",
+//               "&:hover": { bgcolor: "#E2E8F0" },
+//             }}
+//           >
+//             Back
+//           </Button>
+//           <Box sx={{ flex: 1 }} />
+//           {activeStep < steps.length - 1 ? (
+//             <Button
+//               variant="contained"
+//               onClick={() => setActiveStep((prev) => prev + 1)}
+//               sx={{
+//                 background: PRIMARY_GRADIENT,
+//                 px: 4,
+//                 "&:hover": {
+//                   opacity: 0.9,
+//                 },
+//               }}
+//             >
+//               Next
+//             </Button>
+//           ) : editMode ? (
+//             <Button
+//               variant="contained"
+//               onClick={handleSave}
+//               disabled={saving}
+//               startIcon={saving ? <CircularProgress size={20} /> : <Save />}
+//               sx={{
+//                 background: PRIMARY_GRADIENT,
+//                 px: 4,
+//                 "&:hover": {
+//                   opacity: 0.9,
+//                 },
+//               }}
+//             >
+//               {saving ? "Saving..." : "Save Changes"}
+//             </Button>
+//           ) : (
+//             <Button
+//               variant="contained"
+//               onClick={onClose}
+//               sx={{
+//                 background: PRIMARY_GRADIENT,
+//                 px: 4,
+//                 "&:hover": {
+//                   opacity: 0.9,
+//                 },
+//               }}
+//             >
+//               Close
+//             </Button>
+//           )}
+//         </DialogActions>
+//       </Dialog>
+
+//       <Snackbar
+//         open={snackbar.open}
+//         autoHideDuration={6000}
+//         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+//         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+//       >
+//         <Alert 
+//           onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+//           severity={snackbar.severity}
+//           sx={{ width: "100%" }}
+//         >
+//           {snackbar.message}
+//         </Alert>
+//       </Snackbar>
+//     </>
+//   );
+// };
+
+// export default EditEnrollment;
+
+
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -373,6 +1462,8 @@ import {
   Checkbox,
   Alert,
   Snackbar,
+  InputAdornment,
+  FormHelperText
 } from "@mui/material";
 import {
   Close,
@@ -392,6 +1483,10 @@ import {
   Edit,
   Save,
   Person,
+  NavigateNext,
+  NavigateBefore,
+  Info,
+  Business
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../../config/Config";
@@ -399,12 +1494,43 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-const PRIMARY_GRADIENT = "linear-gradient(135deg, #0B4F6C 0%, #1C7C9C 100%)";
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 const steps = [
-  { label: "Enrollment Info", icon: <Description /> },
-  { label: "Policy Details", icon: <Policy /> },
-  { label: "Members & Nominee", icon: <People /> },
+  { label: "Enrollment Info", icon: <Description sx={{ fontSize: '0.9rem' }} /> },
+  { label: "Policy Details", icon: <Policy sx={{ fontSize: '0.9rem' }} /> },
+  { label: "Members & Nominee", icon: <People sx={{ fontSize: '0.9rem' }} /> },
 ];
 
 const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
@@ -414,23 +1540,17 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  
-  // Form state
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
   const [formData, setFormData] = useState({
-    coverageDetails: {
-      members: [],
-    },
+    coverageDetails: { members: [] },
     nomineeDetails: [],
-    communicationDetails: {
-      email: "",
-      phone: "",
-      address: "",
-    },
+    communicationDetails: { email: "", phone: "", address: "" },
     premiumPaid: false,
     status: "active",
   });
 
-  // New member form
   const [newMember, setNewMember] = useState({
     name: "",
     relationship: "self",
@@ -438,7 +1558,6 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
     dateOfBirth: null,
   });
 
-  // New nominee form
   const [newNominee, setNewNominee] = useState({
     name: "",
     relationship: "",
@@ -461,17 +1580,10 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
 
       if (res.data.success) {
         setData(res.data.data);
-        // Initialize form data
         setFormData({
-          coverageDetails: {
-            members: res.data.data.coverageDetails?.members || [],
-          },
+          coverageDetails: { members: res.data.data.coverageDetails?.members || [] },
           nomineeDetails: res.data.data.nomineeDetails || [],
-          communicationDetails: res.data.data.communicationDetails || {
-            email: "",
-            phone: "",
-            address: "",
-          },
+          communicationDetails: res.data.data.communicationDetails || { email: "", phone: "", address: "" },
           premiumPaid: res.data.data.premiumPaid || false,
           status: res.data.data.status || "active",
         });
@@ -517,7 +1629,7 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
       if (res.data.success) {
         showSnackbar("Enrollment updated successfully", "success");
         setEditMode(false);
-        fetchEnrollment(); // Refresh data
+        fetchEnrollment();
         if (onSuccess) onSuccess();
       }
     } catch (err) {
@@ -535,7 +1647,6 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
     }
 
     const age = calculateAge(newMember.dateOfBirth);
-    
     const member = {
       name: newMember.name,
       relationship: newMember.relationship,
@@ -553,13 +1664,7 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
       },
     }));
 
-    // Reset form
-    setNewMember({
-      name: "",
-      relationship: "self",
-      gender: "M",
-      dateOfBirth: null,
-    });
+    setNewMember({ name: "", relationship: "self", gender: "M", dateOfBirth: null });
   };
 
   const handleRemoveMember = (index) => {
@@ -586,23 +1691,9 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
       return;
     }
 
-    const nominee = {
-      name: newNominee.name,
-      relationship: newNominee.relationship,
-      percentage: percentage,
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      nomineeDetails: [...prev.nomineeDetails, nominee],
-    }));
-
-    // Reset form
-    setNewNominee({
-      name: "",
-      relationship: "",
-      percentage: "",
-    });
+    const nominee = { name: newNominee.name, relationship: newNominee.relationship, percentage: percentage };
+    setFormData(prev => ({ ...prev, nomineeDetails: [...prev.nomineeDetails, nominee] }));
+    setNewNominee({ name: "", relationship: "", percentage: "" });
   };
 
   const handleRemoveNominee = (index) => {
@@ -618,15 +1709,13 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
     const birthDate = new Date(dob);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
   };
 
   const formatDate = (date) => {
     if (!date) return "-";
-    return new Date(date).toLocaleDateString("en-GB");
+    return new Date(date).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const formatDateForInput = (date) => {
@@ -635,16 +1724,12 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
     return d.toISOString().split('T')[0];
   };
 
-  const getStatusColor = (status) => {
+  const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
-      case "active":
-        return "success";
-      case "pending":
-        return "warning";
-      case "expired":
-        return "error";
-      default:
-        return "default";
+      case "active": return { bg: COLORS.status.success, color: COLORS.primaryDark, label: "Active", icon: <CheckCircle sx={{ fontSize: '0.7rem' }} /> };
+      case "pending": return { bg: COLORS.status.warning, color: "#92400E", label: "Pending", icon: <Info sx={{ fontSize: '0.7rem' }} /> };
+      case "expired": return { bg: COLORS.status.error, color: "#991B1B", label: "Expired", icon: <Cancel sx={{ fontSize: '0.7rem' }} /> };
+      default: return { bg: COLORS.chips.inactive, color: COLORS.text.secondary, label: status || "Unknown", icon: <Info sx={{ fontSize: '0.7rem' }} /> };
     }
   };
 
@@ -652,26 +1737,52 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
     setSnackbar({ open: true, message, severity });
   };
 
-  const InfoRow = ({ icon, label, value, color = "text.secondary", editable = false, onChange, type = "text" }) => (
-    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, py: 0.5 }}>
-      <Avatar sx={{ bgcolor: "transparent", color: "#1C7C9C", width: 24, height: 24 }}>
-        {icon}
-      </Avatar>
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary,
+      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
+  };
+
+  const InfoRow = ({ icon, label, value, color = COLORS.text.primary, editable = false, onChange, type = "text", multiline = false, rows = 1 }) => (
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, py: 0.75 }}>
+      <Avatar sx={{ bgcolor: "transparent", width: 28, height: 28, color: COLORS.primary }}>{icon}</Avatar>
       <Box sx={{ flex: 1 }}>
-        <Typography variant="caption" color="text.secondary" display="block">
-          {label}
-        </Typography>
+        <Typography sx={labelStyle}>{label}</Typography>
         {editable && editMode ? (
           <TextField
             size="small"
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
             type={type}
+            multiline={multiline}
+            rows={rows}
             fullWidth
-            sx={{ mt: 0.5 }}
+            sx={inputStyle}
           />
         ) : (
-          <Typography variant="body2" fontWeight={500} color={color}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: color }}>
             {value || "-"}
           </Typography>
         )}
@@ -680,20 +1791,9 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
   );
 
   const SectionCard = ({ title, children, action }) => (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        bgcolor: "#F8FAFC",
-        borderRadius: 2,
-        border: "1px solid #E2E8F0",
-        position: "relative",
-      }}
-    >
+    <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ color: "#0B4F6C" }}>
-          {title}
-        </Typography>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary }}>{title}</Typography>
         {action}
       </Box>
       {children}
@@ -703,150 +1803,95 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
   const renderStepContent = () => {
     if (!data) return null;
 
+    const statusStyle = getStatusStyle(formData.status);
+
     switch (activeStep) {
       case 0:
         return (
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Stack spacing={2.5}>
             <SectionCard title="Enrollment Information">
-              <Grid container spacing={1}>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Description fontSize="small" />}
-                    label="Enrollment ID"
-                    value={data.enrollmentId}
-                  />
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Description sx={{ fontSize: '0.8rem' }} />} label="Enrollment ID" value={data.enrollmentId} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Policy fontSize="small" />}
-                    label="Insurance ID"
-                    value={data.insuranceId}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Policy sx={{ fontSize: '0.8rem' }} />} label="Insurance ID" value={data.insuranceId} />
                 </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Status:
-                    </Typography>
-                    {editMode ? (
-                      <FormControl size="small" sx={{ minWidth: 100 }}>
-                        <Select
-                          value={formData.status}
-                          onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                        >
-                          <MenuItem value="active">Active</MenuItem>
-                          <MenuItem value="pending">Pending</MenuItem>
-                          <MenuItem value="expired">Expired</MenuItem>
-                        </Select>
-                      </FormControl>
-                    ) : (
-                      <Chip
-                        label={data.status}
-                        size="small"
-                        color={getStatusColor(data.status)}
-                        sx={{ height: 24 }}
-                      />
-                    )}
-                  </Box>
+                <Grid size={{ xs: 6 }}>
+                  <Typography sx={labelStyle}>Status</Typography>
+                  {editMode ? (
+                    <FormControl size="small" fullWidth sx={{ mt: 0.5 }}>
+                      <Select
+                        value={formData.status}
+                        onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                        sx={inputStyle}
+                      >
+                        <MenuItem value="active" sx={{ fontSize: '0.75rem' }}>Active</MenuItem>
+                        <MenuItem value="pending" sx={{ fontSize: '0.75rem' }}>Pending</MenuItem>
+                        <MenuItem value="expired" sx={{ fontSize: '0.75rem' }}>Expired</MenuItem>
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <Chip
+                      icon={statusStyle.icon}
+                      label={statusStyle.label}
+                      size="small"
+                      sx={{ bgcolor: statusStyle.bg, color: statusStyle.color, fontWeight: 500, fontSize: '0.65rem', height: 24, mt: 0.5 }}
+                    />
+                  )}
                 </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Premium:
-                    </Typography>
-                    {editMode ? (
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={formData.premiumPaid}
-                            onChange={(e) => setFormData(prev => ({ ...prev, premiumPaid: e.target.checked }))}
-                            size="small"
-                          />
-                        }
-                        label="Paid"
-                      />
-                    ) : (
-                      <Chip
-                        label={data.premiumPaid ? "Paid" : "Unpaid"}
-                        size="small"
-                        color={data.premiumPaid ? "success" : "error"}
-                        icon={data.premiumPaid ? <CheckCircle /> : <Cancel />}
-                        sx={{ height: 24 }}
-                      />
-                    )}
-                  </Box>
+                <Grid size={{ xs: 6 }}>
+                  <Typography sx={labelStyle}>Premium</Typography>
+                  {editMode ? (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.premiumPaid}
+                          onChange={(e) => setFormData(prev => ({ ...prev, premiumPaid: e.target.checked }))}
+                          size="small"
+                        />
+                      }
+                      label={<Typography sx={{ fontSize: '0.75rem' }}>Paid</Typography>}
+                      sx={{ mt: 0.5 }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={data.premiumPaid ? <CheckCircle sx={{ fontSize: '0.7rem' }} /> : <Cancel sx={{ fontSize: '0.7rem' }} />}
+                      label={data.premiumPaid ? "Paid" : "Unpaid"}
+                      size="small"
+                      sx={{ bgcolor: data.premiumPaid ? COLORS.status.success : COLORS.status.error, color: data.premiumPaid ? COLORS.primaryDark : "#991B1B", fontWeight: 500, fontSize: '0.65rem', height: 24, mt: 0.5 }}
+                    />
+                  )}
                 </Grid>
               </Grid>
             </SectionCard>
 
             <SectionCard title="Payment Details">
-              <Grid container spacing={1}>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<AttachMoney fontSize="small" />}
-                    label="Premium Amount"
-                    value={`₹ ${data.premiumAmount?.toLocaleString()}`}
-                  />
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<AttachMoney sx={{ fontSize: '0.8rem' }} />} label="Premium Amount" value={`₹ ${data.premiumAmount?.toLocaleString()}`} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<CalendarToday fontSize="small" />}
-                    label="Enrollment Date"
-                    value={formatDate(data.enrollmentDate)}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<CalendarToday sx={{ fontSize: '0.8rem' }} />} label="Enrollment Date" value={formatDate(data.enrollmentDate)} />
                 </Grid>
                 {data.paymentDate && (
-                  <Grid item xs={12}>
-                    <InfoRow
-                      icon={<CalendarToday fontSize="small" />}
-                      label="Payment Date"
-                      value={formatDate(data.paymentDate)}
-                    />
+                  <Grid size={{ xs: 12 }}>
+                    <InfoRow icon={<CalendarToday sx={{ fontSize: '0.8rem' }} />} label="Payment Date" value={formatDate(data.paymentDate)} />
                   </Grid>
                 )}
               </Grid>
             </SectionCard>
 
             <SectionCard title="Communication Details">
-              <Grid container spacing={1}>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Email fontSize="small" />}
-                    label="Email"
-                    value={formData.communicationDetails.email}
-                    editable={true}
-                    editMode={editMode}
-                    onChange={(val) => setFormData(prev => ({
-                      ...prev,
-                      communicationDetails: { ...prev.communicationDetails, email: val }
-                    }))}
-                  />
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Email sx={{ fontSize: '0.8rem' }} />} label="Email" value={formData.communicationDetails.email} editable={true} onChange={(val) => setFormData(prev => ({ ...prev, communicationDetails: { ...prev.communicationDetails, email: val } }))} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Phone fontSize="small" />}
-                    label="Phone"
-                    value={formData.communicationDetails.phone}
-                    editable={true}
-                    editMode={editMode}
-                    onChange={(val) => setFormData(prev => ({
-                      ...prev,
-                      communicationDetails: { ...prev.communicationDetails, phone: val }
-                    }))}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Phone sx={{ fontSize: '0.8rem' }} />} label="Phone" value={formData.communicationDetails.phone} editable={true} onChange={(val) => setFormData(prev => ({ ...prev, communicationDetails: { ...prev.communicationDetails, phone: val } }))} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<LocationOn fontSize="small" />}
-                    label="Address"
-                    value={formData.communicationDetails.address}
-                    editable={true}
-                    editMode={editMode}
-                    onChange={(val) => setFormData(prev => ({
-                      ...prev,
-                      communicationDetails: { ...prev.communicationDetails, address: val }
-                    }))}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<LocationOn sx={{ fontSize: '0.8rem' }} />} label="Address" value={formData.communicationDetails.address} editable={true} onChange={(val) => setFormData(prev => ({ ...prev, communicationDetails: { ...prev.communicationDetails, address: val } }))} multiline rows={2} />
                 </Grid>
               </Grid>
             </SectionCard>
@@ -855,211 +1900,123 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
 
       case 1:
         return (
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <SectionCard title={data.policyId?.policyName}>
-              <Grid container spacing={1}>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<LocalHospital fontSize="small" />}
-                    label="Insurer"
-                    value={data.policyId?.insurer}
-                  />
+          <Stack spacing={2.5}>
+            <SectionCard title={data.policyId?.policyName || "Policy Details"}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<LocalHospital sx={{ fontSize: '0.8rem' }} />} label="Insurer" value={data.policyId?.insurer} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Policy fontSize="small" />}
-                    label="Policy Number"
-                    value={data.policyId?.policyNumber}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Policy sx={{ fontSize: '0.8rem' }} />} label="Policy Number" value={data.policyId?.policyNumber} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<AttachMoney fontSize="small" />}
-                    label="Coverage Amount"
-                    value={`₹ ${data.policyId?.coverageAmount?.toLocaleString()}`}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<AttachMoney sx={{ fontSize: '0.8rem' }} />} label="Coverage Amount" value={`₹ ${data.policyId?.coverageAmount?.toLocaleString()}`} />
                 </Grid>
-                <Grid item xs={12}>
-                  <InfoRow
-                    icon={<Description fontSize="small" />}
-                    label="Coverage Type"
-                    value={data.policyId?.coverageType}
-                  />
+                <Grid size={{ xs: 12 }}>
+                  <InfoRow icon={<Description sx={{ fontSize: '0.8rem' }} />} label="Coverage Type" value={data.policyId?.coverageType === "family_floater" ? "Family Floater" : "Individual"} />
                 </Grid>
               </Grid>
             </SectionCard>
 
             <SectionCard title="Validity Period">
-              <Grid container spacing={1}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    From
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatDate(data.policyId?.validityStart)}
-                  </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6 }}>
+                  <Typography sx={labelStyle}>From</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>{formatDate(data.policyId?.validityStart)}</Typography>
                 </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    To
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatDate(data.policyId?.validityEnd)}
-                  </Typography>
+                <Grid size={{ xs: 6 }}>
+                  <Typography sx={labelStyle}>To</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>{formatDate(data.policyId?.validityEnd)}</Typography>
                 </Grid>
               </Grid>
             </SectionCard>
 
-            <SectionCard title="Network Hospitals">
-              <Stack spacing={1.5}>
-                {data.policyId?.networkHospitals?.map((h, i) => (
-                  <Paper
-                    key={i}
-                    elevation={0}
-                    sx={{
-                      p: 1.5,
-                      bgcolor: "white",
-                      borderRadius: 1.5,
-                      border: "1px solid #E2E8F0",
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight={600}>
-                      {h.name}
+            {data.policyId?.networkHospitals?.length > 0 && (
+              <SectionCard title="Network Hospitals">
+                <Stack spacing={1.5}>
+                  {data.policyId?.networkHospitals?.slice(0, 3).map((h, i) => (
+                    <Paper key={i} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>{h.name}</Typography>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>{h.city} • {h.type}</Typography>
+                    </Paper>
+                  ))}
+                  {data.policyId?.networkHospitals?.length > 3 && (
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, textAlign: 'center' }}>
+                      +{data.policyId.networkHospitals.length - 3} more hospitals
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {h.city} • {h.type}
-                    </Typography>
-                  </Paper>
-                ))}
-              </Stack>
-            </SectionCard>
+                  )}
+                </Stack>
+              </SectionCard>
+            )}
           </Stack>
         );
 
       case 2:
         return (
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <SectionCard 
+          <Stack spacing={2.5}>
+            <SectionCard
               title="Covered Members"
               action={editMode && (
-                <Button
-                  size="small"
-                  startIcon={<Add />}
-                  onClick={() => document.getElementById('member-form').scrollIntoView({ behavior: 'smooth' })}
-                  sx={{ color: "#1C7C9C" }}
-                >
+                <Button size="small" startIcon={<Add sx={{ fontSize: '0.8rem' }} />} onClick={() => document.getElementById('member-form')?.scrollIntoView({ behavior: 'smooth' })} sx={{ fontSize: '0.7rem', color: COLORS.primary, textTransform: 'none' }}>
                   Add Member
                 </Button>
               )}
             >
               <Stack spacing={1.5}>
                 {formData.coverageDetails?.members?.map((m, i) => (
-                  <Paper
-                    key={i}
-                    elevation={0}
-                    sx={{
-                      p: 1.5,
-                      bgcolor: "white",
-                      borderRadius: 1.5,
-                      border: "1px solid #E2E8F0",
-                      position: "relative",
-                    }}
-                  >
+                  <Paper key={i} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, position: 'relative' }}>
                     {editMode && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveMember(i)}
-                        sx={{ position: "absolute", top: 4, right: 4 }}
-                      >
-                        <Delete fontSize="small" />
+                      <IconButton size="small" onClick={() => handleRemoveMember(i)} sx={{ position: "absolute", top: 4, right: 4, color: '#EF4444' }}>
+                        <Delete sx={{ fontSize: '0.8rem' }} />
                       </IconButton>
                     )}
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, pr: editMode ? 3 : 0 }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        {m.name}
-                      </Typography>
-                      <Chip
-                        label={m.relationship}
-                        size="small"
-                        sx={{ height: 20, fontSize: "0.7rem" }}
-                      />
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>{m.name}</Typography>
+                      <Chip label={m.relationship} size="small" sx={{ height: 20, fontSize: '0.6rem' }} />
                     </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Age: {m.age || calculateAge(m.dateOfBirth)} years • Gender: {m.gender}
-                    </Typography>
-                    {m.dateOfBirth && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        DOB: {formatDate(m.dateOfBirth)}
-                      </Typography>
-                    )}
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Age: {m.age || calculateAge(m.dateOfBirth)} years • Gender: {m.gender === 'M' ? 'Male' : m.gender === 'F' ? 'Female' : 'Other'}</Typography>
+                    {m.dateOfBirth && <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>DOB: {formatDate(m.dateOfBirth)}</Typography>}
                   </Paper>
                 ))}
+                {(!formData.coverageDetails?.members || formData.coverageDetails.members.length === 0) && (
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, textAlign: 'center', py: 2, fontStyle: 'italic' }}>
+                    No members added yet
+                  </Typography>
+                )}
 
                 {editMode && (
-                  <Paper
-                    id="member-form"
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      bgcolor: "#EFF6FF",
-                      borderRadius: 1.5,
-                      border: "1px dashed #1C7C9C",
-                      mt: 2,
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1C7C9C" }}>
-                      Add New Member
-                    </Typography>
+                  <Paper id="member-form" sx={{ p: 2, bgcolor: COLORS.primaryLight, borderRadius: 1.5, border: `1px dashed ${COLORS.primary}`, mt: 2 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>Add New Member</Typography>
                     <Stack spacing={1.5}>
-                      <TextField
-                        size="small"
-                        label="Name"
-                        value={newMember.name}
-                        onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
-                        fullWidth
-                      />
+                      <TextField size="small" label="Name" value={newMember.name} onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))} fullWidth sx={inputStyle} />
                       <FormControl size="small" fullWidth>
-                        <InputLabel>Relationship</InputLabel>
-                        <Select
-                          value={newMember.relationship}
-                          onChange={(e) => setNewMember(prev => ({ ...prev, relationship: e.target.value }))}
-                          label="Relationship"
-                        >
-                          <MenuItem value="self">Self</MenuItem>
-                          <MenuItem value="spouse">Spouse</MenuItem>
-                          <MenuItem value="son">Son</MenuItem>
-                          <MenuItem value="daughter">Daughter</MenuItem>
-                          <MenuItem value="father">Father</MenuItem>
-                          <MenuItem value="mother">Mother</MenuItem>
+                        <InputLabel sx={{ fontSize: '0.75rem' }}>Relationship</InputLabel>
+                        <Select value={newMember.relationship} onChange={(e) => setNewMember(prev => ({ ...prev, relationship: e.target.value }))} label="Relationship" sx={inputStyle}>
+                          <MenuItem value="self" sx={{ fontSize: '0.75rem' }}>Self</MenuItem>
+                          <MenuItem value="spouse" sx={{ fontSize: '0.75rem' }}>Spouse</MenuItem>
+                          <MenuItem value="son" sx={{ fontSize: '0.75rem' }}>Son</MenuItem>
+                          <MenuItem value="daughter" sx={{ fontSize: '0.75rem' }}>Daughter</MenuItem>
+                          <MenuItem value="father" sx={{ fontSize: '0.75rem' }}>Father</MenuItem>
+                          <MenuItem value="mother" sx={{ fontSize: '0.75rem' }}>Mother</MenuItem>
                         </Select>
                       </FormControl>
                       <FormControl size="small" fullWidth>
-                        <InputLabel>Gender</InputLabel>
-                        <Select
-                          value={newMember.gender}
-                          onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value }))}
-                          label="Gender"
-                        >
-                          <MenuItem value="M">Male</MenuItem>
-                          <MenuItem value="F">Female</MenuItem>
-                          <MenuItem value="O">Other</MenuItem>
+                        <InputLabel sx={{ fontSize: '0.75rem' }}>Gender</InputLabel>
+                        <Select value={newMember.gender} onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value }))} label="Gender" sx={inputStyle}>
+                          <MenuItem value="M" sx={{ fontSize: '0.75rem' }}>Male</MenuItem>
+                          <MenuItem value="F" sx={{ fontSize: '0.75rem' }}>Female</MenuItem>
+                          <MenuItem value="O" sx={{ fontSize: '0.75rem' }}>Other</MenuItem>
                         </Select>
                       </FormControl>
-                      <TextField
-                        size="small"
-                        label="Date of Birth"
-                        type="date"
-                        value={formatDateForInput(newMember.dateOfBirth)}
-                        onChange={(e) => setNewMember(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                      />
-                      <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={handleAddMember}
-                        sx={{ bgcolor: "#1C7C9C" }}
-                      >
+                      <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <DatePicker
+                          label="Date of Birth"
+                          value={newMember.dateOfBirth ? new Date(newMember.dateOfBirth) : null}
+                          onChange={(date) => setNewMember(prev => ({ ...prev, dateOfBirth: date ? date.toISOString().split('T')[0] : null }))}
+                          slotProps={{ textField: { size: "small", fullWidth: true, sx: inputStyle } }}
+                        />
+                      </LocalizationProvider>
+                      <Button variant="contained" startIcon={<Add sx={{ fontSize: '0.8rem' }} />} onClick={handleAddMember} sx={{ height: 32, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', textTransform: 'none' }}>
                         Add Member
                       </Button>
                     </Stack>
@@ -1068,114 +2025,56 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
               </Stack>
             </SectionCard>
 
-            <SectionCard 
+            <SectionCard
               title="Nominee Details"
               action={editMode && (
-                <Button
-                  size="small"
-                  startIcon={<Add />}
-                  onClick={() => document.getElementById('nominee-form').scrollIntoView({ behavior: 'smooth' })}
-                  sx={{ color: "#1C7C9C" }}
-                >
+                <Button size="small" startIcon={<Add sx={{ fontSize: '0.8rem' }} />} onClick={() => document.getElementById('nominee-form')?.scrollIntoView({ behavior: 'smooth' })} sx={{ fontSize: '0.7rem', color: COLORS.primary, textTransform: 'none' }}>
                   Add Nominee
                 </Button>
               )}
             >
               <Stack spacing={1.5}>
                 {formData.nomineeDetails?.map((n, i) => (
-                  <Paper
-                    key={i}
-                    elevation={0}
-                    sx={{
-                      p: 1.5,
-                      bgcolor: "white",
-                      borderRadius: 1.5,
-                      border: "1px solid #E2E8F0",
-                      position: "relative",
-                    }}
-                  >
+                  <Paper key={i} sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, position: 'relative' }}>
                     {editMode && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveNominee(i)}
-                        sx={{ position: "absolute", top: 4, right: 4 }}
-                      >
-                        <Delete fontSize="small" />
+                      <IconButton size="small" onClick={() => handleRemoveNominee(i)} sx={{ position: "absolute", top: 4, right: 4, color: '#EF4444' }}>
+                        <Delete sx={{ fontSize: '0.8rem' }} />
                       </IconButton>
                     )}
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, pr: editMode ? 3 : 0 }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        {n.name}
-                      </Typography>
-                      <Chip
-                        label={`${n.percentage}%`}
-                        size="small"
-                        color="primary"
-                        sx={{ height: 20, fontSize: "0.7rem" }}
-                      />
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>{n.name}</Typography>
+                      <Chip label={`${n.percentage}%`} size="small" sx={{ height: 20, fontSize: '0.6rem', bgcolor: COLORS.primaryLight, color: COLORS.primaryDark }} />
                     </Box>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {n.relationship}
-                    </Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>{n.relationship}</Typography>
                   </Paper>
                 ))}
+                {(!formData.nomineeDetails || formData.nomineeDetails.length === 0) && (
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, textAlign: 'center', py: 2, fontStyle: 'italic' }}>
+                    No nominees added yet
+                  </Typography>
+                )}
 
                 {editMode && (
-                  <Paper
-                    id="nominee-form"
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      bgcolor: "#EFF6FF",
-                      borderRadius: 1.5,
-                      border: "1px dashed #1C7C9C",
-                      mt: 2,
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1C7C9C" }}>
-                      Add New Nominee
-                    </Typography>
+                  <Paper id="nominee-form" sx={{ p: 2, bgcolor: COLORS.primaryLight, borderRadius: 1.5, border: `1px dashed ${COLORS.primary}`, mt: 2 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>Add New Nominee</Typography>
                     <Stack spacing={1.5}>
-                      <TextField
-                        size="small"
-                        label="Name"
-                        value={newNominee.name}
-                        onChange={(e) => setNewNominee(prev => ({ ...prev, name: e.target.value }))}
-                        fullWidth
-                      />
+                      <TextField size="small" label="Name" value={newNominee.name} onChange={(e) => setNewNominee(prev => ({ ...prev, name: e.target.value }))} fullWidth sx={inputStyle} />
                       <FormControl size="small" fullWidth>
-                        <InputLabel>Relationship</InputLabel>
-                        <Select
-                          value={newNominee.relationship}
-                          onChange={(e) => setNewNominee(prev => ({ ...prev, relationship: e.target.value }))}
-                          label="Relationship"
-                        >
-                          <MenuItem value="spouse">Spouse</MenuItem>
-                          <MenuItem value="son">Son</MenuItem>
-                          <MenuItem value="daughter">Daughter</MenuItem>
-                          <MenuItem value="father">Father</MenuItem>
-                          <MenuItem value="mother">Mother</MenuItem>
-                          <MenuItem value="other">Other</MenuItem>
+                        <InputLabel sx={{ fontSize: '0.75rem' }}>Relationship</InputLabel>
+                        <Select value={newNominee.relationship} onChange={(e) => setNewNominee(prev => ({ ...prev, relationship: e.target.value }))} label="Relationship" sx={inputStyle}>
+                          <MenuItem value="spouse" sx={{ fontSize: '0.75rem' }}>Spouse</MenuItem>
+                          <MenuItem value="son" sx={{ fontSize: '0.75rem' }}>Son</MenuItem>
+                          <MenuItem value="daughter" sx={{ fontSize: '0.75rem' }}>Daughter</MenuItem>
+                          <MenuItem value="father" sx={{ fontSize: '0.75rem' }}>Father</MenuItem>
+                          <MenuItem value="mother" sx={{ fontSize: '0.75rem' }}>Mother</MenuItem>
+                          <MenuItem value="other" sx={{ fontSize: '0.75rem' }}>Other</MenuItem>
                         </Select>
                       </FormControl>
-                      <TextField
-                        size="small"
-                        label="Percentage (%)"
-                        type="number"
-                        value={newNominee.percentage}
-                        onChange={(e) => setNewNominee(prev => ({ ...prev, percentage: e.target.value }))}
-                        inputProps={{ min: 1, max: 100 }}
-                        fullWidth
-                      />
-                      <Typography variant="caption" color="text.secondary">
+                      <TextField size="small" label="Percentage (%)" type="number" value={newNominee.percentage} onChange={(e) => setNewNominee(prev => ({ ...prev, percentage: e.target.value }))} inputProps={{ min: 1, max: 100 }} fullWidth sx={inputStyle} />
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                         Total: {formData.nomineeDetails.reduce((sum, n) => sum + (n.percentage || 0), 0) + (parseInt(newNominee.percentage) || 0)}%
                       </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={handleAddNominee}
-                        sx={{ bgcolor: "#1C7C9C" }}
-                      >
+                      <Button variant="contained" startIcon={<Add sx={{ fontSize: '0.8rem' }} />} onClick={handleAddNominee} sx={{ height: 32, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', textTransform: 'none' }}>
                         Add Nominee
                       </Button>
                     </Stack>
@@ -1186,243 +2085,140 @@ const EditEnrollment = ({ open, onClose, enrollmentId, onSuccess }) => {
           </Stack>
         );
 
-      default:
-        return null;
+      default: return null;
     }
   };
 
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={onClose} 
-        maxWidth="md" 
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            overflow: "hidden",
-          },
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 5, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', border: `1px solid ${COLORS.border}`, overflow: 'hidden', maxHeight: '90vh' } }}>
+        <DialogTitle sx={{ 
+  borderBottom: `1px solid ${COLORS.border}`, 
+  py: 1.5, 
+  px: 2.5, 
+  mb: 1.5, 
+  bgcolor: COLORS.background.white, 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'center' 
+}}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Description sx={{ fontSize: '1rem', color: COLORS.primary }} />
+    <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+      {editMode ? "Edit Enrollment" : "Enrollment Details"}
+    </Typography>
+    {data?.enrollmentId && (
+      <Chip 
+        label={data.enrollmentId} 
+        size="small" 
+        sx={{ 
+          bgcolor: COLORS.primaryLight, 
+          color: COLORS.primaryDark, 
+          fontWeight: 500, 
+          fontSize: '0.65rem', 
+          height: 24 
+        }} 
+      />
+    )}
+  </Box>
+  <Box sx={{ display: 'flex', gap: 1 }}>
+    {!editMode ? (
+      <Button 
+        variant="outlined" 
+        startIcon={<Edit sx={{ fontSize: '0.9rem' }} />} 
+        onClick={() => setEditMode(true)} 
+        sx={{ 
+          height: 32, 
+          px: 2, 
+          borderRadius: 1.5, 
+          borderColor: COLORS.border, 
+          color: COLORS.text.secondary, 
+          fontSize: '0.7rem', 
+          textTransform: 'none', 
+          '&:hover': { 
+            borderColor: COLORS.primary, 
+            bgcolor: `${COLORS.primary}10` 
+          } 
         }}
       >
-        <DialogTitle
-          sx={{
-            background: PRIMARY_GRADIENT,
-            color: "#fff",
-            py: 2,
-            px: 3,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Description sx={{ fontSize: 28 }} />
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {editMode ? "Edit Enrollment" : "Enrollment Details"}
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  {data?.enrollmentId || "View enrollment information"}
-                </Typography>
-              </Box>
-            </Box>
-            <Box>
-              {!editMode ? (
-                <Button
-                  variant="outlined"
-                  startIcon={<Edit />}
-                  onClick={() => setEditMode(true)}
-                  sx={{
-                    color: "#fff",
-                    borderColor: "#fff",
-                    mr: 5,
-                    "&:hover": {
-                      borderColor: "#fff",
-                      bgcolor: "rgba(255,255,255,0.1)",
-                    },
-                  }}
-                >
-                  Edit
-                </Button>
-              ) : (
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    setEditMode(false);
-                    fetchEnrollment(); // Reset form
-                  }}
-                  sx={{
-                    color: "#fff",
-                    borderColor: "#fff",
-                    mr: 5,
-                    "&:hover": {
-                      borderColor: "#fff",
-                      bgcolor: "rgba(255,255,255,0.1)",
-                    },
-                  }}
-                >
-                  Cancel
-                </Button>
-              )}
-              <IconButton
-                onClick={onClose}
-                sx={{
-                  position: "absolute",
-                  right: 12,
-                  top: 12,
-                  color: "#fff",
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
-                }}
-              >
-                <Close />
-              </IconButton>
-            </Box>
-          </Box>
-        </DialogTitle>
+        Edit
+      </Button>
+    ) : (
+      <Button 
+        variant="outlined" 
+        onClick={() => { setEditMode(false); fetchEnrollment(); }} 
+        sx={{ 
+          height: 32, 
+          px: 2, 
+          borderRadius: 1.5, 
+          borderColor: COLORS.border, 
+          color: COLORS.text.secondary, 
+          fontSize: '0.7rem', 
+          textTransform: 'none', 
+          '&:hover': { 
+            borderColor: COLORS.primary, 
+            bgcolor: `${COLORS.primary}10` 
+          } 
+        }}
+      >
+        Cancel
+      </Button>
+    )}
+    <IconButton onClick={onClose} size="small">
+      <Close sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
+    </IconButton>
+  </Box>
+</DialogTitle>
 
-        <DialogContent sx={{ p: 3, minHeight: 400 }}>
+        <DialogContent sx={{ p: 2.5, minHeight: 400 }}>
           {loading ? (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 300,
-                gap: 2,
-              }}
-            >
-              <CircularProgress sx={{ color: "#1C7C9C" }} />
-              <Typography variant="body2" color="text.secondary">
-                Loading enrollment details...
-              </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 2 }}>
+              <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+              <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>Loading enrollment details...</Typography>
             </Box>
           ) : data ? (
             <>
-              <Stepper 
-                activeStep={activeStep} 
-                sx={{ 
-                  mb: 4, 
-                  mt: 1,
-                  "& .MuiStepLabel-root .Mui-completed": {
-                    color: "#1C7C9C",
-                  },
-                  "& .MuiStepLabel-root .Mui-active": {
-                    color: "#0B4F6C",
-                  },
-                }}
-              >
-                {steps.map((step, index) => (
-                  <Step key={step.label}>
-                    <StepLabel StepIconComponent={() => (
-                      <Avatar
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          bgcolor: activeStep >= index ? "#1C7C9C" : "#E2E8F0",
-                          color: activeStep >= index ? "#fff" : "#64748B",
-                        }}
-                      >
-                        {step.icon}
-                      </Avatar>
-                    )}>
-                      {step.label}
-                    </StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
-
+              <Box sx={{ mb: 3 }}>
+                <Stepper activeStep={activeStep} alternativeLabel sx={{ '& .MuiStepLabel-root .Mui-completed': { color: COLORS.primary }, '& .MuiStepLabel-root .Mui-active': { color: COLORS.primary } }}>
+                  {steps.map((step, index) => (
+                    <Step key={step.label}>
+                      <StepLabel StepIconComponent={() => (
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: activeStep >= index ? COLORS.primary : COLORS.border, color: activeStep >= index ? COLORS.text.light : COLORS.text.secondary }}>
+                          {step.icon}
+                        </Avatar>
+                      )}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{step.label}</Typography>
+                      </StepLabel>
+                    </Step>
+                  ))}
+                </Stepper>
+              </Box>
               {renderStepContent()}
             </>
           ) : (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                height: 300,
-                gap: 2,
-              }}
-            >
-              <Description sx={{ fontSize: 48, color: "#E2E8F0" }} />
-              <Typography variant="body1" color="text.secondary">
-                No enrollment data found
-              </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 2 }}>
+              <Description sx={{ fontSize: 48, color: COLORS.text.tertiary }} />
+              <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary }}>No enrollment data found</Typography>
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, borderTop: "1px solid #E2E8F0", bgcolor: "#F8FAFC" }}>
-          <Button
-            disabled={activeStep === 0}
-            onClick={() => setActiveStep((prev) => prev - 1)}
-            sx={{
-              color: "#64748B",
-              "&:hover": { bgcolor: "#E2E8F0" },
-            }}
-          >
-            Back
-          </Button>
-          <Box sx={{ flex: 1 }} />
-          {activeStep < steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={() => setActiveStep((prev) => prev + 1)}
-              sx={{
-                background: PRIMARY_GRADIENT,
-                px: 4,
-                "&:hover": {
-                  opacity: 0.9,
-                },
-              }}
-            >
-              Next
-            </Button>
-          ) : editMode ? (
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              disabled={saving}
-              startIcon={saving ? <CircularProgress size={20} /> : <Save />}
-              sx={{
-                background: PRIMARY_GRADIENT,
-                px: 4,
-                "&:hover": {
-                  opacity: 0.9,
-                },
-              }}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={onClose}
-              sx={{
-                background: PRIMARY_GRADIENT,
-                px: 4,
-                "&:hover": {
-                  opacity: 0.9,
-                },
-              }}
-            >
-              Close
-            </Button>
-          )}
+        <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.white, justifyContent: 'space-between' }}>
+          <Button disabled={activeStep === 0} onClick={() => setActiveStep(prev => prev - 1)} startIcon={<NavigateBefore sx={{ fontSize: '1rem' }} />} sx={{ height: 32, px: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, color: COLORS.text.secondary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none' }}>Back</Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {activeStep < steps.length - 1 ? (
+              <Button variant="contained" onClick={() => setActiveStep(prev => prev + 1)} endIcon={<NavigateNext sx={{ fontSize: '1rem' }} />} sx={{ height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none' }}>Next</Button>
+            ) : editMode ? (
+              <Button variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={20} /> : <Save sx={{ fontSize: '1rem' }} />} sx={{ height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none' }}>{saving ? "Saving..." : "Save Changes"}</Button>
+            ) : (
+              <Button variant="contained" onClick={onClose} sx={{ height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none' }}>Close</Button>
+            )}
+          </Box>
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} severity={snackbar.severity} variant="filled" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

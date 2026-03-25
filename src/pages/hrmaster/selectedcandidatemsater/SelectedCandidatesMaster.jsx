@@ -1,4 +1,263 @@
-// import React, { useState } from 'react';
+// // import React, { useState } from 'react';
+// // import {
+// //   Box,
+// //   Paper,
+// //   Table,
+// //   TableBody,
+// //   TableCell,
+// //   TableContainer,
+// //   TableHead,
+// //   TableRow,
+// //   IconButton,
+// //   Button,
+// //   TextField,
+// //   InputAdornment,
+// //   Tooltip,
+// //   Typography,
+// //   Snackbar,
+// //   TablePagination,
+// //   Stack,
+// //   alpha,
+// //   Alert,
+// //   Chip,
+// //   Avatar,
+// //   LinearProgress,
+// //   Tab,
+// //   Tabs,
+// // } from '@mui/material';
+// // import {
+// //   Search as SearchIcon,
+// //   Download as DownloadIcon,
+// //   MoreVert as MoreVertIcon,
+// //   Refresh as RefreshIcon,
+// //   CheckCircle as CheckCircleIcon,
+// //   Info as InfoIcon,
+// //   AccessTime as AccessTimeIcon,
+// //   Person as PersonIcon,
+// //   Work as WorkIcon,
+// //   Description as DescriptionIcon,
+// //   Security as SecurityIcon,
+// //   CalendarToday as CalendarIcon,
+// //   HowToReg as HowToRegIcon,
+// //   Assignment as AssignmentIcon
+// // } from '@mui/icons-material';
+
+// // // Import management components
+// // import OfferManagement from './offer/OfferManagenent';
+// // import DocumentManagement from './documents/DocumentManagement';
+// // import BGVManagement from './BGV/BGVManagement';
+// // import AppointmentManagement from './appointment/AppointmentManagement';
+// // import OnboardingManagement from './onboarding/OnboardingManagement';
+
+// // // Color constants - matching the header gradient
+// // const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
+// // const PRIMARY_BLUE = '#00B4D8';
+// // const TEXT_COLOR_HEADER = '#FFFFFF';
+// // const TEXT_COLOR_MAIN = '#0f172a';
+
+// // // Tab configurations with icons and colors
+// // const TABS = [
+// //   { value: 'offer', label: 'Offer Management', icon: <WorkIcon />, color: '#1976D2', component: OfferManagement },
+// //   { value: 'documents', label: 'Documents', icon: <DescriptionIcon />, color: '#7B1FA2', component: DocumentManagement },
+// //   { value: 'bgv', label: 'BGV', icon: <SecurityIcon />, color: '#E65100', component: BGVManagement },
+// //   { value: 'appointment', label: 'Appointment', icon: <CalendarIcon />, color: '#2E7D32', component: AppointmentManagement },
+// //   { value: 'onboarding', label: 'Onboarding', icon: <HowToRegIcon />, color: '#00B4D8', component: OnboardingManagement }
+// // ];
+
+// // // Status color mapping
+// // const getStatusColor = (status) => {
+// //   switch (status?.toLowerCase()) {
+// //     case 'completed':
+// //       return { bg: '#d1fae5', color: '#065f46', label: 'Completed', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
+// //     case 'in progress':
+// //     case 'in_progress':
+// //       return { bg: '#fef3c7', color: '#92400e', label: 'In Progress', icon: <AccessTimeIcon sx={{ fontSize: 14 }} /> };
+// //     case 'not started':
+// //       return { bg: '#f1f5f9', color: '#475569', label: 'Not Started', icon: <InfoIcon sx={{ fontSize: 14 }} /> };
+// //     default:
+// //       return { bg: '#f1f5f9', color: '#475569', label: status || 'Unknown', icon: <InfoIcon sx={{ fontSize: 14 }} /> };
+// //   }
+// // };
+
+// // // Tab Panel Component
+// // function TabPanel({ children, value, index, ...other }) {
+// //   return (
+// //     <div
+// //       role="tabpanel"
+// //       hidden={value !== index}
+// //       id={`candidate-tabpanel-${index}`}
+// //       aria-labelledby={`candidate-tab-${index}`}
+// //       {...other}
+// //     >
+// //       {value === index && (
+// //         <Box sx={{ pt: 3 }}>
+// //           {children}
+// //         </Box>
+// //       )}
+// //     </div>
+// //   );
+// // }
+
+// // const SelectedCandidatesMaster = () => {
+// //   const [tabValue, setTabValue] = useState(0); // Start with Offer Management (index 0)
+// //   const [loading, setLoading] = useState(false);
+// //   const [searchTerm, setSearchTerm] = useState('');
+// //   const [page, setPage] = useState(0);
+// //   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+// //   // Mock data for the overview table (if needed in future)
+// //   const [candidates] = useState([
+// //     {
+// //       id: 1,
+// //       email: 'softcrowdtest011@gmail.com',
+// //       employeeId: '-',
+// //       status: 'In Progress',
+// //       progress: 65,
+// //       joiningDate: '-',
+// //       name: 'John Doe',
+// //       position: 'Software Engineer'
+// //     }
+// //   ]);
+
+// //   const [snackbar, setSnackbar] = useState({
+// //     open: false,
+// //     message: '',
+// //     severity: 'success'
+// //   });
+
+// //   const handleTabChange = (event, newValue) => {
+// //     setTabValue(newValue);
+// //   };
+
+// //   const handleSearch = (event) => {
+// //     setSearchTerm(event.target.value);
+// //   };
+
+// //   const handleRefresh = () => {
+// //     showNotification('Data refreshed successfully', 'success');
+// //   };
+
+// //   const handleExport = () => {
+// //     showNotification('Export functionality coming soon', 'info');
+// //   };
+
+// //   const handleChangePage = (event, newPage) => {
+// //     setPage(newPage);
+// //   };
+
+// //   const handleChangeRowsPerPage = (event) => {
+// //     setRowsPerPage(parseInt(event.target.value, 10));
+// //     setPage(0);
+// //   };
+
+// //   const showNotification = (message, severity) => {
+// //     setSnackbar({
+// //       open: true,
+// //       message,
+// //       severity
+// //     });
+// //   };
+
+// //   return (
+// //     <Box sx={{ p: 3 }}>
+// //       {/* Header */}
+// //       <Box sx={{ mb: 3 }}>
+// //         <Typography 
+// //           variant="h5" 
+// //           component="h1" 
+// //           fontWeight="600" 
+// //           sx={{ 
+// //             color: TEXT_COLOR_MAIN,
+// //             background: HEADER_GRADIENT,
+// //             WebkitBackgroundClip: 'text',
+// //             WebkitTextFillColor: 'transparent',
+// //             backgroundClip: 'text',
+// //             display: 'inline-block'
+// //           }}
+// //         >
+// //           Selected Candidates Master
+// //         </Typography>
+// //         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+// //           Manage selected candidates through offer, document, BGV, appointment, and onboarding processes
+// //         </Typography>
+// //       </Box>
+
+// //       {/* Tabs with Requisition Master Style */}
+// //       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+// //         <Tabs 
+// //           value={tabValue} 
+// //           onChange={handleTabChange}
+// //           variant="scrollable"
+// //           scrollButtons="auto"
+// //           sx={{
+// //             '& .MuiTab-root': {
+// //               minHeight: 48,
+// //               textTransform: 'none',
+// //               fontSize: '0.875rem',
+// //               fontWeight: 500,
+// //               color: '#64748B',
+// //               '&.Mui-selected': {
+// //                 color: PRIMARY_BLUE,
+// //                 fontWeight: 600
+// //               }
+// //             },
+// //             '& .MuiTabs-indicator': {
+// //               backgroundColor: PRIMARY_BLUE,
+// //               height: 3
+// //             }
+// //           }}
+// //         >
+// //           {TABS.map((tab, index) => (
+// //             <Tab
+// //               key={tab.value}
+// //               icon={tab.icon}
+// //               iconPosition="start"
+// //               label={tab.label}
+// //               sx={{
+// //                 '& .MuiSvgIcon-root': {
+// //                   fontSize: 18,
+// //                   color: tab.color || 'inherit'
+// //                 }
+// //               }}
+// //             />
+// //           ))}
+// //         </Tabs>
+// //       </Box>
+
+// //       {/* Tab Panels */}
+// //       {TABS.map((tab, index) => (
+// //         <TabPanel key={tab.value} value={tabValue} index={index}>
+// //           {tab.component()}
+// //         </TabPanel>
+// //       ))}
+
+// //       {/* Snackbar Notification */}
+// //       <Snackbar
+// //         open={snackbar.open}
+// //         autoHideDuration={3000}
+// //         onClose={() => setSnackbar({...snackbar, open: false})}
+// //         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+// //       >
+// //         <Alert 
+// //           onClose={() => setSnackbar({...snackbar, open: false})} 
+// //           severity={snackbar.severity}
+// //           variant="filled"
+// //           sx={{ 
+// //             width: '100%',
+// //             borderRadius: 1.5,
+// //             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+// //           }}
+// //         >
+// //           {snackbar.message}
+// //         </Alert>
+// //       </Snackbar>
+// //     </Box>
+// //   );
+// // };
+
+// // export default SelectedCandidatesMaster;
+
+// import React, { useState, useCallback } from 'react';
 // import {
 //   Box,
 //   Paper,
@@ -61,7 +320,7 @@
 //   { value: 'documents', label: 'Documents', icon: <DescriptionIcon />, color: '#7B1FA2', component: DocumentManagement },
 //   { value: 'bgv', label: 'BGV', icon: <SecurityIcon />, color: '#E65100', component: BGVManagement },
 //   { value: 'appointment', label: 'Appointment', icon: <CalendarIcon />, color: '#2E7D32', component: AppointmentManagement },
-//   { value: 'onboarding', label: 'Onboarding', icon: <HowToRegIcon />, color: '#00B4D8', component: OnboardingManagement }
+//   // { value: 'onboarding', label: 'Onboarding', icon: <HowToRegIcon />, color: '#00B4D8', component: OnboardingManagement }
 // ];
 
 // // Status color mapping
@@ -105,19 +364,14 @@
 //   const [page, setPage] = useState(0);
 //   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-//   // Mock data for the overview table (if needed in future)
-//   const [candidates] = useState([
-//     {
-//       id: 1,
-//       email: 'softcrowdtest011@gmail.com',
-//       employeeId: '-',
-//       status: 'In Progress',
-//       progress: 65,
-//       joiningDate: '-',
-//       name: 'John Doe',
-//       position: 'Software Engineer'
-//     }
-//   ]);
+//   // Refresh triggers for each tab
+//   const [refreshTriggers, setRefreshTriggers] = useState({
+//     offer: 0,
+//     documents: 0,
+//     bgv: 0,
+//     appointment: 0,
+//     onboarding: 0
+//   });
 
 //   const [snackbar, setSnackbar] = useState({
 //     open: false,
@@ -134,6 +388,12 @@
 //   };
 
 //   const handleRefresh = () => {
+//     // Increment refresh trigger for current tab
+//     const currentTab = TABS[tabValue].value;
+//     setRefreshTriggers(prev => ({
+//       ...prev,
+//       [currentTab]: prev[currentTab] + 1
+//     }));
 //     showNotification('Data refreshed successfully', 'success');
 //   };
 
@@ -158,34 +418,137 @@
 //     });
 //   };
 
+//   // Function to refresh a specific tab
+//   const refreshTab = useCallback((tabName) => {
+//     setRefreshTriggers(prev => ({
+//       ...prev,
+//       [tabName]: prev[tabName] + 1
+//     }));
+//   }, []);
+
+//   // Function to refresh current tab
+//   const refreshCurrentTab = useCallback(() => {
+//     const currentTab = TABS[tabValue].value;
+//     refreshTab(currentTab);
+//   }, [tabValue, refreshTab]);
+
+//   // Render the appropriate component with refresh trigger
+//   const renderComponent = (Component, tabName) => {
+//     // Pass refresh trigger and refresh function as props to child components
+//     // This allows child components to trigger a refresh after actions
+//     const refreshProps = {
+//       key: refreshTriggers[tabName], // Force re-render when trigger changes
+//       refreshTrigger: refreshTriggers[tabName],
+//       onActionComplete: () => {
+//         // When any action completes in child, refresh this tab
+//         refreshTab(tabName);
+//         // Also show a success message
+//         showNotification('Action completed successfully', 'success');
+//       },
+//       showNotification
+//     };
+
+//     return <Component {...refreshProps} />;
+//   };
+
 //   return (
 //     <Box sx={{ p: 3 }}>
 //       {/* Header */}
-//       <Box sx={{ mb: 3 }}>
-//         <Typography 
-//           variant="h5" 
-//           component="h1" 
-//           fontWeight="600" 
-//           sx={{ 
-//             color: TEXT_COLOR_MAIN,
-//             background: HEADER_GRADIENT,
-//             WebkitBackgroundClip: 'text',
-//             WebkitTextFillColor: 'transparent',
-//             backgroundClip: 'text',
-//             display: 'inline-block'
-//           }}
-//         >
-//           Selected Candidates Master
-//         </Typography>
-//         <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-//           Manage selected candidates through offer, document, BGV, appointment, and onboarding processes
-//         </Typography>
+//       {/* <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+//         <Box>
+//           <Typography 
+//             variant="h5" 
+//             component="h1" 
+//             fontWeight="600" 
+//             sx={{ 
+//               color: TEXT_COLOR_MAIN,
+//               background: HEADER_GRADIENT,
+//               WebkitBackgroundClip: 'text',
+//               WebkitTextFillColor: 'transparent',
+//               backgroundClip: 'text',
+//               display: 'inline-block'
+//             }}
+//           >
+//             Selected Candidates Master
+//           </Typography>
+//           <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+//             Manage selected candidates through offer, document, BGV, appointment, and onboarding processes
+//           </Typography>
+//         </Box>
+        
+//         {/* Global Refresh Button */}
+//       {/* <Tooltip title="Refresh Current Tab">
+//           <IconButton 
+//             onClick={handleRefresh}
+//             sx={{ 
+//               color: '#64748B',
+//               '&:hover': {
+//                 bgcolor: alpha(PRIMARY_BLUE, 0.1),
+//                 color: PRIMARY_BLUE
+//               }
+//             }}
+//           >
+//             <RefreshIcon />
+//           </IconButton>
+//         </Tooltip>
+//       </Box> */}
+
+//       {/* Header with Dynamic Title */}
+
+//       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+//         <Box>
+//           <Typography
+//             variant="h5"
+//             component="h1"
+//             fontWeight="600"
+//             sx={{
+//               color: TEXT_COLOR_MAIN,
+//               background: HEADER_GRADIENT,
+//               WebkitBackgroundClip: 'text',
+//               WebkitTextFillColor: 'transparent',
+//               backgroundClip: 'text',
+//               display: 'inline-block'
+//             }}
+//           >
+//             {TABS[tabValue].label}
+//           </Typography>
+//           <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
+//             Manage {TABS[tabValue].label.toLowerCase()} for selected candidates
+//           </Typography>
+//         </Box>
+
+//         {/* Global Refresh Button */}
+//         <Tooltip title="Refresh Current Tab">
+//           <IconButton
+//             onClick={handleRefresh}
+//             sx={{
+//               color: '#64748B',
+//               '&:hover': {
+//                 bgcolor: alpha(PRIMARY_BLUE, 0.1),
+//                 color: PRIMARY_BLUE
+//               }
+//             }}
+//           >
+//             <RefreshIcon />
+//           </IconButton>
+//         </Tooltip>
 //       </Box>
 
 //       {/* Tabs with Requisition Master Style */}
-//       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-//         <Tabs 
-//           value={tabValue} 
+//       {/* <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}> */}
+//       <Paper sx={{
+//         borderRadius: 2,
+//         bgcolor: '#FFFFFF',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: '1px solid #e2e8f0',
+//         borderBottomLeftRadius: 0,
+//         borderBottomRightRadius: 0,
+//         borderBottom: 'none',
+//         overflow: 'hidden',
+//         mb: 0
+//       }}>
+//         <Tabs
+//           value={tabValue}
 //           onChange={handleTabChange}
 //           variant="scrollable"
 //           scrollButtons="auto"
@@ -204,7 +567,8 @@
 //             '& .MuiTabs-indicator': {
 //               backgroundColor: PRIMARY_BLUE,
 //               height: 3
-//             }
+//             },
+//             marginBottom: '40px'
 //           }}
 //         >
 //           {TABS.map((tab, index) => (
@@ -222,36 +586,39 @@
 //             />
 //           ))}
 //         </Tabs>
-//       </Box>
+//     </Paper>
+      
 
-//       {/* Tab Panels */}
-//       {TABS.map((tab, index) => (
-//         <TabPanel key={tab.value} value={tabValue} index={index}>
-//           {tab.component()}
-//         </TabPanel>
-//       ))}
+//       {/* Tab Panels with Auto-Refresh */ }
+//   {
+//     TABS.map((tab, index) => (
+//       <TabPanel key={tab.value} value={tabValue} index={index}>
+//         {renderComponent(tab.component, tab.value)}
+//       </TabPanel>
+//     ))
+//   }
 
-//       {/* Snackbar Notification */}
-//       <Snackbar
-//         open={snackbar.open}
-//         autoHideDuration={3000}
-//         onClose={() => setSnackbar({...snackbar, open: false})}
-//         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-//       >
-//         <Alert 
-//           onClose={() => setSnackbar({...snackbar, open: false})} 
-//           severity={snackbar.severity}
-//           variant="filled"
-//           sx={{ 
-//             width: '100%',
-//             borderRadius: 1.5,
-//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-//           }}
-//         >
-//           {snackbar.message}
-//         </Alert>
-//       </Snackbar>
-//     </Box>
+//   {/* Snackbar Notification */ }
+//   <Snackbar
+//     open={snackbar.open}
+//     autoHideDuration={3000}
+//     onClose={() => setSnackbar({ ...snackbar, open: false })}
+//     anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+//   >
+//     <Alert
+//       onClose={() => setSnackbar({ ...snackbar, open: false })}
+//       severity={snackbar.severity}
+//       variant="filled"
+//       sx={{
+//         width: '100%',
+//         borderRadius: 1.5,
+//         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//       }}
+//     >
+//       {snackbar.message}
+//     </Alert>
+//   </Snackbar>
+//     </Box >
 //   );
 // };
 
@@ -261,82 +628,76 @@ import React, { useState, useCallback } from 'react';
 import {
   Box,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
-  Button,
-  TextField,
-  InputAdornment,
   Tooltip,
   Typography,
   Snackbar,
-  TablePagination,
   Stack,
   alpha,
   Alert,
-  Chip,
-  Avatar,
-  LinearProgress,
-  Tab,
   Tabs,
+  Tab,
+  Breadcrumbs,
+  Link
 } from '@mui/material';
 import {
-  Search as SearchIcon,
-  Download as DownloadIcon,
-  MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-  AccessTime as AccessTimeIcon,
-  Person as PersonIcon,
   Work as WorkIcon,
   Description as DescriptionIcon,
   Security as SecurityIcon,
   CalendarToday as CalendarIcon,
   HowToReg as HowToRegIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 
-// Import management components
+// Import management components - make sure these files exist and export correctly
 import OfferManagement from './offer/OfferManagenent';
 import DocumentManagement from './documents/DocumentManagement';
 import BGVManagement from './BGV/BGVManagement';
 import AppointmentManagement from './appointment/AppointmentManagement';
-import OnboardingManagement from './onboarding/OnboardingManagement';
+// import OnboardingManagement from './onboarding/OnboardingManagement'; // Commented out since not used
 
-// Color constants - matching the header gradient
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
-const TEXT_COLOR_HEADER = '#FFFFFF';
-const TEXT_COLOR_MAIN = '#0f172a';
-
-// Tab configurations with icons and colors
-const TABS = [
-  { value: 'offer', label: 'Offer Management', icon: <WorkIcon />, color: '#1976D2', component: OfferManagement },
-  { value: 'documents', label: 'Documents', icon: <DescriptionIcon />, color: '#7B1FA2', component: DocumentManagement },
-  { value: 'bgv', label: 'BGV', icon: <SecurityIcon />, color: '#E65100', component: BGVManagement },
-  { value: 'appointment', label: 'Appointment', icon: <CalendarIcon />, color: '#2E7D32', component: AppointmentManagement },
-  // { value: 'onboarding', label: 'Onboarding', icon: <HowToRegIcon />, color: '#00B4D8', component: OnboardingManagement }
-];
-
-// Status color mapping
-const getStatusColor = (status) => {
-  switch (status?.toLowerCase()) {
-    case 'completed':
-      return { bg: '#d1fae5', color: '#065f46', label: 'Completed', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
-    case 'in progress':
-    case 'in_progress':
-      return { bg: '#fef3c7', color: '#92400e', label: 'In Progress', icon: <AccessTimeIcon sx={{ fontSize: 14 }} /> };
-    case 'not started':
-      return { bg: '#f1f5f9', color: '#475569', label: 'Not Started', icon: <InfoIcon sx={{ fontSize: 14 }} /> };
-    default:
-      return { bg: '#f1f5f9', color: '#475569', label: status || 'Unknown', icon: <InfoIcon sx={{ fontSize: 14 }} /> };
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
   }
 };
+
+// Tab configurations with icons and colors - remove onboarding if not available
+const TABS = [
+  { value: 'offer', label: 'Offer Management', icon: <WorkIcon sx={{ fontSize: '1rem' }} />, color: '#1976D2', component: OfferManagement },
+  { value: 'documents', label: 'Documents', icon: <DescriptionIcon sx={{ fontSize: '1rem' }} />, color: '#7B1FA2', component: DocumentManagement },
+  { value: 'bgv', label: 'BGV', icon: <SecurityIcon sx={{ fontSize: '1rem' }} />, color: '#E65100', component: BGVManagement },
+  { value: 'appointment', label: 'Appointment', icon: <CalendarIcon sx={{ fontSize: '1rem' }} />, color: '#2E7D32', component: AppointmentManagement }
+];
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }) {
@@ -349,7 +710,7 @@ function TabPanel({ children, value, index, ...other }) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ pt: 3 }}>
+        <Box sx={{ pt: 2.5 }}>
           {children}
         </Box>
       )}
@@ -358,13 +719,7 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 const SelectedCandidatesMaster = () => {
-  const [tabValue, setTabValue] = useState(0); // Start with Offer Management (index 0)
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  // Refresh triggers for each tab
+  const [tabValue, setTabValue] = useState(0);
   const [refreshTriggers, setRefreshTriggers] = useState({
     offer: 0,
     documents: 0,
@@ -372,7 +727,6 @@ const SelectedCandidatesMaster = () => {
     appointment: 0,
     onboarding: 0
   });
-
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -383,12 +737,7 @@ const SelectedCandidatesMaster = () => {
     setTabValue(newValue);
   };
 
-  const handleSearch = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
   const handleRefresh = () => {
-    // Increment refresh trigger for current tab
     const currentTab = TABS[tabValue].value;
     setRefreshTriggers(prev => ({
       ...prev,
@@ -397,28 +746,10 @@ const SelectedCandidatesMaster = () => {
     showNotification('Data refreshed successfully', 'success');
   };
 
-  const handleExport = () => {
-    showNotification('Export functionality coming soon', 'info');
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
   const showNotification = (message, severity) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity
-    });
+    setSnackbar({ open: true, message, severity });
   };
 
-  // Function to refresh a specific tab
   const refreshTab = useCallback((tabName) => {
     setRefreshTriggers(prev => ({
       ...prev,
@@ -426,126 +757,85 @@ const SelectedCandidatesMaster = () => {
     }));
   }, []);
 
-  // Function to refresh current tab
-  const refreshCurrentTab = useCallback(() => {
-    const currentTab = TABS[tabValue].value;
-    refreshTab(currentTab);
-  }, [tabValue, refreshTab]);
-
   // Render the appropriate component with refresh trigger
   const renderComponent = (Component, tabName) => {
-    // Pass refresh trigger and refresh function as props to child components
-    // This allows child components to trigger a refresh after actions
-    const refreshProps = {
-      key: refreshTriggers[tabName], // Force re-render when trigger changes
+    // Check if component exists
+    if (!Component) {
+      console.error(`Component for tab "${tabName}" is undefined`);
+      return <Box sx={{ p: 4, textAlign: 'center' }}>Component not found</Box>;
+    }
+
+    const componentProps = {
       refreshTrigger: refreshTriggers[tabName],
       onActionComplete: () => {
-        // When any action completes in child, refresh this tab
         refreshTab(tabName);
-        // Also show a success message
         showNotification('Action completed successfully', 'success');
       },
       showNotification
     };
 
-    return <Component {...refreshProps} />;
+    return <Component key={refreshTriggers[tabName]} {...componentProps} />;
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      {/* <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography 
-            variant="h5" 
-            component="h1" 
-            fontWeight="600" 
-            sx={{ 
-              color: TEXT_COLOR_MAIN,
-              background: HEADER_GRADIENT,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              display: 'inline-block'
-            }}
-          >
-            Selected Candidates Master
-          </Typography>
-          <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-            Manage selected candidates through offer, document, BGV, appointment, and onboarding processes
-          </Typography>
-        </Box>
-        
-        {/* Global Refresh Button */}
-      {/* <Tooltip title="Refresh Current Tab">
-          <IconButton 
-            onClick={handleRefresh}
-            sx={{ 
-              color: '#64748B',
-              '&:hover': {
-                bgcolor: alpha(PRIMARY_BLUE, 0.1),
-                color: PRIMARY_BLUE
-              }
-            }}
-          >
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-      </Box> */}
-
-      {/* Header with Dynamic Title */}
-
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography
-            variant="h5"
-            component="h1"
-            fontWeight="600"
-            sx={{
-              color: TEXT_COLOR_MAIN,
-              background: HEADER_GRADIENT,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              display: 'inline-block'
-            }}
-          >
-            {TABS[tabValue].label}
-          </Typography>
-          <Typography variant="body2" color="#64748B" sx={{ mt: 0.5 }}>
-            Manage {TABS[tabValue].label.toLowerCase()} for selected candidates
-          </Typography>
-        </Box>
-
-        {/* Global Refresh Button */}
-        <Tooltip title="Refresh Current Tab">
-          <IconButton
-            onClick={handleRefresh}
-            sx={{
-              color: '#64748B',
-              '&:hover': {
-                bgcolor: alpha(PRIMARY_BLUE, 0.1),
-                color: PRIMARY_BLUE
-              }
-            }}
-          >
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
+    <Box sx={{ p: 2.5 }}>
+      {/* Page Header */}
+      <Box sx={{ mb: 2.5 }}>
+        <Typography 
+          variant="h5" 
+          component="h1" 
+          sx={{ 
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: COLORS.text.primary,
+            mb: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+        >
+          <AssignmentIcon sx={{ fontSize: '1.2rem', color: COLORS.primary }} />
+          {TABS[tabValue].label}
+        </Typography>
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+          Manage {TABS[tabValue].label.toLowerCase()} for selected candidates
+        </Typography>
       </Box>
 
-      {/* Tabs with Requisition Master Style */}
-      {/* <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}> */}
-      <Paper sx={{
+      {/* Action Bar with Refresh */}
+      {/* <Paper sx={{ 
+        p: 1.5, 
+        mb: 2.5, 
         borderRadius: 2,
-        bgcolor: '#FFFFFF',
+        bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0',
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        borderBottom: 'none',
-        overflow: 'hidden',
-        mb: 0
+        border: `1px solid ${COLORS.border}`
+      }}>
+        <Stack direction="row" justifyContent="flex-end" alignItems="center">
+          <Tooltip title="Refresh Current Tab">
+            <IconButton
+              onClick={handleRefresh}
+              sx={{
+                color: COLORS.text.secondary,
+                '&:hover': {
+                  bgcolor: `${COLORS.primary}20`,
+                  color: COLORS.primary
+                }
+              }}
+            >
+              <RefreshIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Paper> */}
+
+      {/* Tabs */}
+      <Paper sx={{ 
+        borderRadius: 2,
+        bgcolor: COLORS.background.white,
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        border: `1px solid ${COLORS.border}`,
+        overflow: 'hidden'
       }}>
         <Tabs
           value={tabValue}
@@ -556,19 +846,18 @@ const SelectedCandidatesMaster = () => {
             '& .MuiTab-root': {
               minHeight: 48,
               textTransform: 'none',
-              fontSize: '0.875rem',
+              fontSize: '0.75rem',
               fontWeight: 500,
-              color: '#64748B',
+              color: COLORS.text.secondary,
               '&.Mui-selected': {
-                color: PRIMARY_BLUE,
+                color: COLORS.primary,
                 fontWeight: 600
               }
             },
             '& .MuiTabs-indicator': {
-              backgroundColor: PRIMARY_BLUE,
-              height: 3
-            },
-            marginBottom: '40px'
+              backgroundColor: COLORS.primary,
+              height: 2
+            }
           }}
         >
           {TABS.map((tab, index) => (
@@ -579,46 +868,45 @@ const SelectedCandidatesMaster = () => {
               label={tab.label}
               sx={{
                 '& .MuiSvgIcon-root': {
-                  fontSize: 18,
+                  fontSize: '1rem',
                   color: tab.color || 'inherit'
                 }
               }}
             />
           ))}
         </Tabs>
-    </Paper>
-      
 
-      {/* Tab Panels with Auto-Refresh */ }
-  {
-    TABS.map((tab, index) => (
-      <TabPanel key={tab.value} value={tabValue} index={index}>
-        {renderComponent(tab.component, tab.value)}
-      </TabPanel>
-    ))
-  }
+        {/* Tab Panels */}
+        {TABS.map((tab, index) => (
+          <TabPanel key={tab.value} value={tabValue} index={index}>
+            {renderComponent(tab.component, tab.value)}
+          </TabPanel>
+        ))}
+      </Paper>
 
-  {/* Snackbar Notification */ }
-  <Snackbar
-    open={snackbar.open}
-    autoHideDuration={3000}
-    onClose={() => setSnackbar({ ...snackbar, open: false })}
-    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-  >
-    <Alert
-      onClose={() => setSnackbar({ ...snackbar, open: false })}
-      severity={snackbar.severity}
-      variant="filled"
-      sx={{
-        width: '100%',
-        borderRadius: 1.5,
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-      }}
-    >
-      {snackbar.message}
-    </Alert>
-  </Snackbar>
-    </Box >
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{
+            width: '100%',
+            borderRadius: 1.5,
+            fontSize: '0.75rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            '& .MuiAlert-icon': { fontSize: '1.25rem' }
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

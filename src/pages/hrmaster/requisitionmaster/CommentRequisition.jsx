@@ -671,6 +671,312 @@
 
 // export default CommentRequisition;
 
+// import React, { useState, useEffect } from 'react';
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   Stack,
+//   Alert,
+//   Box,
+//   Typography,
+//   IconButton,
+//   Chip,
+//   Divider,
+//   Paper,
+//   CircularProgress,
+//   TextField,
+//   Avatar,
+//   InputAdornment
+// } from '@mui/material';
+// import {
+//   Close as CloseIcon,
+//   Send as SendIcon,
+//   Comment as CommentIcon,
+//   Assignment as AssignmentIcon,
+//   CheckCircle as CheckCircleIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+
+// const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requisitionData }) => {
+//   const [commentText, setCommentText] = useState('');
+//   const [submitting, setSubmitting] = useState(false);
+//   const [error, setError] = useState('');
+//   const [success, setSuccess] = useState('');
+
+//   useEffect(() => {
+//     if (!open) {
+//       // Reset state when dialog closes
+//       setCommentText('');
+//       setError('');
+//       setSuccess('');
+//       setSubmitting(false);
+//     }
+//   }, [open]);
+
+//   const handleAddComment = async () => {
+//     // Validate comment
+//     if (!commentText.trim()) {
+//       setError('Comment cannot be empty');
+//       return;
+//     }
+
+//     if (commentText.trim().length < 3) {
+//       setError('Comment must be at least 3 characters');
+//       return;
+//     }
+
+//     setSubmitting(true);
+//     setError('');
+//     setSuccess('');
+
+//     try {
+//       const token = localStorage.getItem('token');
+//       const submitData = {
+//         text: commentText.trim()
+//       };
+
+//       console.log('Posting comment to:', `${BASE_URL}/api/requisitions/${requisitionId}/comments`);
+      
+//       const response = await axios.post(`${BASE_URL}/api/requisitions/${requisitionId}/comments`, submitData, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+
+//       if (response.data.success) {
+//         setSuccess(response.data.message || 'Comment added successfully');
+        
+//         // Call the onCommentAdd callback with the new comment
+//         if (onCommentAdd) {
+//           onCommentAdd(response.data.data);
+//         }
+        
+//         // Clear comment text
+//         setCommentText('');
+        
+//         // Close dialog after short delay
+//         setTimeout(() => {
+//           handleClose();
+//         }, 1500);
+//       } else {
+//         setError(response.data.message || 'Failed to add comment');
+//       }
+//     } catch (err) {
+//       console.error('Error adding comment:', err);
+//       setError(err.response?.data?.message || 'Failed to add comment. Please try again.');
+//     } finally {
+//       setSubmitting(false);
+//     }
+//   };
+
+//   const handleKeyPress = (e) => {
+//     if (e.key === 'Enter' && !e.shiftKey) {
+//       e.preventDefault();
+//       handleAddComment();
+//     }
+//   };
+
+//   const handleClose = () => {
+//     setCommentText('');
+//     setError('');
+//     setSuccess('');
+//     setSubmitting(false);
+//     onClose();
+//   };
+
+//   return (
+//     <Dialog 
+//       open={open} 
+//       onClose={handleClose} 
+//       maxWidth="sm" 
+//       fullWidth
+//       PaperProps={{
+//         sx: { 
+//           borderRadius: 2,
+//         }
+//       }}
+//     >
+//       <DialogTitle sx={{ 
+//         borderBottom: '1px solid #E0E0E0', 
+//         pb: 2,
+//         backgroundColor: '#F8FAFC',
+//         display: 'flex',
+//         justifyContent: 'space-between',
+//         alignItems: 'center'
+//       }}>
+//         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+//           <CommentIcon sx={{ color: '#1976D2' }} />
+//           <Typography variant="h6" sx={{ fontWeight: 600, color: '#101010' }}>
+//             Add Comment
+//           </Typography>
+//           {requisitionData?.requisitionId && (
+//             <Chip
+//               label={requisitionData.requisitionId}
+//               size="small"
+//               sx={{
+//                 ml: 1,
+//                 backgroundColor: '#E3F2FD',
+//                 color: '#1976D2',
+//                 fontWeight: 500,
+//                 fontSize: '12px'
+//               }}
+//             />
+//           )}
+//         </Box>
+//         <IconButton onClick={handleClose} size="small" sx={{ color: '#666' }}>
+//           <CloseIcon />
+//         </IconButton>
+//       </DialogTitle>
+      
+//       <DialogContent sx={{ pt: 3 }}>
+//         <Stack spacing={3}>
+//           {/* Requisition Summary */}
+//           {requisitionData && (
+//             <Paper sx={{ 
+//               p: 2, 
+//               backgroundColor: '#F8FAFC', 
+//               borderRadius: 2,
+//               border: '1px solid #E0E0E0'
+//             }}>
+//               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+//                 <AssignmentIcon sx={{ color: '#1976D2', fontSize: 20 }} />
+//                 <Typography variant="subtitle2" sx={{ color: '#101010', fontWeight: 600 }}>
+//                   {requisitionData.positionTitle || 'Requisition'}
+//                 </Typography>
+//               </Box>
+              
+//               <Divider sx={{ mb: 2 }} />
+              
+//               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+//                 <Box>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>
+//                     Department
+//                   </Typography>
+//                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
+//                     {requisitionData.department || 'N/A'}
+//                   </Typography>
+//                 </Box>
+//                 <Box>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>
+//                     Location
+//                   </Typography>
+//                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
+//                     {requisitionData.location || 'N/A'}
+//                   </Typography>
+//                 </Box>
+//               </Box>
+//             </Paper>
+//           )}
+
+//           {/* Add Comment Section */}
+//           <Paper sx={{ 
+//             p: 2, 
+//             borderRadius: 2,
+//             border: '1px solid #E0E0E0',
+//             backgroundColor: '#FFFFFF'
+//           }}>
+//             <Typography variant="subtitle2" sx={{ color: '#101010', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+//               <CommentIcon sx={{ color: '#1976D2', fontSize: 18 }} />
+//               Your Comment
+//             </Typography>
+            
+//             <TextField
+//               fullWidth
+//               multiline
+//               rows={4}
+//               placeholder="Write your comment here... Press Enter to submit, Shift+Enter for new line"
+//               value={commentText}
+//               onChange={(e) => {
+//                 setCommentText(e.target.value);
+//                 if (error) setError('');
+//               }}
+//               onKeyPress={handleKeyPress}
+//               error={!!error}
+//               helperText={error}
+//               disabled={submitting}
+//               variant="outlined"
+//               sx={{
+//                 '& .MuiOutlinedInput-root': {
+//                   borderRadius: 1,
+//                   backgroundColor: '#FFF'
+//                 }
+//               }}
+//             />
+            
+//             {success && (
+//               <Alert 
+//                 severity="success" 
+//                 icon={<CheckCircleIcon fontSize="inherit" />}
+//                 sx={{ 
+//                   mt: 2,
+//                   borderRadius: 1,
+//                 }}
+//               >
+//                 {success}
+//               </Alert>
+//             )}
+            
+//             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+//               <Typography variant="caption" sx={{ color: '#999' }}>
+//                 {commentText.length} characters • Press Enter to submit
+//               </Typography>
+//               <Button
+//                 variant="contained"
+//                 onClick={handleAddComment}
+//                 disabled={!commentText.trim() || submitting || commentText.trim().length < 3}
+//                 startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+//                 sx={{
+//                   borderRadius: 1,
+//                   px: 3,
+//                   textTransform: 'none',
+//                   backgroundColor: '#1976D2',
+//                   '&:hover': {
+//                     backgroundColor: '#1565C0'
+//                   },
+//                   '&.Mui-disabled': {
+//                     backgroundColor: '#E0E0E0'
+//                   }
+//                 }}
+//               >
+//                 {submitting ? 'Posting...' : 'Post Comment'}
+//               </Button>
+//             </Box>
+//           </Paper>
+//         </Stack>
+//       </DialogContent>
+      
+//       <DialogActions sx={{ 
+//         px: 3, 
+//         py: 2, 
+//         borderTop: '1px solid #E0E0E0', 
+//         backgroundColor: '#F8FAFC',
+//       }}>
+//         <Button 
+//           onClick={handleClose}
+//           sx={{
+//             borderRadius: 1,
+//             px: 3,
+//             py: 1,
+//             textTransform: 'none',
+//             fontWeight: 500,
+//             color: '#666'
+//           }}
+//         >
+//           Cancel
+//         </Button>
+//       </DialogActions>
+//     </Dialog>
+//   );
+// };
+
+// export default CommentRequisition;
+
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -689,36 +995,76 @@ import {
   CircularProgress,
   TextField,
   Avatar,
-  InputAdornment
+  InputAdornment,
+  FormHelperText
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Send as SendIcon,
   Comment as CommentIcon,
   Assignment as AssignmentIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Person as PersonIcon,
+  Business as BusinessIcon,
+  LocationOn as LocationIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
 const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requisitionData }) => {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      // Reset state when dialog closes
       setCommentText('');
       setError('');
       setSuccess('');
       setSubmitting(false);
+      setTouched(false);
     }
   }, [open]);
 
   const handleAddComment = async () => {
-    // Validate comment
+    setTouched(true);
+    
     if (!commentText.trim()) {
       setError('Comment cannot be empty');
       return;
@@ -735,31 +1081,21 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
 
     try {
       const token = localStorage.getItem('token');
-      const submitData = {
-        text: commentText.trim()
-      };
+      const submitData = { text: commentText.trim() };
 
-      console.log('Posting comment to:', `${BASE_URL}/api/requisitions/${requisitionId}/comments`);
-      
       const response = await axios.post(`${BASE_URL}/api/requisitions/${requisitionId}/comments`, submitData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
         setSuccess(response.data.message || 'Comment added successfully');
         
-        // Call the onCommentAdd callback with the new comment
         if (onCommentAdd) {
           onCommentAdd(response.data.data);
         }
         
-        // Clear comment text
         setCommentText('');
         
-        // Close dialog after short delay
         setTimeout(() => {
           handleClose();
         }, 1500);
@@ -786,7 +1122,33 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
     setError('');
     setSuccess('');
     setSubmitting(false);
+    setTouched(false);
     onClose();
+  };
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+      '&.Mui-error fieldset': { borderColor: '#EF4444' }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary,
+      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
   };
 
   return (
@@ -797,21 +1159,25 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
       fullWidth
       PaperProps={{
         sx: { 
-          borderRadius: 2,
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid #E0E0E0', 
-        pb: 2,
-        backgroundColor: '#F8FAFC',
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CommentIcon sx={{ color: '#1976D2' }} />
-          <Typography variant="h6" sx={{ fontWeight: 600, color: '#101010' }}>
+          <CommentIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
             Add Comment
           </Typography>
           {requisitionData?.requisitionId && (
@@ -819,102 +1185,111 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
               label={requisitionData.requisitionId}
               size="small"
               sx={{
-                ml: 1,
-                backgroundColor: '#E3F2FD',
-                color: '#1976D2',
+                bgcolor: COLORS.primaryLight,
+                color: COLORS.primaryDark,
                 fontWeight: 500,
-                fontSize: '12px'
+                fontSize: '0.65rem',
+                height: 24
               }}
             />
           )}
         </Box>
-        <IconButton onClick={handleClose} size="small" sx={{ color: '#666' }}>
-          <CloseIcon />
+        <IconButton onClick={handleClose} size="small">
+          <CloseIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
         </IconButton>
       </DialogTitle>
       
-      <DialogContent sx={{ pt: 3 }}>
-        <Stack spacing={3}>
+      <DialogContent sx={{ p: 2.5 }}>
+        <Stack spacing={2.5}>
           {/* Requisition Summary */}
           {requisitionData && (
             <Paper sx={{ 
               p: 2, 
-              backgroundColor: '#F8FAFC', 
-              borderRadius: 2,
-              border: '1px solid #E0E0E0'
+              bgcolor: COLORS.primaryLight, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.primary}`,
+              boxShadow: 'none'
             }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <AssignmentIcon sx={{ color: '#1976D2', fontSize: 20 }} />
-                <Typography variant="subtitle2" sx={{ color: '#101010', fontWeight: 600 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <AssignmentIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
                   {requisitionData.positionTitle || 'Requisition'}
                 </Typography>
               </Box>
               
-              <Divider sx={{ mb: 2 }} />
+              <Divider sx={{ borderColor: COLORS.border, mb: 1.5 }} />
               
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>
-                    Department
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {requisitionData.department || 'N/A'}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>
-                    Location
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {requisitionData.location || 'N/A'}
-                  </Typography>
-                </Box>
-              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Department</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BusinessIcon sx={{ fontSize: '0.8rem', color: COLORS.text.tertiary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                      {requisitionData.department || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Location</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocationIcon sx={{ fontSize: '0.8rem', color: COLORS.text.tertiary }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                      {requisitionData.location || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
             </Paper>
           )}
 
           {/* Add Comment Section */}
           <Paper sx={{ 
             p: 2, 
-            borderRadius: 2,
-            border: '1px solid #E0E0E0',
-            backgroundColor: '#FFFFFF'
+            bgcolor: COLORS.background.white, 
+            borderRadius: 1.5, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
           }}>
-            <Typography variant="subtitle2" sx={{ color: '#101010', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CommentIcon sx={{ color: '#1976D2', fontSize: 18 }} />
-              Your Comment
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <CommentIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                Your Comment
+              </Typography>
+            </Box>
             
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              placeholder="Write your comment here... Press Enter to submit, Shift+Enter for new line"
-              value={commentText}
-              onChange={(e) => {
-                setCommentText(e.target.value);
-                if (error) setError('');
-              }}
-              onKeyPress={handleKeyPress}
-              error={!!error}
-              helperText={error}
-              disabled={submitting}
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: '#FFF'
-                }
-              }}
-            />
+            <Box>
+              <Typography sx={labelStyle}>Comment *</Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Write your comment here... Press Enter to submit, Shift+Enter for new line"
+                value={commentText}
+                onChange={(e) => {
+                  setCommentText(e.target.value);
+                  if (error) setError('');
+                }}
+                onKeyPress={handleKeyPress}
+                error={!!error}
+                disabled={submitting}
+                sx={inputStyle}
+              />
+              {error && (
+                <FormHelperText error sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                  {error}
+                </FormHelperText>
+              )}
+            </Box>
             
             {success && (
               <Alert 
                 severity="success" 
-                icon={<CheckCircleIcon fontSize="inherit" />}
+                icon={<CheckCircleIcon sx={{ fontSize: '0.9rem' }} />}
                 sx={{ 
                   mt: 2,
-                  borderRadius: 1,
+                  borderRadius: 1.5,
+                  fontSize: '0.75rem',
+                  py: 0.5
                 }}
               >
                 {success}
@@ -922,25 +1297,24 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
             )}
             
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-              <Typography variant="caption" sx={{ color: '#999' }}>
+              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                 {commentText.length} characters • Press Enter to submit
               </Typography>
               <Button
                 variant="contained"
                 onClick={handleAddComment}
                 disabled={!commentText.trim() || submitting || commentText.trim().length < 3}
-                startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                startIcon={submitting ? <CircularProgress size={20} sx={{ color: COLORS.text.light }} /> : <SendIcon sx={{ fontSize: '1rem' }} />}
                 sx={{
-                  borderRadius: 1,
-                  px: 3,
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
                   textTransform: 'none',
-                  backgroundColor: '#1976D2',
-                  '&:hover': {
-                    backgroundColor: '#1565C0'
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: '#E0E0E0'
-                  }
+                  '&:hover': { bgcolor: COLORS.primaryDark },
+                  '&.Mui-disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
                 }}
               >
                 {submitting ? 'Posting...' : 'Post Comment'}
@@ -951,20 +1325,23 @@ const CommentRequisition = ({ open, onClose, onCommentAdd, requisitionId, requis
       </DialogContent>
       
       <DialogActions sx={{ 
-        px: 3, 
-        py: 2, 
-        borderTop: '1px solid #E0E0E0', 
-        backgroundColor: '#F8FAFC',
+        px: 2.5, 
+        py: 1.5, 
+        borderTop: `1px solid ${COLORS.border}`, 
+        bgcolor: COLORS.background.white
       }}>
         <Button 
           onClick={handleClose}
           sx={{
-            borderRadius: 1,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
             fontWeight: 500,
-            color: '#666'
+            textTransform: 'none',
+            '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
           }}
         >
           Cancel

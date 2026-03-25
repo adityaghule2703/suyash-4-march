@@ -1,3 +1,1420 @@
+// import React, { useState, useEffect } from 'react';
+// import {
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   TextField,
+//   Stack,
+//   Alert,
+//   Grid,
+//   FormControl,
+//   InputLabel,
+//   Select,
+//   MenuItem,
+//   Chip,
+//   Box,
+//   Typography,
+//   IconButton,
+//   FormHelperText,
+//   Divider,
+//   Paper,
+//   CircularProgress,
+//   Stepper,
+//   Step,
+//   StepLabel,
+//   StepConnector,
+//   stepConnectorClasses,
+//   Autocomplete
+// } from '@mui/material';
+// import {
+//   Add as AddIcon,
+//   Close as CloseIcon,
+//   Save as SaveIcon,
+//   Edit as EditIcon,
+//   Refresh as RefreshIcon,
+//   NavigateNext as NavigateNextIcon,
+//   NavigateBefore as NavigateBeforeIcon
+// } from '@mui/icons-material';
+// import { styled } from '@mui/material/styles';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+
+// // 🔥 Modern Stepper Connector with Gradient (same as AddRequisition)
+// const ColorConnector = styled(StepConnector)(({ theme }) => ({
+//   [`&.${stepConnectorClasses.active}`]: {
+//     [`& .${stepConnectorClasses.line}`]: {
+//       backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//     },
+//   },
+//   [`&.${stepConnectorClasses.completed}`]: {
+//     [`& .${stepConnectorClasses.line}`]: {
+//       backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+//     },
+//   },
+//   [`& .${stepConnectorClasses.line}`]: {
+//     height: 3,
+//     border: 0,
+//     backgroundColor: '#eaeaf0',
+//     borderRadius: 1,
+//   },
+// }));
+
+// const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
+//   const [activeStep, setActiveStep] = useState(0);
+//   const [formData, setFormData] = useState({
+//     department: null,
+//     location: '',
+//     positionTitle: '',
+//     noOfPositions: '',
+//     employmentType: '',
+//     reasonForHire: '',
+//     education: '',
+//     experienceYears: '',
+//     skills: [],
+//     budgetMin: '',
+//     budgetMax: '',
+//     grade: '',
+//     justification: '',
+//     priority: 'Medium',
+//     targetHireDate: ''
+//   });
+
+//   // Department dropdown state
+//   const [departments, setDepartments] = useState([]);
+//   const [departmentLoading, setDepartmentLoading] = useState(false);
+//   const [departmentSearch, setDepartmentSearch] = useState('');
+//   const [departmentOpen, setDepartmentOpen] = useState(false);
+//   const [departmentPage, setDepartmentPage] = useState(1);
+//   const [departmentTotalPages, setDepartmentTotalPages] = useState(1);
+//   const [departmentInputValue, setDepartmentInputValue] = useState('');
+
+//   const [originalData, setOriginalData] = useState(null);
+//   const [skillInput, setSkillInput] = useState('');
+//   const [loading, setLoading] = useState(false);
+//   const [fetchLoading, setFetchLoading] = useState(true);
+//   const [error, setError] = useState('');
+//   const [fieldErrors, setFieldErrors] = useState({});
+//   const [validationErrors, setValidationErrors] = useState([]);
+//   const [changedFields, setChangedFields] = useState({});
+//   const [success, setSuccess] = useState('');
+
+//   // Steps definition (same as AddRequisition)
+//   const steps = ['Basic Info', 'Qualifications & Budget', 'Review & Submit'];
+
+//   // Priorities
+//   const priorities = ['Low', 'Medium', 'High', 'Critical'];
+
+//   // Fetch departments from API
+//   const fetchDepartments = async (search = '', page = 1) => {
+//     setDepartmentLoading(true);
+//     try {
+//       const token = localStorage.getItem('token');
+//       const response = await axios.get(`${BASE_URL}/api/departments`, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`
+//         },
+//         params: {
+//           page: page,
+//           limit: 10,
+//           search: search
+//         }
+//       });
+
+//       if (response.data.success) {
+//         if (page === 1) {
+//           setDepartments(response.data.data || []);
+//         } else {
+//           setDepartments(prev => [...prev, ...(response.data.data || [])]);
+//         }
+//         setDepartmentTotalPages(response.data.pagination?.totalPages || 1);
+//       }
+//     } catch (err) {
+//       console.error('Error fetching departments:', err);
+//     } finally {
+//       setDepartmentLoading(false);
+//     }
+//   };
+
+//   // Load departments when dropdown opens
+//   useEffect(() => {
+//     if (departmentOpen) {
+//       fetchDepartments(departmentSearch, 1);
+//     }
+//   }, [departmentOpen]);
+
+//   // Search departments with debounce
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       if (departmentOpen) {
+//         setDepartmentPage(1);
+//         fetchDepartments(departmentSearch, 1);
+//       }
+//     }, 500);
+
+//     return () => clearTimeout(timer);
+//   }, [departmentSearch, departmentOpen]);
+
+//   // Handle department scroll load more
+//   const handleDepartmentScroll = (event) => {
+//     const listboxNode = event.currentTarget;
+//     if (listboxNode.scrollTop + listboxNode.clientHeight >= listboxNode.scrollHeight - 50) {
+//       if (departmentPage < departmentTotalPages && !departmentLoading) {
+//         const nextPage = departmentPage + 1;
+//         setDepartmentPage(nextPage);
+//         fetchDepartments(departmentSearch, nextPage);
+//       }
+//     }
+//   };
+
+//   useEffect(() => {
+//     if (open && requisitionId) {
+//       fetchRequisitionDetails();
+//     }
+//   }, [open, requisitionId]);
+
+//   useEffect(() => {
+//     if (originalData) {
+//       detectChanges();
+//     }
+//   }, [formData, originalData]);
+
+//   const fetchRequisitionDetails = async () => {
+//     setFetchLoading(true);
+//     setError('');
+
+//     try {
+//       const token = localStorage.getItem('token');
+//       const response = await axios.get(`${BASE_URL}/api/requisitions/${requisitionId}`, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+
+//       if (response.data.success) {
+//         const data = response.data.data;
+        
+//         // Find the matching department object from the departments list
+//         let departmentObj = null;
+//         if (data.department) {
+//           // Try to find department by name
+//           departmentObj = departments.find(d => 
+//             d.DepartmentName?.toLowerCase() === data.department?.toLowerCase()
+//           ) || { DepartmentName: data.department }; // Fallback to name-only object
+//         }
+
+//         setOriginalData(data);
+//         setFormData({
+//           department: departmentObj,
+//           location: data.location || '',
+//           positionTitle: data.positionTitle || '',
+//           noOfPositions: data.noOfPositions?.toString() || '',
+//           employmentType: data.employmentType || '',
+//           reasonForHire: data.reasonForHire || '',
+//           education: data.education || '',
+//           experienceYears: data.experienceYears?.toString() || '',
+//           skills: data.skills || [],
+//           budgetMin: data.budgetMin?.toString() || '',
+//           budgetMax: data.budgetMax?.toString() || '',
+//           grade: data.grade || '',
+//           justification: data.justification || '',
+//           priority: data.priority || 'Medium',
+//           targetHireDate: data.targetHireDate ? data.targetHireDate.split('T')[0] : ''
+//         });
+//       } else {
+//         setError(response.data.message || 'Failed to fetch requisition details');
+//       }
+//     } catch (err) {
+//       console.error('Error fetching requisition:', err);
+//       setError(err.response?.data?.message || 'Failed to fetch requisition details. Please try again.');
+//     } finally {
+//       setFetchLoading(false);
+//     }
+//   };
+
+//   const detectChanges = () => {
+//     if (!originalData) return;
+
+//     const changes = {};
+    
+//     // Compare each field
+//     if (formData.department?.DepartmentName !== originalData.department) {
+//       changes.department = true;
+//     }
+//     if (formData.location !== originalData.location) changes.location = true;
+//     if (formData.positionTitle !== originalData.positionTitle) changes.positionTitle = true;
+//     if (formData.noOfPositions?.toString() !== originalData.noOfPositions?.toString()) changes.noOfPositions = true;
+//     if (formData.employmentType !== originalData.employmentType) changes.employmentType = true;
+//     if (formData.reasonForHire !== originalData.reasonForHire) changes.reasonForHire = true;
+//     if (formData.education !== originalData.education) changes.education = true;
+//     if (formData.experienceYears?.toString() !== originalData.experienceYears?.toString()) changes.experienceYears = true;
+//     if (JSON.stringify(formData.skills) !== JSON.stringify(originalData.skills)) changes.skills = true;
+//     if (formData.budgetMin?.toString() !== originalData.budgetMin?.toString()) changes.budgetMin = true;
+//     if (formData.budgetMax?.toString() !== originalData.budgetMax?.toString()) changes.budgetMax = true;
+//     if (formData.grade !== originalData.grade) changes.grade = true;
+//     if (formData.justification !== originalData.justification) changes.justification = true;
+//     if (formData.priority !== originalData.priority) changes.priority = true;
+//     if (formData.targetHireDate !== (originalData.targetHireDate?.split('T')[0] || '')) changes.targetHireDate = true;
+
+//     setChangedFields(changes);
+//   };
+
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+    
+//     if (fieldErrors[name]) {
+//       setFieldErrors(prev => ({
+//         ...prev,
+//         [name]: ''
+//       }));
+//     }
+
+//     if (success) {
+//       setSuccess('');
+//     }
+//   };
+
+//   const handleNumberChange = (e) => {
+//     const { name, value } = e.target;
+//     if (value === '' || /^\d+$/.test(value)) {
+//       setFormData(prev => ({
+//         ...prev,
+//         [name]: value
+//       }));
+      
+//       if (fieldErrors[name]) {
+//         setFieldErrors(prev => ({
+//           ...prev,
+//           [name]: ''
+//         }));
+//       }
+//     }
+//   };
+
+//   const handleAddSkill = () => {
+//     if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
+//       setFormData(prev => ({
+//         ...prev,
+//         skills: [...prev.skills, skillInput.trim()]
+//       }));
+//       setSkillInput('');
+//     }
+//   };
+
+//   const handleRemoveSkill = (skillToRemove) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       skills: prev.skills.filter(skill => skill !== skillToRemove)
+//     }));
+//   };
+
+//   const handleKeyPress = (e) => {
+//     if (e.key === 'Enter' && skillInput.trim()) {
+//       e.preventDefault();
+//       handleAddSkill();
+//     }
+//   };
+
+//   const validateStep = (step) => {
+//     const errors = {};
+
+//     if (step === 0) {
+//       if (!formData.department) {
+//         errors.department = 'Department is required';
+//       }
+//       if (!formData.location.trim()) {
+//         errors.location = 'Location is required';
+//       }
+//       if (!formData.positionTitle.trim()) {
+//         errors.positionTitle = 'Position title is required';
+//       }
+//       if (!formData.noOfPositions) {
+//         errors.noOfPositions = 'Number of positions is required';
+//       } else if (parseInt(formData.noOfPositions) < 1) {
+//         errors.noOfPositions = 'Must be at least 1 position';
+//       }
+//       if (!formData.employmentType.trim()) {
+//         errors.employmentType = 'Employment type is required';
+//       }
+//       if (!formData.reasonForHire.trim()) {
+//         errors.reasonForHire = 'Reason for hire is required';
+//       }
+//       if (!formData.grade.trim()) {
+//         errors.grade = 'Grade is required';
+//       }
+//     } else if (step === 1) {
+//       if (!formData.education.trim()) {
+//         errors.education = 'Education requirement is required';
+//       }
+//       if (!formData.experienceYears) {
+//         errors.experienceYears = 'Experience years is required';
+//       } else if (parseInt(formData.experienceYears) < 0) {
+//         errors.experienceYears = 'Experience years cannot be negative';
+//       }
+//       if (!formData.budgetMin) {
+//         errors.budgetMin = 'Minimum budget is required';
+//       }
+//       if (!formData.budgetMax) {
+//         errors.budgetMax = 'Maximum budget is required';
+//       } else if (formData.budgetMin && formData.budgetMax &&
+//         parseInt(formData.budgetMax) <= parseInt(formData.budgetMin)) {
+//         errors.budgetMax = 'Maximum budget must be greater than minimum budget';
+//       }
+//       if (!formData.justification.trim()) {
+//         errors.justification = 'Justification is required';
+//       }
+//       if (!formData.targetHireDate) {
+//         errors.targetHireDate = 'Target hire date is required';
+//       }
+//     }
+
+//     setFieldErrors(errors);
+//     return Object.keys(errors).length === 0;
+//   };
+
+//   const handleNext = () => {
+//     if (validateStep(activeStep)) {
+//       setActiveStep((prevStep) => prevStep + 1);
+//       setError('');
+//     } else {
+//       setError('Please fill in all required fields in this section');
+//     }
+//   };
+
+//   const handleBack = () => {
+//     setActiveStep((prevStep) => prevStep - 1);
+//     setError('');
+//   };
+
+//   const prepareUpdateData = () => {
+//     const updateData = {};
+    
+//     Object.keys(changedFields).forEach(field => {
+//       if (field === 'department') {
+//         updateData[field] = formData.department?.DepartmentName || formData.department;
+//       } else if (field === 'noOfPositions' || field === 'experienceYears' || field === 'budgetMin' || field === 'budgetMax') {
+//         updateData[field] = parseInt(formData[field]);
+//       } else if (field === 'skills') {
+//         updateData[field] = formData[field];
+//       } else {
+//         updateData[field] = formData[field];
+//       }
+//     });
+
+//     return updateData;
+//   };
+
+//   const handleSubmit = async () => {
+//     if (Object.keys(changedFields).length === 0) {
+//       setError('No changes made to update');
+//       return;
+//     }
+
+//     if (!validateStep(1)) {
+//       setError('Please fill in all required fields correctly');
+//       return;
+//     }
+
+//     setLoading(true);
+//     setError('');
+//     setValidationErrors([]);
+
+//     try {
+//       const token = localStorage.getItem('token');
+//       const updateData = prepareUpdateData();
+
+//       const response = await axios.put(`${BASE_URL}/api/requisitions/${requisitionId}`, updateData, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+
+//       if (response.data.success) {
+//         setSuccess('Requisition updated successfully');
+//         onUpdate(response.data.data);
+        
+//         setTimeout(() => {
+//           handleClose();
+//         }, 1500);
+//       } else {
+//         setError(response.data.message || 'Failed to update requisition');
+//       }
+//     } catch (err) {
+//       console.error('Error updating requisition:', err);
+//       if (err.response) {
+//         if (err.response.data.errors) {
+//           setValidationErrors(err.response.data.errors);
+//           const backendErrors = {};
+//           err.response.data.errors.forEach(error => {
+//             if (error.field) {
+//               backendErrors[error.field] = error.message;
+//             }
+//           });
+//           setFieldErrors(backendErrors);
+//         }
+//         setError(err.response.data?.message || 'Failed to update requisition. Please try again.');
+//       } else {
+//         setError('Failed to update requisition. Please try again.');
+//       }
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const resetForm = () => {
+//     if (originalData) {
+//       // Find the matching department object
+//       let departmentObj = null;
+//       if (originalData.department) {
+//         departmentObj = departments.find(d => 
+//           d.DepartmentName?.toLowerCase() === originalData.department?.toLowerCase()
+//         ) || { DepartmentName: originalData.department };
+//       }
+
+//       setFormData({
+//         department: departmentObj,
+//         location: originalData.location || '',
+//         positionTitle: originalData.positionTitle || '',
+//         noOfPositions: originalData.noOfPositions?.toString() || '',
+//         employmentType: originalData.employmentType || '',
+//         reasonForHire: originalData.reasonForHire || '',
+//         education: originalData.education || '',
+//         experienceYears: originalData.experienceYears?.toString() || '',
+//         skills: originalData.skills || [],
+//         budgetMin: originalData.budgetMin?.toString() || '',
+//         budgetMax: originalData.budgetMax?.toString() || '',
+//         grade: originalData.grade || '',
+//         justification: originalData.justification || '',
+//         priority: originalData.priority || 'Medium',
+//         targetHireDate: originalData.targetHireDate ? originalData.targetHireDate.split('T')[0] : ''
+//       });
+//     }
+//     setSkillInput('');
+//     setError('');
+//     setSuccess('');
+//     setFieldErrors({});
+//     setValidationErrors([]);
+//     setActiveStep(0);
+//   };
+
+//   const handleClose = () => {
+//     resetForm();
+//     onClose();
+//   };
+
+//   const handleRefresh = () => {
+//     fetchRequisitionDetails();
+//   };
+
+//   const renderStepContent = (step) => {
+//     switch (step) {
+//       case 0:
+//         return (
+//           <Stack spacing={2}>
+//             {/* Basic Information - Compact Grid */}
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Basic Information
+//                 {Object.keys(changedFields).some(f => ['department', 'location', 'positionTitle', 'noOfPositions'].includes(f)) && (
+//                   <Chip
+//                     label="Modified"
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 {/* First Row: Department (Full Width) */}
+//                 <Grid size={{ xs: 12 }}>
+//                   <Autocomplete
+//                     size="small"
+//                     id="department-autocomplete"
+//                     open={departmentOpen}
+//                     onOpen={() => setDepartmentOpen(true)}
+//                     onClose={() => setDepartmentOpen(false)}
+//                     options={departments}
+//                     loading={departmentLoading}
+//                     value={formData.department}
+//                     onChange={(event, newValue) => {
+//                       setFormData(prev => ({ ...prev, department: newValue }));
+//                       if (fieldErrors.department) setFieldErrors(prev => ({ ...prev, department: '' }));
+//                     }}
+//                     inputValue={departmentInputValue}
+//                     onInputChange={(event, newInputValue) => {
+//                       setDepartmentInputValue(newInputValue);
+//                       setDepartmentSearch(newInputValue);
+//                     }}
+//                     getOptionLabel={(option) => option?.DepartmentName || ''}
+//                     fullWidth
+//                     renderInput={(params) => (
+//                       <TextField
+//                         {...params}
+//                         label="Department"
+//                         required
+//                         error={!!fieldErrors.department}
+//                         helperText={fieldErrors.department}
+//                         size="small"
+//                         placeholder="Select department"
+//                         sx={{
+//                           '& .MuiOutlinedInput-root': {
+//                             borderRadius: 1,
+//                             ...(changedFields.department && {
+//                               backgroundColor: '#FFF8E1',
+//                               '& fieldset': { borderColor: '#FFB74D' }
+//                             })
+//                           }
+//                         }}
+//                         InputProps={{
+//                           ...params.InputProps,
+//                           endAdornment: (
+//                             <>
+//                               {departmentLoading ? <CircularProgress size={16} /> : null}
+//                               {params.InputProps.endAdornment}
+//                             </>
+//                           ),
+//                         }}
+//                       />
+//                     )}
+//                     renderOption={(props, option) => (
+//                       <MenuItem {...props} key={option._id} sx={{ py: 0.5 }}>
+//                         <Typography variant="body2">{option.DepartmentName}</Typography>
+//                       </MenuItem>
+//                     )}
+//                     ListboxProps={{ onScroll: handleDepartmentScroll, style: { maxHeight: 200 } }}
+//                   />
+//                 </Grid>
+
+//                 {/* Second Row: Location, Position Title, No. of Positions */}
+//                 <Grid size={{ xs: 12, sm: 4 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Location"
+//                     name="location"
+//                     value={formData.location}
+//                     onChange={handleChange}
+//                     required
+//                     error={!!fieldErrors.location}
+//                     helperText={fieldErrors.location}
+//                     placeholder="e.g., Plant Unit A"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.location && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 5 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Position Title"
+//                     name="positionTitle"
+//                     value={formData.positionTitle}
+//                     onChange={handleChange}
+//                     required
+//                     error={!!fieldErrors.positionTitle}
+//                     helperText={fieldErrors.positionTitle}
+//                     placeholder="e.g., Machine Operator"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.positionTitle && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 3 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="No. of Positions"
+//                     name="noOfPositions"
+//                     value={formData.noOfPositions}
+//                     onChange={handleNumberChange}
+//                     required
+//                     type="number"
+//                     inputProps={{ min: 1 }}
+//                     error={!!fieldErrors.noOfPositions}
+//                     helperText={fieldErrors.noOfPositions}
+//                     placeholder="e.g., 3"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.noOfPositions && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+
+//             {/* Employment Details - Compact Grid */}
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Employment Details
+//                 {Object.keys(changedFields).some(f => ['employmentType', 'reasonForHire', 'grade', 'priority'].includes(f)) && (
+//                   <Chip
+//                     label="Modified"
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <FormControl fullWidth size="small" sx={{
+//                     '& .MuiOutlinedInput-root': {
+//                       borderRadius: 1,
+//                       ...(changedFields.employmentType && {
+//                         backgroundColor: '#FFF8E1',
+//                         '& fieldset': { borderColor: '#FFB74D' }
+//                       })
+//                     }
+//                   }}>
+//                     <InputLabel>Employment Type *</InputLabel>
+//                     <Select
+//                       name="employmentType"
+//                       value={formData.employmentType}
+//                       onChange={handleChange}
+//                       label="Employment Type *"
+//                       required
+//                       error={!!fieldErrors.employmentType}
+//                     >
+//                       <MenuItem value="Permanent">Permanent</MenuItem>
+//                       <MenuItem value="Contract">Contract</MenuItem>
+//                       <MenuItem value="Temporary">Temporary</MenuItem>
+//                       <MenuItem value="Internship">Internship</MenuItem>
+//                     </Select>
+//                     {fieldErrors.employmentType && (
+//                       <FormHelperText error>{fieldErrors.employmentType}</FormHelperText>
+//                     )}
+//                   </FormControl>
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <FormControl fullWidth size="small" sx={{
+//                     '& .MuiOutlinedInput-root': {
+//                       borderRadius: 1,
+//                       ...(changedFields.reasonForHire && {
+//                         backgroundColor: '#FFF8E1',
+//                         '& fieldset': { borderColor: '#FFB74D' }
+//                       })
+//                     }
+//                   }}>
+//                     <InputLabel>Reason for Hire *</InputLabel>
+//                     <Select
+//                       name="reasonForHire"
+//                       value={formData.reasonForHire}
+//                       onChange={handleChange}
+//                       label="Reason for Hire *"
+//                       required
+//                       error={!!fieldErrors.reasonForHire}
+//                     >
+//                       <MenuItem value="New Unit">New Unit</MenuItem>
+//                       <MenuItem value="Replacement">Replacement</MenuItem>
+//                       <MenuItem value="New Position">New Position</MenuItem>
+//                       <MenuItem value="Project Based">Project Based</MenuItem>
+//                       <MenuItem value="Others">Others</MenuItem>
+//                     </Select>
+//                     {fieldErrors.reasonForHire && (
+//                       <FormHelperText error>{fieldErrors.reasonForHire}</FormHelperText>
+//                     )}
+//                   </FormControl>
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Grade"
+//                     name="grade"
+//                     value={formData.grade}
+//                     onChange={handleChange}
+//                     required
+//                     error={!!fieldErrors.grade}
+//                     helperText={fieldErrors.grade}
+//                     placeholder="e.g., Level 2"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.grade && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <FormControl fullWidth size="small" sx={{
+//                     '& .MuiOutlinedInput-root': {
+//                       borderRadius: 1,
+//                       ...(changedFields.priority && {
+//                         backgroundColor: '#FFF8E1',
+//                         '& fieldset': { borderColor: '#FFB74D' }
+//                       })
+//                     }
+//                   }}>
+//                     <InputLabel>Priority *</InputLabel>
+//                     <Select
+//                       name="priority"
+//                       value={formData.priority}
+//                       onChange={handleChange}
+//                       label="Priority *"
+//                       required
+//                     >
+//                       {priorities.map(priority => (
+//                         <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+//                       ))}
+//                     </Select>
+//                   </FormControl>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+
+//             {/* Budget & Additional */}
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Budget & Additional Info
+//                 {Object.keys(changedFields).some(f => ['budgetMin', 'budgetMax', 'targetHireDate'].includes(f)) && (
+//                   <Chip
+//                     label="Modified"
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Budget Min (₹)"
+//                     name="budgetMin"
+//                     value={formData.budgetMin}
+//                     onChange={handleNumberChange}
+//                     required
+//                     type="number"
+//                     error={!!fieldErrors.budgetMin}
+//                     helperText={fieldErrors.budgetMin}
+//                     placeholder="e.g., 18000"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.budgetMin && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Budget Max (₹)"
+//                     name="budgetMax"
+//                     value={formData.budgetMax}
+//                     onChange={handleNumberChange}
+//                     required
+//                     type="number"
+//                     error={!!fieldErrors.budgetMax}
+//                     helperText={fieldErrors.budgetMax}
+//                     placeholder="e.g., 28000"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.budgetMax && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Target Hire Date"
+//                     name="targetHireDate"
+//                     type="date"
+//                     value={formData.targetHireDate}
+//                     onChange={handleChange}
+//                     required
+//                     error={!!fieldErrors.targetHireDate}
+//                     helperText={fieldErrors.targetHireDate}
+//                     InputLabelProps={{ shrink: true }}
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.targetHireDate && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+
+//             {/* Justification - Compact */}
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Justification
+//                 {changedFields.justification && (
+//                   <Chip
+//                     label="Modified"
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+//               <TextField
+//                 fullWidth
+//                 size="small"
+//                 name="justification"
+//                 value={formData.justification}
+//                 onChange={handleChange}
+//                 required
+//                 multiline
+//                 rows={2}
+//                 error={!!fieldErrors.justification}
+//                 helperText={fieldErrors.justification}
+//                 placeholder="Brief justification..."
+//                 sx={{
+//                   '& .MuiOutlinedInput-root': {
+//                     borderRadius: 1,
+//                     ...(changedFields.justification && {
+//                       backgroundColor: '#FFF8E1',
+//                       '& fieldset': { borderColor: '#FFB74D' }
+//                     })
+//                   }
+//                 }}
+//               />
+//             </Paper>
+//           </Stack>
+//         );
+
+//       case 1:
+//         return (
+//           <Stack spacing={2}>
+//             {/* Qualifications Section */}
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Qualifications
+//                 {Object.keys(changedFields).some(f => ['education', 'experienceYears', 'skills'].includes(f)) && (
+//                   <Chip
+//                     label="Modified"
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Education"
+//                     name="education"
+//                     value={formData.education}
+//                     onChange={handleChange}
+//                     required
+//                     error={!!fieldErrors.education}
+//                     helperText={fieldErrors.education}
+//                     placeholder="e.g., Bachelor's Degree"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.education && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <TextField
+//                     fullWidth
+//                     size="small"
+//                     label="Experience (Years)"
+//                     name="experienceYears"
+//                     value={formData.experienceYears}
+//                     onChange={handleNumberChange}
+//                     required
+//                     type="number"
+//                     inputProps={{ min: 0 }}
+//                     error={!!fieldErrors.experienceYears}
+//                     helperText={fieldErrors.experienceYears}
+//                     placeholder="e.g., 3"
+//                     sx={{
+//                       '& .MuiOutlinedInput-root': {
+//                         borderRadius: 1,
+//                         ...(changedFields.experienceYears && {
+//                           backgroundColor: '#FFF8E1',
+//                           '& fieldset': { borderColor: '#FFB74D' }
+//                         })
+//                       }
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 12 }}>
+//                   <Box>
+//                     <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block' }}>
+//                       Skills
+//                       {changedFields.skills && (
+//                         <Chip
+//                           label="Modified"
+//                           size="small"
+//                           sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                         />
+//                       )}
+//                     </Typography>
+//                     <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+//                       <TextField
+//                         size="small"
+//                         value={skillInput}
+//                         onChange={(e) => setSkillInput(e.target.value)}
+//                         onKeyPress={handleKeyPress}
+//                         placeholder="Add a skill and press Enter"
+//                         sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+//                       />
+//                       <Button
+//                         variant="outlined"
+//                         onClick={handleAddSkill}
+//                         disabled={!skillInput.trim()}
+//                         size="small"
+//                         sx={{ borderRadius: 1 }}
+//                       >
+//                         Add
+//                       </Button>
+//                     </Box>
+//                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+//                       {formData.skills.map((skill) => (
+//                         <Chip
+//                           key={skill}
+//                           label={skill}
+//                           onDelete={() => handleRemoveSkill(skill)}
+//                           size="small"
+//                           sx={{
+//                             backgroundColor: '#E3F2FD',
+//                             color: '#1976D2',
+//                             '& .MuiChip-deleteIcon': {
+//                               color: '#1976D2',
+//                               '&:hover': { color: '#1565C0' }
+//                             }
+//                           }}
+//                         />
+//                       ))}
+//                       {formData.skills.length === 0 && (
+//                         <Typography variant="caption" sx={{ color: '#999', fontStyle: 'italic' }}>
+//                           No skills added yet
+//                         </Typography>
+//                       )}
+//                     </Box>
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+//           </Stack>
+//         );
+
+//       case 2:
+//         return (
+//           <Stack spacing={2}>
+//             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
+//               <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+//                 Review Your Requisition
+//                 {Object.keys(changedFields).length > 0 && (
+//                   <Chip
+//                     label={`${Object.keys(changedFields).length} change(s)`}
+//                     size="small"
+//                     sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+//                   />
+//                 )}
+//               </Typography>
+              
+//               <Grid container spacing={2}>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Department</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.department && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.department?.DepartmentName || formData.department || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Location</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.location && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.location || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Position Title</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.positionTitle && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.positionTitle || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>No. of Positions</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.noOfPositions && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.noOfPositions || '0'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Employment Type</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.employmentType && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.employmentType || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Grade</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.grade && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.grade || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Priority</Typography>
+//                   <Chip 
+//                     label={formData.priority} 
+//                     size="small"
+//                     sx={{ 
+//                       backgroundColor: 
+//                         formData.priority === 'High' ? '#FFEBEE' : 
+//                         formData.priority === 'Medium' ? '#FFF3E0' : 
+//                         formData.priority === 'Low' ? '#E8F5E9' : '#F3E5F5',
+//                       color: 
+//                         formData.priority === 'High' ? '#C62828' : 
+//                         formData.priority === 'Medium' ? '#E65100' : 
+//                         formData.priority === 'Low' ? '#2E7D32' : '#6A1B9A',
+//                       ...(changedFields.priority && { border: '2px solid #FFB74D' })
+//                     }}
+//                   />
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Target Hire Date</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.targetHireDate && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.targetHireDate ? new Date(formData.targetHireDate).toLocaleDateString() : 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 12 }}>
+//                   <Divider sx={{ my: 1 }} />
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Education</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.education && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.education || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Experience</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.experienceYears && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.experienceYears || '0'} years
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Budget Range</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...((changedFields.budgetMin || changedFields.budgetMax) && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     ₹{formData.budgetMin || '0'} - ₹{formData.budgetMax || '0'}
+//                   </Typography>
+//                 </Grid>
+//                 <Grid size={{ xs: 6 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Reason for Hire</Typography>
+//                   <Typography variant="body2" sx={{ 
+//                     fontWeight: 500,
+//                     ...(changedFields.reasonForHire && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+//                   }}>
+//                     {formData.reasonForHire || 'Not set'}
+//                   </Typography>
+//                 </Grid>
+//                 {formData.skills.length > 0 && (
+//                   <Grid size={{ xs: 12 }}>
+//                     <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>Skills</Typography>
+//                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+//                       {formData.skills.map(skill => (
+//                         <Chip 
+//                           key={skill} 
+//                           label={skill} 
+//                           size="small" 
+//                           sx={{ 
+//                             backgroundColor: '#E3F2FD', 
+//                             color: '#1976D2',
+//                             ...(changedFields.skills && { border: '2px solid #FFB74D' })
+//                           }} 
+//                         />
+//                       ))}
+//                     </Box>
+//                   </Grid>
+//                 )}
+//                 <Grid size={{ xs: 12 }}>
+//                   <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>Justification</Typography>
+//                   <Paper sx={{ 
+//                     p: 1.5, 
+//                     backgroundColor: changedFields.justification ? '#FFF8E1' : '#F8FAFC', 
+//                     borderRadius: 1,
+//                     border: changedFields.justification ? '1px solid #FFB74D' : 'none'
+//                   }}>
+//                     <Typography variant="body2" sx={{ color: changedFields.justification ? '#E65100' : '#333' }}>
+//                       {formData.justification || 'No justification provided'}
+//                     </Typography>
+//                   </Paper>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+            
+//             <Alert severity="info" sx={{ borderRadius: 1 }}>
+//               <Typography variant="body2">
+//                 Please review all changes before submitting. Fields highlighted in orange will be updated.
+//               </Typography>
+//             </Alert>
+//           </Stack>
+//         );
+
+//       default:
+//         return null;
+//     }
+//   };
+
+//   return (
+//     <Dialog
+//       open={open}
+//       onClose={handleClose}
+//       maxWidth="md"
+//       fullWidth
+//       PaperProps={{
+//         sx: {
+//           borderRadius: 1.5,
+//           maxHeight: '95vh'
+//         }
+//       }}
+//     >
+//       <DialogTitle sx={{
+//         borderBottom: '1px solid #E0E0E0',
+//         py: 1.5,
+//         px: 2,
+//         backgroundColor: '#F8FAFC',
+//         display: 'flex',
+//         justifyContent: 'space-between',
+//         alignItems: 'center'
+//       }}>
+//         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+//           <EditIcon sx={{ color: '#1976D2', fontSize: 20 }} />
+//           <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010' }}>
+//             Edit Requisition
+//           </Typography>
+//           {originalData && (
+//             <Chip
+//               label={originalData.requisitionId}
+//               size="small"
+//               sx={{
+//                 ml: 1,
+//                 backgroundColor: '#E3F2FD',
+//                 color: '#1976D2',
+//                 fontWeight: 500,
+//                 fontSize: '12px'
+//               }}
+//             />
+//           )}
+//         </Box>
+//         <Box sx={{ display: 'flex', gap: 1 }}>
+//           <IconButton 
+//             onClick={handleRefresh} 
+//             size="small" 
+//             sx={{ color: '#666' }}
+//             disabled={fetchLoading || loading}
+//           >
+//             <RefreshIcon fontSize="small" />
+//           </IconButton>
+//           <IconButton onClick={handleClose} size="small" sx={{ color: '#666' }}>
+//             <CloseIcon fontSize="small" />
+//           </IconButton>
+//         </Box>
+//       </DialogTitle>
+
+//       {fetchLoading ? (
+//         <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+//           <CircularProgress sx={{ color: '#1976D2' }} />
+//         </DialogContent>
+//       ) : error && !originalData ? (
+//         <DialogContent>
+//           <Alert severity="error" sx={{ borderRadius: 1, mt: 2 }}>{error}</Alert>
+//         </DialogContent>
+//       ) : originalData ? (
+//         <>
+//           <DialogTitle sx={{
+//             borderBottom: '1px solid #E0E0E0',
+//             py: 1,
+//             px: 2,
+//             backgroundColor: '#F8FAFC'
+//           }}>
+//             {/* 🔥 Modern Stepper with Gradient Connector */}
+//             <Stepper
+//               activeStep={activeStep}
+//               alternativeLabel
+//               connector={<ColorConnector />}
+//               sx={{ mb: 0.5, mt: 0.5 }}
+//             >
+//               {steps.map((label) => (
+//                 <Step key={label}>
+//                   <StepLabel>
+//                     <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+//                   </StepLabel>
+//                 </Step>
+//               ))}
+//             </Stepper>
+//           </DialogTitle>
+
+//           <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+//             {renderStepContent(activeStep)}
+
+//             {/* Display validation errors from backend */}
+//             {validationErrors.length > 0 && (
+//               <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>
+//                 <Typography variant="body2" fontWeight={600}>Please fix the following errors:</Typography>
+//                 <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+//                   {validationErrors.map((err, index) => (
+//                     <li key={index}>
+//                       <Typography variant="caption">{err.message}</Typography>
+//                     </li>
+//                   ))}
+//                 </ul>
+//               </Alert>
+//             )}
+
+//             {error && !validationErrors.length && (
+//               <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
+//             )}
+
+//             {success && (
+//               <Alert severity="success" sx={{ mt: 2, borderRadius: 1 }}>{success}</Alert>
+//             )}
+//           </DialogContent>
+
+//           <DialogActions sx={{
+//             px: 2,
+//             py: 1.5,
+//             borderTop: '1px solid #E0E0E0',
+//             backgroundColor: '#F8FAFC',
+//             justifyContent: 'space-between'
+//           }}>
+//             <Button
+//               onClick={handleBack}
+//               disabled={activeStep === 0 || loading}
+//               size="small"
+//               startIcon={<NavigateBeforeIcon />}
+//               sx={{ color: '#666' }}
+//             >
+//               Back
+//             </Button>
+//             <Box>
+//               <Button
+//                 onClick={resetForm}
+//                 disabled={loading || Object.keys(changedFields).length === 0}
+//                 size="small"
+//                 sx={{ mr: 1, color: '#666' }}
+//               >
+//                 Reset
+//               </Button>
+//               <Button
+//                 onClick={handleClose}
+//                 disabled={loading}
+//                 size="small"
+//                 sx={{ mr: 1, color: '#666' }}
+//               >
+//                 Cancel
+//               </Button>
+//               {activeStep === steps.length - 1 ? (
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleSubmit}
+//                   disabled={loading || Object.keys(changedFields).length === 0}
+//                   size="small"
+//                   startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+//                   sx={{
+//                     backgroundColor: '#1976D2',
+//                     '&:hover': { backgroundColor: '#1565C0' },
+//                     '&.Mui-disabled': { backgroundColor: '#E0E0E0' }
+//                   }}
+//                 >
+//                   {loading ? 'Updating...' : 'Update'}
+//                 </Button>
+//               ) : (
+//                 <Button
+//                   variant="contained"
+//                   onClick={handleNext}
+//                   disabled={loading}
+//                   size="small"
+//                   endIcon={<NavigateNextIcon />}
+//                   sx={{
+//                     backgroundColor: '#1976D2',
+//                     '&:hover': { backgroundColor: '#1565C0' }
+//                   }}
+//                 >
+//                   Next
+//                 </Button>
+//               )}
+//             </Box>
+//           </DialogActions>
+//         </>
+//       ) : null}
+//     </Dialog>
+//   );
+// };
+
+// export default EditRequisition;
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -8,58 +1425,104 @@ import {
   TextField,
   Stack,
   Alert,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
   MenuItem,
-  Chip,
-  Box,
-  Typography,
-  IconButton,
-  FormHelperText,
-  Divider,
-  Paper,
+  Grid,
   CircularProgress,
   Stepper,
   Step,
   StepLabel,
+  Box,
+  Typography,
+  styled,
   StepConnector,
   stepConnectorClasses,
-  Autocomplete
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText,
+  Divider,
+  Paper,
+  InputAdornment,
+  Autocomplete,
+  IconButton
 } from '@mui/material';
 import {
-  Add as AddIcon,
+  Edit as EditIcon,
   Close as CloseIcon,
   Save as SaveIcon,
-  Edit as EditIcon,
   Refresh as RefreshIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  NavigateBefore as NavigateBeforeIcon,
+  Business as BusinessIcon,
+  LocationOn as LocationIcon,
+  Work as WorkIcon,
+  AttachMoney as AttachMoneyIcon,
+  School as SchoolIcon,
+  Build as BuildIcon,
+  Info as InfoIcon,
+  Schedule as ScheduleIcon,
+  PriorityHigh as PriorityHighIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-// 🔥 Modern Stepper Connector with Gradient (same as AddRequisition)
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
+
+// Custom Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundColor: COLORS.primary,
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)',
+      backgroundColor: COLORS.primary,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
-    height: 3,
+    height: 2,
     border: 0,
-    backgroundColor: '#eaeaf0',
+    backgroundColor: COLORS.border,
     borderRadius: 1,
   },
 }));
+
+const steps = ["Basic Info", "Qualifications & Budget", "Review & Submit"];
 
 const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
   const [activeStep, setActiveStep] = useState(0);
@@ -81,13 +1544,10 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     targetHireDate: ''
   });
 
-  // Department dropdown state
   const [departments, setDepartments] = useState([]);
   const [departmentLoading, setDepartmentLoading] = useState(false);
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [departmentOpen, setDepartmentOpen] = useState(false);
-  const [departmentPage, setDepartmentPage] = useState(1);
-  const [departmentTotalPages, setDepartmentTotalPages] = useState(1);
   const [departmentInputValue, setDepartmentInputValue] = useState('');
 
   const [originalData, setOriginalData] = useState(null);
@@ -96,39 +1556,23 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  const [validationErrors, setValidationErrors] = useState([]);
+  const [touched, setTouched] = useState({});
   const [changedFields, setChangedFields] = useState({});
   const [success, setSuccess] = useState('');
 
-  // Steps definition (same as AddRequisition)
-  const steps = ['Basic Info', 'Qualifications & Budget', 'Review & Submit'];
-
-  // Priorities
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
 
-  // Fetch departments from API
-  const fetchDepartments = async (search = '', page = 1) => {
+  const fetchDepartments = async (search = '') => {
     setDepartmentLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/departments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        params: {
-          page: page,
-          limit: 10,
-          search: search
-        }
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: { search: search, limit: 50 }
       });
 
       if (response.data.success) {
-        if (page === 1) {
-          setDepartments(response.data.data || []);
-        } else {
-          setDepartments(prev => [...prev, ...(response.data.data || [])]);
-        }
-        setDepartmentTotalPages(response.data.pagination?.totalPages || 1);
+        setDepartments(response.data.data || []);
       }
     } catch (err) {
       console.error('Error fetching departments:', err);
@@ -137,36 +1581,20 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     }
   };
 
-  // Load departments when dropdown opens
   useEffect(() => {
     if (departmentOpen) {
-      fetchDepartments(departmentSearch, 1);
+      fetchDepartments(departmentSearch);
     }
   }, [departmentOpen]);
 
-  // Search departments with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       if (departmentOpen) {
-        setDepartmentPage(1);
-        fetchDepartments(departmentSearch, 1);
+        fetchDepartments(departmentSearch);
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [departmentSearch, departmentOpen]);
-
-  // Handle department scroll load more
-  const handleDepartmentScroll = (event) => {
-    const listboxNode = event.currentTarget;
-    if (listboxNode.scrollTop + listboxNode.clientHeight >= listboxNode.scrollHeight - 50) {
-      if (departmentPage < departmentTotalPages && !departmentLoading) {
-        const nextPage = departmentPage + 1;
-        setDepartmentPage(nextPage);
-        fetchDepartments(departmentSearch, nextPage);
-      }
-    }
-  };
 
   useEffect(() => {
     if (open && requisitionId) {
@@ -187,22 +1615,17 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/requisitions/${requisitionId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
         const data = response.data.data;
         
-        // Find the matching department object from the departments list
         let departmentObj = null;
         if (data.department) {
-          // Try to find department by name
           departmentObj = departments.find(d => 
             d.DepartmentName?.toLowerCase() === data.department?.toLowerCase()
-          ) || { DepartmentName: data.department }; // Fallback to name-only object
+          ) || { DepartmentName: data.department };
         }
 
         setOriginalData(data);
@@ -239,10 +1662,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
     const changes = {};
     
-    // Compare each field
-    if (formData.department?.DepartmentName !== originalData.department) {
-      changes.department = true;
-    }
+    if (formData.department?.DepartmentName !== originalData.department) changes.department = true;
     if (formData.location !== originalData.location) changes.location = true;
     if (formData.positionTitle !== originalData.positionTitle) changes.positionTitle = true;
     if (formData.noOfPositions?.toString() !== originalData.noOfPositions?.toString()) changes.noOfPositions = true;
@@ -263,38 +1683,22 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-
-    if (success) {
-      setSuccess('');
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    if (success) setSuccess('');
   };
 
   const handleNumberChange = (e) => {
     const { name, value } = e.target;
     if (value === '' || /^\d+$/.test(value)) {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-      
-      if (fieldErrors[name]) {
-        setFieldErrors(prev => ({
-          ...prev,
-          [name]: ''
-        }));
-      }
+      setFormData(prev => ({ ...prev, [name]: value }));
+      if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
   };
 
   const handleAddSkill = () => {
@@ -325,53 +1729,24 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     const errors = {};
 
     if (step === 0) {
-      if (!formData.department) {
-        errors.department = 'Department is required';
-      }
-      if (!formData.location.trim()) {
-        errors.location = 'Location is required';
-      }
-      if (!formData.positionTitle.trim()) {
-        errors.positionTitle = 'Position title is required';
-      }
-      if (!formData.noOfPositions) {
-        errors.noOfPositions = 'Number of positions is required';
-      } else if (parseInt(formData.noOfPositions) < 1) {
-        errors.noOfPositions = 'Must be at least 1 position';
-      }
-      if (!formData.employmentType.trim()) {
-        errors.employmentType = 'Employment type is required';
-      }
-      if (!formData.reasonForHire.trim()) {
-        errors.reasonForHire = 'Reason for hire is required';
-      }
-      if (!formData.grade.trim()) {
-        errors.grade = 'Grade is required';
-      }
+      if (!formData.department) errors.department = 'Department is required';
+      if (!formData.location.trim()) errors.location = 'Location is required';
+      if (!formData.positionTitle.trim()) errors.positionTitle = 'Position title is required';
+      if (!formData.noOfPositions) errors.noOfPositions = 'Number of positions is required';
+      else if (parseInt(formData.noOfPositions) < 1) errors.noOfPositions = 'Must be at least 1 position';
+      if (!formData.employmentType) errors.employmentType = 'Employment type is required';
+      if (!formData.reasonForHire) errors.reasonForHire = 'Reason for hire is required';
+      if (!formData.grade.trim()) errors.grade = 'Grade is required';
     } else if (step === 1) {
-      if (!formData.education.trim()) {
-        errors.education = 'Education requirement is required';
-      }
-      if (!formData.experienceYears) {
-        errors.experienceYears = 'Experience years is required';
-      } else if (parseInt(formData.experienceYears) < 0) {
-        errors.experienceYears = 'Experience years cannot be negative';
-      }
-      if (!formData.budgetMin) {
-        errors.budgetMin = 'Minimum budget is required';
-      }
-      if (!formData.budgetMax) {
-        errors.budgetMax = 'Maximum budget is required';
-      } else if (formData.budgetMin && formData.budgetMax &&
-        parseInt(formData.budgetMax) <= parseInt(formData.budgetMin)) {
+      if (!formData.education.trim()) errors.education = 'Education requirement is required';
+      if (!formData.budgetMin) errors.budgetMin = 'Minimum budget is required';
+      if (!formData.budgetMax) errors.budgetMax = 'Maximum budget is required';
+      if (formData.budgetMin && formData.budgetMax && 
+          parseInt(formData.budgetMax) <= parseInt(formData.budgetMin)) {
         errors.budgetMax = 'Maximum budget must be greater than minimum budget';
       }
-      if (!formData.justification.trim()) {
-        errors.justification = 'Justification is required';
-      }
-      if (!formData.targetHireDate) {
-        errors.targetHireDate = 'Target hire date is required';
-      }
+      if (!formData.justification.trim()) errors.justification = 'Justification is required';
+      if (!formData.targetHireDate) errors.targetHireDate = 'Target hire date is required';
     }
 
     setFieldErrors(errors);
@@ -380,7 +1755,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
   const handleNext = () => {
     if (validateStep(activeStep)) {
-      setActiveStep((prevStep) => prevStep + 1);
+      setActiveStep(prev => prev + 1);
       setError('');
     } else {
       setError('Please fill in all required fields in this section');
@@ -388,7 +1763,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
   };
 
   const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
+    setActiveStep(prev => prev - 1);
     setError('');
   };
 
@@ -398,10 +1773,8 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     Object.keys(changedFields).forEach(field => {
       if (field === 'department') {
         updateData[field] = formData.department?.DepartmentName || formData.department;
-      } else if (field === 'noOfPositions' || field === 'experienceYears' || field === 'budgetMin' || field === 'budgetMax') {
+      } else if (['noOfPositions', 'experienceYears', 'budgetMin', 'budgetMax'].includes(field)) {
         updateData[field] = parseInt(formData[field]);
-      } else if (field === 'skills') {
-        updateData[field] = formData[field];
       } else {
         updateData[field] = formData[field];
       }
@@ -423,17 +1796,13 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
     setLoading(true);
     setError('');
-    setValidationErrors([]);
 
     try {
       const token = localStorage.getItem('token');
       const updateData = prepareUpdateData();
 
       const response = await axios.put(`${BASE_URL}/api/requisitions/${requisitionId}`, updateData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
@@ -448,21 +1817,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
       }
     } catch (err) {
       console.error('Error updating requisition:', err);
-      if (err.response) {
-        if (err.response.data.errors) {
-          setValidationErrors(err.response.data.errors);
-          const backendErrors = {};
-          err.response.data.errors.forEach(error => {
-            if (error.field) {
-              backendErrors[error.field] = error.message;
-            }
-          });
-          setFieldErrors(backendErrors);
-        }
-        setError(err.response.data?.message || 'Failed to update requisition. Please try again.');
-      } else {
-        setError('Failed to update requisition. Please try again.');
-      }
+      setError(err.response?.data?.message || 'Failed to update requisition. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -470,7 +1825,6 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
   const resetForm = () => {
     if (originalData) {
-      // Find the matching department object
       let departmentObj = null;
       if (originalData.department) {
         departmentObj = departments.find(d => 
@@ -500,7 +1854,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     setError('');
     setSuccess('');
     setFieldErrors({});
-    setValidationErrors([]);
+    setTouched({});
     setActiveStep(0);
   };
 
@@ -513,30 +1867,67 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
     fetchRequisitionDetails();
   };
 
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+      '&.Mui-error fieldset': { borderColor: '#EF4444' },
+      ...(changedFields[`${name}`] && { backgroundColor: COLORS.status.warning })
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary,
+      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
+  };
+
+  const getErrorProps = (field) => {
+    const hasError = touched[field] && fieldErrors[field];
+    return {
+      error: !!hasError,
+      helperText: hasError || ''
+    };
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
         return (
-          <Stack spacing={2}>
-            {/* Basic Information - Compact Grid */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Basic Information
+          <Stack spacing={2.5}>
+            <Paper sx={{ 
+              p: 2.5, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <BusinessIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Basic Information
+                </Typography>
                 {Object.keys(changedFields).some(f => ['department', 'location', 'positionTitle', 'noOfPositions'].includes(f)) && (
-                  <Chip
-                    label="Modified"
-                    size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                  />
+                  <Chip label="Modified" size="small" sx={{ bgcolor: COLORS.status.warning, color: '#92400E', fontSize: '0.6rem', height: 22 }} />
                 )}
-              </Typography>
+              </Box>
 
-              <Grid container spacing={1.5}>
-                {/* First Row: Department (Full Width) */}
+              <Grid container spacing={2}>
                 <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>Department *</Typography>
                   <Autocomplete
                     size="small"
-                    id="department-autocomplete"
                     open={departmentOpen}
                     onOpen={() => setDepartmentOpen(true)}
                     onClose={() => setDepartmentOpen(false)}
@@ -547,6 +1938,7 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
                       setFormData(prev => ({ ...prev, department: newValue }));
                       if (fieldErrors.department) setFieldErrors(prev => ({ ...prev, department: '' }));
                     }}
+                    onBlur={() => handleBlur({ target: { name: 'department' } })}
                     inputValue={departmentInputValue}
                     onInputChange={(event, newInputValue) => {
                       setDepartmentInputValue(newInputValue);
@@ -557,19 +1949,15 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Department"
-                        required
-                        error={!!fieldErrors.department}
-                        helperText={fieldErrors.department}
-                        size="small"
                         placeholder="Select department"
+                        size="small"
+                        error={touched.department && !!fieldErrors.department}
+                        helperText={touched.department ? fieldErrors.department : ''}
                         sx={{
+                          ...inputStyle,
                           '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                            ...(changedFields.department && {
-                              backgroundColor: '#FFF8E1',
-                              '& fieldset': { borderColor: '#FFB74D' }
-                            })
+                            ...inputStyle['& .MuiOutlinedInput-root'],
+                            ...(changedFields.department && { backgroundColor: COLORS.status.warning })
                           }
                         }}
                         InputProps={{
@@ -584,458 +1972,382 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
                       />
                     )}
                     renderOption={(props, option) => (
-                      <MenuItem {...props} key={option._id} sx={{ py: 0.5 }}>
-                        <Typography variant="body2">{option.DepartmentName}</Typography>
-                      </MenuItem>
+                      <li {...props}>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {option.DepartmentName}
+                        </Typography>
+                      </li>
                     )}
-                    ListboxProps={{ onScroll: handleDepartmentScroll, style: { maxHeight: 200 } }}
                   />
                 </Grid>
 
-                {/* Second Row: Location, Position Title, No. of Positions */}
                 <Grid size={{ xs: 12, sm: 4 }}>
+                  <Typography sx={labelStyle}>Location *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Location"
                     name="location"
                     value={formData.location}
                     onChange={handleChange}
-                    required
-                    error={!!fieldErrors.location}
-                    helperText={fieldErrors.location}
+                    onBlur={handleBlur}
                     placeholder="e.g., Plant Unit A"
+                    {...getErrorProps('location')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.location && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.location && { backgroundColor: COLORS.status.warning })
                       }
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocationIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                        </InputAdornment>
+                      ),
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 5 }}>
+                  <Typography sx={labelStyle}>Position Title *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Position Title"
                     name="positionTitle"
                     value={formData.positionTitle}
                     onChange={handleChange}
-                    required
-                    error={!!fieldErrors.positionTitle}
-                    helperText={fieldErrors.positionTitle}
+                    onBlur={handleBlur}
                     placeholder="e.g., Machine Operator"
+                    {...getErrorProps('positionTitle')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.positionTitle && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.positionTitle && { backgroundColor: COLORS.status.warning })
                       }
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <WorkIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                        </InputAdornment>
+                      ),
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
+                  <Typography sx={labelStyle}>No. of Positions *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="No. of Positions"
                     name="noOfPositions"
                     value={formData.noOfPositions}
                     onChange={handleNumberChange}
-                    required
+                    onBlur={handleBlur}
                     type="number"
                     inputProps={{ min: 1 }}
-                    error={!!fieldErrors.noOfPositions}
-                    helperText={fieldErrors.noOfPositions}
                     placeholder="e.g., 3"
+                    {...getErrorProps('noOfPositions')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.noOfPositions && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.noOfPositions && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
-              </Grid>
-            </Paper>
 
-            {/* Employment Details - Compact Grid */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Employment Details
-                {Object.keys(changedFields).some(f => ['employmentType', 'reasonForHire', 'grade', 'priority'].includes(f)) && (
-                  <Chip
-                    label="Modified"
-                    size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                  />
-                )}
-              </Typography>
-
-              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small" sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      ...(changedFields.employmentType && {
-                        backgroundColor: '#FFF8E1',
-                        '& fieldset': { borderColor: '#FFB74D' }
-                      })
-                    }
-                  }}>
-                    <InputLabel>Employment Type *</InputLabel>
+                  <Typography sx={labelStyle}>Employment Type *</Typography>
+                  <FormControl fullWidth size="small" error={touched.employmentType && !!fieldErrors.employmentType}>
                     <Select
                       name="employmentType"
                       value={formData.employmentType}
                       onChange={handleChange}
-                      label="Employment Type *"
-                      required
-                      error={!!fieldErrors.employmentType}
+                      onBlur={handleBlur}
+                      displayEmpty
+                      sx={{
+                        ...inputStyle,
+                        ...(changedFields.employmentType && { backgroundColor: COLORS.status.warning })
+                      }}
                     >
-                      <MenuItem value="Permanent">Permanent</MenuItem>
-                      <MenuItem value="Contract">Contract</MenuItem>
-                      <MenuItem value="Temporary">Temporary</MenuItem>
-                      <MenuItem value="Internship">Internship</MenuItem>
+                      <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>Select type</MenuItem>
+                      <MenuItem value="Permanent" sx={{ fontSize: '0.75rem' }}>Permanent</MenuItem>
+                      <MenuItem value="Contract" sx={{ fontSize: '0.75rem' }}>Contract</MenuItem>
+                      <MenuItem value="Temporary" sx={{ fontSize: '0.75rem' }}>Temporary</MenuItem>
+                      <MenuItem value="Internship" sx={{ fontSize: '0.75rem' }}>Internship</MenuItem>
                     </Select>
-                    {fieldErrors.employmentType && (
-                      <FormHelperText error>{fieldErrors.employmentType}</FormHelperText>
+                    {touched.employmentType && fieldErrors.employmentType && (
+                      <FormHelperText sx={{ fontSize: '0.65rem' }}>{fieldErrors.employmentType}</FormHelperText>
                     )}
                   </FormControl>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small" sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      ...(changedFields.reasonForHire && {
-                        backgroundColor: '#FFF8E1',
-                        '& fieldset': { borderColor: '#FFB74D' }
-                      })
-                    }
-                  }}>
-                    <InputLabel>Reason for Hire *</InputLabel>
+                  <Typography sx={labelStyle}>Reason for Hire *</Typography>
+                  <FormControl fullWidth size="small" error={touched.reasonForHire && !!fieldErrors.reasonForHire}>
                     <Select
                       name="reasonForHire"
                       value={formData.reasonForHire}
                       onChange={handleChange}
-                      label="Reason for Hire *"
-                      required
-                      error={!!fieldErrors.reasonForHire}
+                      onBlur={handleBlur}
+                      displayEmpty
+                      sx={{
+                        ...inputStyle,
+                        ...(changedFields.reasonForHire && { backgroundColor: COLORS.status.warning })
+                      }}
                     >
-                      <MenuItem value="New Unit">New Unit</MenuItem>
-                      <MenuItem value="Replacement">Replacement</MenuItem>
-                      <MenuItem value="New Position">New Position</MenuItem>
-                      <MenuItem value="Project Based">Project Based</MenuItem>
-                      <MenuItem value="Others">Others</MenuItem>
+                      <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>Select reason</MenuItem>
+                      <MenuItem value="New Unit" sx={{ fontSize: '0.75rem' }}>New Unit</MenuItem>
+                      <MenuItem value="Replacement" sx={{ fontSize: '0.75rem' }}>Replacement</MenuItem>
+                      <MenuItem value="New Position" sx={{ fontSize: '0.75rem' }}>New Position</MenuItem>
+                      <MenuItem value="Project Based" sx={{ fontSize: '0.75rem' }}>Project Based</MenuItem>
+                      <MenuItem value="Others" sx={{ fontSize: '0.75rem' }}>Others</MenuItem>
                     </Select>
-                    {fieldErrors.reasonForHire && (
-                      <FormHelperText error>{fieldErrors.reasonForHire}</FormHelperText>
+                    {touched.reasonForHire && fieldErrors.reasonForHire && (
+                      <FormHelperText sx={{ fontSize: '0.65rem' }}>{fieldErrors.reasonForHire}</FormHelperText>
                     )}
                   </FormControl>
                 </Grid>
+
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Grade *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Grade"
                     name="grade"
                     value={formData.grade}
                     onChange={handleChange}
-                    required
-                    error={!!fieldErrors.grade}
-                    helperText={fieldErrors.grade}
+                    onBlur={handleBlur}
                     placeholder="e.g., Level 2"
+                    {...getErrorProps('grade')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.grade && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.grade && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small" sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      ...(changedFields.priority && {
-                        backgroundColor: '#FFF8E1',
-                        '& fieldset': { borderColor: '#FFB74D' }
-                      })
-                    }
-                  }}>
-                    <InputLabel>Priority *</InputLabel>
+                  <Typography sx={labelStyle}>Priority</Typography>
+                  <FormControl fullWidth size="small">
                     <Select
                       name="priority"
                       value={formData.priority}
                       onChange={handleChange}
-                      label="Priority *"
-                      required
+                      sx={{
+                        ...inputStyle,
+                        ...(changedFields.priority && { backgroundColor: COLORS.status.warning })
+                      }}
                     >
                       {priorities.map(priority => (
-                        <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+                        <MenuItem key={priority} value={priority} sx={{ fontSize: '0.75rem' }}>{priority}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                 </Grid>
-              </Grid>
-            </Paper>
 
-            {/* Budget & Additional */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Budget & Additional Info
-                {Object.keys(changedFields).some(f => ['budgetMin', 'budgetMax', 'targetHireDate'].includes(f)) && (
-                  <Chip
-                    label="Modified"
-                    size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                  />
-                )}
-              </Typography>
-
-              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Budget Min (₹) *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Budget Min (₹)"
                     name="budgetMin"
                     value={formData.budgetMin}
                     onChange={handleNumberChange}
-                    required
+                    onBlur={handleBlur}
                     type="number"
-                    error={!!fieldErrors.budgetMin}
-                    helperText={fieldErrors.budgetMin}
                     placeholder="e.g., 18000"
+                    {...getErrorProps('budgetMin')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.budgetMin && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.budgetMin && { backgroundColor: COLORS.status.warning })
                       }
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <AttachMoneyIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                        </InputAdornment>
+                      ),
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Budget Max (₹) *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Budget Max (₹)"
                     name="budgetMax"
                     value={formData.budgetMax}
                     onChange={handleNumberChange}
-                    required
+                    onBlur={handleBlur}
                     type="number"
-                    error={!!fieldErrors.budgetMax}
-                    helperText={fieldErrors.budgetMax}
                     placeholder="e.g., 28000"
+                    {...getErrorProps('budgetMax')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.budgetMax && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.budgetMax && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
+
                 <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>Target Hire Date *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Target Hire Date"
                     name="targetHireDate"
                     type="date"
                     value={formData.targetHireDate}
                     onChange={handleChange}
-                    required
-                    error={!!fieldErrors.targetHireDate}
-                    helperText={fieldErrors.targetHireDate}
+                    onBlur={handleBlur}
                     InputLabelProps={{ shrink: true }}
+                    {...getErrorProps('targetHireDate')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.targetHireDate && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.targetHireDate && { backgroundColor: COLORS.status.warning })
+                      }
+                    }}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>Justification *</Typography>
+                  <TextField
+                    fullWidth
+                    name="justification"
+                    value={formData.justification}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    multiline
+                    rows={3}
+                    placeholder="Brief justification for this requisition..."
+                    {...getErrorProps('justification')}
+                    sx={{
+                      ...inputStyle,
+                      '& .MuiOutlinedInput-root': {
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.justification && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
               </Grid>
-            </Paper>
-
-            {/* Justification - Compact */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1, fontWeight: 600, fontSize: '0.9rem' }}>
-                Justification
-                {changedFields.justification && (
-                  <Chip
-                    label="Modified"
-                    size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                  />
-                )}
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                name="justification"
-                value={formData.justification}
-                onChange={handleChange}
-                required
-                multiline
-                rows={2}
-                error={!!fieldErrors.justification}
-                helperText={fieldErrors.justification}
-                placeholder="Brief justification..."
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    ...(changedFields.justification && {
-                      backgroundColor: '#FFF8E1',
-                      '& fieldset': { borderColor: '#FFB74D' }
-                    })
-                  }
-                }}
-              />
             </Paper>
           </Stack>
         );
 
       case 1:
         return (
-          <Stack spacing={2}>
-            {/* Qualifications Section */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Qualifications
+          <Stack spacing={2.5}>
+            <Paper sx={{ 
+              p: 2.5, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <SchoolIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Qualifications
+                </Typography>
                 {Object.keys(changedFields).some(f => ['education', 'experienceYears', 'skills'].includes(f)) && (
-                  <Chip
-                    label="Modified"
-                    size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                  />
+                  <Chip label="Modified" size="small" sx={{ bgcolor: COLORS.status.warning, color: '#92400E', fontSize: '0.6rem', height: 22 }} />
                 )}
-              </Typography>
+              </Box>
 
-              <Grid container spacing={1.5}>
+              <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Education *</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Education"
                     name="education"
                     value={formData.education}
                     onChange={handleChange}
-                    required
-                    error={!!fieldErrors.education}
-                    helperText={fieldErrors.education}
+                    onBlur={handleBlur}
                     placeholder="e.g., Bachelor's Degree"
+                    {...getErrorProps('education')}
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.education && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.education && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={labelStyle}>Experience (Years)</Typography>
                   <TextField
                     fullWidth
-                    size="small"
-                    label="Experience (Years)"
                     name="experienceYears"
                     value={formData.experienceYears}
                     onChange={handleNumberChange}
-                    required
-                    type="number"
-                    inputProps={{ min: 0 }}
-                    error={!!fieldErrors.experienceYears}
-                    helperText={fieldErrors.experienceYears}
                     placeholder="e.g., 3"
                     sx={{
+                      ...inputStyle,
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        ...(changedFields.experienceYears && {
-                          backgroundColor: '#FFF8E1',
-                          '& fieldset': { borderColor: '#FFB74D' }
-                        })
+                        ...inputStyle['& .MuiOutlinedInput-root'],
+                        ...(changedFields.experienceYears && { backgroundColor: COLORS.status.warning })
                       }
                     }}
                   />
                 </Grid>
+
                 <Grid size={{ xs: 12 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block' }}>
-                      Skills
-                      {changedFields.skills && (
-                        <Chip
-                          label="Modified"
-                          size="small"
-                          sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
-                        />
-                      )}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                      <TextField
+                  <Typography sx={labelStyle}>Skills</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Add a skill and press Enter"
+                      sx={inputStyle}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleAddSkill}
+                      disabled={!skillInput.trim()}
+                      sx={{
+                        height: 36,
+                        px: 2,
+                        borderRadius: 1.5,
+                        bgcolor: COLORS.primary,
+                        fontSize: '0.7rem',
+                        textTransform: 'none',
+                        '&:hover': { bgcolor: COLORS.primaryDark }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {formData.skills.map((skill) => (
+                      <Chip
+                        key={skill}
+                        label={skill}
+                        onDelete={() => handleRemoveSkill(skill)}
                         size="small"
-                        value={skillInput}
-                        onChange={(e) => setSkillInput(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Add a skill and press Enter"
-                        sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                        sx={{
+                          bgcolor: COLORS.primaryLight,
+                          color: COLORS.primaryDark,
+                          fontSize: '0.65rem',
+                          height: 28,
+                          ...(changedFields.skills && { border: `1px solid ${COLORS.status.warning}` })
+                        }}
                       />
-                      <Button
-                        variant="outlined"
-                        onClick={handleAddSkill}
-                        disabled={!skillInput.trim()}
-                        size="small"
-                        sx={{ borderRadius: 1 }}
-                      >
-                        Add
-                      </Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {formData.skills.map((skill) => (
-                        <Chip
-                          key={skill}
-                          label={skill}
-                          onDelete={() => handleRemoveSkill(skill)}
-                          size="small"
-                          sx={{
-                            backgroundColor: '#E3F2FD',
-                            color: '#1976D2',
-                            '& .MuiChip-deleteIcon': {
-                              color: '#1976D2',
-                              '&:hover': { color: '#1565C0' }
-                            }
-                          }}
-                        />
-                      ))}
-                      {formData.skills.length === 0 && (
-                        <Typography variant="caption" sx={{ color: '#999', fontStyle: 'italic' }}>
-                          No skills added yet
-                        </Typography>
-                      )}
-                    </Box>
+                    ))}
+                    {formData.skills.length === 0 && (
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, fontStyle: 'italic' }}>
+                        No skills added yet
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
@@ -1045,185 +2357,197 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
 
       case 2:
         return (
-          <Stack spacing={2}>
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: '#1976D2', mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Review Your Requisition
+          <Stack spacing={2.5}>
+            <Paper sx={{ 
+              p: 2.5, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <InfoIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Review Your Requisition
+                </Typography>
                 {Object.keys(changedFields).length > 0 && (
                   <Chip
                     label={`${Object.keys(changedFields).length} change(s)`}
                     size="small"
-                    sx={{ ml: 1, backgroundColor: '#FFE0B2', color: '#E65100', height: 20, fontSize: '10px' }}
+                    sx={{ bgcolor: COLORS.status.warning, color: '#92400E', fontSize: '0.6rem', height: 22 }}
                   />
                 )}
-              </Typography>
-              
+              </Box>
+
               <Grid container spacing={2}>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Department</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.department && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Department</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.department && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.department?.DepartmentName || formData.department || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Location</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.location && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Location</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.location && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.location || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Position Title</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.positionTitle && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Position Title</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.positionTitle && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.positionTitle || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>No. of Positions</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.noOfPositions && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>No. of Positions</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.noOfPositions && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.noOfPositions || '0'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Employment Type</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.employmentType && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Employment Type</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.employmentType && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.employmentType || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Grade</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.grade && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Grade</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.grade && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.grade || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Priority</Typography>
+                  <Typography sx={labelStyle}>Priority</Typography>
                   <Chip 
                     label={formData.priority} 
                     size="small"
-                    sx={{ 
-                      backgroundColor: 
-                        formData.priority === 'High' ? '#FFEBEE' : 
-                        formData.priority === 'Medium' ? '#FFF3E0' : 
-                        formData.priority === 'Low' ? '#E8F5E9' : '#F3E5F5',
-                      color: 
-                        formData.priority === 'High' ? '#C62828' : 
-                        formData.priority === 'Medium' ? '#E65100' : 
-                        formData.priority === 'Low' ? '#2E7D32' : '#6A1B9A',
-                      ...(changedFields.priority && { border: '2px solid #FFB74D' })
+                    sx={{
+                      bgcolor: formData.priority === 'High' ? COLORS.status.error :
+                               formData.priority === 'Medium' ? COLORS.status.warning :
+                               formData.priority === 'Low' ? COLORS.status.success : COLORS.status.info,
+                      color: formData.priority === 'High' ? '#991B1B' :
+                             formData.priority === 'Medium' ? '#92400E' :
+                             formData.priority === 'Low' ? COLORS.primaryDark : COLORS.primaryDark,
+                      fontSize: '0.65rem',
+                      height: 24,
+                      ...(changedFields.priority && { border: `1px solid ${COLORS.status.warning}` })
                     }}
                   />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Target Hire Date</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.targetHireDate && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Target Hire Date</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.targetHireDate && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.targetHireDate ? new Date(formData.targetHireDate).toLocaleDateString() : 'Not set'}
                   </Typography>
                 </Grid>
+
                 <Grid size={{ xs: 12 }}>
-                  <Divider sx={{ my: 1 }} />
+                  <Divider sx={{ borderColor: COLORS.border }} />
                 </Grid>
+
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Education</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.education && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Education</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.education && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.education || 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Experience</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.experienceYears && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Experience</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.experienceYears && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.experienceYears || '0'} years
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Budget Range</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...((changedFields.budgetMin || changedFields.budgetMax) && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Budget Range</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...((changedFields.budgetMin || changedFields.budgetMax) && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     ₹{formData.budgetMin || '0'} - ₹{formData.budgetMax || '0'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>Reason for Hire</Typography>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 500,
-                    ...(changedFields.reasonForHire && { color: '#E65100', backgroundColor: '#FFF8E1', p: '2px 4px', borderRadius: 0.5 })
+                  <Typography sx={labelStyle}>Reason for Hire</Typography>
+                  <Typography sx={{ 
+                    fontSize: '0.75rem', fontWeight: 500, 
+                    ...(changedFields.reasonForHire && { color: '#92400E', bgcolor: COLORS.status.warning, p: '2px 4px', borderRadius: 0.5, display: 'inline-block' })
                   }}>
                     {formData.reasonForHire || 'Not set'}
                   </Typography>
                 </Grid>
+
                 {formData.skills.length > 0 && (
                   <Grid size={{ xs: 12 }}>
-                    <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>Skills</Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    <Typography sx={labelStyle}>Skills</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                       {formData.skills.map(skill => (
                         <Chip 
                           key={skill} 
                           label={skill} 
                           size="small" 
                           sx={{ 
-                            backgroundColor: '#E3F2FD', 
-                            color: '#1976D2',
-                            ...(changedFields.skills && { border: '2px solid #FFB74D' })
+                            bgcolor: COLORS.primaryLight, 
+                            color: COLORS.primaryDark, 
+                            fontSize: '0.65rem', 
+                            height: 24,
+                            ...(changedFields.skills && { border: `1px solid ${COLORS.status.warning}` })
                           }} 
                         />
                       ))}
                     </Box>
                   </Grid>
                 )}
+
                 <Grid size={{ xs: 12 }}>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>Justification</Typography>
+                  <Typography sx={labelStyle}>Justification</Typography>
                   <Paper sx={{ 
                     p: 1.5, 
-                    backgroundColor: changedFields.justification ? '#FFF8E1' : '#F8FAFC', 
-                    borderRadius: 1,
-                    border: changedFields.justification ? '1px solid #FFB74D' : 'none'
+                    bgcolor: changedFields.justification ? COLORS.status.warning : COLORS.background.light, 
+                    borderRadius: 1.5,
+                    border: changedFields.justification ? `1px solid ${COLORS.status.warning}` : `1px solid ${COLORS.border}`
                   }}>
-                    <Typography variant="body2" sx={{ color: changedFields.justification ? '#E65100' : '#333' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: changedFields.justification ? '#92400E' : COLORS.text.primary }}>
                       {formData.justification || 'No justification provided'}
                     </Typography>
                   </Paper>
                 </Grid>
               </Grid>
             </Paper>
-            
-            <Alert severity="info" sx={{ borderRadius: 1 }}>
-              <Typography variant="body2">
-                Please review all changes before submitting. Fields highlighted in orange will be updated.
-              </Typography>
+
+            <Alert severity="info" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+              Please review all changes before submitting. Fields highlighted in orange will be updated.
             </Alert>
           </Stack>
         );
 
-      default:
-        return null;
+      default: return null;
     }
   };
 
@@ -1235,143 +2559,144 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          maxHeight: '95vh'
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
+          maxHeight: '90vh'
         }
       }}
     >
       <DialogTitle sx={{
-        borderBottom: '1px solid #E0E0E0',
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2,
-        backgroundColor: '#F8FAFC',
+        px: 2.5,
+        bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <EditIcon sx={{ color: '#1976D2', fontSize: 20 }} />
-          <Typography variant="subtitle1" component="div" sx={{ fontWeight: 600, color: '#101010' }}>
+          <EditIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
             Edit Requisition
           </Typography>
           {originalData && (
             <Chip
               label={originalData.requisitionId}
               size="small"
-              sx={{
-                ml: 1,
-                backgroundColor: '#E3F2FD',
-                color: '#1976D2',
-                fontWeight: 500,
-                fontSize: '12px'
-              }}
+              sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primaryDark, fontWeight: 500, fontSize: '0.65rem', height: 24 }}
             />
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton 
-            onClick={handleRefresh} 
-            size="small" 
-            sx={{ color: '#666' }}
-            disabled={fetchLoading || loading}
-          >
-            <RefreshIcon fontSize="small" />
+          <IconButton onClick={handleRefresh} size="small" disabled={fetchLoading || loading}>
+            <RefreshIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
           </IconButton>
-          <IconButton onClick={handleClose} size="small" sx={{ color: '#666' }}>
-            <CloseIcon fontSize="small" />
+          <IconButton onClick={handleClose} size="small">
+            <CloseIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
           </IconButton>
         </Box>
       </DialogTitle>
 
       {fetchLoading ? (
         <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-          <CircularProgress sx={{ color: '#1976D2' }} />
+          <CircularProgress size={40} sx={{ color: COLORS.primary }} />
         </DialogContent>
       ) : error && !originalData ? (
         <DialogContent>
-          <Alert severity="error" sx={{ borderRadius: 1, mt: 2 }}>{error}</Alert>
+          <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>{error}</Alert>
         </DialogContent>
       ) : originalData ? (
         <>
-          <DialogTitle sx={{
-            borderBottom: '1px solid #E0E0E0',
-            py: 1,
-            px: 2,
-            backgroundColor: '#F8FAFC'
-          }}>
-            {/* 🔥 Modern Stepper with Gradient Connector */}
-            <Stepper
-              activeStep={activeStep}
-              alternativeLabel
-              connector={<ColorConnector />}
-              sx={{ mb: 0.5, mt: 0.5 }}
-            >
+          <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+            <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
               {steps.map((label) => (
                 <Step key={label}>
                   <StepLabel>
-                    <Typography fontWeight={500} fontSize="0.85rem">{label}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                      {label}
+                    </Typography>
                   </StepLabel>
                 </Step>
               ))}
             </Stepper>
-          </DialogTitle>
+          </Box>
 
-          <DialogContent sx={{ p: 2, overflow: 'auto' }}>
+          <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
             {renderStepContent(activeStep)}
 
-            {/* Display validation errors from backend */}
-            {validationErrors.length > 0 && (
-              <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>
-                <Typography variant="body2" fontWeight={600}>Please fix the following errors:</Typography>
-                <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
-                  {validationErrors.map((err, index) => (
-                    <li key={index}>
-                      <Typography variant="caption">{err.message}</Typography>
-                    </li>
-                  ))}
-                </ul>
+            {error && !validationErrors.length && (
+              <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>
+                {error}
               </Alert>
             )}
 
-            {error && !validationErrors.length && (
-              <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>
-            )}
-
             {success && (
-              <Alert severity="success" sx={{ mt: 2, borderRadius: 1 }}>{success}</Alert>
+              <Alert severity="success" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>
+                {success}
+              </Alert>
             )}
           </DialogContent>
 
           <DialogActions sx={{
-            px: 2,
+            px: 2.5,
             py: 1.5,
-            borderTop: '1px solid #E0E0E0',
-            backgroundColor: '#F8FAFC',
+            borderTop: `1px solid ${COLORS.border}`,
+            bgcolor: COLORS.background.white,
             justifyContent: 'space-between'
           }}>
             <Button
               onClick={handleBack}
               disabled={activeStep === 0 || loading}
-              size="small"
-              startIcon={<NavigateBeforeIcon />}
-              sx={{ color: '#666' }}
+              startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+              }}
             >
               Back
             </Button>
-            <Box>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 onClick={resetForm}
                 disabled={loading || Object.keys(changedFields).length === 0}
-                size="small"
-                sx={{ mr: 1, color: '#666' }}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.text.secondary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+                }}
               >
                 Reset
               </Button>
               <Button
                 onClick={handleClose}
                 disabled={loading}
-                size="small"
-                sx={{ mr: 1, color: '#666' }}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.text.secondary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+                }}
               >
                 Cancel
               </Button>
@@ -1380,12 +2705,17 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
                   variant="contained"
                   onClick={handleSubmit}
                   disabled={loading || Object.keys(changedFields).length === 0}
-                  size="small"
-                  startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                  startIcon={loading ? <CircularProgress size={20} sx={{ color: COLORS.text.light }} /> : <SaveIcon sx={{ fontSize: '1rem' }} />}
                   sx={{
-                    backgroundColor: '#1976D2',
-                    '&:hover': { backgroundColor: '#1565C0' },
-                    '&.Mui-disabled': { backgroundColor: '#E0E0E0' }
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark },
+                    '&.Mui-disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
                   }}
                 >
                   {loading ? 'Updating...' : 'Update'}
@@ -1395,11 +2725,16 @@ const EditRequisition = ({ open, onClose, onUpdate, requisitionId }) => {
                   variant="contained"
                   onClick={handleNext}
                   disabled={loading}
-                  size="small"
-                  endIcon={<NavigateNextIcon />}
+                  endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
                   sx={{
-                    backgroundColor: '#1976D2',
-                    '&:hover': { backgroundColor: '#1565C0' }
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark }
                   }}
                 >
                   Next

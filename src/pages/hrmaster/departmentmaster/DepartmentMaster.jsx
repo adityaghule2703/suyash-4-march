@@ -34,11 +34,10 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
-  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
-import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from "../../../utils/modulePermissions";
+import { hasPermission, ACTIONS, MODULES, PAGES } from "../../../utils/modulePermissions";
 
 // Import modal components
 import AddDepartments from "./AddDepartments";
@@ -46,7 +45,7 @@ import EditDepartments from "./EditDepartments";
 import ViewDepartments from "./ViewDepartments";
 import DeleteDepartments from "./DeleteDepartments";
 
-// Color constants - Single color #063C3F throughout (matching CompanyMaster)
+// Color constants - Single color #063C3F throughout
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -297,7 +296,13 @@ const DepartmentMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch departments from API
+  // Fetch departments from API - only if user has permission
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDepartments();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
+
   const fetchDepartments = async () => {
     try {
       setLoading(true);
@@ -329,19 +334,6 @@ const DepartmentMaster = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch departments when permissions are loaded and user has view permission
-  useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchDepartments();
-    }
-  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
-  
-  // Handle refresh
-  const handleRefresh = () => {
-    fetchDepartments();
-    showNotification('Data refreshed', 'success');
   };
   
   // Handle search (client-side filtering)

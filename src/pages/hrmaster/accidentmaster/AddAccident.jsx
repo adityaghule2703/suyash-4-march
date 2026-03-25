@@ -81,7 +81,7 @@
 
 //   const [loading, setLoading] = useState(false);
 //   const [error, setError] = useState('');
-  
+
 //   // Data fetching states
 //   const [employees, setEmployees] = useState([]);
 //   const [departments, setDepartments] = useState([]);
@@ -268,12 +268,12 @@
 //       if (!formData.location.trim()) return setError('Location is required');
 //       if (!formData.department) return setError('Department is required');
 //     }
-    
+
 //     // Validation for step 2
 //     if (activeStep === 1) {
 //       if (!formData.injuryType) return setError('Injury type is required');
 //       if (!formData.severity) return setError('Severity is required');
-      
+
 //       const lostDaysNum = parseInt(formData.lostDays || 0, 10);
 //       if (isNaN(lostDaysNum) || lostDaysNum < 0) {
 //         return setError('Lost days must be 0 or positive number');
@@ -721,11 +721,12 @@ import {
   InputAdornment,
   styled
 } from '@mui/material';
-import { 
+import {
   Add as AddIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -817,6 +818,27 @@ const validateLostDays = (days) => {
   return !isNaN(numDays) && numDays >= 0 && Number.isInteger(numDays);
 };
 
+// Add this helper function after your state declarations
+const getUserDisplayName = (user) => {
+  if (!user) return '';
+  // Try different possible field names
+  const firstName = user.FirstName || user.firstName || '';
+  const lastName = user.LastName || user.lastName || '';
+  const username = user.Username || user.username || '';
+  const email = user.Email || user.email || '';
+
+  if (firstName && lastName) {
+    return `${firstName} ${lastName}`;
+  }
+  if (username) {
+    return username;
+  }
+  if (email) {
+    return email;
+  }
+  return 'Unknown User';
+};
+
 const AddAccident = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -847,7 +869,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
 
   // Enum options
   const injuryTypeOptions = [
-    'Cut', 'Burn', 'Fracture', 'Sprain', 'Electric Shock', 
+    'Cut', 'Burn', 'Fracture', 'Sprain', 'Electric Shock',
     'Eye Injury', 'Hearing Loss', 'Respiratory', 'Chemical Exposure', 'Other'
   ];
 
@@ -906,26 +928,33 @@ const AddAccident = ({ open, onClose, onAdd }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
+      console.log('Users API Response:', response.data); // Debug log
+
       if (response.data.success) {
-        const usersData = response.data.data.users || [];
+        // Users are directly in response.data.data array
+        const usersData = response.data.data || [];
+        console.log('Users loaded:', usersData.length);
         setUsers(usersData);
+      } else {
+        console.log('API returned success: false');
+        setUsers([]);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
+      setUsers([]);
     } finally {
       setFetchingData(false);
     }
   };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Clear field error when user starts typing
     setFieldErrors(prev => ({
       ...prev,
       [name]: ''
     }));
-    
+
     // Handle specific field types
     if (name === 'lostDays') {
       // Only allow digits for lost days
@@ -943,16 +972,53 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     }
   };
 
-  const handleAutocompleteChange = (name, value) => {
-    setFieldErrors(prev => ({
-      ...prev,
-      [name]: ''
-    }));
-    setFormData(prev => ({
-      ...prev,
-      [name]: value || ''
-    }));
-  };
+const handleAutocompleteChange = (name, value) => {
+  setFieldErrors(prev => ({
+    ...prev,
+    [name]: ''
+  }));
+  
+  // If employee is selected, fetch and set their department
+  if (name === 'employee' && value) {
+    const selectedEmployee = employees.find(emp => emp._id === value);
+    if (selectedEmployee) {
+      // Check if employee has department data
+      let departmentId = '';
+      
+      if (selectedEmployee.department) {
+        // If department is an object with _id
+        if (typeof selectedEmployee.department === 'object' && selectedEmployee.department._id) {
+          departmentId = selectedEmployee.department._id;
+        } 
+        // If department is a string (ID)
+        else if (typeof selectedEmployee.department === 'string') {
+          departmentId = selectedEmployee.department;
+        }
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        department: departmentId
+      }));
+      
+      // Clear department error if exists
+      if (departmentId) {
+        setFieldErrors(prev => ({
+          ...prev,
+          department: ''
+        }));
+      }
+      
+      return;
+    }
+  }
+  
+  setFormData(prev => ({
+    ...prev,
+    [name]: value || ''
+  }));
+};
 
   const handleSelectChange = (event) => {
     const { name, value } = event.target;
@@ -1000,6 +1066,11 @@ const AddAccident = ({ open, onClose, onAdd }) => {
           return 'Severity is required';
         }
         break;
+      case 'description':
+        if (!value?.trim()) {
+          return 'Description is required';
+        }
+        break;
       case 'lostDays':
         if (value && !validateLostDays(value)) {
           return 'Lost days must be a positive whole number';
@@ -1044,7 +1115,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
           isValid = false;
         }
         break;
-      
+
       case 1: // Incident Details
         // Injury Type
         if (!formData.injuryType) {
@@ -1058,17 +1129,23 @@ const AddAccident = ({ open, onClose, onAdd }) => {
           isValid = false;
         }
 
+        // Description 
+        if (!formData.description?.trim()) {
+          errors.description = 'Description is required';
+          isValid = false;
+        }
+
         // Lost Days (optional)
         if (formData.lostDays && !validateLostDays(formData.lostDays)) {
           errors.lostDays = 'Lost days must be a positive whole number';
           isValid = false;
         }
         break;
-      
+
       case 2: // Actions & Follow-up
         // No required fields in this step
         break;
-      
+
       default:
         return true;
     }
@@ -1123,6 +1200,11 @@ const AddAccident = ({ open, onClose, onAdd }) => {
       isValid = false;
     }
 
+    // Description 
+    if (!formData.description?.trim()) {
+      errors.description = 'Description is required';
+      isValid = false;
+    }
     // Lost Days (optional)
     if (formData.lostDays && !validateLostDays(formData.lostDays)) {
       errors.lostDays = 'Lost days must be a positive whole number';
@@ -1232,22 +1314,22 @@ const AddAccident = ({ open, onClose, onAdd }) => {
         return (
           <Stack spacing={2}>
             {/* Employee Information */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
+                mb: 1.5
               }}>
                 Basic Information
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1521,27 +1603,27 @@ const AddAccident = ({ open, onClose, onAdd }) => {
             </Paper>
           </Stack>
         );
-      
+
       case 1: // Incident Details
         return (
           <Stack spacing={2}>
             {/* Incident Details */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
+                mb: 1.5
               }}>
                 Incident Details
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1706,7 +1788,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DESCRIPTION
+                      DESCRIPTION <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -1718,12 +1800,15 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                       rows={3}
                       disabled={loading}
                       placeholder="Describe what happened..."
+                      error={!!fieldErrors.description}
+                      helperText={fieldErrors.description}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
                         },
                         '& .MuiInputBase-input': {
                           py: 1,
@@ -1787,7 +1872,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                       disabled={loading}
                       placeholder="Number of days"
                       error={!!fieldErrors.lostDays}
-                      inputProps={{ 
+                      inputProps={{
                         min: 0,
                         onWheel: (e) => e.target.blur()
                       }}
@@ -1832,27 +1917,27 @@ const AddAccident = ({ open, onClose, onAdd }) => {
             </Paper>
           </Stack>
         );
-      
+
       case 2: // Actions & Follow-up
         return (
           <Stack spacing={2}>
             {/* Actions and Follow-up */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
+                mb: 1.5
               }}>
                 Actions & Follow-up
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1926,7 +2011,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12 }}>
+                {/* <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       REPORTED BY
@@ -1984,12 +2069,95 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                       isOptionEqualToValue={(option, value) => option._id === value?._id}
                     />
                   </Box>
+                </Grid> */}
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      REPORTED BY
+                    </Typography>
+                    <Autocomplete
+                      options={users}
+                      getOptionLabel={(option) => {
+                        if (!option) return '';
+                        // User object structure from your API
+                        const username = option.Username || '';
+                        const email = option.Email || '';
+
+                        if (username && email) {
+                          return `${username} (${email})`;
+                        }
+                        if (username) {
+                          return username;
+                        }
+                        if (email) {
+                          return email;
+                        }
+                        return 'Unknown User';
+                      }}
+                      value={users.find(user => user._id === formData.reportedBy) || null}
+                      onChange={(event, newValue) => {
+                        handleAutocompleteChange('reportedBy', newValue?._id || '');
+                      }}
+                      loading={fetchingData}
+                      disabled={loading}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <PersonIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                {option.Username || 'Unknown'}
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                {option.Email || 'No email'}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Search user by username or email..."
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary,
+                              '&::placeholder': {
+                                color: COLORS.text.tertiary,
+                                fontSize: '0.75rem'
+                              }
+                            }
+                          }}
+                        />
+                      )}
+                      PaperComponent={CustomPaper}
+                      noOptionsText="No users found"
+                      isOptionEqualToValue={(option, value) => option._id === value?._id}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
           </Stack>
         );
-      
+
       default:
         return null;
     }
@@ -2047,10 +2215,10 @@ const AddAccident = ({ open, onClose, onAdd }) => {
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
+          <Alert
+            severity="error"
+            sx={{
+              mt: 2,
               borderRadius: 1.5,
               fontSize: '0.75rem',
               py: 0.5,

@@ -99,7 +99,7 @@ const AccessDenied = () => (
 // All available actions
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules - Updated with Purchase Invoice Master
+// All pages/modules - Updated with Training Record Master
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -133,7 +133,7 @@ const ALL_PAGES = [
   { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
   { module: 'PURCHASE_INVOICE_MASTER', page: 'Purchase Invoice Master', category: 'Procurement Master' },
   
-  // HR Master - Updated with new modules
+  // HR Master - Updated with Training Record Master
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
   { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
   { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
@@ -154,6 +154,7 @@ const ALL_PAGES = [
   { module: 'TERMINATION_MASTER', page: 'Termination Master', category: 'HR Master' },
   { module: 'EMPLOYEE_BEHAVIOR_MASTER', page: 'Behavior Monitoring', category: 'HR Master' },
   { module: 'MEDICLAIM_MASTER', page: 'Mediclaim Master', category: 'HR Master' },
+  { module: 'TRAINING_RECORD_MASTER', page: 'Training Record Master', category: 'HR Master' },
   { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' }
 ];
 
