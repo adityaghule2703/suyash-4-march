@@ -57,6 +57,7 @@ import PurchaseRequisitionMaster from './pages/procurementmaster/purchaserequisi
 import RFQMaster from './pages/procurementmaster/RFQ/RfqMaster'
 import PurchaseInvoiceMaster from './pages/procurementmaster/purchaseinvoice/PurchaseInvoiceMaster'
 import TrainingRecordMaster from './pages/hrmaster/trainingrecord/TrainingRecordMaster'
+import BomMaster from './pages/bommaster/bommaster/BomMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -136,6 +137,9 @@ const App = () => {
           <Route path='procurementmaster/purchaserequisitionmaster' element={<PurchaseRequisitionMaster/>} />
           <Route path='procurementmaster/rfqmaster' element={<RFQMaster/>} />
           <Route path='procurementmaster/purchaseinvoicemaster' element={<PurchaseInvoiceMaster/>} />
+
+
+          <Route path='bommaster/bommaster' element={<BomMaster/>} />
 
         </Route>
 

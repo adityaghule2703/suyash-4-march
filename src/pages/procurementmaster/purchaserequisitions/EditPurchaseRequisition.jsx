@@ -21,13 +21,6 @@ import {
   FormControl,
   Select,
   MenuItem,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Autocomplete,
   InputAdornment,
   Chip,
@@ -35,9 +28,7 @@ import {
 } from '@mui/material';
 import { 
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Close as CloseIcon,
-  Add as AddIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
@@ -73,7 +64,7 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-const steps = ['Basic Information', 'Items'];
+const steps = ['Basic Information', 'Item Details'];
 
 const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
@@ -88,16 +79,15 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
     mrp_run_id: '',
     department: '',
     required_date: '',
-    items: []
+    item: {
+      item_id: '',
+      required_qty: '',
+      estimated_price: '',
+      remarks: ''
+    }
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
-  const [newItem, setNewItem] = useState({
-    item_id: '',
-    required_qty: '',
-    estimated_price: '',
-    remarks: ''
-  });
 
   const prTypes = [
     { value: 'Material', label: 'Material' },
@@ -149,26 +139,27 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
   const loadPRData = () => {
     if (!pr) return;
 
-    const firstItemDate = pr.items?.[0]?.required_date 
-      ? new Date(pr.items[0].required_date).toISOString().split('T')[0] 
-      : '';
+    // Get the first item from items array
+    const firstItem = pr.items?.[0] || {};
+    
+    // Format the required date from the item (it's stored in the item, not at root level)
+    let formattedRequiredDate = '';
+    if (firstItem.required_date) {
+      formattedRequiredDate = new Date(firstItem.required_date).toISOString().split('T')[0];
+    }
 
     setFormData({
       pr_type: pr.pr_type || 'Material',
       source: pr.source || 'Manual',
       mrp_run_id: pr.mrp_run_id || '',
       department: pr.department || '',
-      required_date: firstItemDate,
-      items: pr.items?.map(item => ({
-        _id: item._id,
-        item_id: item.item_id,
-        part_no: item.part_no,
-        description: item.description,
-        required_qty: item.required_qty,
-        estimated_price: item.estimated_price,
-        unit: item.unit,
-        remarks: item.remarks || ''
-      })) || []
+      required_date: formattedRequiredDate, // This now comes from the item
+      item: {
+        item_id: firstItem.item_id || '',
+        required_qty: firstItem.required_qty || '',
+        estimated_price: firstItem.estimated_price || '',
+        remarks: firstItem.remarks || ''
+      }
     });
   };
 
@@ -184,53 +175,11 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleNewItemChange = (field, value) => {
-    setNewItem(prev => ({ ...prev, [field]: value }));
-  };
-
-  const addItem = () => {
-    const errors = {};
-    if (!newItem.item_id) errors.item_id = 'Item is required';
-    if (!newItem.required_qty) errors.required_qty = 'Quantity is required';
-    else if (newItem.required_qty <= 0) errors.required_qty = 'Quantity must be greater than 0';
-    if (!newItem.estimated_price) errors.estimated_price = 'Estimated price is required';
-    else if (newItem.estimated_price <= 0) errors.estimated_price = 'Price must be greater than 0';
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    const selectedItem = items.find(i => i._id === newItem.item_id);
-    const unit = selectedItem?.unit || selectedItem?.Unit || 'Nos';
-    const partNo = selectedItem?.part_no || selectedItem?.PartNo || '';
-    const description = selectedItem?.part_description || selectedItem?.Description || '';
-    
+  const handleItemChange = (field, value) => {
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, {
-        item_id: newItem.item_id,
-        part_no: partNo,
-        description: description,
-        required_qty: parseFloat(newItem.required_qty),
-        estimated_price: parseFloat(newItem.estimated_price),
-        unit: unit,
-        remarks: newItem.remarks
-      }]
-    }));
-
-    setNewItem({ 
-      item_id: '', 
-      required_qty: '', 
-      estimated_price: '', 
-      remarks: '' 
-    });
-  };
-
-  const removeItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index)
+      item: { ...prev.item, [field]: value }
     }));
   };
 
@@ -257,9 +206,23 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
           isValid = false;
         }
         break;
-      case 1: // Items
-        if (formData.items.length === 0) {
-          errors.items = 'At least one item is required';
+      case 1: // Item Details
+        if (!formData.item.item_id) {
+          errors.item_id = 'Item is required';
+          isValid = false;
+        }
+        if (!formData.item.required_qty) {
+          errors.required_qty = 'Quantity is required';
+          isValid = false;
+        } else if (formData.item.required_qty <= 0) {
+          errors.required_qty = 'Quantity must be greater than 0';
+          isValid = false;
+        }
+        if (!formData.item.estimated_price) {
+          errors.estimated_price = 'Estimated price is required';
+          isValid = false;
+        } else if (formData.item.estimated_price <= 0) {
+          errors.estimated_price = 'Price must be greater than 0';
           isValid = false;
         }
         break;
@@ -287,8 +250,8 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
   };
 
   const handleSubmit = async () => {
-    if (formData.items.length === 0) {
-      setError('At least one item is required');
+    if (!formData.item.item_id || !formData.item.required_qty || !formData.item.estimated_price) {
+      setError('Please fill all item details');
       return;
     }
 
@@ -304,13 +267,13 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
         source: formData.source,
         mrp_run_id: formData.mrp_run_id || null,
         department: formData.department,
-        required_by: formData.required_date,
-        items: formData.items.map(item => ({
-          item_id: item.item_id,
-          required_qty: item.required_qty,
-          estimated_price: item.estimated_price,
-          remarks: item.remarks
-        })),
+        items: [{
+          item_id: formData.item.item_id,
+          required_qty: parseFloat(formData.item.required_qty),
+          estimated_price: parseFloat(formData.item.estimated_price),
+          required_date: formData.required_date, // Include required_date in the item
+          remarks: formData.item.remarks
+        }],
         updated_by: user._id
       };
 
@@ -340,13 +303,12 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
       mrp_run_id: '',
       department: '',
       required_date: '',
-      items: []
-    });
-    setNewItem({ 
-      item_id: '', 
-      required_qty: '', 
-      estimated_price: '', 
-      remarks: '' 
+      item: {
+        item_id: '',
+        required_qty: '',
+        estimated_price: '',
+        remarks: ''
+      }
     });
     setFieldErrors({});
     setError('');
@@ -358,7 +320,10 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
     onClose();
   };
 
-  const totalValue = formData.items.reduce((sum, item) => sum + (item.estimated_price * item.required_qty), 0);
+  const selectedItem = items.find(i => i._id === formData.item.item_id);
+  const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price 
+    ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price) 
+    : 0;
   const today = new Date().toISOString().split('T')[0];
 
   if (!pr) return null;
@@ -506,21 +471,20 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
           <Stack spacing={2}>
             <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Items
+                Item Details
               </Typography>
               
-              {/* Add Item Form */}
-              <Grid container spacing={1.5} alignItems="center">
-                <Grid size={{ xs: 12, md: 5 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      ITEM <span style={{ color: '#EF4444' }}>*</span>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      SELECT ITEM <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <Autocomplete
                       options={items}
                       loading={loadingItems}
-                      value={items.find(i => i._id === newItem.item_id) || null}
-                      onChange={(e, val) => handleNewItemChange('item_id', val?._id || '')}
+                      value={selectedItem || null}
+                      onChange={(e, val) => handleItemChange('item_id', val?._id || '')}
                       getOptionLabel={(opt) => {
                         const partNo = opt.part_no || opt.PartNo || '';
                         const desc = opt.part_description || opt.Description || '';
@@ -530,7 +494,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                         <TextField 
                           {...params} 
                           size="small" 
-                          placeholder="Search item..." 
+                          placeholder="Search and select an item..." 
                           error={!!fieldErrors.item_id} 
                           helperText={fieldErrors.item_id}
                           sx={{
@@ -548,146 +512,181 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 6, md: 2 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      QTY <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      type="number" 
-                      placeholder="Quantity" 
-                      value={newItem.required_qty} 
-                      onChange={(e) => handleNewItemChange('required_qty', e.target.value)} 
-                      error={!!fieldErrors.required_qty} 
-                      helperText={fieldErrors.required_qty} 
-                      inputProps={{ step: 1, min: 1 }} 
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 6, md: 2 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      EST. PRICE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      type="number" 
-                      placeholder="Price" 
-                      value={newItem.estimated_price} 
-                      onChange={(e) => handleNewItemChange('estimated_price', e.target.value)} 
-                      error={!!fieldErrors.estimated_price} 
-                      helperText={fieldErrors.estimated_price} 
-                      InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} 
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 10, md: 2 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      REMARKS
-                    </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      placeholder="Remarks" 
-                      value={newItem.remarks} 
-                      onChange={(e) => handleNewItemChange('remarks', e.target.value)} 
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 2, md: 1 }}>
-                  <Button 
-                    variant="contained" 
-                    onClick={addItem} 
-                    disabled={!newItem.item_id || !newItem.required_qty || !newItem.estimated_price}
-                    sx={{ 
-                      height: 40, 
-                      bgcolor: COLORS.primary, 
-                      '&:hover': { bgcolor: COLORS.primaryDark },
-                      minWidth: 40,
-                      width: '100%',
-                      mt: 2.5,
-                      borderRadius: 1.5
-                    }}
-                  >
-                    <AddIcon sx={{ fontSize: '1rem' }} />
-                  </Button>
-                </Grid>
-              </Grid>
 
-              {/* Items Table */}
-              {formData.items.length > 0 && (
-                <TableContainer sx={{ mt: 2 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: COLORS.background.light }}>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part No</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Description</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Qty</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="right">Unit Price</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="right">Total</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Action</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {formData.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>{item.part_no}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>{item.description}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }} align="center">{item.required_qty} {item.unit}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }} align="right">₹{item.estimated_price.toLocaleString()}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }} align="right">₹{(item.estimated_price * item.required_qty).toLocaleString()}</TableCell>
-                          <TableCell align="center">
-                            <IconButton size="small" onClick={() => removeItem(index)} sx={{ color: '#EF4444' }}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow sx={{ bgcolor: COLORS.background.light }}>
-                        <TableCell colSpan={4} sx={{ fontSize: '0.75rem', fontWeight: 600 }} align="right">Total Value:</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }} align="right">₹{totalValue.toLocaleString()}</TableCell>
-                        <TableCell />
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-              {fieldErrors.items && (
-                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 1 }}>{fieldErrors.items}</Typography>
-              )}
+                {selectedItem && (
+                  <>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          PART NUMBER
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={selectedItem.part_no || selectedItem.PartNo || ''}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              backgroundColor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          DESCRIPTION
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={selectedItem.part_description || selectedItem.Description || ''}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              backgroundColor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          UNIT
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={selectedItem.unit || selectedItem.Unit || 'Nos'}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              backgroundColor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <TextField 
+                          fullWidth 
+                          size="small" 
+                          type="number" 
+                          placeholder="Enter quantity" 
+                          value={formData.item.required_qty} 
+                          onChange={(e) => handleItemChange('required_qty', e.target.value)} 
+                          error={!!fieldErrors.required_qty} 
+                          helperText={fieldErrors.required_qty} 
+                          inputProps={{ step: 1, min: 1 }} 
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                            '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          ESTIMATED PRICE <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <TextField 
+                          fullWidth 
+                          size="small" 
+                          type="number" 
+                          placeholder="Enter price" 
+                          value={formData.item.estimated_price} 
+                          onChange={(e) => handleItemChange('estimated_price', e.target.value)} 
+                          error={!!fieldErrors.estimated_price} 
+                          helperText={fieldErrors.estimated_price} 
+                          InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} 
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                            '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          REMARKS
+                        </Typography>
+                        <TextField 
+                          fullWidth 
+                          size="small" 
+                          multiline
+                          rows={2}
+                          placeholder="Enter any remarks" 
+                          value={formData.item.remarks} 
+                          onChange={(e) => handleItemChange('remarks', e.target.value)} 
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {formData.item.required_qty && formData.item.estimated_price && (
+                      <Grid size={{ xs: 12 }}>
+                        <Box sx={{ 
+                          p: 2, 
+                          bgcolor: COLORS.background.light, 
+                          borderRadius: 1.5,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Total Value:
+                          </Typography>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.primary }}>
+                            ₹{totalValue.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                  </>
+                )}
+              </Grid>
             </Paper>
           </Stack>
         );
@@ -831,7 +830,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={loading || formData.items.length === 0 || !formData.required_date}
+              disabled={loading || !formData.item.item_id || !formData.item.required_qty || !formData.item.estimated_price || !formData.required_date}
               startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,

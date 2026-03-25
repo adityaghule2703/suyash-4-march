@@ -31,6 +31,7 @@ const Header = () => {
   const [filteredQuotationItems, setFilteredQuotationItems] = useState([]);
   const [filteredHRItems, setFilteredHRItems] = useState([]);
   const [filteredProcurementItems, setFilteredProcurementItems] = useState([]);
+  const [filteredBOMItems, setFilteredBOMItems] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -76,55 +77,65 @@ const Header = () => {
       icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
       count: 0
     },
+    {
+      name: 'BOM Master',
+      type: 'bom',
+      icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      count: 0
+    },
   ];
 
   const quotationMasterItems = [
-  { name: 'Organization / Company', path: '/master/companymaster', icon: 'M3.75 21h16.5M3.75 3h16.5M3.75 7.5h16.5M3.75 12h16.5M3.75 16.5h7.5', moduleKey: MODULES.COMPANY_MASTER, page: PAGES.ORGANIZATION_COMPANY },
-  { name: 'Customer Master', path: '/master/customermaster', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', moduleKey: MODULES.CUSTOMER_MASTER, page: PAGES.CUSTOMER_MASTER },
-  { name: 'Lead Master', path: '/master/leadsmaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8', moduleKey: MODULES.LEAD_MASTER, page: PAGES.LEAD_MASTER },
-  { name: 'Tax Configuration / Tax Rule', path: '/master/taxmaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.TAX_MASTER, page: PAGES.TAX_CONFIGURATION },
-  { name: 'Terms And Conditions', path: '/master/termsandconditionmaster', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z', moduleKey: MODULES.TERMS_CONDITIONS_MASTER, page: PAGES.TERMS_AND_CONDITIONS },
-  { name: 'Product / Item Catalog', path: '/master/itemmaster', icon: 'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z', moduleKey: MODULES.ITEM_MASTER, page: PAGES.PRODUCT_ITEM_CATALOG },
-  { name: 'Manufacturing Process', path: '/master/processmaster', icon: 'M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25', moduleKey: MODULES.PROCESS_MASTER, page: PAGES.MANUFACTURING_PROCESS },
-  { name: 'Product Specifications', path: '/master/dimentionmaster', icon: 'M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125zM9.75 9.75h4.5', moduleKey: MODULES.DIMENSION_MASTER, page: PAGES.PRODUCT_SPECIFICATIONS },
-  { name: 'Material Catalog', path: '/master/materialmaster', icon: 'M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375 7.444 2.25 12 2.25s8.25 1.847 8.25 4.125zm0 4.5c0 2.278-3.694 4.125-8.25 4.125S3.75 13.153 3.75 10.875m16.5 4.5c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125', moduleKey: MODULES.MATERIAL_MASTER, page: PAGES.MATERIAL_CATALOG },
-  { name: 'Raw Material', path: '/master/rawmaterialmaster', icon: 'M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z', moduleKey: MODULES.RAW_MATERIAL_MASTER, page: PAGES.RAW_MATERIAL },
-  { name: 'Quotation', path: '/master/quotationmaster', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z', moduleKey: MODULES.QUOTATION_MASTER, page: PAGES.QUOTATION }
-];
+    { name: 'Organization / Company', path: '/master/companymaster', icon: 'M3.75 21h16.5M3.75 3h16.5M3.75 7.5h16.5M3.75 12h16.5M3.75 16.5h7.5', moduleKey: MODULES.COMPANY_MASTER, page: PAGES.ORGANIZATION_COMPANY },
+    { name: 'Customer Master', path: '/master/customermaster', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', moduleKey: MODULES.CUSTOMER_MASTER, page: PAGES.CUSTOMER_MASTER },
+    { name: 'Lead Master', path: '/master/leadsmaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8', moduleKey: MODULES.LEAD_MASTER, page: PAGES.LEAD_MASTER },
+    { name: 'Tax Configuration / Tax Rule', path: '/master/taxmaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.TAX_MASTER, page: PAGES.TAX_CONFIGURATION },
+    { name: 'Terms And Conditions', path: '/master/termsandconditionmaster', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z', moduleKey: MODULES.TERMS_CONDITIONS_MASTER, page: PAGES.TERMS_AND_CONDITIONS },
+    { name: 'Product / Item Catalog', path: '/master/itemmaster', icon: 'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z', moduleKey: MODULES.ITEM_MASTER, page: PAGES.PRODUCT_ITEM_CATALOG },
+    { name: 'Manufacturing Process', path: '/master/processmaster', icon: 'M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25', moduleKey: MODULES.PROCESS_MASTER, page: PAGES.MANUFACTURING_PROCESS },
+    { name: 'Product Specifications', path: '/master/dimentionmaster', icon: 'M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125zM9.75 9.75h4.5', moduleKey: MODULES.DIMENSION_MASTER, page: PAGES.PRODUCT_SPECIFICATIONS },
+    { name: 'Material Catalog', path: '/master/materialmaster', icon: 'M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375 7.444 2.25 12 2.25s8.25 1.847 8.25 4.125zm0 4.5c0 2.278-3.694 4.125-8.25 4.125S3.75 13.153 3.75 10.875m16.5 4.5c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125', moduleKey: MODULES.MATERIAL_MASTER, page: PAGES.MATERIAL_CATALOG },
+    { name: 'Raw Material', path: '/master/rawmaterialmaster', icon: 'M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z', moduleKey: MODULES.RAW_MATERIAL_MASTER, page: PAGES.RAW_MATERIAL },
+    { name: 'Quotation', path: '/master/quotationmaster', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z', moduleKey: MODULES.QUOTATION_MASTER, page: PAGES.QUOTATION }
+  ];
 
-const procurementMasterItems = [
-  { name: 'Supplier', path: '/master/vendormaster', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z', moduleKey: MODULES.SUPPLIER_MASTER, page: PAGES.SUPPLIER },
-  { name: 'Purchase Requisition Master', path: '/procurementmaster/purchaserequisitionmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_REQUISITION_MASTER, page: PAGES.PURCHASE_REQUISITION_MASTER },
-  { name: 'RFQ Master', path: '/procurementmaster/rfqmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.RFQ_MASTER, page: PAGES.RFQ_MASTER },
-  { name: 'Purchase Order Master', path: '/procurementmaster/purchaseordermaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.PURCHASE_ORDER_MASTER, page: PAGES.PURCHASE_ORDER_MASTER },
-  { name: 'GRN Master', path: '/procurementmaster/grnmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.GRN_MASTER, page: PAGES.GRN_MASTER },
-  { name: 'Purchase Invoice Master', path: '/procurementmaster/purchaseinvoicemaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_INVOICE_MASTER, page: PAGES.PURCHASE_INVOICE_MASTER }
-];
+  const procurementMasterItems = [
+    { name: 'Supplier', path: '/master/vendormaster', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z', moduleKey: MODULES.SUPPLIER_MASTER, page: PAGES.SUPPLIER },
+    { name: 'Purchase Requisition Master', path: '/procurementmaster/purchaserequisitionmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_REQUISITION_MASTER, page: PAGES.PURCHASE_REQUISITION_MASTER },
+    { name: 'RFQ Master', path: '/procurementmaster/rfqmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.RFQ_MASTER, page: PAGES.RFQ_MASTER },
+    { name: 'Purchase Order Master', path: '/procurementmaster/purchaseordermaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.PURCHASE_ORDER_MASTER, page: PAGES.PURCHASE_ORDER_MASTER },
+    { name: 'GRN Master', path: '/procurementmaster/grnmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.GRN_MASTER, page: PAGES.GRN_MASTER },
+    { name: 'Purchase Invoice Master', path: '/procurementmaster/purchaseinvoicemaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_INVOICE_MASTER, page: PAGES.PURCHASE_INVOICE_MASTER }
+  ];
 
   // HR Master submenu items
-const hrMasterItems = [
-  { name: 'Department Master', path: '/hrmaster/departmentmaster', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', moduleKey: MODULES.DEPARTMENT_MASTER, page: PAGES.DEPARTMENT_MASTER },
-  { name: 'Designation Master', path: '/hrmaster/designationmaster', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.DESIGNATION_MASTER, page: PAGES.DESIGNATION_MASTER },
-  { name: 'Employee Registry', path: '/hrmaster/employeemaster', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', moduleKey: MODULES.EMPLOYEE_MASTER, page: PAGES.EMPLOYEE_REGISTRY },
-  { name: 'Leave Policies', path: '/hrmaster/leavetypemaster', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', moduleKey: MODULES.LEAVE_TYPE_MASTER, page: PAGES.LEAVE_POLICIES },
-  // { name: 'Shift Master', path: '/hrmaster/shiftmaster', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.SHIFT_MASTER, page: PAGES.SHIFT_MASTER },
-  { name: 'Accident Reporting', path: '/hrmaster/accidentmaster', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', moduleKey: MODULES.ACCIDENT_MASTER, page: PAGES.ACCIDENT_REPORTING },
-  { name: 'Hiring Requests', path: '/hrmaster/requisitionmaster', icon: 'M15 5v2m-6 0V5m6 0a2 2 0 012 2m-8-2a2 2 0 00-2 2m0 0v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2m-6 7h6m-6 4h6m-6-8h6', moduleKey: MODULES.REQUISITION_MASTER, page: PAGES.HIRING_REQUESTS },
-  { name: 'Career Opportunities', path: '/hrmaster/jobopeningmaster', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', moduleKey: MODULES.JOB_OPENING_MASTER, page: PAGES.CAREER_OPPORTUNITIES },
-  { name: 'Candidate Master', path: '/hrmaster/candidatemaster', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z', moduleKey: MODULES.CANDIDATE_MASTER, page: PAGES.CANDIDATE_MASTER },
-  { name: 'Interview Scheduling', path: '/hrmaster/interviewmaster', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', moduleKey: MODULES.INTERVIEW_MASTER, page: PAGES.INTERVIEW_SCHEDULING },
-  { name: 'Selected Candidate', path: '/hrmaster/selectedcandidatesmaster', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z', moduleKey: MODULES.SELECTED_CANDIDATES_MASTER, page: PAGES.SELECTED_CANDIDATE },
-  { name: 'Salary Master', path: '/hrmaster/salarymaster', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.SALARY_MASTER, page: PAGES.SALARY_MASTER },
-  { name: 'Piece Rate Master', path: '/hrmaster/pieceratemaster', icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7', moduleKey: MODULES.PIECE_RATE_MASTER, page: PAGES.PIECE_RATE_MASTER },
-  { name: 'Attendance Regularization', path: '/hrmaster/regularizationmaster', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', moduleKey: MODULES.REGULARIZATION_MASTER, page: PAGES.ATTENDANCE_REGULARIZATION },
-  { name: 'Employee Leave Records', path: '/hrmaster/employeeleavemaster', icon: 'M16 4v1h4v16H4V5h4V4a2 2 0 014 0M8 8h8M8 12h6m-6 4h4', moduleKey: MODULES.EMPLOYEE_LEAVE_MASTER, page: PAGES.EMPLOYEE_LEAVE_RECORDS },
-  { name: 'Leave Administration', path: '/hrmaster/adminleavemaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8', moduleKey: MODULES.ADMIN_LEAVE_MASTER, page: PAGES.LEAVE_ADMINISTRATION },
-  { name: 'Production Master', path: '/hrmaster/productionmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15', moduleKey: MODULES.PRODUCTION_MASTER, page: PAGES.PRODUCTION_MASTER },
-  { name: 'Termination Master', path: '/hrmaster/terminationmaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z', moduleKey: MODULES.TERMINATION_MASTER, page: PAGES.TERMINATION_MASTER },
-  { name: 'Behavior Monitoring', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z', moduleKey: MODULES.EMPLOYEE_BEHAVIOR_MASTER, page: PAGES.BEHAVIOR_MONITORING },
-  { name: 'Mediclaim Master', path: '/hrmaster/mediclaimmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15', moduleKey: MODULES.MEDICLAIM_MASTER, page: PAGES.MEDICLAIM_MASTER },
-  { name: 'Training Record Master', path: '/hrmaster/trainingrecordmaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.TRAINING_RECORD_MASTER, page: PAGES.TRAINING_RECORD_MASTER },
-];
+  const hrMasterItems = [
+    { name: 'Department Master', path: '/hrmaster/departmentmaster', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', moduleKey: MODULES.DEPARTMENT_MASTER, page: PAGES.DEPARTMENT_MASTER },
+    { name: 'Designation Master', path: '/hrmaster/designationmaster', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.DESIGNATION_MASTER, page: PAGES.DESIGNATION_MASTER },
+    { name: 'Employee Registry', path: '/hrmaster/employeemaster', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', moduleKey: MODULES.EMPLOYEE_MASTER, page: PAGES.EMPLOYEE_REGISTRY },
+    { name: 'Leave Policies', path: '/hrmaster/leavetypemaster', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', moduleKey: MODULES.LEAVE_TYPE_MASTER, page: PAGES.LEAVE_POLICIES },
+    { name: 'Accident Reporting', path: '/hrmaster/accidentmaster', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', moduleKey: MODULES.ACCIDENT_MASTER, page: PAGES.ACCIDENT_REPORTING },
+    { name: 'Hiring Requests', path: '/hrmaster/requisitionmaster', icon: 'M15 5v2m-6 0V5m6 0a2 2 0 012 2m-8-2a2 2 0 00-2 2m0 0v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2m-6 7h6m-6 4h6m-6-8h6', moduleKey: MODULES.REQUISITION_MASTER, page: PAGES.HIRING_REQUESTS },
+    { name: 'Career Opportunities', path: '/hrmaster/jobopeningmaster', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', moduleKey: MODULES.JOB_OPENING_MASTER, page: PAGES.CAREER_OPPORTUNITIES },
+    { name: 'Candidate Master', path: '/hrmaster/candidatemaster', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z', moduleKey: MODULES.CANDIDATE_MASTER, page: PAGES.CANDIDATE_MASTER },
+    { name: 'Interview Scheduling', path: '/hrmaster/interviewmaster', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', moduleKey: MODULES.INTERVIEW_MASTER, page: PAGES.INTERVIEW_SCHEDULING },
+    { name: 'Selected Candidate', path: '/hrmaster/selectedcandidatesmaster', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z', moduleKey: MODULES.SELECTED_CANDIDATES_MASTER, page: PAGES.SELECTED_CANDIDATE },
+    { name: 'Salary Master', path: '/hrmaster/salarymaster', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.SALARY_MASTER, page: PAGES.SALARY_MASTER },
+    { name: 'Piece Rate Master', path: '/hrmaster/pieceratemaster', icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7', moduleKey: MODULES.PIECE_RATE_MASTER, page: PAGES.PIECE_RATE_MASTER },
+    { name: 'Attendance Regularization', path: '/hrmaster/regularizationmaster', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', moduleKey: MODULES.REGULARIZATION_MASTER, page: PAGES.ATTENDANCE_REGULARIZATION },
+    { name: 'Employee Leave Records', path: '/hrmaster/employeeleavemaster', icon: 'M16 4v1h4v16H4V5h4V4a2 2 0 014 0M8 8h8M8 12h6m-6 4h4', moduleKey: MODULES.EMPLOYEE_LEAVE_MASTER, page: PAGES.EMPLOYEE_LEAVE_RECORDS },
+    { name: 'Leave Administration', path: '/hrmaster/adminleavemaster', icon: 'M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z M8 14h8', moduleKey: MODULES.ADMIN_LEAVE_MASTER, page: PAGES.LEAVE_ADMINISTRATION },
+    { name: 'Production Master', path: '/hrmaster/productionmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15', moduleKey: MODULES.PRODUCTION_MASTER, page: PAGES.PRODUCTION_MASTER },
+    { name: 'Termination Master', path: '/hrmaster/terminationmaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z', moduleKey: MODULES.TERMINATION_MASTER, page: PAGES.TERMINATION_MASTER },
+    { name: 'Behavior Monitoring', path: '/hrmaster/employeebehaviormaster', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6-8a4 4 0 11-8 0 4 4 0 018 0z', moduleKey: MODULES.EMPLOYEE_BEHAVIOR_MASTER, page: PAGES.BEHAVIOR_MONITORING },
+    { name: 'Mediclaim Master', path: '/hrmaster/mediclaimmaster', icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15', moduleKey: MODULES.MEDICLAIM_MASTER, page: PAGES.MEDICLAIM_MASTER },
+    { name: 'Training Record Master', path: '/hrmaster/trainingrecordmaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.TRAINING_RECORD_MASTER, page: PAGES.TRAINING_RECORD_MASTER },
+  ];
+
+  // BOM Master items
+  const bomMasterItems = [
+    { name: 'BOM Master', path: '/bommaster/bommaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.BOM_MASTER, page: PAGES.BOM_MASTER },
+  ];
 
   // Leave Management items
   const leaveManagementItems = [
@@ -160,14 +171,24 @@ const hrMasterItems = [
       return true;
     });
     
+    // Filter BOM items based on permissions
+    const accessibleBOMItems = bomMasterItems.filter(item => {
+      if (item.moduleKey && item.page) {
+        return canAccessPage(item.moduleKey, item.page);
+      }
+      return true;
+    });
+    
     setFilteredQuotationItems(accessibleQuotationItems);
     setFilteredProcurementItems(accessibleProcurementItems);
     setFilteredHRItems(accessibleHRItems);
+    setFilteredBOMItems(accessibleBOMItems);
     
     // Update category counts
     masterCategories[0].count = accessibleQuotationItems.length;
     masterCategories[1].count = accessibleProcurementItems.length;
     masterCategories[2].count = accessibleHRItems.length;
+    masterCategories[3].count = accessibleBOMItems.length;
   };
 
   // Filter function for master search
@@ -189,6 +210,11 @@ const hrMasterItems = [
         item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
       );
       setFilteredHRItems(filtered);
+    } else if (activeSubmenu === 'bom') {
+      const filtered = bomMasterItems.filter(item => 
+        item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
+      );
+      setFilteredBOMItems(filtered);
     }
   };
 
@@ -403,9 +429,10 @@ const hrMasterItems = [
   const quotationColumns = getColumns(filteredQuotationItems);
   const procurementColumns = getColumns(filteredProcurementItems);
   const hrColumns = getColumns(filteredHRItems);
+  const bomColumns = getColumns(filteredBOMItems);
 
   const isMasterActive = (path) => {
-    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/');
+    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/');
   };
 
   const handleSearch = (e) => {
@@ -669,7 +696,7 @@ const hrMasterItems = [
                 )}
 
                 {/* Master Dropdown */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0) && (
                   <div className="relative" ref={masterRef}>
                     <button
                       onClick={() => toggleDropdown('master')}
@@ -712,13 +739,6 @@ const hrMasterItems = [
                                 </svg>
                                 <span className="text-xs font-medium">{category.name}</span>
                               </div>
-                              {/* <span className={`text-[10px] px-1 py-0.5 rounded-full ${
-                                activeSubmenu === category.type
-                                  ? 'bg-[#0A5C60] text-white'
-                                  : 'bg-[#9FE2BF] text-[#0A5C60]'
-                              }`}>
-                                {category.count}
-                              </span> */}
                             </div>
                           ))}
                         </div>
@@ -734,7 +754,7 @@ const hrMasterItems = [
                               <input
                                 ref={masterSearchRef}
                                 type="text"
-                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : 'HR'}...`}
+                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : 'BOM'}...`}
                                 className="w-full pl-8 pr-7 py-2 text-xs border border-[#E3E8EF] rounded-md focus:outline-none focus:ring-1 focus:ring-[#0A5C60] focus:border-transparent bg-white text-[#4B5568] placeholder-[#94A3B8]"
                                 value={masterSearchTerm}
                                 onChange={handleMasterSearch}
@@ -754,12 +774,13 @@ const hrMasterItems = [
 
                           <div className="mb-1 px-2 flex justify-between items-center">
                             <h3 className="text-[11px] font-semibold text-[#4B5568] uppercase tracking-wider">
-                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : 'HR'}
+                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : 'BOM'}
                             </h3>
                             <span className="text-[11px] text-[#94A3B8]">
                               {activeSubmenu === 'quotation' ? filteredQuotationItems.length : 
                                activeSubmenu === 'procurement' ? filteredProcurementItems.length : 
-                               filteredHRItems.length}
+                               activeSubmenu === 'hr' ? filteredHRItems.length : 
+                               filteredBOMItems.length}
                             </span>
                           </div>
 
@@ -850,6 +871,43 @@ const hrMasterItems = [
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDropdownItemClick(item.path, 'hr');
+                                          }}
+                                          className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
+                                            currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
+                                          }`}
+                                        >
+                                          <svg className="w-3.5 h-3.5 mr-2 text-[#94A3B8] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                          </svg>
+                                          <span className="line-clamp-2 text-xs">
+                                            {highlightText(item.name, masterSearchTerm)}
+                                          </span>
+                                        </NavLink>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="w-full py-5 text-center text-[#94A3B8] text-xs">
+                                  No matches found
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {activeSubmenu === 'bom' && (
+                            <div className="flex">
+                              {bomColumns.length > 0 ? (
+                                bomColumns.map((column, index) => (
+                                  <div key={`bom-col-${index}`} className={`w-48 ${index < bomColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
+                                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                                      {column.map((item) => (
+                                        <NavLink
+                                          key={item.path}
+                                          to={item.path}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDropdownItemClick(item.path, 'bom');
                                           }}
                                           className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
                                             currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
@@ -1164,7 +1222,7 @@ const hrMasterItems = [
                 )}
 
                 {/* Mobile Master Section */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0) && (
                   <div className="border-t border-[#E3E8EF] my-2">
                     <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                       Master
@@ -1228,11 +1286,39 @@ const hrMasterItems = [
 
                     {/* HR Master Items */}
                     {filteredHRItems.length > 0 && (
-                      <div>
+                      <div className="mb-2">
                         <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
                           HR Master
                         </div>
                         {filteredHRItems.map((item) => (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={({ isActive }) =>
+                              `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                                isActive
+                                  ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                                  : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                              }`
+                            }
+                          >
+                            <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                            </svg>
+                            {item.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* BOM Master Items */}
+                    {filteredBOMItems.length > 0 && (
+                      <div className="mb-2">
+                        <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                          BOM Master
+                        </div>
+                        {filteredBOMItems.map((item) => (
                           <NavLink
                             key={item.path}
                             to={item.path}

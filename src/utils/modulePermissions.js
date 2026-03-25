@@ -59,7 +59,10 @@ export const MODULES = {
   EMPLOYEE_BEHAVIOR_MASTER: 'EMPLOYEE_BEHAVIOR_MASTER',
   MEDICLAIM_MASTER: 'MEDICLAIM_MASTER',
   LEAVE_APPROVAL: 'LEAVE_APPROVAL',
-  TRAINING_RECORD_MASTER: 'TRAINING_RECORD_MASTER', 
+  TRAINING_RECORD_MASTER: 'TRAINING_RECORD_MASTER',
+  
+  // BOM Master
+  BOM_MASTER: 'BOM_MASTER',
   
   // Reports
   REPORTS: 'REPORTS'
@@ -120,7 +123,10 @@ export const PAGES = {
   BEHAVIOR_MONITORING: 'Behavior Monitoring',
   MEDICLAIM_MASTER: 'Mediclaim Master',
   LEAVE_APPROVAL: 'Leave Approval',
-   TRAINING_RECORD_MASTER: 'Training Record Master',
+  TRAINING_RECORD_MASTER: 'Training Record Master',
+  
+  // BOM Master Pages
+  BOM_MASTER: 'BOM Master',
   
   // Reports Pages
   RECRUITMENT_REPORT: 'Recruitment Report',
@@ -313,6 +319,13 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
+  {
+    moduleKey: MODULES.PURCHASE_INVOICE_MASTER,
+    page: PAGES.PURCHASE_INVOICE_MASTER,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // HR MASTER
@@ -452,19 +465,29 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT]
   },
-
-{
-  moduleKey: MODULES.TRAINING_RECORD_MASTER,
-  page: PAGES.TRAINING_RECORD_MASTER,
-  category: 'HR Master',
-  actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
-            ACTIONS.EXPORT, ACTIONS.PRINT]
-},
+  {
+    moduleKey: MODULES.TRAINING_RECORD_MASTER,
+    page: PAGES.TRAINING_RECORD_MASTER,
+    category: 'HR Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
   {
     moduleKey: MODULES.LEAVE_APPROVAL,
     page: PAGES.LEAVE_APPROVAL,
     category: 'HR Master',
     actions: [ACTIONS.VIEW, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // BOM MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.BOM_MASTER,
+    page: PAGES.BOM_MASTER,
+    category: 'BOM Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
   },
 
   // ─────────────────────────────────────────────────────────────────────────
