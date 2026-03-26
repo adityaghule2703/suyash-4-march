@@ -255,7 +255,7 @@
 // export default MediclaimMaster;
 
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Tabs,
@@ -263,7 +263,9 @@ import {
   Typography,
   Paper,
   Stack,
-  Chip
+  Chip,
+  CircularProgress,
+  Alert
 } from "@mui/material";
 
 import {
@@ -272,6 +274,10 @@ import {
   LocalHospital as ClaimIcon,
   HealthAndSafety as HealthIcon
 } from "@mui/icons-material";
+
+import axios from "axios";
+import BASE_URL from "../../../config/Config";
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 import PolicyMaster from "./policy/PolicyMaster";
 import EnrollmentMaster from "./enrollment/EnrollmentMaster";
@@ -310,11 +316,51 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Tab configurations with icons and colors
 const TABS = [
-  { value: 'policy', label: 'Policy Master', icon: <PolicyIcon />, color: '#1976D2' },
-  { value: 'enrollment', label: 'Enrollment Master', icon: <EnrollmentIcon />, color: '#7B1FA2' },
-  { value: 'claim', label: 'Claim Master', icon: <ClaimIcon />, color: '#E65100' }
+  { 
+    value: 'policy', 
+    label: 'Policy Master', 
+    icon: <PolicyIcon />, 
+    color: '#1976D2',
+    moduleKey: MODULES.MEDICLAIM_MASTER,
+    page: PAGES.MEDICLAIM_MASTER
+  },
+  { 
+    value: 'enrollment', 
+    label: 'Enrollment Master', 
+    icon: <EnrollmentIcon />, 
+    color: '#7B1FA2',
+    moduleKey: MODULES.MEDICLAIM_MASTER,
+    page: PAGES.MEDICLAIM_MASTER
+  },
+  { 
+    value: 'claim', 
+    label: 'Claim Master', 
+    icon: <ClaimIcon />, 
+    color: '#E65100',
+    moduleKey: MODULES.MEDICLAIM_MASTER,
+    page: PAGES.MEDICLAIM_MASTER
+  }
 ];
 
 // Tab Panel Component
@@ -339,12 +385,96 @@ function TabPanel({ children, value, index, ...other }) {
 const MediclaimMaster = () => {
   const [tabValue, setTabValue] = useState(0);
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [accessibleTabs, setAccessibleTabs] = useState([]);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (moduleKey, page, action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      moduleKey,
+      page,
+      action
+    );
+  };
+
+  // Determine which tabs are accessible based on permissions
+  useEffect(() => {
+    if (permissionsLoaded) {
+      // Super admin has access to all tabs
+      if (isSuperAdmin) {
+        setAccessibleTabs(TABS);
+        return;
+      }
+      
+      // Filter tabs based on VIEW permission for each tab's content
+      // Since all tabs are under the same module, we check if user has VIEW permission
+      // for the MEDICLAIM_MASTER module
+      const hasAnyPermission = TABS.some(tab => 
+        checkPermission(tab.moduleKey, tab.page, ACTIONS.VIEW)
+      );
+      
+      if (hasAnyPermission) {
+        setAccessibleTabs(TABS);
+      } else {
+        setAccessibleTabs([]);
+      }
+    }
+  }, [permissionsLoaded, isSuperAdmin, userPermissions]);
+
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
 
   const getHeaderText = () => {
-    return TABS[tabValue]?.label || "Mediclaim Master";
+    return accessibleTabs[tabValue]?.label || "Mediclaim Master";
   };
 
   const getDescriptionText = () => {
@@ -360,20 +490,28 @@ const MediclaimMaster = () => {
     }
   };
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary
-    }
+  // Check if user has permission for specific tab content
+  const canViewPolicyTab = () => {
+    return isSuperAdmin || checkPermission(MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.VIEW);
   };
+
+  const canViewEnrollmentTab = () => {
+    return isSuperAdmin || checkPermission(MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.VIEW);
+  };
+
+  const canViewClaimTab = () => {
+    return isSuperAdmin || checkPermission(MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.VIEW);
+  };
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If no accessible tabs, show access denied
+  if (accessibleTabs.length === 0) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5, bgcolor: COLORS.background.light, minHeight: '100vh' }}>
@@ -400,63 +538,91 @@ const MediclaimMaster = () => {
         </Typography>
       </Box>
 
-      {/* Tabs */}
-      <Paper sx={{ 
-        borderRadius: 2,
-        bgcolor: COLORS.background.white,
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-        border: `1px solid ${COLORS.border}`,
-        overflow: 'hidden'
-      }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: '0.75rem',
-              minHeight: 48,
-              color: COLORS.text.secondary,
-              '&.Mui-selected': {
-                color: COLORS.primary,
-                fontWeight: 600
-              }
-            },
-            '& .MuiTabs-indicator': {
-              backgroundColor: COLORS.primary,
-              height: 2
-            }
-          }}
-        >
-          {TABS.map((tab, index) => (
-            <Tab 
-              key={tab.value}
-              icon={tab.icon}
-              iconPosition="start"
-              label={tab.label}
-              sx={{
-                '& .MuiSvgIcon-root': {
-                  fontSize: '1rem',
-                  color: tab.color || 'inherit'
+      {/* Tabs - Only show if user has permission to view at least one tab */}
+      {accessibleTabs.length > 0 && (
+        <Paper sx={{ 
+          borderRadius: 2,
+          bgcolor: COLORS.background.white,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.75rem',
+                minHeight: 48,
+                color: COLORS.text.secondary,
+                '&.Mui-selected': {
+                  color: COLORS.primary,
+                  fontWeight: 600
                 }
-              }}
-            />
-          ))}
-        </Tabs>
-      </Paper>
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: COLORS.primary,
+                height: 2
+              }
+            }}
+          >
+            {accessibleTabs.map((tab, index) => (
+              <Tab 
+                key={tab.value}
+                icon={tab.icon}
+                iconPosition="start"
+                label={tab.label}
+                sx={{
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '1rem',
+                    color: tab.color || 'inherit'
+                  }
+                }}
+              />
+            ))}
+          </Tabs>
+        </Paper>
+      )}
 
-      {/* Tab Panels */}
+      {/* Tab Panels - Only render content if user has permission for that specific tab */}
       <TabPanel value={tabValue} index={0}>
-        <PolicyMaster />
+        {canViewPolicyTab() ? (
+          <PolicyMaster />
+        ) : (
+          <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+              You don't have permission to view Policy Master.
+            </Typography>
+          </Paper>
+        )}
       </TabPanel>
+      
       <TabPanel value={tabValue} index={1}>
-        <EnrollmentMaster />
+        {canViewEnrollmentTab() ? (
+          <EnrollmentMaster />
+        ) : (
+          <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+              You don't have permission to view Enrollment Master.
+            </Typography>
+          </Paper>
+        )}
       </TabPanel>
+      
       <TabPanel value={tabValue} index={2}>
-        <ClaimMaster />
+        {canViewClaimTab() ? (
+          <ClaimMaster />
+        ) : (
+          <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+              You don't have permission to view Claim Master.
+            </Typography>
+          </Paper>
+        )}
       </TabPanel>
     </Box>
   );

@@ -1504,6 +1504,7 @@ import {
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 import { format, parseISO } from "date-fns";
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import interview components
 import ScheduleInterview from "./ScheduleInterview";
@@ -1608,6 +1609,25 @@ const INTERVIEW_TYPES = [
   { value: "phone", label: "Phone Call" },
   { value: "in-person", label: "In Person" },
 ];
+
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
 
 // Filter Bar Component
 const FilterBar = ({
@@ -1847,7 +1867,7 @@ const FilterBar = ({
   );
 };
 
-// Action Menu Component
+// Action Menu Component with permission checks
 const ActionMenu = ({
   interview,
   onView,
@@ -1857,7 +1877,15 @@ const ActionMenu = ({
   anchorEl,
   onClose,
   onOpen,
+  userPermissions,
+  isSuperAdmin,
 }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.INTERVIEW_MASTER, PAGES.INTERVIEW_SCHEDULING, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.INTERVIEW_MASTER, PAGES.INTERVIEW_SCHEDULING, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.INTERVIEW_MASTER, PAGES.INTERVIEW_SCHEDULING, ACTIONS.DELETE);
+  const canApprove = isSuperAdmin || hasPermission(userPermissions, MODULES.INTERVIEW_MASTER, PAGES.INTERVIEW_SCHEDULING, ACTIONS.APPROVE);
+
   const isActionAllowed =
     interview.status !== "cancelled" && interview.status !== "completed";
 
@@ -1892,28 +1920,30 @@ const ActionMenu = ({
           },
         }}
       >
-        <MenuItem
-          onClick={() => {
-            onView(interview);
-            onClose();
-          }}
-          sx={{ py: 1 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography
-              variant="body2"
-              fontWeight={500}
-              sx={{ fontSize: "0.75rem" }}
-            >
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem
+            onClick={() => {
+              onView(interview);
+              onClose();
+            }}
+            sx={{ py: 1 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography
+                variant="body2"
+                fontWeight={500}
+                sx={{ fontSize: "0.75rem" }}
+              >
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        {isActionAllowed && (
+        {canUpdate && isActionAllowed && (
           <>
             <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
             <MenuItem
@@ -1937,7 +1967,7 @@ const ActionMenu = ({
               </ListItemText>
             </MenuItem>
 
-            {interview.status === "scheduled" && (
+            {canApprove && interview.status === "scheduled" && (
               <MenuItem
                 onClick={() => {
                   onFeedback(interview);
@@ -1960,31 +1990,33 @@ const ActionMenu = ({
               </MenuItem>
             )}
 
-            <MenuItem
-              onClick={() => {
-                onCancel(interview);
-                onClose();
-              }}
-              sx={{ py: 1 }}
-            >
-              <ListItemIcon sx={{ color: "#EF4444", minWidth: 36 }}>
-                <CancelIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography
-                  variant="body2"
-                  fontWeight={500}
-                  color="#EF4444"
-                  sx={{ fontSize: "0.75rem" }}
-                >
-                  Cancel Interview
-                </Typography>
-              </ListItemText>
-            </MenuItem>
+            {canDelete && (
+              <MenuItem
+                onClick={() => {
+                  onCancel(interview);
+                  onClose();
+                }}
+                sx={{ py: 1 }}
+              >
+                <ListItemIcon sx={{ color: "#EF4444", minWidth: 36 }}>
+                  <CancelIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography
+                    variant="body2"
+                    fontWeight={500}
+                    color="#EF4444"
+                    sx={{ fontSize: "0.75rem" }}
+                  >
+                    Cancel Interview
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            )}
           </>
         )}
 
-        {interview.status === "completed" && !interview.feedback && (
+        {canApprove && interview.status === "completed" && !interview.feedback && (
           <>
             <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
             <MenuItem
@@ -2064,6 +2096,72 @@ const InterviewMaster = () => {
     severity: "success",
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.INTERVIEW_MASTER,
+      PAGES.INTERVIEW_SCHEDULING,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -2073,8 +2171,11 @@ const InterviewMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch interviews
+  // Fetch interviews - only if user has view permission
   const fetchInterviews = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -2109,11 +2210,13 @@ const InterviewMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm, orderBy, order, filters]);
+  }, [page, rowsPerPage, searchTerm, orderBy, order, filters, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchInterviews();
-  }, [fetchInterviews]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchInterviews();
+    }
+  }, [fetchInterviews, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle sort
   const handleRequestSort = (property) => {
@@ -2138,8 +2241,13 @@ const InterviewMaster = () => {
     setPage(0);
   };
 
-  // Handle selection
+  // Handle selection - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete interviews", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(interviews.map((i) => i._id));
     } else {
@@ -2148,6 +2256,11 @@ const InterviewMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete interviews", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -2170,23 +2283,39 @@ const InterviewMaster = () => {
     setSelected([]);
   };
 
-  // Handle CRUD actions
+  // Handle CRUD actions with permission checks
   const handleView = (interview) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You don't have permission to view interview details", "error");
+      return;
+    }
     setSelectedInterview(interview);
     setOpenViewModal(true);
   };
 
   const handleReschedule = (interview) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You don't have permission to reschedule interviews", "error");
+      return;
+    }
     setSelectedInterview(interview);
     setOpenRescheduleModal(true);
   };
 
   const handleFeedback = (interview) => {
+    if (!canApprove && !isSuperAdmin) {
+      showNotification("You don't have permission to submit feedback", "error");
+      return;
+    }
     setSelectedInterview(interview);
     setOpenFeedbackModal(true);
   };
 
   const handleCancel = (interview) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to cancel interviews", "error");
+      return;
+    }
     setSelectedInterview(interview);
     setOpenCancelModal(true);
   };
@@ -2228,6 +2357,14 @@ const InterviewMaster = () => {
     setOpenCancelModal(false);
     setSelectedInterview(null);
     showNotification("Interview cancelled successfully!", "success");
+  };
+
+  const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete interviews", "error");
+      return;
+    }
+    showNotification("Bulk delete requires API implementation", "warning");
   };
 
   const showNotification = (message, severity) => {
@@ -2312,6 +2449,16 @@ const InterviewMaster = () => {
       />
     );
   };
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -2401,27 +2548,23 @@ const InterviewMaster = () => {
               disabled={loading}
             />
 
-            {/* <FilterBar
+            <FilterBar
               filters={filters}
               onFilterChange={handleFilterChange}
               onApplyFilters={handleApplyFilters}
               onClearFilters={handleClearFilters}
-            /> */}
+            />
           </Stack>
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: "1rem" }} />}
-                onClick={() =>
-                  showNotification(
-                    "Bulk delete requires API implementation",
-                    "warning",
-                  )
-                }
+                onClick={handleBulkDelete}
                 sx={{
                   height: 36,
                   borderRadius: 1.5,
@@ -2438,24 +2581,27 @@ const InterviewMaster = () => {
               </Button>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: "1rem" }} />}
-              onClick={() => setOpenScheduleModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                textTransform: "none",
-                boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-                "&:hover": { bgcolor: COLORS.primaryDark },
-              }}
-              disabled={loading}
-            >
-              Schedule Interview
-            </Button>
+            {/* Schedule Interview Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: "1rem" }} />}
+                onClick={() => setOpenScheduleModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                  textTransform: "none",
+                  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+                  "&:hover": { bgcolor: COLORS.primaryDark },
+                }}
+                disabled={loading}
+              >
+                Schedule Interview
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -2483,27 +2629,30 @@ const InterviewMaster = () => {
                   },
                 }}
               >
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={
-                      selected.length > 0 && selected.length < interviews.length
-                    }
-                    checked={
-                      interviews.length > 0 &&
-                      selected.length === interviews.length
-                    }
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      "&.Mui-checked": { color: COLORS.text.light },
-                      "&.MuiCheckbox-indeterminate": {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={
+                        selected.length > 0 && selected.length < interviews.length
+                      }
+                      checked={
+                        interviews.length > 0 &&
+                        selected.length === interviews.length
+                      }
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      "& .MuiSvgIcon-root": { fontSize: "1.25rem" },
-                    }}
-                    disabled={loading || interviews.length === 0}
-                  />
-                </TableCell>
+                        "&.Mui-checked": { color: COLORS.text.light },
+                        "&.MuiCheckbox-indeterminate": {
+                          color: COLORS.text.light,
+                        },
+                        "& .MuiSvgIcon-root": { fontSize: "1.25rem" },
+                      }}
+                      disabled={loading || interviews.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell
                   sx={{
                     fontWeight: 600,
@@ -2591,7 +2740,7 @@ const InterviewMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress
                       size={32}
                       sx={{ color: COLORS.primary }}
@@ -2609,7 +2758,7 @@ const InterviewMaster = () => {
                 </TableRow>
               ) : interviews.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: "center" }}>
                       <EventIcon
                         sx={{
@@ -2690,17 +2839,20 @@ const InterviewMaster = () => {
                         },
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(interview._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            "&.Mui-checked": { color: COLORS.primary },
-                            "& .MuiSvgIcon-root": { fontSize: "1.25rem" },
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(interview._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              "&.Mui-checked": { color: COLORS.primary },
+                              "& .MuiSvgIcon-root": { fontSize: "1.25rem" },
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography
                           sx={{
@@ -2845,6 +2997,8 @@ const InterviewMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, interview)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -2877,53 +3031,63 @@ const InterviewMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <ScheduleInterview
-        open={openScheduleModal}
-        onClose={() => setOpenScheduleModal(false)}
-        onAdd={handleScheduleSuccess}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <ScheduleInterview
+          open={openScheduleModal}
+          onClose={() => setOpenScheduleModal(false)}
+          onAdd={handleScheduleSuccess}
+        />
+      )}
 
       {selectedInterview && (
         <>
-          <RescheduleInterview
-            open={openRescheduleModal}
-            onClose={() => {
-              setOpenRescheduleModal(false);
-              setSelectedInterview(null);
-            }}
-            onReschedule={handleRescheduleSuccess}
-            interviewData={selectedInterview}
-          />
+          {(canUpdate || isSuperAdmin) && (
+            <RescheduleInterview
+              open={openRescheduleModal}
+              onClose={() => {
+                setOpenRescheduleModal(false);
+                setSelectedInterview(null);
+              }}
+              onReschedule={handleRescheduleSuccess}
+              interviewData={selectedInterview}
+            />
+          )}
 
-          <InterviewFeedback
-            open={openFeedbackModal}
-            onClose={() => {
-              setOpenFeedbackModal(false);
-              setSelectedInterview(null);
-            }}
-            onSubmit={handleFeedbackSuccess}
-            interviewData={selectedInterview}
-          />
+          {(canApprove || isSuperAdmin) && (
+            <InterviewFeedback
+              open={openFeedbackModal}
+              onClose={() => {
+                setOpenFeedbackModal(false);
+                setSelectedInterview(null);
+              }}
+              onSubmit={handleFeedbackSuccess}
+              interviewData={selectedInterview}
+            />
+          )}
 
-          <CancelInterview
-            open={openCancelModal}
-            onClose={() => {
-              setOpenCancelModal(false);
-              setSelectedInterview(null);
-            }}
-            onCancel={handleCancelSuccess}
-            interviewData={selectedInterview}
-          />
+          {(canDelete || isSuperAdmin) && (
+            <CancelInterview
+              open={openCancelModal}
+              onClose={() => {
+                setOpenCancelModal(false);
+                setSelectedInterview(null);
+              }}
+              onCancel={handleCancelSuccess}
+              interviewData={selectedInterview}
+            />
+          )}
 
-          <ViewInterviewDetails
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedInterview(null);
-            }}
-            interviewId={selectedInterview._id}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewInterviewDetails
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedInterview(null);
+              }}
+              interviewId={selectedInterview._id}
+            />
+          )}
         </>
       )}
 

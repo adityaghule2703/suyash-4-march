@@ -71,6 +71,11 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
   };
 
+  // Get candidate initials for avatar - MOVED TO TOP
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+  };
+
   // Reset state when dialog opens with new candidate
   useEffect(() => {
     if (open && candidate) {
@@ -129,11 +134,8 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
       }
 
       // Fetch offers specifically for this candidate
-      console.log('🔵 Fetching offers for candidate ID:', candidateId);
-      
       let offersArray = [];
       
-      // Get offers with candidateId filter
       try {
         const offersResponse = await axios.get(`${BASE_URL}/api/offers?candidateId=${candidateId}`, {
           headers: { 
@@ -264,42 +266,6 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     }
   };
 
-  // Handle view offer
-  const handleViewOffer = () => {
-    if (!sendResult?.viewUrl) {
-      showSnackbar('View URL not available', 'error');
-      return;
-    }
-    
-    console.log('Opening view URL:', sendResult.viewUrl);
-    
-    const newWindow = window.open(sendResult.viewUrl, '_blank');
-    
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      showSnackbar('Popup was blocked. Please allow popups for this site.', 'warning');
-    } else {
-      showSnackbar('Opening view link in new tab...', 'info');
-    }
-  };
-
-  // Handle accept offer
-  const handleAcceptOffer = () => {
-    if (!sendResult?.acceptUrl) {
-      showSnackbar('Accept URL not available', 'error');
-      return;
-    }
-    
-    console.log('Opening accept URL:', sendResult.acceptUrl);
-    
-    const newWindow = window.open(sendResult.acceptUrl, '_blank');
-    
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      showSnackbar('Popup was blocked. Please allow popups for this site.', 'warning');
-    } else {
-      showSnackbar('Opening accept link in new tab...', 'info');
-    }
-  };
-
   // Send offer letter via email
   const handleSendEmail = async () => {
     if (!selectedOffer?._id && !selectedOffer?.id) {
@@ -344,7 +310,37 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
         
         setSuccess(true);
         setSendResult(response.data.data);
-        showSnackbar('✅ Offer letter sent successfully! Token saved.', 'success');
+        showSnackbar('✅ Offer letter sent successfully!', 'success');
+        
+        // 🔥 IMPORTANT: Call onComplete immediately after successful send
+        if (onComplete) {
+          const completeData = {
+            id: candidate?.id || candidateInfo?.id,
+            _id: candidate?._id || candidateInfo?._id,
+            candidateId: candidate?.candidateId || candidateInfo?.candidateId,
+            offerId: selectedOffer?.offerId || selectedOffer?._id,
+            status: 'Sent',
+            applicationStatus: 'sent',
+            emailSent: true,
+            sentDate: new Date().toISOString(),
+            tokenData: response.data.data,
+            offerDetails: {
+              ...selectedOffer,
+              sentAt: new Date().toISOString(),
+              sentDate: new Date().toLocaleDateString(),
+              emailSent: true
+            }
+          };
+          
+          console.log('🔵 Calling onComplete with data:', completeData);
+          onComplete(completeData);
+        }
+        
+        // Close the dialog after a short delay
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+        
       } else {
         throw new Error(response.data.message || 'Failed to send email');
       }
@@ -374,26 +370,15 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     }
   };
 
-  // Copy text to clipboard
-  const handleCopyToClipboard = (text, label) => {
-    navigator.clipboard.writeText(text).then(
-      () => {
-        showSnackbar(`${label} copied to clipboard!`, 'success');
-      },
-      () => {
-        showSnackbar('Failed to copy to clipboard', 'error');
-      }
-    );
-  };
-
-  // Handle mark as sent and close
+  // Handle mark as sent and close (for cases where email was not sent)
   const handleMarkSent = () => {
     if (onComplete) {
       onComplete({
         id: candidate?.id || candidateInfo?.id,
+        _id: candidate?._id || candidateInfo?._id,
         candidateId: candidate?.candidateId || candidateInfo?.candidateId,
         offerId: selectedOffer?.offerId || candidate?.offerId,
-        status: 'sent',
+        status: 'Sent',
         applicationStatus: 'sent',
         emailSent: true,
         sentDate: new Date().toISOString(),
@@ -416,21 +401,6 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     setSuccess(false);
     setSendResult(null);
     setSending(false);
-  };
-
-  // Format expiry date
-  const formatExpiryDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
-  // Get candidate initials for avatar
-  const getInitials = (firstName, lastName) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
   const isLoading = fetchingOffer || sending;
@@ -668,73 +638,6 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                   The offer letter has been sent to {emailData.to}
                 </Typography>
               </Box>
-
-              {sendResult && (
-                <>
-                  {/* <Divider sx={{ my: 2 }} /> */}
-                  
-                  {/* <Typography variant="subtitle2" gutterBottom sx={{ color: '#1976D2', mb: 2 }}>
-                    Secure Actions (Valid until {formatExpiryDate(sendResult.tokenExpiry)})
-                  </Typography>
-                  
-                  <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-                    {sendResult.viewUrl && (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<ViewIcon />}
-                        onClick={handleViewOffer}
-                        sx={{ 
-                          minWidth: 140,
-                          py: 1.5,
-                          backgroundColor: '#1976D2',
-                          '&:hover': { backgroundColor: '#1565C0' }
-                        }}
-                      >
-                        View Offer
-                      </Button>
-                    )}
-                    
-                    {sendResult.acceptUrl && (
-                      <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<CheckCircleIcon />}
-                        onClick={handleAcceptOffer}
-                        sx={{ 
-                          minWidth: 140,
-                          py: 1.5,
-                          backgroundColor: '#4CAF50',
-                          '&:hover': { backgroundColor: '#45a049' }
-                        }}
-                      >
-                        Accept Offer
-                      </Button>
-                    )}
-                  </Stack> */}
-
-                  {/* <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 1 }}>
-                    <Tooltip title="Copy View URL">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleCopyToClipboard(sendResult.viewUrl, 'View URL')}
-                        sx={{ color: '#1976D2' }}
-                      >
-                        <CopyIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Copy Accept URL">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleCopyToClipboard(sendResult.acceptUrl, 'Accept URL')}
-                        sx={{ color: '#4CAF50' }}
-                      >
-                        <CopyIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box> */}
-                </>
-              )}
             </Paper>
           )}
         </DialogContent>
@@ -792,7 +695,7 @@ const SendOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                   '&:hover': { backgroundColor: '#45a049' }
                 }}
               >
-                Mark as Sent
+                Close
               </Button>
             </>
           )}

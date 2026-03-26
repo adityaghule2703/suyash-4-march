@@ -1061,6 +1061,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../../utils/modulePermissions';
 
 import ViewPolicy from './ViewPolicy';
 import EditPolicy from './EditPolicy';
@@ -1100,6 +1101,25 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Status color mapping
 const STATUS_COLORS = {
   active: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Active' },
@@ -1107,8 +1127,13 @@ const STATUS_COLORS = {
   draft: { bg: COLORS.status.info, color: COLORS.primaryDark, icon: <PendingIcon sx={{ fontSize: '0.7rem' }} />, label: 'Draft' }
 };
 
-// Action Menu Component
-const ActionMenu = ({ policy, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with permission checks
+const ActionMenu = ({ policy, onView, onEdit, onDelete, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.DELETE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -1140,37 +1165,48 @@ const ActionMenu = ({ policy, onView, onEdit, onDelete, anchorEl, onClose, onOpe
           }
         }}
       >
-        <MenuItem onClick={() => { onView(policy); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem onClick={() => { onEdit(policy); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => { onDelete(policy); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onView(policy); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView && canUpdate) && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(policy); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canUpdate && canDelete) && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(policy); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -1194,6 +1230,71 @@ const PolicyMaster = () => {
   const [selectedPolicy, setSelectedPolicy] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.MEDICLAIM_MASTER,
+      PAGES.MEDICLAIM_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1204,6 +1305,9 @@ const PolicyMaster = () => {
   }, [searchInput]);
 
   const fetchPolicies = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -1223,11 +1327,13 @@ const PolicyMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchPolicies();
-  }, [fetchPolicies]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPolicies();
+    }
+  }, [fetchPolicies, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Filter policies when search term changes
   useEffect(() => {
@@ -1250,7 +1356,13 @@ const PolicyMaster = () => {
     setPage(0);
   };
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete policies", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedPolicies.map(policy => policy._id));
     } else {
@@ -1258,7 +1370,13 @@ const PolicyMaster = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete policies", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -1299,6 +1417,11 @@ const PolicyMaster = () => {
   };
 
   const handleBulkDelete = async () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete policies", "error");
+      return;
+    }
+    
     if (selected.length === 0) return;
 
     try {
@@ -1326,18 +1449,30 @@ const PolicyMaster = () => {
   };
 
   const openViewPolicyModal = (policy) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You don't have permission to view policy details", "error");
+      return;
+    }
     setSelectedPolicy(policy);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditPolicyModal = (policy) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You don't have permission to edit policies", "error");
+      return;
+    }
     setSelectedPolicy(policy);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeletePolicyDialog = (policy) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete policies", "error");
+      return;
+    }
     setSelectedPolicy(policy);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -1364,43 +1499,18 @@ const PolicyMaster = () => {
   const paginatedPolicies = filteredPolicies.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const isFilterActive = searchTerm;
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary,
-      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
-    }
-  };
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: -1 }}>
-      {/* Page Header */}
-      {/* <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: COLORS.text.primary,
-            mb: 0.5
-          }}
-        >
-          Policy Master
-        </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-          Manage and track insurance policies
-        </Typography>
-      </Box> */}
-
       {/* Action Bar */}
       <Paper sx={{ 
         p: 1.5, 
@@ -1468,23 +1578,11 @@ const PolicyMaster = () => {
                 Clear Filters
               </Button>
             )}
-{/* 
-            <Tooltip title="Refresh">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.text.secondary,
-                  '&:hover': { bgcolor: `${COLORS.primary}20` }
-                }}
-              >
-                <RefreshIcon sx={{ fontSize: '1rem' }} />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1505,23 +1603,26 @@ const PolicyMaster = () => {
               </Button>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Add Policy
-            </Button>
+            {/* Add Policy Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Add Policy
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1545,20 +1646,23 @@ const PolicyMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedPolicies.length}
-                    checked={paginatedPolicies.length > 0 && selected.length === paginatedPolicies.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || paginatedPolicies.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedPolicies.length}
+                      checked={paginatedPolicies.length > 0 && selected.length === paginatedPolicies.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': { color: COLORS.text.light },
+                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                      }}
+                      disabled={loading || paginatedPolicies.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Policy ID
                 </TableCell>
@@ -1582,7 +1686,7 @@ const PolicyMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading policies...
@@ -1591,7 +1695,7 @@ const PolicyMaster = () => {
                 </TableRow>
               ) : paginatedPolicies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <AssignmentIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1629,17 +1733,20 @@ const PolicyMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(policy._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(policy._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': { color: COLORS.primary },
+                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                           {policy.policyId}
@@ -1688,6 +1795,8 @@ const PolicyMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, policy)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1718,41 +1827,51 @@ const PolicyMaster = () => {
         />
       </Paper>
 
-      {/* Modals */}
-      <AddPolicy
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modals - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddPolicy
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedPolicy && (
         <>
-          <ViewPolicy
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedPolicy(null);
-            }}
-            policyId={selectedPolicy._id}
-          />
-          <EditPolicy
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedPolicy(null);
-            }}
-            policyId={selectedPolicy._id}
-            onSuccess={handleEditSuccess}
-          />
-          <DeletePolicy
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedPolicy(null);
-            }}
-            policy={selectedPolicy}
-            onSuccess={handleDeleteSuccess}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewPolicy
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedPolicy(null);
+              }}
+              policyId={selectedPolicy._id}
+            />
+          )}
+          
+          {(canUpdate || isSuperAdmin) && (
+            <EditPolicy
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedPolicy(null);
+              }}
+              policyId={selectedPolicy._id}
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          
+          {(canDelete || isSuperAdmin) && (
+            <DeletePolicy
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedPolicy(null);
+              }}
+              policy={selectedPolicy}
+              onSuccess={handleDeleteSuccess}
+            />
+          )}
         </>
       )}
 

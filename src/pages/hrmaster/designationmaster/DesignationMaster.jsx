@@ -894,6 +894,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddDesignations from './AddDesignations';
@@ -928,8 +929,32 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ designation, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ designation, onView, onEdit, onDelete, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.DESIGNATION_MASTER, PAGES.DESIGNATION_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.DESIGNATION_MASTER, PAGES.DESIGNATION_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.DESIGNATION_MASTER, PAGES.DESIGNATION_MASTER, ACTIONS.DELETE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -961,55 +986,66 @@ const ActionMenu = ({ designation, onView, onEdit, onDelete, anchorEl, onClose, 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(designation);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(designation);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(designation);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(designation);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(designation);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(designation);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -1025,7 +1061,7 @@ const DesignationMaster = () => {
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Default to 5 rows per page
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -1048,6 +1084,71 @@ const DesignationMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.DESIGNATION_MASTER,
+      PAGES.DESIGNATION_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1058,52 +1159,54 @@ const DesignationMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch designations from API
+  // Fetch designations from API - only if user has permission
   useEffect(() => {
-    fetchDesignations();
-  }, []);
-
- const fetchDesignations = async (showLoader = true) => {
-  try {
-    if (showLoader) setLoading(true);
-
-    const token = localStorage.getItem('token');
-
-    const response = await axios.get(`${BASE_URL}/api/designations`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-
-    if (response.data?.success) {
-      const data = response.data.data || [];
-
-      // ✅ Always sync both states
-      setDesignations(data);
-
-      // ✅ Apply search filter properly
-      if (!searchTerm) {
-        setFilteredDesignations(data);
-      } else {
-        const value = searchTerm.toLowerCase();
-        const filtered = data.filter(d =>
-          d.DesignationName?.toLowerCase().includes(value) ||
-          d.Description?.toLowerCase().includes(value)
-        );
-        setFilteredDesignations(filtered);
-      }
-
-    } else {
-      showNotification('Failed to load designations', 'error');
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDesignations();
     }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  } catch (err) {
-    console.error('Error fetching designations:', err);
-    showNotification('Failed to load designations. Please try again.', 'error');
-  } finally {
-    if (showLoader) setLoading(false);
-  }
-};
+  const fetchDesignations = async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+
+      const token = localStorage.getItem('token');
+
+      const response = await axios.get(`${BASE_URL}/api/designations`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data?.success) {
+        const data = response.data.data || [];
+
+        // Always sync both states
+        setDesignations(data);
+
+        // Apply search filter properly
+        if (!searchTerm) {
+          setFilteredDesignations(data);
+        } else {
+          const value = searchTerm.toLowerCase();
+          const filtered = data.filter(d =>
+            d.DesignationName?.toLowerCase().includes(value) ||
+            d.Description?.toLowerCase().includes(value)
+          );
+          setFilteredDesignations(filtered);
+        }
+
+      } else {
+        showNotification('Failed to load designations', 'error');
+      }
+
+    } catch (err) {
+      console.error('Error fetching designations:', err);
+      showNotification('Failed to load designations. Please try again.', 'error');
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  };
   
   // Handle refresh
   const handleRefresh = () => {
@@ -1112,28 +1215,33 @@ const DesignationMaster = () => {
   };
   
   // Handle search (client-side filtering)
-const handleSearch = (data = designations) => {
-  if (!searchTerm) {
-    setFilteredDesignations(data);
-    return;
-  }
+  const handleSearch = (data = designations) => {
+    if (!searchTerm) {
+      setFilteredDesignations(data);
+      return;
+    }
 
-  const value = searchTerm.toLowerCase();
-  const filtered = data.filter(d =>
-    d.DesignationName?.toLowerCase().includes(value) ||
-    d.Description?.toLowerCase().includes(value)
-  );
+    const value = searchTerm.toLowerCase();
+    const filtered = data.filter(d =>
+      d.DesignationName?.toLowerCase().includes(value) ||
+      d.Description?.toLowerCase().includes(value)
+    );
 
-  setFilteredDesignations(filtered);
-};
+    setFilteredDesignations(filtered);
+  };
 
   // Apply search when searchTerm changes
   useEffect(() => {
     handleSearch();
   }, [searchTerm, designations]);
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete designations', 'error');
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(filteredDesignations.map(designation => designation._id));
     } else {
@@ -1141,8 +1249,13 @@ const handleSearch = (data = designations) => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete designations', 'error');
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -1158,36 +1271,40 @@ const handleSearch = (data = designations) => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    setSelected([]); // Clear selection when changing page
+    setSelected([]);
   };
   
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
-    setSelected([]); // Clear selection when changing rows per page
+    setSelected([]);
   };
   
   // Handle add designation
-const handleAddDesignation = async () => {
-  await fetchDesignations(false); // ⚡ no loader = smooth UI
-  showNotification('Designation added successfully!', 'success');
-};
+  const handleAddDesignation = async () => {
+    await fetchDesignations(false);
+    showNotification('Designation added successfully!', 'success');
+  };
   
   // Handle edit designation
-const handleEditDesignation = async () => {
-  await fetchDesignations(false);
-  showNotification('Designation updated successfully!', 'success');
-};
+  const handleEditDesignation = async () => {
+    await fetchDesignations(false);
+    showNotification('Designation updated successfully!', 'success');
+  };
   
   // Handle delete designation
- const handleDeleteDesignation = async () => {
-  await fetchDesignations(false);
-  showNotification('Designation deleted successfully!', 'success');
-};
+  const handleDeleteDesignation = async () => {
+    await fetchDesignations(false);
+    showNotification('Designation deleted successfully!', 'success');
+  };
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete designations', 'error');
+      return;
+    }
     showNotification('Bulk delete requires API implementation', 'warning');
   };
   
@@ -1204,6 +1321,10 @@ const handleEditDesignation = async () => {
   
   // Open edit modal
   const openEditDesignationModal = (designation) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification('You do not have permission to edit designations', 'error');
+      return;
+    }
     setSelectedDesignation(designation);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -1211,6 +1332,10 @@ const handleEditDesignation = async () => {
   
   // Open view modal
   const openViewDesignationModal = (designation) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification('You do not have permission to view designations', 'error');
+      return;
+    }
     setSelectedDesignation(designation);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -1218,6 +1343,10 @@ const handleEditDesignation = async () => {
   
   // Open delete confirmation
   const openDeleteDesignationDialog = (designation) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete designations', 'error');
+      return;
+    }
     setSelectedDesignation(designation);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -1326,6 +1455,16 @@ const handleEditDesignation = async () => {
     page * rowsPerPage + rowsPerPage
   );
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -1400,7 +1539,8 @@ const handleEditDesignation = async () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1424,26 +1564,30 @@ const handleEditDesignation = async () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Designation
-            </Button>
+            
+            {/* Add Designation Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Designation
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1467,26 +1611,29 @@ const handleEditDesignation = async () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredDesignations.length}
-                    checked={filteredDesignations.length > 0 && selected.length === filteredDesignations.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredDesignations.length}
+                      checked={filteredDesignations.length > 0 && selected.length === filteredDesignations.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || filteredDesignations.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || filteredDesignations.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -1533,7 +1680,7 @@ const handleEditDesignation = async () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 6 : 5} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading designations...
@@ -1542,7 +1689,7 @@ const handleEditDesignation = async () => {
                 </TableRow>
               ) : paginatedDesignations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 6 : 5} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No designations found' : 'No designations available'}
@@ -1584,21 +1731,24 @@ const handleEditDesignation = async () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(designation._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(designation._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -1668,6 +1818,8 @@ const handleEditDesignation = async () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, designation)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1703,47 +1855,57 @@ const handleEditDesignation = async () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddDesignations 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddDesignation}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddDesignations 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddDesignation}
+        />
+      )}
 
       {selectedDesignation && (
         <>
-          <EditDesignations 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedDesignation(null);
-            }}
-            designation={selectedDesignation}
-            onUpdate={handleEditDesignation}
-          />
+          {(canUpdate || isSuperAdmin) && (
+            <EditDesignations 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedDesignation(null);
+              }}
+              designation={selectedDesignation}
+              onUpdate={handleEditDesignation}
+            />
+          )}
 
-          <ViewDesignations 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedDesignation(null);
-            }}
-            designation={selectedDesignation}
-            onEdit={() => {
-              setOpenViewModal(false);
-              setOpenEditModal(true);
-            }}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewDesignations 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedDesignation(null);
+              }}
+              designation={selectedDesignation}
+              onEdit={() => {
+                if (canUpdate || isSuperAdmin) {
+                  setOpenViewModal(false);
+                  setOpenEditModal(true);
+                }
+              }}
+            />
+          )}
 
-          <DeleteDesignations 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedDesignation(null);
-            }}
-            designation={selectedDesignation}
-            onDelete={handleDeleteDesignation}
-          />
+          {(canDelete || isSuperAdmin) && (
+            <DeleteDesignations 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedDesignation(null);
+              }}
+              designation={selectedDesignation}
+              onDelete={handleDeleteDesignation}
+            />
+          )}
         </>
       )}
 

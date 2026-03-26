@@ -471,6 +471,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddRegularization from './AddRegularization';
@@ -504,10 +505,35 @@ const COLORS = {
   }
 };
 
-// Action Menu Component with proper approve functionality
-const ActionMenu = ({ item, onView, onApprove, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onApprove, onDelete, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.REGULARIZATION_MASTER, PAGES.ATTENDANCE_REGULARIZATION, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.REGULARIZATION_MASTER, PAGES.ATTENDANCE_REGULARIZATION, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.REGULARIZATION_MASTER, PAGES.ATTENDANCE_REGULARIZATION, ACTIONS.DELETE);
+  const canApprove = isSuperAdmin || hasPermission(userPermissions, MODULES.REGULARIZATION_MASTER, PAGES.ATTENDANCE_REGULARIZATION, ACTIONS.APPROVE);
+  
   // Case-insensitive status check for Pending
-  const canApprove = item?.Status?.toLowerCase() === 'pending';
+  const canApproveAction = (canApprove || isSuperAdmin) && item?.Status?.toLowerCase() === 'pending';
   
   return (
     <>
@@ -540,25 +566,27 @@ const ActionMenu = ({ item, onView, onApprove, onDelete, anchorEl, onClose, onOp
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {/* Approve button - Only show for Pending requests */}
-        {canApprove && (
+        {/* Approve button - Only show for Pending requests and if user has approve permission */}
+        {canApproveAction && (
           <MenuItem 
             onClick={() => {
               onApprove(item);
@@ -577,23 +605,28 @@ const ActionMenu = ({ item, onView, onApprove, onDelete, anchorEl, onClose, onOp
           </MenuItem>
         )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {(canView || canApproveAction) && canDelete && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -635,6 +668,72 @@ const RegularizationMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.REGULARIZATION_MASTER,
+      PAGES.ATTENDANCE_REGULARIZATION,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -644,8 +743,11 @@ const RegularizationMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch records from API
+  // Fetch records from API - only if user has view permission
   const fetchRecords = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -682,12 +784,14 @@ const RegularizationMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, canViewPage, isSuperAdmin]);
 
   // Fetch records when dependencies change
   useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchRecords();
+    }
+  }, [fetchRecords, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -695,8 +799,13 @@ const RegularizationMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete requests", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       const currentPageRecords = records.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
       setSelected(currentPageRecords.map(record => record._id));
@@ -705,8 +814,13 @@ const RegularizationMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete requests", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -735,6 +849,11 @@ const RegularizationMaster = () => {
   
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete requests", "error");
+      return;
+    }
+    
     if (selected.length === 1) {
       const record = records.find(r => r._id === selected[0]);
       setSelectedRecord(record);
@@ -744,13 +863,13 @@ const RegularizationMaster = () => {
     }
   };
   
-  // Handle add record
+  // Handle add record - only if user has create permission
   const handleAddRecord = () => {
     fetchRecords();
     showNotification('Request submitted successfully!', 'success');
   };
   
-  // Handle approve/reject record
+  // Handle approve/reject record - only if user has approve permission
   const handleApproveRecord = (updatedRecord) => {
     fetchRecords();
     setSelected([]);
@@ -762,7 +881,7 @@ const RegularizationMaster = () => {
     );
   };
   
-  // Handle delete record
+  // Handle delete record - only if user has delete permission
   const handleDeleteRecord = () => {
     fetchRecords();
     setSelected([]);
@@ -780,22 +899,34 @@ const RegularizationMaster = () => {
     setSelectedRecordForAction(null);
   };
 
-  // Open view modal
+  // Open view modal - only if user has view permission
   const openViewModalHandler = (record) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You don't have permission to view details", "error");
+      return;
+    }
     setSelectedRecord(record);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
-  // Open approve modal
+  // Open approve modal - only if user has approve permission
   const openApproveModalHandler = (record) => {
+    if (!canApprove && !isSuperAdmin) {
+      showNotification("You don't have permission to approve/reject requests", "error");
+      return;
+    }
     setSelectedRecord(record);
     setOpenApproveModal(true);
     handleActionMenuClose();
   };
   
-  // Open delete confirmation
+  // Open delete confirmation - only if user has delete permission
   const openDeleteDialogHandler = (record) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete requests", "error");
+      return;
+    }
     setSelectedRecord(record);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -893,6 +1024,16 @@ const RegularizationMaster = () => {
   // Get current page records
   const currentPageRecords = records.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -963,51 +1104,12 @@ const RegularizationMaster = () => {
               }}
               disabled={loading}
             />
-            {/* <TextField
-              select
-              size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(0);
-              }}
-              sx={{ 
-                width: 130,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                  height: 36
-                },
-                '& .MuiInputLabel-root': {
-                  fontSize: '0.7rem'
-                }
-              }}
-              SelectProps={{
-                MenuProps: {
-                  PaperProps: {
-                    sx: {
-                      borderRadius: 1.5,
-                      '& .MuiMenuItem-root': {
-                        fontSize: '0.75rem'
-                      }
-                    }
-                  }
-                }
-              }}
-              disabled={loading}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="Pending">Pending</MenuItem>
-              <MenuItem value="Approved">Approved</MenuItem>
-              <MenuItem value="Rejected">Rejected</MenuItem>
-            </TextField>
-           */}
           </Stack>
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1031,26 +1133,30 @@ const RegularizationMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Request
-            </Button>
+            
+            {/* Add Request Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Request
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1074,26 +1180,29 @@ const RegularizationMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < currentPageRecords.length}
-                    checked={currentPageRecords.length > 0 && selected.length === currentPageRecords.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < currentPageRecords.length}
+                      checked={currentPageRecords.length > 0 && selected.length === currentPageRecords.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || currentPageRecords.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || currentPageRecords.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -1140,7 +1249,7 @@ const RegularizationMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 6 : 5} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading requests...
@@ -1149,7 +1258,7 @@ const RegularizationMaster = () => {
                 </TableRow>
               ) : currentPageRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 6 : 5} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm || statusFilter ? 'No requests found' : 'No requests available'}
@@ -1195,21 +1304,24 @@ const RegularizationMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(record._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(record._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -1282,6 +1394,8 @@ const RegularizationMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, record)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1317,43 +1431,51 @@ const RegularizationMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddRegularization 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddRecord}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddRegularization 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddRecord}
+        />
+      )}
 
       {selectedRecord && (
         <>
-          <ViewRegularization 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedRecord(null);
-            }}
-            record={selectedRecord}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewRegularization 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedRecord(null);
+              }}
+              record={selectedRecord}
+            />
+          )}
 
-          <ApproveRegularization 
-            open={openApproveModal}
-            onClose={() => {
-              setOpenApproveModal(false);
-              setSelectedRecord(null);
-            }}
-            record={selectedRecord}
-            onUpdate={handleApproveRecord}
-          />
+          {(canApprove || isSuperAdmin) && (
+            <ApproveRegularization 
+              open={openApproveModal}
+              onClose={() => {
+                setOpenApproveModal(false);
+                setSelectedRecord(null);
+              }}
+              record={selectedRecord}
+              onUpdate={handleApproveRecord}
+            />
+          )}
 
-          <DeleteRegularization 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedRecord(null);
-            }}
-            record={selectedRecord}
-            onDelete={handleDeleteRecord}
-          />
+          {(canDelete || isSuperAdmin) && (
+            <DeleteRegularization 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedRecord(null);
+              }}
+              record={selectedRecord}
+              onDelete={handleDeleteRecord}
+            />
+          )}
         </>
       )}
 

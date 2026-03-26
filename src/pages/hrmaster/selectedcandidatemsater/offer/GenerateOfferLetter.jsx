@@ -237,7 +237,7 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
       // Automatically fetch the offer letter for this offer
       if (latestOffer._id || latestOffer.id) {
         const offerId = latestOffer._id || latestOffer.id;
-        fetchOfferLetter(offerId);
+        await fetchOfferLetter(offerId, latestOffer);
       } else {
         setError('Selected offer has no valid ID');
         showSnackbar('Selected offer has no valid ID', 'error');
@@ -253,7 +253,7 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   };
 
   // Fetch the offer letter HTML
-  const fetchOfferLetter = async (offerId) => {
+  const fetchOfferLetter = async (offerId, offerData = null) => {
     setGenerating(true);
     setError(null);
 
@@ -270,29 +270,34 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
             'Authorization': `Bearer ${token}`,
             'Accept': 'text/html, application/json'
           },
-          responseType: 'text' // Important: Get response as text for HTML
+          responseType: 'text'
         }
       );
 
       console.log('🔵 Offer letter response received, status:', response.status);
       
+      let generatedHtml = null;
+      let offerDetailsObj = null;
+      
       // Check if response is HTML or JSON
       if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
-        // Clean the HTML content (remove note and optimize)
-        const cleanedHtml = cleanHtmlContent(response.data);
-        setOfferHtml(cleanedHtml);
+        generatedHtml = cleanHtmlContent(response.data);
+        setOfferHtml(generatedHtml);
         showSnackbar('Offer letter generated successfully!', 'success');
         
-        // Try to extract basic offer details from HTML for display
-        extractOfferDetailsFromHtml(cleanedHtml);
+        // Extract details from HTML
+        offerDetailsObj = extractOfferDetailsFromHtml(generatedHtml, offerData);
+        setOfferDetails(offerDetailsObj);
       } else if (response.data.success && response.data.data) {
-        // Handle if API returns JSON with HTML inside
         const htmlContent = response.data.data.html || response.data.data;
         if (htmlContent && typeof htmlContent === 'string' && htmlContent.includes('<!DOCTYPE html>')) {
-          const cleanedHtml = cleanHtmlContent(htmlContent);
-          setOfferHtml(cleanedHtml);
+          generatedHtml = cleanHtmlContent(htmlContent);
+          setOfferHtml(generatedHtml);
           showSnackbar('Offer letter generated successfully!', 'success');
-          extractOfferDetailsFromHtml(cleanedHtml);
+          
+          // Extract details from HTML
+          offerDetailsObj = extractOfferDetailsFromHtml(generatedHtml, offerData);
+          setOfferDetails(offerDetailsObj);
         } else {
           setError('Invalid response format from server');
           showSnackbar('Invalid response format from server', 'error');
@@ -312,7 +317,6 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
         } else if (err.response.status === 401) {
           errorMessage = 'Authentication failed. Please log in again.';
         } else if (err.response.data) {
-          // Try to extract error message from response
           if (typeof err.response.data === 'string') {
             errorMessage = err.response.data;
           } else if (err.response.data.message) {
@@ -332,48 +336,80 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
     }
   };
 
-  // Extract basic offer details from HTML (optional - for display purposes)
-  const extractOfferDetailsFromHtml = (html) => {
+  // Extract basic offer details from HTML
+  const extractOfferDetailsFromHtml = (html, offerData = null) => {
     try {
       // Create a temporary DOM element to parse HTML
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       
       // Try to extract candidate name
+      let candidateName = candidateInfo?.name || candidate?.name || 'Unknown';
       const nameElement = doc.querySelector('p:contains("Dear") strong') || 
                          doc.querySelector('strong:contains("Dear")');
+      if (nameElement?.nextSibling?.textContent) {
+        candidateName = nameElement.nextSibling.textContent.trim();
+      }
       
       // Try to extract position
+      let position = candidateInfo?.position || candidate?.position || 'Unknown';
       const positionElement = Array.from(doc.querySelectorAll('td')).find(
         td => td.textContent.includes('Position') || td.textContent.includes('position')
       );
+      if (positionElement?.nextElementSibling?.textContent) {
+        position = positionElement.nextElementSibling.textContent.trim();
+      }
       
       // Try to extract offer ID
+      let offerId = offerData?.offerId || selectedOffer?.offerId || candidate?.offerId;
       const offerIdElement = Array.from(doc.querySelectorAll('p')).find(
         p => p.textContent.includes('Offer ID:')
       );
+      if (offerIdElement) {
+        offerId = offerIdElement.textContent.replace('Offer ID:', '').trim();
+      }
       
       // Try to extract CTC
+      let totalCtc = 'Not specified';
       const ctcElement = Array.from(doc.querySelectorAll('.total td, .total th')).find(
         el => el.textContent.includes('₹')
       );
+      if (ctcElement) {
+        const match = ctcElement.textContent.match(/₹[\d,]+/);
+        if (match) totalCtc = match[0];
+      }
       
-      setOfferDetails({
-        candidateName: nameElement?.nextSibling?.textContent || candidateInfo?.name || candidate?.name || 'Unknown',
-        position: positionElement?.nextElementSibling?.textContent || candidateInfo?.position || candidate?.position || 'Unknown',
-        offerId: offerIdElement?.textContent?.replace('Offer ID:', '').trim() || selectedOffer?.offerId || candidate?.offerId,
-        totalCtc: ctcElement?.textContent?.match(/₹[\d,]+/)?.[0] || 'Not specified',
-        generatedDate: new Date().toLocaleDateString()
-      });
+      // Try to extract joining date
+      let joiningDate = 'To be confirmed';
+      const joiningDateElement = Array.from(doc.querySelectorAll('td')).find(
+        td => td.textContent.includes('Joining Date') || td.textContent.includes('joining date')
+      );
+      if (joiningDateElement?.nextElementSibling?.textContent) {
+        joiningDate = joiningDateElement.nextElementSibling.textContent.trim();
+      }
+      
+      return {
+        candidateName,
+        position,
+        offerId,
+        totalCtc,
+        joiningDate,
+        generatedDate: new Date().toLocaleDateString(),
+        generatedAt: new Date().toISOString(),
+        offerLetterHtml: html
+      };
     } catch (e) {
       console.log('Could not extract details from HTML:', e);
-      setOfferDetails({
+      return {
         candidateName: candidateInfo?.name || candidate?.name || 'Unknown',
         position: candidateInfo?.position || candidate?.position || 'Unknown',
         offerId: selectedOffer?.offerId || candidate?.offerId,
         totalCtc: 'Not specified',
-        generatedDate: new Date().toLocaleDateString()
-      });
+        joiningDate: 'To be confirmed',
+        generatedDate: new Date().toLocaleDateString(),
+        generatedAt: new Date().toISOString(),
+        offerLetterHtml: html
+      };
     }
   };
 
@@ -400,7 +436,7 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   const handleRegenerate = () => {
     if (selectedOffer?._id || selectedOffer?.id) {
       const offerId = selectedOffer._id || selectedOffer.id;
-      fetchOfferLetter(offerId);
+      fetchOfferLetter(offerId, selectedOffer);
     }
   };
 
@@ -413,7 +449,8 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `offer_letter_${candidateInfo?.name || candidate?.name || 'candidate'}_${selectedOffer?.offerId || candidate?.offerId || ''}.html`;
+      const fileName = `offer_letter_${candidateInfo?.name || candidate?.name || 'candidate'}_${selectedOffer?.offerId || candidate?.offerId || ''}.html`;
+      link.download = fileName.replace(/\s+/g, '_');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -448,13 +485,25 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
   // Handle mark as generated and close
   const handleMarkGenerated = () => {
     if (onComplete) {
-      onComplete({
+      // Prepare the data to pass back to parent
+      const completeData = {
         id: candidate?.id || candidateInfo?.id,
+        _id: candidate?._id || candidateInfo?._id,
         candidateId: candidate?.candidateId || candidateInfo?.candidateId,
-        offerId: selectedOffer?.offerId || candidate?.offerId,
-        status: 'generated',
+        offerId: selectedOffer?.offerId || selectedOffer?._id || candidate?.offerId,
+        offerDetails: {
+          ...offerDetails,
+          offerLetterGenerated: true,
+          generatedAt: new Date().toISOString(),
+          generatedDate: new Date().toLocaleDateString(),
+          offerLetterHtml: offerHtml
+        },
+        status: 'Generated',
         applicationStatus: 'generated'
-      });
+      };
+      
+      console.log('🔵 Marking offer as generated with data:', completeData);
+      onComplete(completeData);
       
       showSnackbar('Offer marked as generated successfully!', 'success');
       
@@ -618,14 +667,6 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                 >
                   Download
                 </Button>
-                {/* <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<PrintIcon />}
-                  onClick={handlePrint}
-                >
-                  Print
-                </Button> */}
                 <Button
                   variant="outlined"
                   size="small"
@@ -645,24 +686,22 @@ const GenerateOfferLetter = ({ open, onClose, onComplete, candidate }) => {
                 )}
               </Box>
               
-              {/* HTML Preview - with zoom to fit */}
+              {/* HTML Preview */}
               <Box sx={{ 
                 flex: 1, 
                 overflow: 'auto',
                 bgcolor: '#FFFFFF',
-                p: 2,
-                '& iframe': {
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  transform: 'scale(0.9)',
-                  transformOrigin: 'top left'
-                }
+                p: 2
               }}>
                 <iframe
                   srcDoc={offerHtml}
                   title="Offer Letter Preview"
                   sandbox="allow-same-origin"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none'
+                  }}
                 />
               </Box>
             </Box>

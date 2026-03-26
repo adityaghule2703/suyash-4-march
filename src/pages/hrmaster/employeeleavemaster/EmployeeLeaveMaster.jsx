@@ -1334,7 +1334,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Grid
+  Grid,
+  alpha
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -1364,6 +1365,9 @@ import ViewHoliday from './ViewHoliday';
 import EditLeave from './EditLeave';
 import DeleteLeave from './DeleteLeave';
 import ViewLeave from './ViewLeave';
+
+// Import permissions
+import { MODULES, PAGES, ACTIONS, hasPermission, getAllowedActions } from '../../../utils/modulePermissions';
 
 // Color constants matching ProcessMaster.jsx
 const COLORS = {
@@ -1397,8 +1401,36 @@ const COLORS = {
   }
 };
 
-// Action Menu Component (matching ProcessMaster)
-const ActionMenu = ({ leave, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ leave, onView, onEdit, onDelete, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_LEAVE_MASTER, PAGES.EMPLOYEE_LEAVE_RECORDS, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_LEAVE_MASTER, PAGES.EMPLOYEE_LEAVE_RECORDS, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_LEAVE_MASTER, PAGES.EMPLOYEE_LEAVE_RECORDS, ACTIONS.DELETE);
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -1430,24 +1462,26 @@ const ActionMenu = ({ leave, onView, onEdit, onDelete, anchorEl, onClose, onOpen
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(leave);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(leave);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {leave?.Status === 'Pending' && (
+        {canUpdate && leave?.Status === 'Pending' && (
           <MenuItem 
             onClick={() => {
               onEdit(leave);
@@ -1466,26 +1500,27 @@ const ActionMenu = ({ leave, onView, onEdit, onDelete, anchorEl, onClose, onOpen
           </MenuItem>
         )}
 
-        {leave?.Status === 'Pending' && (
-          <>
-            <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-            <MenuItem 
-              onClick={() => {
-                onDelete(leave);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-                <DeleteIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-                  Delete
-                </Typography>
-              </ListItemText>
-            </MenuItem>
-          </>
+        {(canView || canUpdate) && canDelete && leave?.Status === 'Pending' && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
+        
+        {canDelete && leave?.Status === 'Pending' && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(leave);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
         )}
       </Menu>
     </>
@@ -1575,6 +1610,11 @@ const EmployeeLeaveMaster = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   
+  // Permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  
   // Pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -1607,14 +1647,78 @@ const EmployeeLeaveMaster = () => {
     severity: 'success'
   });
 
-  // Fetch employees
+  // Fetch user permissions from /api/auth/me
   useEffect(() => {
-    fetchEmployees();
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
   }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.EMPLOYEE_LEAVE_MASTER,
+      PAGES.EMPLOYEE_LEAVE_RECORDS,
+      action
+    );
+  };
+
+  // Permission checks
+  const canView = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
+  // Fetch employees after permissions are loaded
+  useEffect(() => {
+    if (permissionsLoaded && canView) {
+      fetchEmployees();
+    }
+  }, [permissionsLoaded, canView]);
 
   // Fetch leaves when employee is selected
   useEffect(() => {
-    if (selectedEmployee) {
+    if (selectedEmployee && canView) {
       fetchEmployeeLeaves();
     } else {
       clearEmployeeData();
@@ -1764,6 +1868,8 @@ const EmployeeLeaveMaster = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(paginatedLeaves.map(leave => leave._id));
     } else {
@@ -1772,6 +1878,8 @@ const EmployeeLeaveMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -1785,7 +1893,7 @@ const EmployeeLeaveMaster = () => {
   };
 
   const handleBulkDelete = () => {
-    if (selected.length === 0) return;
+    if (selected.length === 0 || !canDelete) return;
     showNotification(`Bulk delete for ${selected.length} items - API implementation required`, 'warning');
   };
 
@@ -1895,6 +2003,16 @@ const EmployeeLeaveMaster = () => {
   );
 
   const isFilterActive = searchTerm || statusFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end;
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canView) {
+    return <AccessDenied />;
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -2133,7 +2251,8 @@ const EmployeeLeaveMaster = () => {
                 </Stack>
 
                 <Stack direction="row" spacing={1.5}>
-                  {selected.length > 0 && (
+                  {/* Bulk Delete Button - Only show if user has delete permission */}
+                  {canDelete && selected.length > 0 && (
                     <Button
                       variant="outlined"
                       color="error"
@@ -2178,25 +2297,28 @@ const EmployeeLeaveMaster = () => {
                     Holidays
                   </Button>
 
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                    onClick={() => setOpenApplyLeave(true)}
-                    sx={{
-                      height: 36,
-                      borderRadius: 1.5,
-                      bgcolor: COLORS.primary,
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      textTransform: 'none',
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                      '&:hover': {
-                        bgcolor: COLORS.primaryDark,
-                      }
-                    }}
-                  >
-                    Apply Leave
-                  </Button>
+                  {/* Apply Leave Button - Only show if user has create permission */}
+                  {canCreate && (
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                      onClick={() => setOpenApplyLeave(true)}
+                      sx={{
+                        height: 36,
+                        borderRadius: 1.5,
+                        bgcolor: COLORS.primary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                        '&:hover': {
+                          bgcolor: COLORS.primaryDark,
+                        }
+                      }}
+                    >
+                      Apply Leave
+                    </Button>
+                  )}
                 </Stack>
               </Stack>
             </Paper>
@@ -2220,26 +2342,29 @@ const EmployeeLeaveMaster = () => {
                         py: 1.5
                       }
                     }}>
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          indeterminate={selected.length > 0 && selected.length < paginatedLeaves.length}
-                          checked={paginatedLeaves.length > 0 && selected.length === paginatedLeaves.length}
-                          onChange={handleSelectAll}
-                          sx={{
-                            color: COLORS.text.light,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            indeterminate={selected.length > 0 && selected.length < paginatedLeaves.length}
+                            checked={paginatedLeaves.length > 0 && selected.length === paginatedLeaves.length}
+                            onChange={handleSelectAll}
+                            sx={{
                               color: COLORS.text.light,
-                            },
-                            '&.MuiCheckbox-indeterminate': {
-                              color: COLORS.text.light,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                          disabled={loading || paginatedLeaves.length === 0}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.text.light,
+                              },
+                              '&.MuiCheckbox-indeterminate': {
+                                color: COLORS.text.light,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                            disabled={loading || paginatedLeaves.length === 0}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell sx={{ 
                         fontWeight: 600, 
                         fontSize: '0.7rem',
@@ -2310,7 +2435,7 @@ const EmployeeLeaveMaster = () => {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                           <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                           <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                             Loading leave applications...
@@ -2319,7 +2444,7 @@ const EmployeeLeaveMaster = () => {
                       </TableRow>
                     ) : paginatedLeaves.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                           <Box sx={{ textAlign: 'center' }}>
                             <EventIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                             <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -2370,21 +2495,24 @@ const EmployeeLeaveMaster = () => {
                               }
                             }}
                           >
-                            <TableCell padding="checkbox" sx={{ width: 40 }}>
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={() => handleSelect(leave._id)}
-                                sx={{
-                                  color: COLORS.primary,
-                                  '&.Mui-checked': {
+                            {/* Checkbox Column - Only show if user has delete permission */}
+                            {canDelete && (
+                              <TableCell padding="checkbox" sx={{ width: 40 }}>
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => handleSelect(leave._id)}
+                                  sx={{
                                     color: COLORS.primary,
-                                  },
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: '1.25rem'
-                                  }
-                                }}
-                              />
-                            </TableCell>
+                                    '&.Mui-checked': {
+                                      color: COLORS.primary,
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                      fontSize: '1.25rem'
+                                    }
+                                  }}
+                                />
+                              </TableCell>
+                            )}
                             <TableCell>
                               <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                                 {leave.LeaveTypeID?.Name || 'N/A'}
@@ -2448,6 +2576,8 @@ const EmployeeLeaveMaster = () => {
                                 anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                                 onClose={handleActionMenuClose}
                                 onOpen={(e) => handleActionMenuOpen(e, leave)}
+                                userPermissions={userPermissions}
+                                isSuperAdmin={isSuperAdmin}
                               />
                             </TableCell>
                           </TableRow>
@@ -2503,33 +2633,41 @@ const EmployeeLeaveMaster = () => {
           </Paper>
         )}
 
-        {/* Modals */}
+        {/* Modals - Only render if user has appropriate permissions */}
         {selectedEmployee && (
           <>
-            <ApplyLeave 
-              open={openApplyLeave} 
-              handleClose={handleApplyLeaveClose} 
-              onSuccess={handleApplyLeaveClose} 
-              employeeId={selectedEmployee} 
-              employeeDetails={employeeDetails} 
-            />
-            <EditLeave 
-              open={openEditLeave} 
-              onClose={handleEditLeaveClose} 
-              leaveData={selectedLeave} 
-              onUpdate={handleEditLeaveClose} 
-            />
-            <DeleteLeave 
-              open={openDeleteDialog} 
-              onClose={handleDeleteLeaveClose} 
-              leaveData={selectedLeave} 
-              onDelete={handleDeleteLeaveClose} 
-            />
-            <ViewLeave 
-              open={openViewLeave} 
-              onClose={handleViewLeaveClose} 
-              leave={selectedLeave} 
-            />
+            {canCreate && (
+              <ApplyLeave 
+                open={openApplyLeave} 
+                handleClose={handleApplyLeaveClose} 
+                onSuccess={handleApplyLeaveClose} 
+                employeeId={selectedEmployee} 
+                employeeDetails={employeeDetails} 
+              />
+            )}
+            {canUpdate && (
+              <EditLeave 
+                open={openEditLeave} 
+                onClose={handleEditLeaveClose} 
+                leaveData={selectedLeave} 
+                onUpdate={handleEditLeaveClose} 
+              />
+            )}
+            {canDelete && (
+              <DeleteLeave 
+                open={openDeleteDialog} 
+                onClose={handleDeleteLeaveClose} 
+                leaveData={selectedLeave} 
+                onDelete={handleDeleteLeaveClose} 
+              />
+            )}
+            {canView && (
+              <ViewLeave 
+                open={openViewLeave} 
+                onClose={handleViewLeaveClose} 
+                leave={selectedLeave} 
+              />
+            )}
           </>
         )}
 

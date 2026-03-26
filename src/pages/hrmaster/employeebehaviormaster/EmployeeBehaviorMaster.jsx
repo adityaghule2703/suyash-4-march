@@ -948,6 +948,7 @@ import {
 
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // ✅ IMPORT MODALS
 import AddEmployeeBehavior from "./AddEmployeeBehavior";
@@ -982,8 +983,32 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ behavior, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ behavior, onView, onEdit, onDelete, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_BEHAVIOR_MASTER, PAGES.BEHAVIOR_MONITORING, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_BEHAVIOR_MASTER, PAGES.BEHAVIOR_MONITORING, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.EMPLOYEE_BEHAVIOR_MASTER, PAGES.BEHAVIOR_MONITORING, ACTIONS.DELETE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -1015,55 +1040,66 @@ const ActionMenu = ({ behavior, onView, onEdit, onDelete, anchorEl, onClose, onO
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(behavior);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <Visibility fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            onEdit(behavior);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(behavior);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <Delete fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(behavior);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <Visibility fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(behavior);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <Edit fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {(canView || canUpdate) && canDelete && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
+        
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(behavior);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <Delete fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -1111,6 +1147,71 @@ const EmployeeBehaviorMaster = () => {
     severity: "success"
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.EMPLOYEE_BEHAVIOR_MASTER,
+      PAGES.BEHAVIOR_MONITORING,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1123,6 +1224,9 @@ const EmployeeBehaviorMaster = () => {
 
   // ================= FETCH =================
   const fetchBehaviors = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -1146,11 +1250,13 @@ const EmployeeBehaviorMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchBehaviors();
-  }, [fetchBehaviors]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchBehaviors();
+    }
+  }, [fetchBehaviors, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Apply filters and search
   useEffect(() => {
@@ -1219,8 +1325,13 @@ const EmployeeBehaviorMaster = () => {
     setSortConfig({ field, direction });
   };
 
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete behavior records", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedData.map(item => item._id));
     } else {
@@ -1228,8 +1339,13 @@ const EmployeeBehaviorMaster = () => {
     }
   };
 
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete behavior records", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -1244,6 +1360,10 @@ const EmployeeBehaviorMaster = () => {
 
   // Handle bulk delete
   const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete behavior records", "error");
+      return;
+    }
     if (selected.length === 0) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
@@ -1338,20 +1458,32 @@ const EmployeeBehaviorMaster = () => {
     setSnackbar({ open: true, message, severity });
   };
 
-  // Open modals
+  // Open modals with permission checks
   const openViewModal = (behavior) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You don't have permission to view behavior details", "error");
+      return;
+    }
     setSelectedRow(behavior);
     setOpenView(true);
     handleActionMenuClose();
   };
 
   const openEditModal = (behavior) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You don't have permission to edit behavior records", "error");
+      return;
+    }
     setSelectedRow(behavior);
     setOpenEdit(true);
     handleActionMenuClose();
   };
 
   const openDeleteModal = (behavior) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete behavior records", "error");
+      return;
+    }
     setSelectedRow(behavior);
     setOpenDelete(true);
     handleActionMenuClose();
@@ -1365,6 +1497,16 @@ const EmployeeBehaviorMaster = () => {
 
   // Check if filters are active
   const isFilterActive = searchTerm || typeFilter !== 'all' || statusFilter !== 'all';
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   // ================= UI =================
   return (
@@ -1444,55 +1586,12 @@ const EmployeeBehaviorMaster = () => {
               }}
               disabled={loading}
             />
-
-            {/* <Button
-              variant="outlined"
-              startIcon={<FilterIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setShowFilters(!showFilters)}
-              sx={{
-                height: 36,
-                px: 2,
-                borderRadius: 1.5,
-                borderColor: COLORS.border,
-                color: COLORS.text.secondary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: COLORS.primaryLight
-                }
-              }}
-            >
-              Filters
-            </Button> */}
-
-            {/* {isFilterActive && (
-              <Button
-                variant="text"
-                startIcon={<ClearIcon sx={{ fontSize: '1rem' }} />}
-                onClick={handleClearFilters}
-                sx={{
-                  height: 36,
-                  px: 2,
-                  borderRadius: 1.5,
-                  color: COLORS.text.secondary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': {
-                    bgcolor: COLORS.primaryLight
-                  }
-                }}
-              >
-                Clear Filters
-              </Button>
-            )} */}
           </Stack>
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1516,149 +1615,32 @@ const EmployeeBehaviorMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-{/* 
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handleRefresh}
-              disabled={loading}
-              sx={{
-                height: 36,
-                px: 2,
-                borderRadius: 1.5,
-                borderColor: COLORS.border,
-                color: COLORS.text.secondary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: COLORS.primaryLight
-                }
-              }}
-            >
-              Refresh
-            </Button> */}
 
-            <Button
-              variant="contained"
-              startIcon={<Add sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAdd(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Behavior
-            </Button>
+            {/* Add Behavior Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<Add sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAdd(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Behavior
+              </Button>
+            )}
           </Stack>
         </Stack>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${COLORS.border}` }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  label="Type"
-                  value={typeFilter}
-                  onChange={(e) => {
-                    setTypeFilter(e.target.value);
-                    setSelected([]);
-                  }}
-                  size="small"
-                  fullWidth
-                  sx={{
-                    '& .MuiOutlinedInput-root': { 
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiSelect-select': {
-                      fontSize: '0.75rem',
-                      py: 1
-                    }
-                  }}
-                >
-                  <MenuItem value="all" sx={{ fontSize: '0.75rem' }}>All Types</MenuItem>
-                  <MenuItem value="Positive" sx={{ fontSize: '0.75rem' }}>Positive</MenuItem>
-                  <MenuItem value="Negative" sx={{ fontSize: '0.75rem' }}>Negative</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  label="Status"
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setSelected([]);
-                  }}
-                  size="small"
-                  fullWidth
-                  sx={{
-                    '& .MuiOutlinedInput-root': { 
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiSelect-select': {
-                      fontSize: '0.75rem',
-                      py: 1
-                    }
-                  }}
-                >
-                  <MenuItem value="all" sx={{ fontSize: '0.75rem' }}>All Status</MenuItem>
-                  <MenuItem value="Open" sx={{ fontSize: '0.75rem' }}>Open</MenuItem>
-                  <MenuItem value="Resolved" sx={{ fontSize: '0.75rem' }}>Resolved</MenuItem>
-                  <MenuItem value="Escalated" sx={{ fontSize: '0.75rem' }}>Escalated</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  label="Sort By"
-                  value={sortConfig.field}
-                  onChange={(e) => handleSort(e.target.value)}
-                  size="small"
-                  fullWidth
-                  sx={{
-                    '& .MuiOutlinedInput-root': { 
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontSize: '0.75rem'
-                    },
-                    '& .MuiSelect-select': {
-                      fontSize: '0.75rem',
-                      py: 1
-                    }
-                  }}
-                >
-                  <MenuItem value="createdAt" sx={{ fontSize: '0.75rem' }}>Created Date</MenuItem>
-                  <MenuItem value="reviewDate" sx={{ fontSize: '0.75rem' }}>Review Date</MenuItem>
-                  <MenuItem value="employeeName" sx={{ fontSize: '0.75rem' }}>Employee Name</MenuItem>
-                  <MenuItem value="rating" sx={{ fontSize: '0.75rem' }}>Rating</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Box>
-        )}
       </Paper>
 
       {/* TABLE */}
@@ -1680,26 +1662,29 @@ const EmployeeBehaviorMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedData.length}
-                    checked={paginatedData.length > 0 && selected.length === paginatedData.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedData.length}
+                      checked={paginatedData.length > 0 && selected.length === paginatedData.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || paginatedData.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || paginatedData.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -1863,7 +1848,7 @@ const EmployeeBehaviorMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading behaviors...
@@ -1872,7 +1857,7 @@ const EmployeeBehaviorMaster = () => {
                 </TableRow>
               ) : paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No behaviors found' : 'No behaviors available'}
@@ -1914,21 +1899,24 @@ const EmployeeBehaviorMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(row._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(row._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -2034,6 +2022,8 @@ const EmployeeBehaviorMaster = () => {
                           anchorEl={isActionMenuOpen ? anchorEl : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionClick(e, row)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -2076,50 +2066,58 @@ const EmployeeBehaviorMaster = () => {
         />
       </Paper>
 
-      {/* MODALS */}
-      <AddEmployeeBehavior
-        open={openAdd}
-        onClose={() => setOpenAdd(false)}
-        onSuccess={() => {
-          fetchBehaviors();
-          showNotification('Behavior added successfully!', 'success');
-        }}
-      />
+      {/* MODALS - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddEmployeeBehavior
+          open={openAdd}
+          onClose={() => setOpenAdd(false)}
+          onSuccess={() => {
+            fetchBehaviors();
+            showNotification('Behavior added successfully!', 'success');
+          }}
+        />
+      )}
 
-      <ViewEmployeeBehavior
-        open={openView}
-        onClose={() => {
-          setOpenView(false);
-          setSelectedRow(null);
-        }}
-        behaviorId={selectedRow?._id}
-      />
+      {(canViewPage || isSuperAdmin) && (
+        <ViewEmployeeBehavior
+          open={openView}
+          onClose={() => {
+            setOpenView(false);
+            setSelectedRow(null);
+          }}
+          behaviorId={selectedRow?._id}
+        />
+      )}
 
-      <EditEmployeeBehavior
-        open={openEdit}
-        onClose={() => {
-          setOpenEdit(false);
-          setSelectedRow(null);
-        }}
-        behaviorId={selectedRow?._id}
-        onSuccess={() => {
-          fetchBehaviors();
-          showNotification('Behavior updated successfully!', 'success');
-        }}
-      />
+      {(canUpdate || isSuperAdmin) && (
+        <EditEmployeeBehavior
+          open={openEdit}
+          onClose={() => {
+            setOpenEdit(false);
+            setSelectedRow(null);
+          }}
+          behaviorId={selectedRow?._id}
+          onSuccess={() => {
+            fetchBehaviors();
+            showNotification('Behavior updated successfully!', 'success');
+          }}
+        />
+      )}
 
-      <DeleteEmployeeBehavior
-        open={openDelete}
-        onClose={() => {
-          setOpenDelete(false);
-          setSelectedRow(null);
-        }}
-        behaviorId={selectedRow?._id}
-        onSuccess={() => {
-          fetchBehaviors();
-          showNotification('Behavior deleted successfully!', 'success');
-        }}
-      />
+      {(canDelete || isSuperAdmin) && (
+        <DeleteEmployeeBehavior
+          open={openDelete}
+          onClose={() => {
+            setOpenDelete(false);
+            setSelectedRow(null);
+          }}
+          behaviorId={selectedRow?._id}
+          onSuccess={() => {
+            fetchBehaviors();
+            showNotification('Behavior deleted successfully!', 'success');
+          }}
+        />
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar

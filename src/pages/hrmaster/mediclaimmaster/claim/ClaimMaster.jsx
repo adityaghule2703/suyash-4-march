@@ -475,6 +475,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../../utils/modulePermissions';
 import AddClaim from './AddClaim';
 import ViewClaim from './ViewClaim';
 import EditClaim from './EditClaim';
@@ -512,6 +513,25 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Status color mapping
 const STATUS_COLORS = {
   approved: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Approved' },
@@ -520,8 +540,12 @@ const STATUS_COLORS = {
   pending: { bg: COLORS.status.warning, color: '#92400E', icon: <PendingIcon sx={{ fontSize: '0.7rem' }} />, label: 'Pending' }
 };
 
-// Action Menu Component
-const ActionMenu = ({ claim, onView, onEdit, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with permission checks
+const ActionMenu = ({ claim, onView, onEdit, anchorEl, onClose, onOpen, userPermissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.MEDICLAIM_MASTER, PAGES.MEDICLAIM_MASTER, ACTIONS.UPDATE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -553,26 +577,31 @@ const ActionMenu = ({ claim, onView, onEdit, anchorEl, onClose, onOpen }) => {
           }
         }}
       >
-        <MenuItem onClick={() => { onView(claim); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => { onEdit(claim); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Update Status
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onView(claim); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(claim); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Update Status
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -595,6 +624,71 @@ const ClaimMaster = () => {
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.MEDICLAIM_MASTER,
+      PAGES.MEDICLAIM_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -605,6 +699,9 @@ const ClaimMaster = () => {
   }, [searchInput]);
 
   const fetchClaims = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -624,11 +721,13 @@ const ClaimMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchClaims();
-  }, [fetchClaims]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchClaims();
+    }
+  }, [fetchClaims, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Filter claims when search term changes
   useEffect(() => {
@@ -651,7 +750,13 @@ const ClaimMaster = () => {
     setPage(0);
   };
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete claims", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedClaims.map(claim => claim._id));
     } else {
@@ -659,7 +764,13 @@ const ClaimMaster = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete claims", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -695,6 +806,11 @@ const ClaimMaster = () => {
   };
 
   const handleBulkDelete = async () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete claims", "error");
+      return;
+    }
+    
     if (selected.length === 0) return;
 
     try {
@@ -722,12 +838,20 @@ const ClaimMaster = () => {
   };
 
   const openViewClaimModal = (claim) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You don't have permission to view claim details", "error");
+      return;
+    }
     setSelectedClaim(claim);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditClaimModal = (claim) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You don't have permission to update claim status", "error");
+      return;
+    }
     setSelectedClaim(claim);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -753,43 +877,18 @@ const ClaimMaster = () => {
   const paginatedClaims = filteredClaims.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const isFilterActive = searchTerm;
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary,
-      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
-    }
-  };
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: -1 }}>
-      {/* Page Header */}
-      {/* <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: COLORS.text.primary,
-            mb: 0.5
-          }}
-        >
-          Claim Master
-        </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-          Manage and track medical insurance claims
-        </Typography>
-      </Box> */}
-
       {/* Action Bar */}
       <Paper sx={{ 
         p: 1.5, 
@@ -857,23 +956,11 @@ const ClaimMaster = () => {
                 Clear Filters
               </Button>
             )}
-
-            {/* <Tooltip title="Refresh">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.text.secondary,
-                  '&:hover': { bgcolor: `${COLORS.primary}20` }
-                }}
-              >
-                <RefreshIcon sx={{ fontSize: '1rem' }} />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -894,23 +981,26 @@ const ClaimMaster = () => {
               </Button>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Add Claim
-            </Button>
+            {/* Add Claim Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Add Claim
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -934,20 +1024,23 @@ const ClaimMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedClaims.length}
-                    checked={paginatedClaims.length > 0 && selected.length === paginatedClaims.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || paginatedClaims.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedClaims.length}
+                      checked={paginatedClaims.length > 0 && selected.length === paginatedClaims.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': { color: COLORS.text.light },
+                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                      }}
+                      disabled={loading || paginatedClaims.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Claim ID
                 </TableCell>
@@ -974,7 +1067,7 @@ const ClaimMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading claims...
@@ -983,7 +1076,7 @@ const ClaimMaster = () => {
                 </TableRow>
               ) : paginatedClaims.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <MedicalIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1021,17 +1114,20 @@ const ClaimMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(claim._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(claim._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': { color: COLORS.primary },
+                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                           {claim.claimId}
@@ -1087,6 +1183,8 @@ const ClaimMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, claim)}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1117,32 +1215,39 @@ const ClaimMaster = () => {
         />
       </Paper>
 
-      {/* Modals */}
-      <AddClaim
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modals - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddClaim
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedClaim && (
         <>
-          <ViewClaim
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedClaim(null);
-            }}
-            claimId={selectedClaim._id}
-          />
-          <EditClaim
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedClaim(null);
-            }}
-            claimData={selectedClaim}
-            onSuccess={handleEditSuccess}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewClaim
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedClaim(null);
+              }}
+              claimId={selectedClaim._id}
+            />
+          )}
+          
+          {(canUpdate || isSuperAdmin) && (
+            <EditClaim
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedClaim(null);
+              }}
+              claimData={selectedClaim}
+              onSuccess={handleEditSuccess}
+            />
+          )}
         </>
       )}
 

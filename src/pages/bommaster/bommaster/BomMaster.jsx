@@ -33,7 +33,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid
+  Grid,
+  Tab,
+  Tabs,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -50,7 +54,10 @@ import {
   Cancel as CancelIcon,
   LocationSearching as WhereUsedIcon,
   ThumbUp as ApproveIcon,
-  Star as DefaultIcon
+  Star as DefaultIcon,
+  History as HistoryIcon,
+  Autorenew as ReviseIcon,
+ 
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -72,7 +79,7 @@ const STATUS_COLORS = {
 };
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault }) => {
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault, onRevisions, onRevise, onExplosion }) => {
   const isApproved = item?.status === 'Approved';
   
   return (
@@ -135,6 +142,39 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           <ListItemText>
             <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
               Where Used
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => { onRevisions(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
+            <HistoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#06B6D4', fontSize: '0.75rem' }}>
+              Revision History
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => { onRevise(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+            <ReviseIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+              Create New Revision
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => { onExplosion(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+            
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+              BOM Explosion
             </Typography>
           </ListItemText>
         </MenuItem>
@@ -231,6 +271,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
@@ -251,7 +292,6 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
           </Box>
         ) : (
           <>
-            {/* Component Info */}
             <Paper sx={{ 
               p: 2, 
               mb: 2.5, 
@@ -270,7 +310,6 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
               </Typography>
             </Paper>
             
-            {/* Used In BOMs List */}
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
               Used in {usedInBoms?.length || 0} BOM(s)
             </Typography>
@@ -427,7 +466,499 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
   );
 };
 
-// Import CloseIcon for modal
+// Revision History Modal
+const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Revision History
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : revisionsData ? (
+          <>
+            <Paper sx={{ 
+              p: 2, 
+              mb: 2.5, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>BOM ID</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {revisionsData.bom_id}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Parent Part No</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {revisionsData.parent_part_no}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Current Revision</Typography>
+                  <Chip
+                    label={`v${revisionsData.current_revision}`}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      bgcolor: COLORS.primary,
+                      color: '#fff'
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Revisions</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                    {revisionsData.total_revisions}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+            
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+              Revision List
+            </Typography>
+            
+            <Stack spacing={1.5}>
+              {revisionsData.revisions?.map((rev, index) => (
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    borderRadius: 1.5,
+                    border: rev.is_current ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`,
+                    bgcolor: rev.is_current ? `${COLORS.primary}10` : COLORS.background.white,
+                    '&:hover': {
+                      bgcolor: COLORS.background.hover
+                    }
+                  }}
+                >
+                  <Grid container spacing={1.5}>
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
+                        Revision No
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                        v{rev.revision_no}
+                        {rev.is_current && (
+                          <Chip
+                            label="Current"
+                            size="small"
+                            sx={{ 
+                              ml: 1,
+                              fontSize: '0.6rem',
+                              height: 20,
+                              bgcolor: COLORS.primary,
+                              color: '#fff'
+                            }}
+                          />
+                        )}
+                      </Typography>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
+                        Created At
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                        {formatDate(rev.created_at)}
+                      </Typography>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 12, sm: 5 }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
+                        Change Description
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                        {rev.change_description || '-'}
+                      </Typography>
+                    </Grid>
+                    
+                    {rev.has_pdf && (
+                      <Grid size={{ xs: 12 }}>
+                        <Chip
+                          label="PDF Available"
+                          size="small"
+                          sx={{ 
+                            fontSize: '0.65rem',
+                            bgcolor: '#E8F0F1',
+                            color: COLORS.primary
+                          }}
+                        />
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              ))}
+            </Stack>
+          </>
+        ) : null}
+      </DialogContent>
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Create New Revision Modal
+const CreateRevisionModal = ({ open, onClose, onSubmit, loading }) => {
+  const [changeDescription, setChangeDescription] = useState('');
+  const [error, setError] = useState('');
+  
+  const handleSubmit = () => {
+    if (!changeDescription.trim()) {
+      setError('Change description is required');
+      return;
+    }
+    onSubmit(changeDescription);
+  };
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Create New Revision
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          label="Change Description"
+          placeholder="Describe the changes made in this revision..."
+          value={changeDescription}
+          onChange={(e) => {
+            setChangeDescription(e.target.value);
+            setError('');
+          }}
+          error={!!error}
+          helperText={error}
+          sx={{
+            mt: 1,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1.5,
+              fontSize: '0.75rem'
+            }
+          }}
+        />
+      </DialogContent>
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {loading ? 'Creating...' : 'Create Revision'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// BOM Explosion Modal
+const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
+  const formatNumber = (num) => {
+    return parseFloat(num).toFixed(4);
+  };
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          BOM Explosion
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : explosionData ? (
+          <>
+            {/* Header Info */}
+            <Paper sx={{ 
+              p: 2, 
+              mb: 2.5, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>BOM ID</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {explosionData.bom_id}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Requested Quantity</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {explosionData.requested_quantity}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Parent Item</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {explosionData.parent_item?.part_no}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                    {explosionData.parent_item?.description}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Components</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    {explosionData.total_components}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+            
+            {/* Summary Cards */}
+            <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Card sx={{ bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                      Total Unique Components
+                    </Typography>
+                    <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.primary }}>
+                      {explosionData.summary?.total_unique_components || 0}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Card sx={{ bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                      Total Quantity by Unit
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {Object.entries(explosionData.summary?.total_quantity_by_unit || {}).map(([unit, qty]) => (
+                        <Chip
+                          key={unit}
+                          label={`${formatNumber(qty)} ${unit}`}
+                          size="small"
+                          sx={{ 
+                            fontSize: '0.7rem',
+                            bgcolor: COLORS.primaryLight,
+                            color: COLORS.primary
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+            
+            {/* Explosion Table */}
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+              Component Requirements
+            </Typography>
+            
+            <TableContainer component={Paper} sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Level</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Part No</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Description</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Quantity</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Unit</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.7rem', fontWeight: 600 }}>Scrap %</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {explosionData.explosion?.map((item, idx) => (
+                    <TableRow key={idx} hover>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>{item.level}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.part_no}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>{item.description}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{formatNumber(item.quantity)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>{item.unit}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>{item.scrap_percent}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        ) : null}
+      </DialogContent>
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 import CloseIcon from '@mui/icons-material/Close';
 
 const BomMaster = () => {
@@ -450,10 +981,20 @@ const BomMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openWhereUsedModal, setOpenWhereUsedModal] = useState(false);
+  const [openRevisionHistoryModal, setOpenRevisionHistoryModal] = useState(false);
+  const [openCreateRevisionModal, setOpenCreateRevisionModal] = useState(false);
+  const [openExplosionModal, setOpenExplosionModal] = useState(false);
   
-  // Where Used data
+  // Data states
   const [whereUsedData, setWhereUsedData] = useState(null);
   const [whereUsedLoading, setWhereUsedLoading] = useState(false);
+  const [revisionsData, setRevisionsData] = useState(null);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [explosionData, setExplosionData] = useState(null);
+  const [explosionLoading, setExplosionLoading] = useState(false);
+  const [createRevisionLoading, setCreateRevisionLoading] = useState(false);
+  const [explosionQuantity, setExplosionQuantity] = useState(1);
+  const [explosionEffectiveDate, setExplosionEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Debounce search
   useEffect(() => {
@@ -593,7 +1134,6 @@ const BomMaster = () => {
     
     try {
       const token = localStorage.getItem('token');
-      // Get the first component from the BOM to show where it's used
       const componentId = bom.components?.[0]?.component_item_id?._id || bom.components?.[0]?.component_item_id;
       
       if (componentId) {
@@ -614,6 +1154,77 @@ const BomMaster = () => {
       showNotification('Failed to load where-used data', 'error');
     } finally {
       setWhereUsedLoading(false);
+    }
+  };
+  
+  const handleRevisionHistory = async (bom) => {
+    setOpenRevisionHistoryModal(true);
+    setRevisionsLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/boms/${bom._id}/revisions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setRevisionsData(response.data.data);
+      } else {
+        showNotification('Failed to load revision history', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching revision history:', err);
+      showNotification('Failed to load revision history', 'error');
+    } finally {
+      setRevisionsLoading(false);
+    }
+  };
+  
+  const handleCreateRevision = async (bom, changeDescription) => {
+    setCreateRevisionLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/api/boms/${bom._id}/revisions/revise`, 
+        { change_description: changeDescription },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        showNotification('New revision created successfully!', 'success');
+        setOpenCreateRevisionModal(false);
+        fetchBoms();
+      } else {
+        showNotification(response.data.message || 'Failed to create revision', 'error');
+      }
+    } catch (err) {
+      console.error('Error creating revision:', err);
+      showNotification('Failed to create revision', 'error');
+    } finally {
+      setCreateRevisionLoading(false);
+    }
+  };
+  
+  const handleExplosion = async (bom) => {
+    setOpenExplosionModal(true);
+    setExplosionLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/boms/${bom._id}/explosion?quantity=${explosionQuantity}&effective_date=${explosionEffectiveDate}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        setExplosionData(response.data.data);
+      } else {
+        showNotification('Failed to load BOM explosion', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching BOM explosion:', err);
+      showNotification('Failed to load BOM explosion', 'error');
+    } finally {
+      setExplosionLoading(false);
     }
   };
   
@@ -651,6 +1262,24 @@ const BomMaster = () => {
     handleActionMenuClose();
   };
   
+  const openRevisionHistoryModalFunc = (bom) => {
+    setSelectedBom(bom);
+    handleRevisionHistory(bom);
+    handleActionMenuClose();
+  };
+  
+  const openCreateRevisionModalFunc = (bom) => {
+    setSelectedBom(bom);
+    setOpenCreateRevisionModal(true);
+    handleActionMenuClose();
+  };
+  
+  const openExplosionModalFunc = (bom) => {
+    setSelectedBom(bom);
+    handleExplosion(bom);
+    handleActionMenuClose();
+  };
+  
   const handleApprove = (bom) => {
     handleApproveBom(bom);
     handleActionMenuClose();
@@ -659,6 +1288,12 @@ const BomMaster = () => {
   const handleSetDefault = (bom) => {
     handleSetDefaultBom(bom);
     handleActionMenuClose();
+  };
+  
+  const handleCreateRevisionSubmit = (changeDescription) => {
+    if (selectedBom) {
+      handleCreateRevision(selectedBom, changeDescription);
+    }
   };
   
   const showNotification = (message, severity) => {
@@ -1114,6 +1749,9 @@ const BomMaster = () => {
                             onWhereUsed={openWhereUsedModalFunc}
                             onApprove={handleApprove}
                             onSetDefault={handleSetDefault}
+                            onRevisions={openRevisionHistoryModalFunc}
+                            onRevise={openCreateRevisionModalFunc}
+                            onExplosion={openExplosionModalFunc}
                           />
                         </TableCell>
                       </TableRow>
@@ -1201,6 +1839,36 @@ const BomMaster = () => {
         component={whereUsedData?.component}
         usedInBoms={whereUsedData?.used_in_boms || []}
         loading={whereUsedLoading}
+      />
+
+      {/* Revision History Modal */}
+      <RevisionHistoryModal
+        open={openRevisionHistoryModal}
+        onClose={() => {
+          setOpenRevisionHistoryModal(false);
+          setRevisionsData(null);
+        }}
+        revisionsData={revisionsData}
+        loading={revisionsLoading}
+      />
+
+      {/* Create Revision Modal */}
+      <CreateRevisionModal
+        open={openCreateRevisionModal}
+        onClose={() => setOpenCreateRevisionModal(false)}
+        onSubmit={handleCreateRevisionSubmit}
+        loading={createRevisionLoading}
+      />
+
+      {/* BOM Explosion Modal */}
+      <ExplosionModal
+        open={openExplosionModal}
+        onClose={() => {
+          setOpenExplosionModal(false);
+          setExplosionData(null);
+        }}
+        explosionData={explosionData}
+        loading={explosionLoading}
       />
 
       {/* Snackbar Notification */}

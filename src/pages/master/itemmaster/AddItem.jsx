@@ -22,7 +22,8 @@ import {
   Select,
   MenuItem,
   styled,
-  Autocomplete
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -97,6 +98,15 @@ const validatePartNo = (partNo) => {
   return '';
 };
 
+const validatePartName = (partName) => {
+  if (!partName?.trim()) {
+    return 'Part name is required';
+  } else if (partName.length > 100) {
+    return 'Part name should not exceed 100 characters';
+  }
+  return '';
+};
+
 const validatePartDescription = (desc) => {
   if (!desc?.trim()) {
     return 'Part description is required';
@@ -106,11 +116,16 @@ const validatePartDescription = (desc) => {
   return '';
 };
 
-const validateItemNo = (itemNo) => {
-  if (!itemNo?.trim()) {
-    return 'Item number is required';
-  } else if (itemNo.length > 50) {
-    return 'Item number should not exceed 50 characters';
+const validateItemCategory = (category) => {
+  if (!category) {
+    return 'Item category is required';
+  }
+  return '';
+};
+
+const validateItemType = (type) => {
+  if (!type) {
+    return 'Item type is required';
   }
   return '';
 };
@@ -127,6 +142,41 @@ const validateMaterial = (material) => {
 const validateDensity = (density) => {
   if (density && (isNaN(density) || density <= 0)) {
     return 'Density must be a positive number';
+  }
+  return '';
+};
+
+const validateThickness = (thickness) => {
+  if (thickness && (isNaN(thickness) || thickness <= 0)) {
+    return 'Thickness must be a positive number';
+  }
+  return '';
+};
+
+const validateWidth = (width) => {
+  if (width && (isNaN(width) || width <= 0)) {
+    return 'Width must be a positive number';
+  }
+  return '';
+};
+
+const validateGSTPercentage = (gst) => {
+  if (gst && (isNaN(gst) || gst < 0 || gst > 100)) {
+    return 'GST percentage must be between 0 and 100';
+  }
+  return '';
+};
+
+const validateReorderLevel = (level) => {
+  if (level && (isNaN(level) || level < 0)) {
+    return 'Reorder level must be a positive number';
+  }
+  return '';
+};
+
+const validateLeadTimeDays = (days) => {
+  if (days && (isNaN(days) || days < 0)) {
+    return 'Lead time must be a positive number';
   }
   return '';
 };
@@ -163,14 +213,22 @@ const AddItem = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
     part_no: '',
+    part_name: '',
     part_description: '',
+    item_category: '',
+    item_type: '',
     drawing_no: '',
     revision_no: '',
     rm_grade: '',
     density: '',
+    thickness: '',
+    width: '',
     unit: '',
     hsn_code: '',
-    item_no: '',
+    gst_percentage: '',
+    procurement_type: '',
+    reorder_level: '',
+    lead_time_days: '',
     material: '',
     rm_source: '',
     rm_type: '',
@@ -191,6 +249,9 @@ const AddItem = ({ open, onClose, onAdd }) => {
 
   // Options
   const unitOptions = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
+  const itemCategoryOptions = ['Raw Material', 'Semi-Finished', 'Finished Good', 'Consumable', 'Tool', 'Bought-Out', 'Subcontract'];
+  const itemTypeOptions = ['Busbar', 'Stamping', 'Gasket', 'Tooling', 'Copper Strip', 'Aluminium Profile', 'Rubber Sheet', 'Cork', 'Other'];
+  const procurementTypeOptions = ['Manufacture', 'Purchase', 'Subcontract', 'In-House'];
 
   // Fetch HSN codes
   useEffect(() => {
@@ -237,7 +298,8 @@ const AddItem = ({ open, onClose, onAdd }) => {
     }));
     
     // Handle numeric fields
-    const numericFields = ['density', 'strip_size', 'pitch', 'no_of_cavity', 
+    const numericFields = ['density', 'thickness', 'width', 'gst_percentage', 'reorder_level', 
+                          'lead_time_days', 'strip_size', 'pitch', 'no_of_cavity', 
                           'rm_rejection_percent', 'scrap_realisation_percent'];
     
     if (numericFields.includes(name)) {
@@ -273,12 +335,14 @@ const AddItem = ({ open, onClose, onAdd }) => {
     if (newValue) {
       setFormData(prev => ({
         ...prev,
-        hsn_code: newValue.HSNCode
+        hsn_code: newValue.HSNCode,
+        gst_percentage: newValue.GSTPercentage || ''
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        hsn_code: ''
+        hsn_code: '',
+        gst_percentage: ''
       }));
     }
   };
@@ -287,10 +351,14 @@ const AddItem = ({ open, onClose, onAdd }) => {
     switch (name) {
       case 'part_no':
         return validatePartNo(value);
+      case 'part_name':
+        return validatePartName(value);
       case 'part_description':
         return validatePartDescription(value);
-      case 'item_no':
-        return validateItemNo(value);
+      case 'item_category':
+        return validateItemCategory(value);
+      case 'item_type':
+        return validateItemType(value);
       case 'material':
         return validateMaterial(value);
       case 'unit':
@@ -298,6 +366,16 @@ const AddItem = ({ open, onClose, onAdd }) => {
         break;
       case 'density':
         return validateDensity(value);
+      case 'thickness':
+        return validateThickness(value);
+      case 'width':
+        return validateWidth(value);
+      case 'gst_percentage':
+        return validateGSTPercentage(value);
+      case 'reorder_level':
+        return validateReorderLevel(value);
+      case 'lead_time_days':
+        return validateLeadTimeDays(value);
       case 'strip_size':
         return validateStripSize(value);
       case 'pitch':
@@ -327,6 +405,13 @@ const AddItem = ({ open, onClose, onAdd }) => {
           isValid = false;
         }
 
+        // Part Name
+        const partNameError = validateField('part_name', formData.part_name);
+        if (partNameError) {
+          errors.part_name = partNameError;
+          isValid = false;
+        }
+
         // Part Description
         const partDescError = validateField('part_description', formData.part_description);
         if (partDescError) {
@@ -334,10 +419,17 @@ const AddItem = ({ open, onClose, onAdd }) => {
           isValid = false;
         }
 
-        // Item Number
-        const itemNoError = validateField('item_no', formData.item_no);
-        if (itemNoError) {
-          errors.item_no = itemNoError;
+        // Item Category
+        const itemCategoryError = validateField('item_category', formData.item_category);
+        if (itemCategoryError) {
+          errors.item_category = itemCategoryError;
+          isValid = false;
+        }
+
+        // Item Type
+        const itemTypeError = validateField('item_type', formData.item_type);
+        if (itemTypeError) {
+          errors.item_type = itemTypeError;
           isValid = false;
         }
 
@@ -363,6 +455,30 @@ const AddItem = ({ open, onClose, onAdd }) => {
             errors.density = densityError;
             isValid = false;
           }
+        }
+
+        // Thickness (optional)
+        if (formData.thickness) {
+          const thicknessError = validateField('thickness', formData.thickness);
+          if (thicknessError) {
+            errors.thickness = thicknessError;
+            isValid = false;
+          }
+        }
+
+        // Width (optional)
+        if (formData.width) {
+          const widthError = validateField('width', formData.width);
+          if (widthError) {
+            errors.width = widthError;
+            isValid = false;
+          }
+        }
+
+        // Procurement Type
+        if (!formData.procurement_type) {
+          errors.procurement_type = 'Procurement type is required';
+          isValid = false;
         }
         break;
       
@@ -390,6 +506,33 @@ const AddItem = ({ open, onClose, onAdd }) => {
         if (cavityError) {
           errors.no_of_cavity = cavityError;
           isValid = false;
+        }
+
+        // GST Percentage (optional if HSN is selected)
+        if (formData.gst_percentage) {
+          const gstError = validateField('gst_percentage', formData.gst_percentage);
+          if (gstError) {
+            errors.gst_percentage = gstError;
+            isValid = false;
+          }
+        }
+
+        // Reorder Level (optional)
+        if (formData.reorder_level) {
+          const reorderError = validateField('reorder_level', formData.reorder_level);
+          if (reorderError) {
+            errors.reorder_level = reorderError;
+            isValid = false;
+          }
+        }
+
+        // Lead Time Days (optional)
+        if (formData.lead_time_days) {
+          const leadTimeError = validateField('lead_time_days', formData.lead_time_days);
+          if (leadTimeError) {
+            errors.lead_time_days = leadTimeError;
+            isValid = false;
+          }
         }
         break;
       
@@ -431,10 +574,13 @@ const AddItem = ({ open, onClose, onAdd }) => {
     // Required fields
     const requiredFields = [
       { name: 'part_no', label: 'Part number' },
+      { name: 'part_name', label: 'Part name' },
       { name: 'part_description', label: 'Part description' },
-      { name: 'item_no', label: 'Item number' },
+      { name: 'item_category', label: 'Item category' },
+      { name: 'item_type', label: 'Item type' },
       { name: 'material', label: 'Material' },
-      { name: 'unit', label: 'Unit' }
+      { name: 'unit', label: 'Unit' },
+      { name: 'procurement_type', label: 'Procurement type' }
     ];
 
     requiredFields.forEach(field => {
@@ -450,14 +596,14 @@ const AddItem = ({ open, onClose, onAdd }) => {
       if (error) errors.part_no = error;
     }
 
+    if (formData.part_name) {
+      const error = validateField('part_name', formData.part_name);
+      if (error) errors.part_name = error;
+    }
+
     if (formData.part_description) {
       const error = validateField('part_description', formData.part_description);
       if (error) errors.part_description = error;
-    }
-
-    if (formData.item_no) {
-      const error = validateField('item_no', formData.item_no);
-      if (error) errors.item_no = error;
     }
 
     if (formData.material) {
@@ -468,6 +614,31 @@ const AddItem = ({ open, onClose, onAdd }) => {
     if (formData.density) {
       const error = validateField('density', formData.density);
       if (error) errors.density = error;
+    }
+
+    if (formData.thickness) {
+      const error = validateField('thickness', formData.thickness);
+      if (error) errors.thickness = error;
+    }
+
+    if (formData.width) {
+      const error = validateField('width', formData.width);
+      if (error) errors.width = error;
+    }
+
+    if (formData.gst_percentage) {
+      const error = validateField('gst_percentage', formData.gst_percentage);
+      if (error) errors.gst_percentage = error;
+    }
+
+    if (formData.reorder_level) {
+      const error = validateField('reorder_level', formData.reorder_level);
+      if (error) errors.reorder_level = error;
+    }
+
+    if (formData.lead_time_days) {
+      const error = validateField('lead_time_days', formData.lead_time_days);
+      if (error) errors.lead_time_days = error;
     }
 
     if (formData.strip_size) {
@@ -528,6 +699,11 @@ const AddItem = ({ open, onClose, onAdd }) => {
       const submissionData = {
         ...formData,
         density: formData.density ? parseFloat(formData.density) : null,
+        thickness: formData.thickness ? parseFloat(formData.thickness) : null,
+        width: formData.width ? parseFloat(formData.width) : null,
+        gst_percentage: formData.gst_percentage ? parseFloat(formData.gst_percentage) : null,
+        reorder_level: formData.reorder_level ? parseInt(formData.reorder_level) : null,
+        lead_time_days: formData.lead_time_days ? parseInt(formData.lead_time_days) : null,
         strip_size: formData.strip_size ? parseFloat(formData.strip_size) : null,
         pitch: formData.pitch ? parseFloat(formData.pitch) : null,
         no_of_cavity: formData.no_of_cavity ? parseInt(formData.no_of_cavity) : 1,
@@ -560,14 +736,22 @@ const AddItem = ({ open, onClose, onAdd }) => {
   const resetForm = () => {
     setFormData({
       part_no: '',
+      part_name: '',
       part_description: '',
+      item_category: '',
+      item_type: '',
       drawing_no: '',
       revision_no: '',
       rm_grade: '',
       density: '',
+      thickness: '',
+      width: '',
       unit: '',
       hsn_code: '',
-      item_no: '',
+      gst_percentage: '',
+      procurement_type: '',
+      reorder_level: '',
+      lead_time_days: '',
       material: '',
       rm_source: '',
       rm_type: '',
@@ -600,7 +784,7 @@ const AddItem = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       PART NUMBER <span style={{ color: '#EF4444' }}>*</span>
@@ -613,7 +797,7 @@ const AddItem = ({ open, onClose, onAdd }) => {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      placeholder="e.g., PART001"
+                      placeholder="e.g., BR-001"
                       error={!!fieldErrors.part_no}
                       helperText={fieldErrors.part_no}
                       inputProps={{ maxLength: 50 }}
@@ -634,23 +818,23 @@ const AddItem = ({ open, onClose, onAdd }) => {
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      ITEM NUMBER <span style={{ color: '#EF4444' }}>*</span>
+                      PART NAME <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
                       size="small"
-                      name="item_no"
-                      value={formData.item_no}
+                      name="part_name"
+                      value={formData.part_name}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      placeholder="e.g., ITEM001"
-                      error={!!fieldErrors.item_no}
-                      helperText={fieldErrors.item_no}
-                      inputProps={{ maxLength: 50 }}
+                      placeholder="e.g., Copper Busbar 100x10mm"
+                      error={!!fieldErrors.part_name}
+                      helperText={fieldErrors.part_name}
+                      inputProps={{ maxLength: 100 }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -666,6 +850,76 @@ const AddItem = ({ open, onClose, onAdd }) => {
                         }
                       }}
                     />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ITEM CATEGORY <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small" error={!!fieldErrors.item_category}>
+                      <Select
+                        name="item_category"
+                        value={formData.item_category}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        displayEmpty
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      >
+                        <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
+                          Select category
+                        </MenuItem>
+                        {itemCategoryOptions.map((option) => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fieldErrors.item_category && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
+                          {fieldErrors.item_category}
+                        </Typography>
+                      )}
+                    </FormControl>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      ITEM TYPE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small" error={!!fieldErrors.item_type}>
+                      <Select
+                        name="item_type"
+                        value={formData.item_type}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        displayEmpty
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      >
+                        <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
+                          Select type
+                        </MenuItem>
+                        {itemTypeOptions.map((option) => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fieldErrors.item_type && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
+                          {fieldErrors.item_type}
+                        </Typography>
+                      )}
+                    </FormControl>
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
@@ -884,7 +1138,7 @@ const AddItem = ({ open, onClose, onAdd }) => {
                       value={formData.rm_grade}
                       onChange={handleChange}
                       disabled={loading}
-                      placeholder="e.g., Grade A"
+                      placeholder="e.g., C11000"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -941,8 +1195,135 @@ const AddItem = ({ open, onClose, onAdd }) => {
                       }}
                     />
                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      Optional - Leave blank if not applicable
+                      Optional
                     </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      THICKNESS (mm)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="thickness"
+                      value={formData.thickness}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 10"
+                      error={!!fieldErrors.thickness}
+                      helperText={fieldErrors.thickness}
+                      inputProps={{ 
+                        step: "0.01", 
+                        min: 0,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      WIDTH (mm)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="width"
+                      value={formData.width}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="e.g., 100"
+                      error={!!fieldErrors.width}
+                      helperText={fieldErrors.width}
+                      inputProps={{ 
+                        step: "0.01", 
+                        min: 0,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PROCUREMENT TYPE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small" error={!!fieldErrors.procurement_type}>
+                      <Select
+                        name="procurement_type"
+                        value={formData.procurement_type}
+                        onChange={handleSelectChange}
+                        disabled={loading}
+                        displayEmpty
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      >
+                        <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
+                          Select procurement type
+                        </MenuItem>
+                        {procurementTypeOptions.map((option) => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fieldErrors.procurement_type && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
+                          {fieldErrors.procurement_type}
+                        </Typography>
+                      )}
+                    </FormControl>
                   </Box>
                 </Grid>
               </Grid>
@@ -1174,6 +1555,98 @@ const AddItem = ({ open, onClose, onAdd }) => {
                     />
                   </Box>
                 </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      REORDER LEVEL
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="reorder_level"
+                      value={formData.reorder_level}
+                      onChange={handleChange}
+                      disabled={loading}
+                      type="number"
+                      placeholder="e.g., 100"
+                      error={!!fieldErrors.reorder_level}
+                      helperText={fieldErrors.reorder_level}
+                      inputProps={{ 
+                        min: 0, step: 1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Minimum stock level
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      LEAD TIME (Days)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="lead_time_days"
+                      value={formData.lead_time_days}
+                      onChange={handleChange}
+                      disabled={loading}
+                      type="number"
+                      placeholder="e.g., 7"
+                      error={!!fieldErrors.lead_time_days}
+                      helperText={fieldErrors.lead_time_days}
+                      inputProps={{ 
+                        min: 0, step: 1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Procurement lead time
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
             </Paper>
 
@@ -1246,7 +1719,53 @@ const AddItem = ({ open, onClose, onAdd }) => {
                       }}
                     />
                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      Optional - Select HSN code for tax calculation
+                      Optional - Auto-populates GST percentage
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      GST PERCENTAGE (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="gst_percentage"
+                      value={formData.gst_percentage}
+                      onChange={handleChange}
+                      disabled={loading}
+                      type="number"
+                      placeholder="e.g., 18"
+                      error={!!fieldErrors.gst_percentage}
+                      helperText={fieldErrors.gst_percentage}
+                      inputProps={{ 
+                        min: 0, max: 100, step: 0.1,
+                        onWheel: (e) => e.target.blur()
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1, px: 1.5, fontSize: '0.75rem', color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        },
+                        '& input[type=number]': {
+                          MozAppearance: 'textfield'
+                        },
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none', margin: 0
+                        }
+                      }}
+                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Will be auto-filled if HSN selected
                     </Typography>
                   </Box>
                 </Grid>

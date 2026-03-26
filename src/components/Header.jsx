@@ -32,6 +32,7 @@ const Header = () => {
   const [filteredHRItems, setFilteredHRItems] = useState([]);
   const [filteredProcurementItems, setFilteredProcurementItems] = useState([]);
   const [filteredBOMItems, setFilteredBOMItems] = useState([]);
+  const [filteredSalesOrderItems, setFilteredSalesOrderItems] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -81,6 +82,12 @@ const Header = () => {
       name: 'BOM Master',
       type: 'bom',
       icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      count: 0
+    },
+    {
+      name: 'Sales Order Master',
+      type: 'salesorder',
+      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
       count: 0
     },
   ];
@@ -137,6 +144,11 @@ const Header = () => {
     { name: 'BOM Master', path: '/bommaster/bommaster', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.BOM_MASTER, page: PAGES.BOM_MASTER },
   ];
 
+  // Sales Order Master items
+  const salesOrderMasterItems = [
+    { name: 'Sales Order Master', path: '/salesordermaster/salesordermaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.SALES_ORDER_MASTER, page: PAGES.SALES_ORDER_MASTER },
+  ];
+
   // Leave Management items
   const leaveManagementItems = [
     { name: 'Leave Approval', path: '/leave/approval', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.LEAVE_APPROVAL, page: PAGES.LEAVE_APPROVAL }
@@ -179,16 +191,26 @@ const Header = () => {
       return true;
     });
     
+    // Filter Sales Order items based on permissions
+    const accessibleSalesOrderItems = salesOrderMasterItems.filter(item => {
+      if (item.moduleKey && item.page) {
+        return canAccessPage(item.moduleKey, item.page);
+      }
+      return true;
+    });
+    
     setFilteredQuotationItems(accessibleQuotationItems);
     setFilteredProcurementItems(accessibleProcurementItems);
     setFilteredHRItems(accessibleHRItems);
     setFilteredBOMItems(accessibleBOMItems);
+    setFilteredSalesOrderItems(accessibleSalesOrderItems);
     
     // Update category counts
     masterCategories[0].count = accessibleQuotationItems.length;
     masterCategories[1].count = accessibleProcurementItems.length;
     masterCategories[2].count = accessibleHRItems.length;
     masterCategories[3].count = accessibleBOMItems.length;
+    masterCategories[4].count = accessibleSalesOrderItems.length;
   };
 
   // Filter function for master search
@@ -215,6 +237,11 @@ const Header = () => {
         item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
       );
       setFilteredBOMItems(filtered);
+    } else if (activeSubmenu === 'salesorder') {
+      const filtered = salesOrderMasterItems.filter(item => 
+        item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
+      );
+      setFilteredSalesOrderItems(filtered);
     }
   };
 
@@ -430,9 +457,10 @@ const Header = () => {
   const procurementColumns = getColumns(filteredProcurementItems);
   const hrColumns = getColumns(filteredHRItems);
   const bomColumns = getColumns(filteredBOMItems);
+  const salesOrderColumns = getColumns(filteredSalesOrderItems);
 
   const isMasterActive = (path) => {
-    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/');
+    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/') || path.startsWith('/salesordermaster/');
   };
 
   const handleSearch = (e) => {
@@ -696,7 +724,7 @@ const Header = () => {
                 )}
 
                 {/* Master Dropdown */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0) && (
                   <div className="relative" ref={masterRef}>
                     <button
                       onClick={() => toggleDropdown('master')}
@@ -754,7 +782,7 @@ const Header = () => {
                               <input
                                 ref={masterSearchRef}
                                 type="text"
-                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : 'BOM'}...`}
+                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : 'Sales Order'}...`}
                                 className="w-full pl-8 pr-7 py-2 text-xs border border-[#E3E8EF] rounded-md focus:outline-none focus:ring-1 focus:ring-[#0A5C60] focus:border-transparent bg-white text-[#4B5568] placeholder-[#94A3B8]"
                                 value={masterSearchTerm}
                                 onChange={handleMasterSearch}
@@ -774,13 +802,14 @@ const Header = () => {
 
                           <div className="mb-1 px-2 flex justify-between items-center">
                             <h3 className="text-[11px] font-semibold text-[#4B5568] uppercase tracking-wider">
-                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : 'BOM'}
+                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : 'Sales Order'}
                             </h3>
                             <span className="text-[11px] text-[#94A3B8]">
                               {activeSubmenu === 'quotation' ? filteredQuotationItems.length : 
                                activeSubmenu === 'procurement' ? filteredProcurementItems.length : 
                                activeSubmenu === 'hr' ? filteredHRItems.length : 
-                               filteredBOMItems.length}
+                               activeSubmenu === 'bom' ? filteredBOMItems.length : 
+                               filteredSalesOrderItems.length}
                             </span>
                           </div>
 
@@ -908,6 +937,43 @@ const Header = () => {
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDropdownItemClick(item.path, 'bom');
+                                          }}
+                                          className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
+                                            currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
+                                          }`}
+                                        >
+                                          <svg className="w-3.5 h-3.5 mr-2 text-[#94A3B8] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                          </svg>
+                                          <span className="line-clamp-2 text-xs">
+                                            {highlightText(item.name, masterSearchTerm)}
+                                          </span>
+                                        </NavLink>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="w-full py-5 text-center text-[#94A3B8] text-xs">
+                                  No matches found
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {activeSubmenu === 'salesorder' && (
+                            <div className="flex">
+                              {salesOrderColumns.length > 0 ? (
+                                salesOrderColumns.map((column, index) => (
+                                  <div key={`salesorder-col-${index}`} className={`w-48 ${index < salesOrderColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
+                                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                                      {column.map((item) => (
+                                        <NavLink
+                                          key={item.path}
+                                          to={item.path}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDropdownItemClick(item.path, 'salesorder');
                                           }}
                                           className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
                                             currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
@@ -1222,7 +1288,7 @@ const Header = () => {
                 )}
 
                 {/* Mobile Master Section */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0) && (
                   <div className="border-t border-[#E3E8EF] my-2">
                     <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                       Master
@@ -1319,6 +1385,34 @@ const Header = () => {
                           BOM Master
                         </div>
                         {filteredBOMItems.map((item) => (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={({ isActive }) =>
+                              `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                                isActive
+                                  ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                                  : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                              }`
+                            }
+                          >
+                            <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                            </svg>
+                            {item.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Sales Order Master Items */}
+                    {filteredSalesOrderItems.length > 0 && (
+                      <div className="mb-2">
+                        <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                          Sales Order Master
+                        </div>
+                        {filteredSalesOrderItems.map((item) => (
                           <NavLink
                             key={item.path}
                             to={item.path}

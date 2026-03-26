@@ -2211,13 +2211,14 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 import AddSalary from './AddSalary';
 import EditSalary from './EditSalary';
 import ViewSalary from './ViewSalary';
 import DeleteSalary from './DeleteSalary';
 
-// Color constants matching ProcessMaster.jsx
+// Color constants
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -2250,11 +2251,43 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, anchorEl, onClose, onOpen, loading }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, anchorEl, onClose, onOpen, loading, permissions, isSuperAdmin }) => {
+  const canView = hasPermission(permissions, MODULES.SALARY_MASTER, PAGES.SALARY_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.SALARY_MASTER, PAGES.SALARY_MASTER, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.SALARY_MASTER, PAGES.SALARY_MASTER, ACTIONS.DELETE);
+  const canApprove = hasPermission(permissions, MODULES.SALARY_MASTER, PAGES.SALARY_MASTER, ACTIONS.APPROVE);
+  
+  // Superadmin has all permissions
+  const hasFullAccess = isSuperAdmin;
+  
   const isApproved = salary?.paymentStatus === 'APPROVED';
   const isPaid = salary?.paymentStatus === 'PAID';
   const isPending = salary?.paymentStatus === 'PENDING';
+
+  // If no actions available, don't render the menu
+  if (!hasFullAccess && !canView && !canUpdate && !canDelete && !canApprove) {
+    return null;
+  }
 
   return (
     <>
@@ -2287,24 +2320,26 @@ const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, a
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(salary);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {(hasFullAccess || canView) && (
+          <MenuItem 
+            onClick={() => {
+              onView(salary);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        {!isApproved && !isPaid && (
+        {(hasFullAccess || canUpdate) && !isApproved && !isPaid && (
           <MenuItem 
             onClick={() => {
               onEdit(salary);
@@ -2325,7 +2360,7 @@ const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, a
 
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
 
-        {isPending && (
+        {(hasFullAccess || canApprove) && isPending && (
           <MenuItem 
             onClick={() => {
               onApprove(salary);
@@ -2345,7 +2380,7 @@ const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, a
           </MenuItem>
         )}
 
-        {isApproved && !isPaid && (
+        {(hasFullAccess || canUpdate) && isApproved && !isPaid && (
           <MenuItem 
             onClick={() => {
               onMarkPaid(salary);
@@ -2366,7 +2401,7 @@ const ActionMenu = ({ salary, onView, onEdit, onDelete, onApprove, onMarkPaid, a
 
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
 
-        {!isApproved && !isPaid && (
+        {(hasFullAccess || canDelete) && !isApproved && !isPaid && (
           <MenuItem 
             onClick={() => {
               onDelete(salary);
@@ -2484,10 +2519,72 @@ const SalaryMaster = () => {
     severity: "success",
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.SALARY_MASTER,
+      PAGES.SALARY_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
   // Fetch employees
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchEmployees();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Debounce search
   useEffect(() => {
@@ -2500,9 +2597,10 @@ const SalaryMaster = () => {
 
   // Fetch salaries when dependencies change
   useEffect(() => {
-    if (openAdd || openEdit || openDelete) return;
-    fetchSalaries();
-  }, [page, rowsPerPage, employeeFilter, statusFilter, monthFilter, yearFilter, searchTerm]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin) && !openAdd && !openEdit && !openDelete) {
+      fetchSalaries();
+    }
+  }, [page, rowsPerPage, employeeFilter, statusFilter, monthFilter, yearFilter, searchTerm, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   const fetchEmployees = async () => {
     try {
@@ -2519,6 +2617,9 @@ const SalaryMaster = () => {
   };
 
   const fetchSalaries = async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -2556,6 +2657,11 @@ const SalaryMaster = () => {
   };
 
   const handleApprove = async (salary) => {
+    if (!canApprove && !isSuperAdmin) {
+      showNotification("You do not have permission to approve salaries", "error");
+      return;
+    }
+    
     try {
       setApproveLoading(true);
       setActionInProgress(salary._id);
@@ -2580,6 +2686,11 @@ const SalaryMaster = () => {
   };
 
   const handleMarkPaid = async () => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You do not have permission to mark salaries as paid", "error");
+      return;
+    }
+    
     if (!paymentDetails.paymentDate) {
       showNotification("Payment date is required", "error");
       return;
@@ -2626,6 +2737,11 @@ const SalaryMaster = () => {
   };
 
   const handleBulkApprove = async () => {
+    if (!canApprove && !isSuperAdmin) {
+      showNotification("You do not have permission to approve salaries", "error");
+      return;
+    }
+    
     try {
       setBulkActionLoading(true);
       const token = localStorage.getItem("token");
@@ -2650,6 +2766,8 @@ const SalaryMaster = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete && !canApprove && !isSuperAdmin) return;
+    
     if (event.target.checked) {
       setSelected(salaries.map((s) => s._id));
     } else {
@@ -2658,6 +2776,8 @@ const SalaryMaster = () => {
   };
 
   const handleSelectOne = (id) => {
+    if (!canDelete && !canApprove && !isSuperAdmin) return;
+    
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
@@ -2674,21 +2794,37 @@ const SalaryMaster = () => {
   };
 
   const openViewModal = (salary) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification("You do not have permission to view salaries", "error");
+      return;
+    }
     setSelectedSalary(salary);
     setOpenView(true);
   };
 
   const openEditModal = (salary) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You do not have permission to edit salaries", "error");
+      return;
+    }
     setSelectedSalary(salary);
     setOpenEdit(true);
   };
 
   const openDeleteDialog = (salary) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You do not have permission to delete salaries", "error");
+      return;
+    }
     setSelectedSalary(salary);
     setOpenDelete(true);
   };
 
   const openMarkPaidDialog = (salary) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You do not have permission to mark salaries as paid", "error");
+      return;
+    }
     setSelectedSalary(salary);
     setOpenMarkPaid(true);
   };
@@ -2748,6 +2884,16 @@ const SalaryMaster = () => {
   };
 
   const isFilterActive = employeeFilter || statusFilter !== 'all' || monthFilter || yearFilter || searchTerm;
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -2822,75 +2968,6 @@ const SalaryMaster = () => {
               disabled={loading}
             />
 
-            {/* <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                label="Status"
-                sx={{
-                  borderRadius: 1.5,
-                  height: 36,
-                  '& .MuiSelect-select': {
-                    fontSize: '0.75rem',
-                    py: 1,
-                    px: 1.5
-                  }
-                }}
-              >
-                <MenuItem value="all" sx={{ fontSize: '0.75rem' }}>All Status</MenuItem>
-                <MenuItem value="PENDING" sx={{ fontSize: '0.75rem' }}>Pending</MenuItem>
-                <MenuItem value="APPROVED" sx={{ fontSize: '0.75rem' }}>Approved</MenuItem>
-                <MenuItem value="PAID" sx={{ fontSize: '0.75rem' }}>Paid</MenuItem>
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel sx={{ fontSize: '0.75rem' }}>Month</InputLabel>
-              <Select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                label="Month"
-                sx={{
-                  borderRadius: 1.5,
-                  height: 36,
-                  '& .MuiSelect-select': {
-                    fontSize: '0.75rem',
-                    py: 1,
-                    px: 1.5
-                  }
-                }}
-              >
-                <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All</MenuItem>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <MenuItem key={m} value={m} sx={{ fontSize: '0.75rem' }}>{getMonthName(m)}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel sx={{ fontSize: '0.75rem' }}>Year</InputLabel>
-              <Select
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                label="Year"
-                sx={{
-                  borderRadius: 1.5,
-                  height: 36,
-                  '& .MuiSelect-select': {
-                    fontSize: '0.75rem',
-                    py: 1,
-                    px: 1.5
-                  }
-                }}
-              >
-                <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All</MenuItem>
-                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                  <MenuItem key={y} value={y} sx={{ fontSize: '0.75rem' }}>{y}</MenuItem>
-                ))}
-              </Select>
-            </FormControl> */}
-
             {isFilterActive && (
               <Button
                 variant="text"
@@ -2911,71 +2988,79 @@ const SalaryMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
+            {/* Bulk Action Buttons - Only show if user has appropriate permissions */}
             {selected.length > 0 && (
               <>
-                <Button
-                  variant="outlined"
-                  startIcon={<ApproveIcon sx={{ fontSize: '1rem' }} />}
-                  onClick={() => setOpenBulkApprove(true)}
-                  sx={{ 
-                    height: 36,
-                    borderRadius: 1.5,
-                    textTransform: 'none',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    borderColor: '#10b981',
-                    color: '#10b981',
-                    '&:hover': {
-                      borderColor: '#059669',
-                      bgcolor: alpha('#10b981', 0.04)
-                    }
-                  }}
-                >
-                  Approve ({selected.length})
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                  onClick={() => setOpenBulkDelete(true)}
-                  sx={{ 
-                    height: 36,
-                    borderRadius: 1.5,
-                    textTransform: 'none',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    borderColor: '#fee2e2',
-                    color: '#991b1b',
-                    '&:hover': {
-                      borderColor: '#fecaca',
-                      bgcolor: '#fee2e2'
-                    }
-                  }}
-                >
-                  Delete ({selected.length})
-                </Button>
+                {(canApprove || isSuperAdmin) && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<ApproveIcon sx={{ fontSize: '1rem' }} />}
+                    onClick={() => setOpenBulkApprove(true)}
+                    sx={{ 
+                      height: 36,
+                      borderRadius: 1.5,
+                      textTransform: 'none',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      borderColor: '#10b981',
+                      color: '#10b981',
+                      '&:hover': {
+                        borderColor: '#059669',
+                        bgcolor: alpha('#10b981', 0.04)
+                      }
+                    }}
+                  >
+                    Approve ({selected.length})
+                  </Button>
+                )}
+                {(canDelete || isSuperAdmin) && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                    onClick={() => setOpenBulkDelete(true)}
+                    sx={{ 
+                      height: 36,
+                      borderRadius: 1.5,
+                      textTransform: 'none',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      borderColor: '#fee2e2',
+                      color: '#991b1b',
+                      '&:hover': {
+                        borderColor: '#fecaca',
+                        bgcolor: '#fee2e2'
+                      }
+                    }}
+                  >
+                    Delete ({selected.length})
+                  </Button>
+                )}
               </>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAdd(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-            >
-              Add Salary
-            </Button>
+            {/* Add Salary Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAdd(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+              >
+                Add Salary
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -2999,26 +3084,29 @@ const SalaryMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < salaries.length}
-                    checked={salaries.length > 0 && selected.length === salaries.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete or approve permission */}
+                {(canDelete || canApprove || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < salaries.length}
+                      checked={salaries.length > 0 && selected.length === salaries.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || salaries.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || salaries.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -3081,7 +3169,7 @@ const SalaryMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || canApprove || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading salaries...
@@ -3090,7 +3178,7 @@ const SalaryMaster = () => {
                 </TableRow>
               ) : salaries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || canApprove || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <ReceiptIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -3132,21 +3220,24 @@ const SalaryMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelectOne(salary._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete or approve permission */}
+                      {(canDelete || canApprove || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelectOne(salary._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -3220,6 +3311,8 @@ const SalaryMaster = () => {
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, salary)}
                           loading={approveLoading && actionInProgress === salary._id}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -3588,41 +3681,51 @@ const SalaryMaster = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Modals */}
-      <AddSalary open={openAdd} onClose={() => setOpenAdd(false)} onAdd={handleAdd} />
+      {/* Modals - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddSalary open={openAdd} onClose={() => setOpenAdd(false)} onAdd={handleAdd} />
+      )}
 
       {selectedSalary && (
         <>
-          <ViewSalary 
-            open={openView} 
-            onClose={() => {
-              setOpenView(false);
-              setSelectedSalary(null);
-            }} 
-            salary={selectedSalary} 
-            onEdit={() => {
-              setOpenView(false);
-              setOpenEdit(true);
-            }}
-          />
-          <EditSalary 
-            open={openEdit} 
-            onClose={() => {
-              setOpenEdit(false);
-              setSelectedSalary(null);
-            }} 
-            salary={selectedSalary} 
-            onUpdate={handleUpdate} 
-          />
-          <DeleteSalary 
-            open={openDelete} 
-            onClose={() => {
-              setOpenDelete(false);
-              setSelectedSalary(null);
-            }} 
-            salary={selectedSalary} 
-            onDelete={handleDelete} 
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewSalary 
+              open={openView} 
+              onClose={() => {
+                setOpenView(false);
+                setSelectedSalary(null);
+              }} 
+              salary={selectedSalary} 
+              onEdit={() => {
+                if (canUpdate || isSuperAdmin) {
+                  setOpenView(false);
+                  setOpenEdit(true);
+                }
+              }}
+            />
+          )}
+          {(canUpdate || isSuperAdmin) && (
+            <EditSalary 
+              open={openEdit} 
+              onClose={() => {
+                setOpenEdit(false);
+                setSelectedSalary(null);
+              }} 
+              salary={selectedSalary} 
+              onUpdate={handleUpdate} 
+            />
+          )}
+          {(canDelete || isSuperAdmin) && (
+            <DeleteSalary 
+              open={openDelete} 
+              onClose={() => {
+                setOpenDelete(false);
+                setSelectedSalary(null);
+              }} 
+              salary={selectedSalary} 
+              onDelete={handleDelete} 
+            />
+          )}
         </>
       )}
 

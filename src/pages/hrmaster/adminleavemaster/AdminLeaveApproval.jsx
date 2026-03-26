@@ -1242,6 +1242,7 @@ import {
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Color constants matching other components
 const COLORS = {
@@ -1276,8 +1277,43 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onApprove, onReject, anchorEl, onClose, onOpen, isPending }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ 
+  item, 
+  onView, 
+  onApprove, 
+  onReject, 
+  anchorEl, 
+  onClose, 
+  onOpen, 
+  isPending,
+  userPermissions,
+  isSuperAdmin
+}) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.LEAVE_APPROVAL, PAGES.LEAVE_APPROVAL, ACTIONS.VIEW);
+  const canApprove = isSuperAdmin || hasPermission(userPermissions, MODULES.LEAVE_APPROVAL, PAGES.LEAVE_APPROVAL, ACTIONS.APPROVE);
+  const canReject = isSuperAdmin || hasPermission(userPermissions, MODULES.LEAVE_APPROVAL, PAGES.LEAVE_APPROVAL, ACTIONS.REJECT);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -1309,59 +1345,66 @@ const ActionMenu = ({ item, onView, onApprove, onReject, anchorEl, onClose, onOp
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {isPending && (
+        {isPending && (canApprove || canReject) && (
           <>
             <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-            <MenuItem 
-              onClick={() => {
-                onApprove(item);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#059669', minWidth: 36 }}>
-                <ApproveIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                  Approve
-                </Typography>
-              </ListItemText>
-            </MenuItem>
+            
+            {canApprove && (
+              <MenuItem 
+                onClick={() => {
+                  onApprove(item);
+                  onClose();
+                }}
+                sx={{ py: 1.5 }}
+              >
+                <ListItemIcon sx={{ color: '#059669', minWidth: 36 }}>
+                  <ApproveIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                    Approve
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            )}
 
-            <MenuItem 
-              onClick={() => {
-                onReject(item);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#DC2626', minWidth: 36 }}>
-                <RejectIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                  Reject
-                </Typography>
-              </ListItemText>
-            </MenuItem>
+            {canReject && (
+              <MenuItem 
+                onClick={() => {
+                  onReject(item);
+                  onClose();
+                }}
+                sx={{ py: 1.5 }}
+              >
+                <ListItemIcon sx={{ color: '#DC2626', minWidth: 36 }}>
+                  <RejectIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                    Reject
+                  </Typography>
+                </ListItemText>
+              </MenuItem>
+            )}
           </>
         )}
       </Menu>
@@ -1407,6 +1450,70 @@ const AdminLeaveApproval = () => {
     severity: "success"
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.LEAVE_APPROVAL,
+      PAGES.LEAVE_APPROVAL,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1418,10 +1525,12 @@ const AdminLeaveApproval = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch pending leaves on component mount
+  // Fetch pending leaves on component mount - only if user has permission
   useEffect(() => {
-    fetchPendingLeaves();
-  }, []);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPendingLeaves();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Apply filters when dependencies change
   useEffect(() => {
@@ -1485,6 +1594,11 @@ const AdminLeaveApproval = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canApprove && !canReject && !isSuperAdmin) {
+      showSnackbar("You don't have permission to perform bulk actions", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedData.map(leave => leave._id));
     } else {
@@ -1493,6 +1607,11 @@ const AdminLeaveApproval = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canApprove && !canReject && !isSuperAdmin) {
+      showSnackbar("You don't have permission to perform bulk actions", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -1506,6 +1625,15 @@ const AdminLeaveApproval = () => {
   };
 
   const handleProcessClick = (leave, action) => {
+    if (action === 'Approved' && !canApprove && !isSuperAdmin) {
+      showSnackbar("You don't have permission to approve leaves", "error");
+      return;
+    }
+    if (action === 'Rejected' && !canReject && !isSuperAdmin) {
+      showSnackbar("You don't have permission to reject leaves", "error");
+      return;
+    }
+    
     setSelectedLeave(leave);
     setActionType(action);
     setRemarks("");
@@ -1513,6 +1641,10 @@ const AdminLeaveApproval = () => {
   };
 
   const handleViewDetails = (leave) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showSnackbar("You don't have permission to view details", "error");
+      return;
+    }
     setSelectedLeave(leave);
     setOpenViewDialog(true);
   };
@@ -1528,15 +1660,35 @@ const AdminLeaveApproval = () => {
   };
 
   const handleApprove = (leave) => {
+    if (!canApprove && !isSuperAdmin) {
+      showSnackbar("You don't have permission to approve leaves", "error");
+      return;
+    }
     handleProcessClick(leave, "Approved");
   };
 
   const handleReject = (leave) => {
+    if (!canReject && !isSuperAdmin) {
+      showSnackbar("You don't have permission to reject leaves", "error");
+      return;
+    }
     handleProcessClick(leave, "Rejected");
   };
 
   const handleProcessConfirm = async () => {
     if (!selectedLeave || !actionType) return;
+
+    // Double-check permissions before processing
+    if (actionType === 'Approved' && !canApprove && !isSuperAdmin) {
+      showSnackbar("You don't have permission to approve leaves", "error");
+      handleCloseDialog();
+      return;
+    }
+    if (actionType === 'Rejected' && !canReject && !isSuperAdmin) {
+      showSnackbar("You don't have permission to reject leaves", "error");
+      handleCloseDialog();
+      return;
+    }
 
     try {
       setProcessing(true);
@@ -1705,6 +1857,16 @@ const AdminLeaveApproval = () => {
     setPage(0);
     setSelected([]);
   };
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -1878,26 +2040,29 @@ const AdminLeaveApproval = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedData.length}
-                    checked={paginatedData.length > 0 && selected.length === paginatedData.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has approve or reject permission */}
+                {(canApprove || canReject || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedData.length}
+                      checked={paginatedData.length > 0 && selected.length === paginatedData.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || paginatedData.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || paginatedData.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{
                   fontWeight: 600,
                   fontSize: '0.7rem',
@@ -1961,7 +2126,7 @@ const AdminLeaveApproval = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canApprove || canReject || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading leave applications...
@@ -1970,7 +2135,7 @@ const AdminLeaveApproval = () => {
                 </TableRow>
               ) : paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canApprove || canReject || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <EventIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -2018,21 +2183,24 @@ const AdminLeaveApproval = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(leave._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has approve or reject permission */}
+                      {(canApprove || canReject || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(leave._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar
@@ -2136,6 +2304,8 @@ const AdminLeaveApproval = () => {
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, leave)}
                           isPending={isPending}
+                          userPermissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>

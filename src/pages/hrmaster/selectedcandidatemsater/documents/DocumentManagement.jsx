@@ -691,6 +691,812 @@
 
 // export default DocumentManagement;
 
+// import React, { useState, useEffect, useCallback } from 'react';
+// import {
+//   Box,
+//   Paper,
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableContainer,
+//   TableHead,
+//   TableRow,
+//   IconButton,
+//   Button,
+//   TextField,
+//   InputAdornment,
+//   Tooltip,
+//   Typography,
+//   Snackbar,
+//   TablePagination,
+//   Checkbox,
+//   Stack,
+//   alpha,
+//   Alert,
+//   Chip,
+//   Avatar,
+//   CircularProgress,
+//   TableSortLabel
+// } from '@mui/material';
+// import {
+//   Search as SearchIcon,
+//   Add as AddIcon,
+//   Delete as DeleteIcon,
+//   Visibility as ViewIcon,
+//   Edit as EditIcon,
+//   MoreVert as MoreVertIcon,
+//   Close as CloseIcon,
+//   Refresh as RefreshIcon,
+//   Assignment as AssignmentIcon,
+//   Person as PersonIcon,
+//   CloudUpload as CloudUploadIcon,
+//   CheckCircle as CheckCircleIcon,
+//   Error as ErrorIcon,
+//   Verified as VerifiedIcon,
+//   VerifiedUser as VerifiedUserIcon,
+//   Description as DescriptionIcon,
+//   FilterList as FilterIcon,
+//   Clear as ClearIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../../config/Config';
+// import VerifyDocument from './VerifyDocument';
+// import UploadDocument from './UploadDocument';
+
+// // Color constants matching other components
+// const COLORS = {
+//   primary: '#063C3F',
+//   primaryLight: '#E8F0F1',
+//   primaryDark: '#05292B',
+//   text: {
+//     primary: '#151C26',
+//     secondary: '#4B5568',
+//     tertiary: '#94A3B8',
+//     light: '#FFFFFF',
+//     lightMuted: 'rgba(255, 255, 255, 0.9)'
+//   },
+//   background: {
+//     white: '#FFFFFF',
+//     light: '#F8FFFC',
+//     hover: '#F0FDF9',
+//     tableHeader: '#063C3F'
+//   },
+//   border: '#E3E8EF',
+//   status: {
+//     success: '#9FE2BF',
+//     warning: '#FEF3C7',
+//     error: '#FEE2E2',
+//     info: '#E0F2FE'
+//   },
+//   chips: {
+//     active: '#9FE2BF',
+//     inactive: '#F1F5F9',
+//     suspended: '#FEF3C7',
+//     locked: '#FEE2E2'
+//   }
+// };
+
+// // Status color mapping
+// const STATUS_STYLES = {
+//   verified: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Verified' },
+//   rejected: { bg: COLORS.status.error, color: '#991B1B', icon: <ErrorIcon sx={{ fontSize: '0.7rem' }} />, label: 'Rejected' },
+//   pending: { bg: COLORS.status.warning, color: '#92400E', icon: <VerifiedUserIcon sx={{ fontSize: '0.7rem' }} />, label: 'Pending' },
+//   uploaded: { bg: COLORS.status.info, color: COLORS.primaryDark, icon: <CloudUploadIcon sx={{ fontSize: '0.7rem' }} />, label: 'Uploaded' },
+//   sent: { bg: COLORS.status.info, color: '#0369A1', icon: <AssignmentIcon sx={{ fontSize: '0.7rem' }} />, label: 'Sent' },
+//   generated: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <DescriptionIcon sx={{ fontSize: '0.7rem' }} />, label: 'Generated' }
+// };
+
+// const getStatusStyle = (status) => {
+//   return STATUS_STYLES[status?.toLowerCase()] || { bg: COLORS.chips.inactive, color: COLORS.text.secondary, icon: <AssignmentIcon sx={{ fontSize: '0.7rem' }} />, label: status || 'Unknown' };
+// };
+
+// const DocumentManagement = () => {
+//   const [documents, setDocuments] = useState([]);
+//   const [filteredDocuments, setFilteredDocuments] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState('');
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [searchInput, setSearchInput] = useState('');
+//   const [page, setPage] = useState(0);
+//   const [rowsPerPage, setRowsPerPage] = useState(5);
+//   const [selected, setSelected] = useState([]);
+//   const [orderBy, setOrderBy] = useState('createdAt');
+//   const [order, setOrder] = useState('desc');
+//   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+//   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+//   const [selectedDocument, setSelectedDocument] = useState(null);
+//   const [selectedCandidate, setSelectedCandidate] = useState(null);
+//   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+//   // Debounce search
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       setSearchTerm(searchInput);
+//       setPage(0);
+//     }, 500);
+//     return () => clearTimeout(timer);
+//   }, [searchInput]);
+
+//   const fetchDocuments = useCallback(async () => {
+//     try {
+//       setLoading(true);
+//       setError('');
+//       const token = localStorage.getItem('token');
+      
+//       const response = await axios.get(`${BASE_URL}/api/documents`, {
+//         headers: { 'Authorization': `Bearer ${token}` }
+//       });
+
+//       if (response.data.success) {
+//         setDocuments(response.data.data || []);
+//         setFilteredDocuments(response.data.data || []);
+//       } else {
+//         setError(response.data.message || 'Failed to fetch documents');
+//       }
+//     } catch (err) {
+//       console.error('Error fetching documents:', err);
+//       setError(err.response?.data?.message || 'Failed to fetch documents. Please try again.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, []);
+
+//   useEffect(() => {
+//     fetchDocuments();
+//   }, [fetchDocuments]);
+
+//   useEffect(() => {
+//     let filtered = [...documents];
+    
+//     if (searchTerm) {
+//       const term = searchTerm.toLowerCase();
+//       filtered = filtered.filter(doc =>
+//         (doc.documentId?.toLowerCase().includes(term)) ||
+//         (doc._id?.toLowerCase().includes(term)) ||
+//         (doc.type?.toLowerCase().includes(term)) ||
+//         (doc.candidateId?.fullName?.toLowerCase().includes(term)) ||
+//         (doc.candidateId?.firstName?.toLowerCase().includes(term)) ||
+//         (doc.candidateId?.lastName?.toLowerCase().includes(term)) ||
+//         (doc.candidateId?.email?.toLowerCase().includes(term)) ||
+//         (doc.status?.toLowerCase().includes(term))
+//       );
+//     }
+    
+//     if (orderBy) {
+//       filtered.sort((a, b) => {
+//         let aValue, bValue;
+//         if (orderBy === 'candidate') {
+//           aValue = a.candidateId?.fullName || `${a.candidateId?.firstName || ''} ${a.candidateId?.lastName || ''}`;
+//           bValue = b.candidateId?.fullName || `${b.candidateId?.firstName || ''} ${b.candidateId?.lastName || ''}`;
+//         } else if (orderBy === 'type') {
+//           aValue = a.type || '';
+//           bValue = b.type || '';
+//         } else if (orderBy === 'status') {
+//           aValue = a.status || '';
+//           bValue = b.status || '';
+//         } else {
+//           aValue = a[orderBy] || '';
+//           bValue = b[orderBy] || '';
+//         }
+//         if (order === 'asc') {
+//           return aValue > bValue ? 1 : -1;
+//         } else {
+//           return aValue < bValue ? 1 : -1;
+//         }
+//       });
+//     }
+    
+//     setFilteredDocuments(filtered);
+//     setPage(0);
+//   }, [documents, searchTerm, orderBy, order]);
+
+//   const handleRequestSort = (property) => {
+//     const isAsc = orderBy === property && order === 'asc';
+//     setOrder(isAsc ? 'desc' : 'asc');
+//     setOrderBy(property);
+//   };
+
+//   const handleClearSearch = () => {
+//     setSearchInput('');
+//     setSearchTerm('');
+//     setPage(0);
+//   };
+
+//   const handleSelectAll = (event) => {
+//     if (event.target.checked) {
+//       setSelected(paginatedDocuments.map(doc => doc._id || doc.documentId));
+//     } else {
+//       setSelected([]);
+//     }
+//   };
+
+//   const handleSelect = (id) => {
+//     const selectedIndex = selected.indexOf(id);
+//     let newSelected = [];
+//     if (selectedIndex === -1) {
+//       newSelected = newSelected.concat(selected, id);
+//     } else {
+//       newSelected = selected.filter(item => item !== id);
+//     }
+//     setSelected(newSelected);
+//   };
+
+//   const handleChangePage = (event, newPage) => {
+//     setPage(newPage);
+//   };
+
+//   const handleChangeRowsPerPage = (event) => {
+//     setRowsPerPage(parseInt(event.target.value, 10));
+//     setPage(0);
+//   };
+
+//   const handleRefresh = () => {
+//     fetchDocuments();
+//     showNotification('Data refreshed', 'success');
+//   };
+
+//   const handleBulkDelete = () => {
+//     if (selected.length === 0) return;
+//     showNotification('Bulk delete requires API implementation', 'warning');
+//   };
+
+//   const handleVerifyClick = (document) => {
+//     setSelectedDocument(document);
+//     const candidateData = document.candidateId || {};
+//     setSelectedCandidate({
+//       name: candidateData.fullName || `${candidateData.firstName || ''} ${candidateData.lastName || ''}`.trim() || 'Unknown',
+//       email: candidateData.email || '',
+//       position: document.position || 'N/A',
+//       id: candidateData._id || candidateData.id
+//     });
+//     setVerifyDialogOpen(true);
+//   };
+
+//   const handleUploadClick = () => {
+//     setUploadDialogOpen(true);
+//   };
+
+//   const handleUploadComplete = () => {
+//     fetchDocuments();
+//     showNotification('Document uploaded successfully', 'success');
+//   };
+
+//   const handleVerifyComplete = () => {
+//     fetchDocuments();
+//     showNotification('Document verified successfully', 'success');
+//     setVerifyDialogOpen(false);
+//     setSelectedDocument(null);
+//     setSelectedCandidate(null);
+//   };
+
+//   const showNotification = (message, severity) => {
+//     setSnackbar({ open: true, message, severity });
+//   };
+
+//   const formatFileSize = (bytes) => {
+//     if (!bytes || bytes === 0) return 'Unknown';
+//     const k = 1024;
+//     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+//     const i = Math.floor(Math.log(bytes) / Math.log(k));
+//     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+//   };
+
+//   const formatDate = (dateString) => {
+//     if (!dateString) return '-';
+//     return new Date(dateString).toLocaleDateString('en-US', {
+//       year: 'numeric',
+//       month: 'short',
+//       day: 'numeric'
+//     });
+//   };
+
+//   const getCandidateName = (doc) => {
+//     if (!doc.candidateId) return 'Unknown';
+//     if (doc.candidateId.fullName) return doc.candidateId.fullName;
+//     if (doc.candidateId.firstName || doc.candidateId.lastName) {
+//       return `${doc.candidateId.firstName || ''} ${doc.candidateId.lastName || ''}`.trim();
+//     }
+//     return 'Unknown';
+//   };
+
+//   const getCandidateEmail = (doc) => {
+//     return doc.candidateId?.email || '';
+//   };
+
+//   const getAvatarInitials = (name) => {
+//     if (!name || name === 'Unknown') return '?';
+//     const parts = name.split(' ');
+//     if (parts.length >= 2) {
+//       return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+//     }
+//     return name.substring(0, 2).toUpperCase();
+//   };
+
+//   const paginatedDocuments = filteredDocuments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+//   const isFilterActive = searchTerm;
+
+//   const inputStyle = {
+//     '& .MuiOutlinedInput-root': {
+//       borderRadius: 1.5,
+//       fontSize: '0.75rem',
+//       '&:hover fieldset': { borderColor: COLORS.primary },
+//       '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+//     },
+//     '& .MuiInputBase-input': {
+//       py: 1,
+//       px: 1.5,
+//       fontSize: '0.75rem',
+//       color: COLORS.text.primary,
+//       '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
+//     }
+//   };
+
+//   return (
+//     <Box sx={{ p: -1 }}>
+//       {/* Page Header */}
+//       {/* <Box sx={{ mb: 2.5 }}>
+//         <Typography 
+//           variant="h5" 
+//           component="h1" 
+//           sx={{ 
+//             fontSize: '1.25rem',
+//             fontWeight: 700,
+//             color: COLORS.text.primary,
+//             mb: 0.5
+//           }}
+//         >
+//           Document Management
+//         </Typography>
+//         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+//           Manage and verify candidate documents
+//         </Typography>
+//       </Box> */}
+
+//       {/* Action Bar */}
+//       <Paper sx={{ 
+//         p: 1.5, 
+//         mb: 2.5, 
+//         borderRadius: 2,
+//         bgcolor: COLORS.background.white,
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+//           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+//             <TextField
+//               placeholder="Search by ID, Candidate, Type, Status..."
+//               size="small"
+//               value={searchInput}
+//               onChange={(e) => setSearchInput(e.target.value)}
+//               sx={{ 
+//                 width: { xs: '100%', sm: 280 },
+//                 '& .MuiOutlinedInput-root': {
+//                   borderRadius: 1.5,
+//                   fontSize: '0.75rem',
+//                   '&:hover fieldset': { borderColor: COLORS.primary },
+//                 }
+//               }}
+//               InputProps={{
+//                 startAdornment: (
+//                   <InputAdornment position="start">
+//                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+//                   </InputAdornment>
+//                 ),
+//                 endAdornment: searchInput && (
+//                   <InputAdornment position="end">
+//                     <IconButton size="small" onClick={handleClearSearch} edge="end">
+//                       <CloseIcon fontSize="small" sx={{ color: COLORS.text.tertiary }} />
+//                     </IconButton>
+//                   </InputAdornment>
+//                 ),
+//                 sx: { 
+//                   height: 36,
+//                   bgcolor: COLORS.background.light,
+//                   '& input': {
+//                     padding: '6px 12px',
+//                     fontSize: '0.75rem',
+//                     color: COLORS.text.primary
+//                   }
+//                 }
+//               }}
+//               disabled={loading}
+//             />
+
+//             {isFilterActive && (
+//               <Button
+//                 variant="text"
+//                 startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+//                 onClick={handleClearSearch}
+//                 sx={{ 
+//                   height: 36,
+//                   borderRadius: 1.5,
+//                   fontSize: '0.7rem',
+//                   fontWeight: 500,
+//                   textTransform: 'none',
+//                   color: COLORS.text.secondary
+//                 }}
+//               >
+//                 Clear Filters
+//               </Button>
+//             )}
+
+//             {/* <Tooltip title="Refresh">
+//               <IconButton
+//                 onClick={handleRefresh}
+//                 disabled={loading}
+//                 sx={{
+//                   color: COLORS.text.secondary,
+//                   '&:hover': { bgcolor: `${COLORS.primary}20` }
+//                 }}
+//               >
+//                 <RefreshIcon sx={{ fontSize: '1rem' }} />
+//               </IconButton>
+//             </Tooltip> */}
+//           </Stack>
+
+//           <Stack direction="row" spacing={1.5}>
+//             {selected.length > 0 && (
+//               <Button
+//                 variant="outlined"
+//                 color="error"
+//                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+//                 onClick={handleBulkDelete}
+//                 sx={{ 
+//                   height: 36,
+//                   borderRadius: 1.5,
+//                   textTransform: 'none',
+//                   fontSize: '0.75rem',
+//                   fontWeight: 500,
+//                   borderColor: '#fee2e2',
+//                   color: '#991b1b',
+//                   '&:hover': { borderColor: '#fecaca', bgcolor: '#fee2e2' }
+//                 }}
+//               >
+//                 Delete ({selected.length})
+//               </Button>
+//             )}
+
+//             <Button
+//               variant="contained"
+//               startIcon={<CloudUploadIcon sx={{ fontSize: '1rem' }} />}
+//               onClick={handleUploadClick}
+//               sx={{
+//                 height: 36,
+//                 borderRadius: 1.5,
+//                 bgcolor: COLORS.primary,
+//                 fontSize: '0.75rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+//                 '&:hover': { bgcolor: COLORS.primaryDark }
+//               }}
+//             >
+//               Upload Document
+//             </Button>
+//           </Stack>
+//         </Stack>
+//       </Paper>
+
+//       {/* Error Alert */}
+//       {error && (
+//         <Alert 
+//           severity="error" 
+//           sx={{ mb: 2.5, borderRadius: 1.5, fontSize: '0.75rem' }}
+//           action={
+//             <Button color="inherit" size="small" onClick={fetchDocuments}>
+//               Retry
+//             </Button>
+//           }
+//         >
+//           {error}
+//         </Alert>
+//       )}
+
+//       {/* Documents Table */}
+//       <Paper sx={{ 
+//         width: '100%', 
+//         borderRadius: 2, 
+//         overflow: 'hidden',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <TableContainer>
+//           <Table size="small">
+//             <TableHead>
+//               <TableRow sx={{ 
+//                 bgcolor: COLORS.background.tableHeader,
+//                 '& .MuiTableCell-root': {
+//                   borderBottom: 'none',
+//                   color: COLORS.text.light,
+//                   py: 1.5
+//                 }
+//               }}>
+//                 <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                   <Checkbox
+//                     indeterminate={selected.length > 0 && selected.length < paginatedDocuments.length}
+//                     checked={paginatedDocuments.length > 0 && selected.length === paginatedDocuments.length}
+//                     onChange={handleSelectAll}
+//                     sx={{
+//                       color: COLORS.text.light,
+//                       '&.Mui-checked': { color: COLORS.text.light },
+//                       '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+//                       '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+//                     }}
+//                     disabled={loading || paginatedDocuments.length === 0}
+//                   />
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'documentId'}
+//                     direction={orderBy === 'documentId' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('documentId')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Document ID
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'candidate'}
+//                     direction={orderBy === 'candidate' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('candidate')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Candidate
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'type'}
+//                     direction={orderBy === 'type' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('type')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Type
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'status'}
+//                     direction={orderBy === 'status' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('status')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Status
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   Size
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'createdAt'}
+//                     direction={orderBy === 'createdAt' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('createdAt')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Uploaded
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 80 }} align="center">
+//                   Actions
+//                 </TableCell>
+//               </TableRow>
+//             </TableHead>
+//             <TableBody>
+//               {loading ? (
+//                 <TableRow>
+//                   <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+//                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+//                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
+//                       Loading documents...
+//                     </Typography>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : paginatedDocuments.length === 0 ? (
+//                 <TableRow>
+//                   <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+//                     <Box sx={{ textAlign: 'center' }}>
+//                       <DescriptionIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
+//                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+//                         {isFilterActive ? 'No documents match your filters' : 'No documents available'}
+//                       </Typography>
+//                       <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+//                         {isFilterActive ? 'Try adjusting your search terms' : 'Click "Upload Document" to add new documents'}
+//                       </Typography>
+//                     </Box>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : (
+//                 paginatedDocuments.map((doc, index) => {
+//                   const isSelected = selected.includes(doc._id || doc.documentId);
+//                   const statusStyle = getStatusStyle(doc.status);
+//                   const candidateName = getCandidateName(doc);
+//                   const isPending = doc.status?.toLowerCase() === 'pending';
+
+//                   return (
+//                     <TableRow
+//                       key={doc._id || doc.documentId}
+//                       hover
+//                       selected={isSelected}
+//                       sx={{ 
+//                         bgcolor: COLORS.background.white,
+//                         '&:hover': { bgcolor: COLORS.background.hover },
+//                         '&.Mui-selected': {
+//                           bgcolor: `${COLORS.primary}10`,
+//                           '&:hover': { bgcolor: `${COLORS.primary}20` }
+//                         },
+//                         '& .MuiTableCell-root': {
+//                           py: 1.5,
+//                           fontSize: '0.75rem',
+//                           borderColor: COLORS.border
+//                         }
+//                       }}
+//                     >
+//                       <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                         <Checkbox
+//                           checked={isSelected}
+//                           onChange={() => handleSelect(doc._id || doc.documentId)}
+//                           sx={{
+//                             color: COLORS.primary,
+//                             '&.Mui-checked': { color: COLORS.primary },
+//                             '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, fontFamily: 'monospace' }}>
+//                           {doc.documentId || doc._id?.slice(-6).toUpperCase()}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Stack direction="row" spacing={1.5} alignItems="center">
+//                           <Avatar sx={{ width: 32, height: 32, bgcolor: COLORS.primary, fontSize: '0.7rem' }}>
+//                             {getAvatarInitials(candidateName)}
+//                           </Avatar>
+//                           <Box>
+//                             <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+//                               {candidateName}
+//                             </Typography>
+//                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                               {getCandidateEmail(doc)}
+//                             </Typography>
+//                           </Box>
+//                         </Stack>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Chip
+//                           label={doc.type?.replace(/_/g, ' ') || 'Document'}
+//                           size="small"
+//                           sx={{
+//                             bgcolor: COLORS.primaryLight,
+//                             color: COLORS.primaryDark,
+//                             fontSize: '0.65rem',
+//                             height: 24
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Chip
+//                           icon={statusStyle.icon}
+//                           label={statusStyle.label}
+//                           size="small"
+//                           sx={{
+//                             bgcolor: statusStyle.bg,
+//                             color: statusStyle.color,
+//                             fontWeight: 500,
+//                             fontSize: '0.65rem',
+//                             height: 24,
+//                             '& .MuiChip-icon': { fontSize: '0.7rem', color: statusStyle.color }
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+//                           {formatFileSize(doc.fileSize)}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+//                           {formatDate(doc.createdAt)}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell align="center">
+//                         {isPending && (
+//                           <Button
+//                             size="small"
+//                             variant="contained"
+//                             onClick={() => handleVerifyClick(doc)}
+//                             sx={{
+//                               height: 28,
+//                               px: 1.5,
+//                               borderRadius: 1.5,
+//                               bgcolor: '#10B981',
+//                               fontSize: '0.65rem',
+//                               textTransform: 'none',
+//                               '&:hover': { bgcolor: '#059669' }
+//                             }}
+//                           >
+//                             Verify
+//                           </Button>
+//                         )}
+//                       </TableCell>
+//                     </TableRow>
+//                   );
+//                 })
+//               )}
+//             </TableBody>
+//           </Table>
+//         </TableContainer>
+
+//         <TablePagination
+//           rowsPerPageOptions={[5, 10, 25]}
+//           component="div"
+//           count={filteredDocuments.length}
+//           rowsPerPage={rowsPerPage}
+//           page={page}
+//           onPageChange={handleChangePage}
+//           onRowsPerPageChange={handleChangeRowsPerPage}
+//           sx={{
+//             borderTop: `1px solid ${COLORS.border}`,
+//             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+//               fontSize: '0.7rem',
+//               color: COLORS.text.secondary
+//             },
+//             '& .MuiTablePagination-select': { fontSize: '0.7rem' },
+//             '& .MuiTablePagination-actions button': { color: COLORS.primary }
+//           }}
+//         />
+//       </Paper>
+
+//       {/* Verify Dialog */}
+//       <VerifyDocument
+//         open={verifyDialogOpen}
+//         onClose={() => {
+//           setVerifyDialogOpen(false);
+//           setSelectedDocument(null);
+//           setSelectedCandidate(null);
+//         }}
+//         document={selectedDocument}
+//         candidate={selectedCandidate}
+//         onComplete={handleVerifyComplete}
+//       />
+
+//       {/* Upload Dialog */}
+//       <UploadDocument
+//         open={uploadDialogOpen}
+//         onClose={() => setUploadDialogOpen(false)}
+//         onSubmit={handleUploadComplete}
+//       />
+
+//       {/* Snackbar Notification */}
+//       <Snackbar
+//         open={snackbar.open}
+//         autoHideDuration={3000}
+//         onClose={() => setSnackbar({...snackbar, open: false})}
+//         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+//       >
+//         <Alert 
+//           onClose={() => setSnackbar({...snackbar, open: false})} 
+//           severity={snackbar.severity}
+//           variant="filled"
+//           sx={{ 
+//             width: '100%',
+//             borderRadius: 1.5,
+//             fontSize: '0.75rem',
+//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+//             '& .MuiAlert-icon': { fontSize: '1.25rem' }
+//           }}
+//         >
+//           {snackbar.message}
+//         </Alert>
+//       </Snackbar>
+//     </Box>
+//   );
+// };
+
+// export default DocumentManagement;
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -740,6 +1546,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../../utils/modulePermissions';
 import VerifyDocument from './VerifyDocument';
 import UploadDocument from './UploadDocument';
 
@@ -776,6 +1583,25 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Status color mapping
 const STATUS_STYLES = {
   verified: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Verified' },
@@ -808,6 +1634,71 @@ const DocumentManagement = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.SELECTED_CANDIDATES_MASTER,
+      PAGES.SELECTED_CANDIDATE,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -818,6 +1709,9 @@ const DocumentManagement = () => {
   }, [searchInput]);
 
   const fetchDocuments = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       setError('');
@@ -839,11 +1733,13 @@ const DocumentManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDocuments();
+    }
+  }, [fetchDocuments, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     let filtered = [...documents];
@@ -902,7 +1798,13 @@ const DocumentManagement = () => {
     setPage(0);
   };
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete documents", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedDocuments.map(doc => doc._id || doc.documentId));
     } else {
@@ -910,7 +1812,13 @@ const DocumentManagement = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete documents", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -936,11 +1844,21 @@ const DocumentManagement = () => {
   };
 
   const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete documents", "error");
+      return;
+    }
+    
     if (selected.length === 0) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
 
   const handleVerifyClick = (document) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification("You don't have permission to verify documents", "error");
+      return;
+    }
+    
     setSelectedDocument(document);
     const candidateData = document.candidateId || {};
     setSelectedCandidate({
@@ -953,6 +1871,10 @@ const DocumentManagement = () => {
   };
 
   const handleUploadClick = () => {
+    if (!canCreate && !isSuperAdmin) {
+      showNotification("You don't have permission to upload documents", "error");
+      return;
+    }
     setUploadDialogOpen(true);
   };
 
@@ -1015,43 +1937,18 @@ const DocumentManagement = () => {
   const paginatedDocuments = filteredDocuments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const isFilterActive = searchTerm;
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary,
-      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
-    }
-  };
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: -1 }}>
-      {/* Page Header */}
-      {/* <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: COLORS.text.primary,
-            mb: 0.5
-          }}
-        >
-          Document Management
-        </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-          Manage and verify candidate documents
-        </Typography>
-      </Box> */}
-
       {/* Action Bar */}
       <Paper sx={{ 
         p: 1.5, 
@@ -1119,23 +2016,11 @@ const DocumentManagement = () => {
                 Clear Filters
               </Button>
             )}
-
-            {/* <Tooltip title="Refresh">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.text.secondary,
-                  '&:hover': { bgcolor: `${COLORS.primary}20` }
-                }}
-              >
-                <RefreshIcon sx={{ fontSize: '1rem' }} />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1156,23 +2041,26 @@ const DocumentManagement = () => {
               </Button>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<CloudUploadIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handleUploadClick}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Upload Document
-            </Button>
+            {/* Upload Document Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<CloudUploadIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleUploadClick}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Upload Document
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1211,20 +2099,23 @@ const DocumentManagement = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedDocuments.length}
-                    checked={paginatedDocuments.length > 0 && selected.length === paginatedDocuments.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || paginatedDocuments.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedDocuments.length}
+                      checked={paginatedDocuments.length > 0 && selected.length === paginatedDocuments.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': { color: COLORS.text.light },
+                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                      }}
+                      disabled={loading || paginatedDocuments.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   <TableSortLabel
                     active={orderBy === 'documentId'}
@@ -1286,7 +2177,7 @@ const DocumentManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading documents...
@@ -1295,7 +2186,7 @@ const DocumentManagement = () => {
                 </TableRow>
               ) : paginatedDocuments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <DescriptionIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1333,17 +2224,20 @@ const DocumentManagement = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(doc._id || doc.documentId)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(doc._id || doc.documentId)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': { color: COLORS.primary },
+                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, fontFamily: 'monospace' }}>
                           {doc.documentId || doc._id?.slice(-6).toUpperCase()}
@@ -1402,7 +2296,7 @@ const DocumentManagement = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        {isPending && (
+                        {isPending && (canUpdate || isSuperAdmin) && (
                           <Button
                             size="small"
                             variant="contained"
@@ -1449,25 +2343,29 @@ const DocumentManagement = () => {
         />
       </Paper>
 
-      {/* Verify Dialog */}
-      <VerifyDocument
-        open={verifyDialogOpen}
-        onClose={() => {
-          setVerifyDialogOpen(false);
-          setSelectedDocument(null);
-          setSelectedCandidate(null);
-        }}
-        document={selectedDocument}
-        candidate={selectedCandidate}
-        onComplete={handleVerifyComplete}
-      />
+      {/* Verify Dialog - Only render if user has update permission */}
+      {(canUpdate || isSuperAdmin) && (
+        <VerifyDocument
+          open={verifyDialogOpen}
+          onClose={() => {
+            setVerifyDialogOpen(false);
+            setSelectedDocument(null);
+            setSelectedCandidate(null);
+          }}
+          document={selectedDocument}
+          candidate={selectedCandidate}
+          onComplete={handleVerifyComplete}
+        />
+      )}
 
-      {/* Upload Dialog */}
-      <UploadDocument
-        open={uploadDialogOpen}
-        onClose={() => setUploadDialogOpen(false)}
-        onSubmit={handleUploadComplete}
-      />
+      {/* Upload Dialog - Only render if user has create permission */}
+      {(canCreate || isSuperAdmin) && (
+        <UploadDocument
+          open={uploadDialogOpen}
+          onClose={() => setUploadDialogOpen(false)}
+          onSubmit={handleUploadComplete}
+        />
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar

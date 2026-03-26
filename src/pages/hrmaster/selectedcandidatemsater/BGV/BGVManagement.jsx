@@ -651,6 +651,789 @@
 // export default BGVManagement;
 
 
+// import React, { useState, useEffect, useCallback } from 'react';
+// import {
+//   Box,
+//   Paper,
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableContainer,
+//   TableHead,
+//   TableRow,
+//   IconButton,
+//   Button,
+//   TextField,
+//   InputAdornment,
+//   Tooltip,
+//   Typography,
+//   Snackbar,
+//   TablePagination,
+//   Checkbox,
+//   Stack,
+//   alpha,
+//   Alert,
+//   Chip,
+//   Avatar,
+//   CircularProgress,
+//   TableSortLabel
+// } from '@mui/material';
+// import {
+//   Search as SearchIcon,
+//   Add as AddIcon,
+//   Delete as DeleteIcon,
+//   Visibility as ViewIcon,
+//   Edit as EditIcon,
+//   MoreVert as MoreVertIcon,
+//   Close as CloseIcon,
+//   Refresh as RefreshIcon,
+//   Security as SecurityIcon,
+//   CheckCircle as CheckCircleIcon,
+//   Warning as WarningIcon,
+//   Info as InfoIcon,
+//   AccessTime as AccessTimeIcon,
+//   Error as ErrorIcon,
+//   Assignment as AssignmentIcon,
+//   Approval as ApprovalIcon,
+//   Person as PersonIcon,
+//   Work as WorkIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+
+// // Import BGV components
+// import InitiateBGV from './InitiateBGV';
+// import ApproveBGV from './ApproveBGV';
+// import BASE_URL from '../../../../config/Config';
+
+// // Color constants matching other components
+// const COLORS = {
+//   primary: '#063C3F',
+//   primaryLight: '#E8F0F1',
+//   primaryDark: '#05292B',
+//   text: {
+//     primary: '#151C26',
+//     secondary: '#4B5568',
+//     tertiary: '#94A3B8',
+//     light: '#FFFFFF',
+//     lightMuted: 'rgba(255, 255, 255, 0.9)'
+//   },
+//   background: {
+//     white: '#FFFFFF',
+//     light: '#F8FFFC',
+//     hover: '#F0FDF9',
+//     tableHeader: '#063C3F'
+//   },
+//   border: '#E3E8EF',
+//   status: {
+//     success: '#9FE2BF',
+//     warning: '#FEF3C7',
+//     error: '#FEE2E2',
+//     info: '#E0F2FE'
+//   },
+//   chips: {
+//     active: '#9FE2BF',
+//     inactive: '#F1F5F9',
+//     suspended: '#FEF3C7',
+//     locked: '#FEE2E2'
+//   }
+// };
+
+// // Status color mapping
+// const STATUS_STYLES = {
+//   pending: { bg: COLORS.chips.inactive, color: COLORS.text.secondary, icon: <AccessTimeIcon sx={{ fontSize: '0.7rem' }} />, label: 'Pending' },
+//   in_progress: { bg: COLORS.status.warning, color: '#92400E', icon: <RefreshIcon sx={{ fontSize: '0.7rem' }} />, label: 'In Progress' },
+//   completed: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Completed' },
+//   cleared: { bg: COLORS.status.success, color: COLORS.primaryDark, icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} />, label: 'Cleared' },
+//   failed: { bg: COLORS.status.error, color: '#991B1B', icon: <ErrorIcon sx={{ fontSize: '0.7rem' }} />, label: 'Failed' },
+//   discrepancy: { bg: COLORS.status.error, color: '#991B1B', icon: <WarningIcon sx={{ fontSize: '0.7rem' }} />, label: 'Discrepancy' },
+//   under_review: { bg: COLORS.status.info, color: COLORS.primaryDark, icon: <InfoIcon sx={{ fontSize: '0.7rem' }} />, label: 'Under Review' }
+// };
+
+// const getStatusStyle = (status) => {
+//   return STATUS_STYLES[status?.toLowerCase()] || { bg: COLORS.chips.inactive, color: COLORS.text.secondary, icon: <InfoIcon sx={{ fontSize: '0.7rem' }} />, label: status || 'Unknown' };
+// };
+
+// const BGVManagement = () => {
+//   const [bgvList, setBgvList] = useState([]);
+//   const [filteredBgvList, setFilteredBgvList] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState('');
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [searchInput, setSearchInput] = useState('');
+//   const [page, setPage] = useState(0);
+//   const [rowsPerPage, setRowsPerPage] = useState(5);
+//   const [selected, setSelected] = useState([]);
+//   const [orderBy, setOrderBy] = useState('createdAt');
+//   const [order, setOrder] = useState('desc');
+//   const [totalCount, setTotalCount] = useState(0);
+//   const [showInitiateModal, setShowInitiateModal] = useState(false);
+//   const [showApproveModal, setShowApproveModal] = useState(false);
+//   const [selectedBgv, setSelectedBgv] = useState(null);
+//   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+//   // Debounce search
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       setSearchTerm(searchInput);
+//       setPage(0);
+//     }, 500);
+//     return () => clearTimeout(timer);
+//   }, [searchInput]);
+
+//   const fetchBGVList = useCallback(async () => {
+//     try {
+//       setLoading(true);
+//       setError('');
+//       const token = localStorage.getItem('token');
+//       const response = await axios.get(`${BASE_URL}/api/bgv`, {
+//         headers: { 'Authorization': `Bearer ${token}` },
+//         params: { page: page + 1, limit: rowsPerPage }
+//       });
+
+//       if (response.data.success) {
+//         setBgvList(response.data.data || []);
+//         setFilteredBgvList(response.data.data || []);
+//         setTotalCount(response.data.total || 0);
+//       } else {
+//         setError(response.data.message || 'Failed to load BGV records');
+//       }
+//     } catch (err) {
+//       console.error('Error fetching BGV list:', err);
+//       setError(err.response?.data?.message || 'Failed to load BGV records. Please try again.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [page, rowsPerPage]);
+
+//   useEffect(() => {
+//     fetchBGVList();
+//   }, [fetchBGVList]);
+
+//   useEffect(() => {
+//     let filtered = [...bgvList];
+    
+//     if (searchTerm) {
+//       const term = searchTerm.toLowerCase();
+//       filtered = filtered.filter(bgv =>
+//         (bgv.bgvId?.toLowerCase().includes(term)) ||
+//         (bgv.candidate?.fullName?.toLowerCase().includes(term)) ||
+//         (bgv.candidate?.email?.toLowerCase().includes(term)) ||
+//         (bgv.offer?.offerId?.toLowerCase().includes(term)) ||
+//         (bgv.status?.toLowerCase().includes(term))
+//       );
+//     }
+    
+//     if (orderBy) {
+//       filtered.sort((a, b) => {
+//         let aValue, bValue;
+//         if (orderBy === 'candidate') {
+//           aValue = a.candidate?.fullName || '';
+//           bValue = b.candidate?.fullName || '';
+//         } else if (orderBy === 'offer') {
+//           aValue = a.offer?.offerId || '';
+//           bValue = b.offer?.offerId || '';
+//         } else {
+//           aValue = a[orderBy] || '';
+//           bValue = b[orderBy] || '';
+//         }
+//         if (order === 'asc') {
+//           return aValue > bValue ? 1 : -1;
+//         } else {
+//           return aValue < bValue ? 1 : -1;
+//         }
+//       });
+//     }
+    
+//     setFilteredBgvList(filtered);
+//     setPage(0);
+//   }, [bgvList, searchTerm, orderBy, order]);
+
+//   const handleRequestSort = (property) => {
+//     const isAsc = orderBy === property && order === 'asc';
+//     setOrder(isAsc ? 'desc' : 'asc');
+//     setOrderBy(property);
+//   };
+
+//   const handleClearSearch = () => {
+//     setSearchInput('');
+//     setSearchTerm('');
+//     setPage(0);
+//   };
+
+//   const handleSelectAll = (event) => {
+//     if (event.target.checked) {
+//       setSelected(paginatedBgvList.map(bgv => bgv._id));
+//     } else {
+//       setSelected([]);
+//     }
+//   };
+
+//   const handleSelect = (id) => {
+//     const selectedIndex = selected.indexOf(id);
+//     let newSelected = [];
+//     if (selectedIndex === -1) {
+//       newSelected = newSelected.concat(selected, id);
+//     } else {
+//       newSelected = selected.filter(item => item !== id);
+//     }
+//     setSelected(newSelected);
+//   };
+
+//   const handleChangePage = (event, newPage) => {
+//     setPage(newPage);
+//   };
+
+//   const handleChangeRowsPerPage = (event) => {
+//     setRowsPerPage(parseInt(event.target.value, 10));
+//     setPage(0);
+//   };
+
+//   const handleRefresh = () => {
+//     fetchBGVList();
+//     showNotification('Data refreshed', 'success');
+//   };
+
+//   const handleBulkDelete = () => {
+//     if (selected.length === 0) return;
+//     showNotification('Bulk delete requires API implementation', 'warning');
+//   };
+
+//   const openInitiateModal = () => {
+//     setShowInitiateModal(true);
+//   };
+
+//   const openApproveModal = (bgv) => {
+//     setSelectedBgv(bgv);
+//     setShowApproveModal(true);
+//   };
+
+//   const handleBGVInitiated = () => {
+//     fetchBGVList();
+//     showNotification('Background verification initiated successfully!', 'success');
+//   };
+
+//   const handleBGVApproved = () => {
+//     fetchBGVList();
+//     showNotification('BGV decision submitted successfully!', 'success');
+//   };
+
+//   const showNotification = (message, severity) => {
+//     setSnackbar({ open: true, message, severity });
+//   };
+
+//   const formatDate = (dateString) => {
+//     if (!dateString) return '-';
+//     return new Date(dateString).toLocaleDateString('en-US', {
+//       year: 'numeric',
+//       month: 'short',
+//       day: 'numeric'
+//     });
+//   };
+
+//   const getCandidateName = (bgv) => {
+//     return bgv.candidate?.fullName || 'Unknown';
+//   };
+
+//   const getCandidateEmail = (bgv) => {
+//     return bgv.candidate?.email || '';
+//   };
+
+//   const getAvatarInitials = (name) => {
+//     if (!name || name === 'Unknown') return '?';
+//     const parts = name.split(' ');
+//     if (parts.length >= 2) {
+//       return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+//     }
+//     return name.substring(0, 2).toUpperCase();
+//   };
+
+//   const needsApproval = (status) => {
+//     const statusLower = status?.toLowerCase();
+//     return statusLower === 'pending' || statusLower === 'in_progress';
+//   };
+
+//   const paginatedBgvList = filteredBgvList.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+//   const isFilterActive = searchTerm;
+
+//   const inputStyle = {
+//     '& .MuiOutlinedInput-root': {
+//       borderRadius: 1.5,
+//       fontSize: '0.75rem',
+//       '&:hover fieldset': { borderColor: COLORS.primary },
+//       '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+//     },
+//     '& .MuiInputBase-input': {
+//       py: 1,
+//       px: 1.5,
+//       fontSize: '0.75rem',
+//       color: COLORS.text.primary,
+//       '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
+//     }
+//   };
+
+//   return (
+//     <Box sx={{ p: -1 }}>
+//       {/* Page Header */}
+//       {/* <Box sx={{ mb: 2.5 }}>
+//         <Typography 
+//           variant="h5" 
+//           component="h1" 
+//           sx={{ 
+//             fontSize: '1.25rem',
+//             fontWeight: 700,
+//             color: COLORS.text.primary,
+//             mb: 0.5,
+//             display: 'flex',
+//             alignItems: 'center',
+//             gap: 1
+//           }}
+//         >
+//           <SecurityIcon sx={{ fontSize: '1.2rem', color: COLORS.primary }} />
+//           Background Verification
+//         </Typography>
+//         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+//           Manage and track background verification for selected candidates
+//         </Typography>
+//       </Box> */}
+
+//       {/* Action Bar */}
+//       <Paper sx={{ 
+//         p: 1.5, 
+//         mb: 2.5, 
+//         borderRadius: 2,
+//         bgcolor: COLORS.background.white,
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+//           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+//             <TextField
+//               placeholder="Search by BGV ID, Candidate, Offer..."
+//               size="small"
+//               value={searchInput}
+//               onChange={(e) => setSearchInput(e.target.value)}
+//               sx={{ 
+//                 width: { xs: '100%', sm: 280 },
+//                 '& .MuiOutlinedInput-root': {
+//                   borderRadius: 1.5,
+//                   fontSize: '0.75rem',
+//                   '&:hover fieldset': { borderColor: COLORS.primary },
+//                 }
+//               }}
+//               InputProps={{
+//                 startAdornment: (
+//                   <InputAdornment position="start">
+//                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+//                   </InputAdornment>
+//                 ),
+//                 endAdornment: searchInput && (
+//                   <InputAdornment position="end">
+//                     <IconButton size="small" onClick={handleClearSearch} edge="end">
+//                       <CloseIcon fontSize="small" sx={{ color: COLORS.text.tertiary }} />
+//                     </IconButton>
+//                   </InputAdornment>
+//                 ),
+//                 sx: { 
+//                   height: 36,
+//                   bgcolor: COLORS.background.light,
+//                   '& input': {
+//                     padding: '6px 12px',
+//                     fontSize: '0.75rem',
+//                     color: COLORS.text.primary
+//                   }
+//                 }
+//               }}
+//               disabled={loading}
+//             />
+
+//             {isFilterActive && (
+//               <Button
+//                 variant="text"
+//                 startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+//                 onClick={handleClearSearch}
+//                 sx={{ 
+//                   height: 36,
+//                   borderRadius: 1.5,
+//                   fontSize: '0.7rem',
+//                   fontWeight: 500,
+//                   textTransform: 'none',
+//                   color: COLORS.text.secondary
+//                 }}
+//               >
+//                 Clear Filters
+//               </Button>
+//             )}
+
+//             {/* <Tooltip title="Refresh">
+//               <IconButton
+//                 onClick={handleRefresh}
+//                 disabled={loading}
+//                 sx={{
+//                   color: COLORS.text.secondary,
+//                   '&:hover': { bgcolor: `${COLORS.primary}20` }
+//                 }}
+//               >
+//                 <RefreshIcon sx={{ fontSize: '1rem' }} />
+//               </IconButton>
+//             </Tooltip> */}
+//           </Stack>
+
+//           <Stack direction="row" spacing={1.5}>
+//             {selected.length > 0 && (
+//               <Button
+//                 variant="outlined"
+//                 color="error"
+//                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+//                 onClick={handleBulkDelete}
+//                 sx={{ 
+//                   height: 36,
+//                   borderRadius: 1.5,
+//                   textTransform: 'none',
+//                   fontSize: '0.75rem',
+//                   fontWeight: 500,
+//                   borderColor: '#fee2e2',
+//                   color: '#991b1b',
+//                   '&:hover': { borderColor: '#fecaca', bgcolor: '#fee2e2' }
+//                 }}
+//               >
+//                 Delete ({selected.length})
+//               </Button>
+//             )}
+
+//             <Button
+//               variant="contained"
+//               startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+//               onClick={openInitiateModal}
+//               sx={{
+//                 height: 36,
+//                 borderRadius: 1.5,
+//                 bgcolor: COLORS.primary,
+//                 fontSize: '0.75rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+//                 '&:hover': { bgcolor: COLORS.primaryDark }
+//               }}
+//             >
+//               Initiate BGV
+//             </Button>
+//           </Stack>
+//         </Stack>
+//       </Paper>
+
+//       {/* Error Alert */}
+//       {error && (
+//         <Alert 
+//           severity="error" 
+//           sx={{ mb: 2.5, borderRadius: 1.5, fontSize: '0.75rem' }}
+//           action={
+//             <Button color="inherit" size="small" onClick={fetchBGVList}>
+//               Retry
+//             </Button>
+//           }
+//         >
+//           {error}
+//         </Alert>
+//       )}
+
+//       {/* BGV Table */}
+//       <Paper sx={{ 
+//         width: '100%', 
+//         borderRadius: 2, 
+//         overflow: 'hidden',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <TableContainer>
+//           <Table size="small">
+//             <TableHead>
+//               <TableRow sx={{ 
+//                 bgcolor: COLORS.background.tableHeader,
+//                 '& .MuiTableCell-root': {
+//                   borderBottom: 'none',
+//                   color: COLORS.text.light,
+//                   py: 1.5
+//                 }
+//               }}>
+//                 <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                   <Checkbox
+//                     indeterminate={selected.length > 0 && selected.length < paginatedBgvList.length}
+//                     checked={paginatedBgvList.length > 0 && selected.length === paginatedBgvList.length}
+//                     onChange={handleSelectAll}
+//                     sx={{
+//                       color: COLORS.text.light,
+//                       '&.Mui-checked': { color: COLORS.text.light },
+//                       '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+//                       '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+//                     }}
+//                     disabled={loading || paginatedBgvList.length === 0}
+//                   />
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'bgvId'}
+//                     direction={orderBy === 'bgvId' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('bgvId')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     BGV ID
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'candidate'}
+//                     direction={orderBy === 'candidate' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('candidate')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Candidate
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'offer'}
+//                     direction={orderBy === 'offer' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('offer')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Offer
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'status'}
+//                     direction={orderBy === 'status' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('status')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Status
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+//                   <TableSortLabel
+//                     active={orderBy === 'createdAt'}
+//                     direction={orderBy === 'createdAt' ? order : 'asc'}
+//                     onClick={() => handleRequestSort('createdAt')}
+//                     sx={{ color: COLORS.text.light, '& .MuiTableSortLabel-icon': { color: COLORS.text.light } }}
+//                   >
+//                     Initiated
+//                   </TableSortLabel>
+//                 </TableCell>
+//                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 100 }} align="center">
+//                   Action
+//                 </TableCell>
+//               </TableRow>
+//             </TableHead>
+//             <TableBody>
+//               {loading ? (
+//                 <TableRow>
+//                   <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+//                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+//                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
+//                       Loading BGV records...
+//                     </Typography>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : paginatedBgvList.length === 0 ? (
+//                 <TableRow>
+//                   <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+//                     <Box sx={{ textAlign: 'center' }}>
+//                       <SecurityIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
+//                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+//                         {isFilterActive ? 'No BGV records match your filters' : 'No background verifications available'}
+//                       </Typography>
+//                       <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+//                         {isFilterActive ? 'Try adjusting your search terms' : 'Click "Initiate BGV" to start a new verification'}
+//                       </Typography>
+//                     </Box>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : (
+//                 paginatedBgvList.map((bgv, index) => {
+//                   const isSelected = selected.includes(bgv._id);
+//                   const statusStyle = getStatusStyle(bgv.status);
+//                   const showApproveButton = needsApproval(bgv.status);
+//                   const candidateName = getCandidateName(bgv);
+
+//                   return (
+//                     <TableRow
+//                       key={bgv._id}
+//                       hover
+//                       selected={isSelected}
+//                       sx={{ 
+//                         bgcolor: COLORS.background.white,
+//                         '&:hover': { bgcolor: COLORS.background.hover },
+//                         '&.Mui-selected': {
+//                           bgcolor: `${COLORS.primary}10`,
+//                           '&:hover': { bgcolor: `${COLORS.primary}20` }
+//                         },
+//                         '& .MuiTableCell-root': {
+//                           py: 1.5,
+//                           fontSize: '0.75rem',
+//                           borderColor: COLORS.border
+//                         }
+//                       }}
+//                     >
+//                       <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                         <Checkbox
+//                           checked={isSelected}
+//                           onChange={() => handleSelect(bgv._id)}
+//                           sx={{
+//                             color: COLORS.primary,
+//                             '&.Mui-checked': { color: COLORS.primary },
+//                             '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, fontFamily: 'monospace' }}>
+//                           {bgv.bgvId || 'N/A'}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Stack direction="row" spacing={1.5} alignItems="center">
+//                           <Avatar sx={{ width: 32, height: 32, bgcolor: COLORS.primary, fontSize: '0.7rem' }}>
+//                             {getAvatarInitials(candidateName)}
+//                           </Avatar>
+//                           <Box>
+//                             <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+//                               {candidateName}
+//                             </Typography>
+//                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                               {getCandidateEmail(bgv)}
+//                             </Typography>
+//                           </Box>
+//                         </Stack>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+//                           {bgv.offer?.offerId || 'N/A'}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell>
+//                         <Chip
+//                           icon={statusStyle.icon}
+//                           label={statusStyle.label}
+//                           size="small"
+//                           sx={{
+//                             bgcolor: statusStyle.bg,
+//                             color: statusStyle.color,
+//                             fontWeight: 500,
+//                             fontSize: '0.65rem',
+//                             height: 24,
+//                             '& .MuiChip-icon': { fontSize: '0.7rem', color: statusStyle.color },
+//                             '& .MuiChip-label': { px: 1, fontSize: '0.65rem' }
+//                           }}
+//                         />
+//                       </TableCell>
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+//                           {formatDate(bgv.createdAt)}
+//                         </Typography>
+//                       </TableCell>
+//                       <TableCell align="center" sx={{ width: 100 }}>
+//                         {showApproveButton ? (
+//                           <Button
+//                             size="small"
+//                             variant="contained"
+//                             startIcon={<ApprovalIcon sx={{ fontSize: '0.8rem' }} />}
+//                             onClick={() => openApproveModal(bgv)}
+//                             sx={{
+//                               height: 28,
+//                               px: 1.5,
+//                               borderRadius: 1.5,
+//                               bgcolor: '#10B981',
+//                               fontSize: '0.65rem',
+//                               textTransform: 'none',
+//                               '&:hover': { bgcolor: '#059669' }
+//                             }}
+//                           >
+//                             Review
+//                           </Button>
+//                         ) : (
+//                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, fontStyle: 'italic' }}>
+//                             Completed
+//                           </Typography>
+//                         )}
+//                       </TableCell>
+//                     </TableRow>
+//                   );
+//                 })
+//               )}
+//             </TableBody>
+//           </Table>
+//         </TableContainer>
+
+//         <TablePagination
+//           rowsPerPageOptions={[5, 10, 25]}
+//           component="div"
+//           count={filteredBgvList.length}
+//           rowsPerPage={rowsPerPage}
+//           page={page}
+//           onPageChange={handleChangePage}
+//           onRowsPerPageChange={handleChangeRowsPerPage}
+//           sx={{
+//             borderTop: `1px solid ${COLORS.border}`,
+//             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+//               fontSize: '0.7rem',
+//               color: COLORS.text.secondary
+//             },
+//             '& .MuiTablePagination-select': { fontSize: '0.7rem' },
+//             '& .MuiTablePagination-actions button': { color: COLORS.primary }
+//           }}
+//         />
+//       </Paper>
+
+//       {/* Modal Components */}
+//       <InitiateBGV 
+//         open={showInitiateModal}
+//         onClose={() => {
+//           setShowInitiateModal(false);
+//           setSelectedBgv(null);
+//         }}
+//         onSubmit={handleBGVInitiated}
+//       />
+
+//       <ApproveBGV 
+//         open={showApproveModal}
+//         onClose={() => {
+//           setShowApproveModal(false);
+//           setSelectedBgv(null);
+//         }}
+//         onSubmit={handleBGVApproved}
+//         bgvData={selectedBgv}
+//         bgvId={selectedBgv?._id}
+//       />
+
+//       {/* Snackbar Notification */}
+//       <Snackbar
+//         open={snackbar.open}
+//         autoHideDuration={3000}
+//         onClose={() => setSnackbar({...snackbar, open: false})}
+//         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+//       >
+//         <Alert 
+//           onClose={() => setSnackbar({...snackbar, open: false})} 
+//           severity={snackbar.severity}
+//           variant="filled"
+//           sx={{ 
+//             width: '100%',
+//             borderRadius: 1.5,
+//             fontSize: '0.75rem',
+//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+//             '& .MuiAlert-icon': { fontSize: '1.25rem' }
+//           }}
+//         >
+//           {snackbar.message}
+//         </Alert>
+//       </Snackbar>
+//     </Box>
+//   );
+// };
+
+// export default BGVManagement;
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -699,6 +1482,7 @@ import {
   Work as WorkIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../../utils/modulePermissions';
 
 // Import BGV components
 import InitiateBGV from './InitiateBGV';
@@ -738,6 +1522,25 @@ const COLORS = {
   }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Status color mapping
 const STATUS_STYLES = {
   pending: { bg: COLORS.chips.inactive, color: COLORS.text.secondary, icon: <AccessTimeIcon sx={{ fontSize: '0.7rem' }} />, label: 'Pending' },
@@ -771,6 +1574,72 @@ const BGVManagement = () => {
   const [selectedBgv, setSelectedBgv] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions from /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        } else {
+          setUserPermissions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.SELECTED_CANDIDATES_MASTER,
+      PAGES.SELECTED_CANDIDATE,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -781,6 +1650,9 @@ const BGVManagement = () => {
   }, [searchInput]);
 
   const fetchBGVList = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       setError('');
@@ -803,11 +1675,13 @@ const BGVManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchBGVList();
-  }, [fetchBGVList]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchBGVList();
+    }
+  }, [fetchBGVList, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     let filtered = [...bgvList];
@@ -860,7 +1734,13 @@ const BGVManagement = () => {
     setPage(0);
   };
 
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete BGV records", "error");
+      return;
+    }
+    
     if (event.target.checked) {
       setSelected(paginatedBgvList.map(bgv => bgv._id));
     } else {
@@ -868,7 +1748,13 @@ const BGVManagement = () => {
     }
   };
 
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete BGV records", "error");
+      return;
+    }
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     if (selectedIndex === -1) {
@@ -894,15 +1780,28 @@ const BGVManagement = () => {
   };
 
   const handleBulkDelete = () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification("You don't have permission to delete BGV records", "error");
+      return;
+    }
+    
     if (selected.length === 0) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
 
   const openInitiateModal = () => {
+    if (!canCreate && !isSuperAdmin) {
+      showNotification("You don't have permission to initiate BGV", "error");
+      return;
+    }
     setShowInitiateModal(true);
   };
 
   const openApproveModal = (bgv) => {
+    if (!canApprove && !isSuperAdmin) {
+      showNotification("You don't have permission to review/approve BGV", "error");
+      return;
+    }
     setSelectedBgv(bgv);
     setShowApproveModal(true);
   };
@@ -955,47 +1854,18 @@ const BGVManagement = () => {
   const paginatedBgvList = filteredBgvList.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const isFilterActive = searchTerm;
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary,
-      '&::placeholder': { color: COLORS.text.tertiary, fontSize: '0.75rem' }
-    }
-  };
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: -1 }}>
-      {/* Page Header */}
-      {/* <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: COLORS.text.primary,
-            mb: 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
-          <SecurityIcon sx={{ fontSize: '1.2rem', color: COLORS.primary }} />
-          Background Verification
-        </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-          Manage and track background verification for selected candidates
-        </Typography>
-      </Box> */}
-
       {/* Action Bar */}
       <Paper sx={{ 
         p: 1.5, 
@@ -1063,23 +1933,11 @@ const BGVManagement = () => {
                 Clear Filters
               </Button>
             )}
-
-            {/* <Tooltip title="Refresh">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.text.secondary,
-                  '&:hover': { bgcolor: `${COLORS.primary}20` }
-                }}
-              >
-                <RefreshIcon sx={{ fontSize: '1rem' }} />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1100,23 +1958,26 @@ const BGVManagement = () => {
               </Button>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={openInitiateModal}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Initiate BGV
-            </Button>
+            {/* Initiate BGV Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={openInitiateModal}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Initiate BGV
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1155,20 +2016,23 @@ const BGVManagement = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedBgvList.length}
-                    checked={paginatedBgvList.length > 0 && selected.length === paginatedBgvList.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || paginatedBgvList.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < paginatedBgvList.length}
+                      checked={paginatedBgvList.length > 0 && selected.length === paginatedBgvList.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': { color: COLORS.text.light },
+                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                      }}
+                      disabled={loading || paginatedBgvList.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   <TableSortLabel
                     active={orderBy === 'bgvId'}
@@ -1227,7 +2091,7 @@ const BGVManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading BGV records...
@@ -1236,7 +2100,7 @@ const BGVManagement = () => {
                 </TableRow>
               ) : paginatedBgvList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <SecurityIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
                       <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1252,7 +2116,7 @@ const BGVManagement = () => {
                 paginatedBgvList.map((bgv, index) => {
                   const isSelected = selected.includes(bgv._id);
                   const statusStyle = getStatusStyle(bgv.status);
-                  const showApproveButton = needsApproval(bgv.status);
+                  const showApproveButton = needsApproval(bgv.status) && (canApprove || isSuperAdmin);
                   const candidateName = getCandidateName(bgv);
 
                   return (
@@ -1274,17 +2138,20 @@ const BGVManagement = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(bgv._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(bgv._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': { color: COLORS.primary },
+                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, fontFamily: 'monospace' }}>
                           {bgv.bgvId || 'N/A'}
@@ -1384,26 +2251,30 @@ const BGVManagement = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <InitiateBGV 
-        open={showInitiateModal}
-        onClose={() => {
-          setShowInitiateModal(false);
-          setSelectedBgv(null);
-        }}
-        onSubmit={handleBGVInitiated}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <InitiateBGV 
+          open={showInitiateModal}
+          onClose={() => {
+            setShowInitiateModal(false);
+            setSelectedBgv(null);
+          }}
+          onSubmit={handleBGVInitiated}
+        />
+      )}
 
-      <ApproveBGV 
-        open={showApproveModal}
-        onClose={() => {
-          setShowApproveModal(false);
-          setSelectedBgv(null);
-        }}
-        onSubmit={handleBGVApproved}
-        bgvData={selectedBgv}
-        bgvId={selectedBgv?._id}
-      />
+      {(canApprove || isSuperAdmin) && (
+        <ApproveBGV 
+          open={showApproveModal}
+          onClose={() => {
+            setShowApproveModal(false);
+            setSelectedBgv(null);
+          }}
+          onSubmit={handleBGVApproved}
+          bgvData={selectedBgv}
+          bgvId={selectedBgv?._id}
+        />
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar

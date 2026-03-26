@@ -983,6 +983,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Import modal components
 import AddPieceRate from './AddPieceRate';
@@ -990,7 +991,7 @@ import EditPieceRate from './EditPieceRate';
 import ViewPieceRate from './ViewPieceRate';
 import DeletePieceRate from './DeletePieceRate';
 
-// Color constants - Single color #063C3F throughout
+// Color constants
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -1015,8 +1016,39 @@ const COLORS = {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  const canView = hasPermission(permissions, MODULES.PIECE_RATE_MASTER, PAGES.PIECE_RATE_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.PIECE_RATE_MASTER, PAGES.PIECE_RATE_MASTER, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.PIECE_RATE_MASTER, PAGES.PIECE_RATE_MASTER, ACTIONS.DELETE);
+  
+  // Superadmin has all permissions
+  const hasFullAccess = isSuperAdmin;
+
+  // If no actions available, don't render the menu
+  if (!hasFullAccess && !canView && !canUpdate && !canDelete) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -1048,57 +1080,66 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen 
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {(hasFullAccess || canView) && (
+          <MenuItem 
+            onClick={() => {
+              onView(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem 
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {(hasFullAccess || canUpdate) && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        <MenuItem 
-          onClick={() => {
-            onDelete(item);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {(hasFullAccess || canView || canUpdate) && (hasFullAccess || canDelete) && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
+        
+        {(hasFullAccess || canDelete) && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(item);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -1144,6 +1185,66 @@ const PieceRateMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.PIECE_RATE_MASTER,
+      PAGES.PIECE_RATE_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canImport = checkPermission(ACTIONS.IMPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1155,6 +1256,9 @@ const PieceRateMaster = () => {
 
   // Fetch piece rates from API
   const fetchPieceRates = useCallback(async () => {
+    // Only fetch if user has view permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -1187,12 +1291,14 @@ const PieceRateMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, canViewPage, isSuperAdmin]);
 
   // Fetch records when dependencies change
   useEffect(() => {
-    fetchPieceRates();
-  }, [fetchPieceRates]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPieceRates();
+    }
+  }, [fetchPieceRates, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -1200,8 +1306,10 @@ const PieceRateMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all
+  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete && !isSuperAdmin) return;
+    
     if (event.target.checked) {
       const currentPageRates = pieceRates.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
       setSelected(currentPageRates.map(rate => rate._id));
@@ -1210,8 +1318,10 @@ const PieceRateMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
+    if (!canDelete && !isSuperAdmin) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -1240,6 +1350,11 @@ const PieceRateMaster = () => {
   
   // Handle bulk delete confirmation
   const handleBulkDeleteConfirm = async () => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete piece rates', 'error');
+      return;
+    }
+    
     if (selected.length === 0) return;
 
     try {
@@ -1302,6 +1417,10 @@ const PieceRateMaster = () => {
 
   // Open edit modal
   const openEditModalHandler = (rate) => {
+    if (!canUpdate && !isSuperAdmin) {
+      showNotification('You do not have permission to edit piece rates', 'error');
+      return;
+    }
     setSelectedRate(rate);
     setOpenEditModal(true);
     handleActionMenuClose();
@@ -1309,6 +1428,10 @@ const PieceRateMaster = () => {
   
   // Open view modal
   const openViewModalHandler = (rate) => {
+    if (!canViewPage && !isSuperAdmin) {
+      showNotification('You do not have permission to view piece rates', 'error');
+      return;
+    }
     setSelectedRate(rate);
     setOpenViewModal(true);
     handleActionMenuClose();
@@ -1316,6 +1439,10 @@ const PieceRateMaster = () => {
   
   // Open delete confirmation
   const openDeleteDialogHandler = (rate) => {
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete piece rates', 'error');
+      return;
+    }
     setSelectedRate(rate);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -1400,6 +1527,16 @@ const PieceRateMaster = () => {
   // Get current page records
   const currentPageRates = pieceRates.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -1472,9 +1609,10 @@ const PieceRateMaster = () => {
             />
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1498,26 +1636,30 @@ const PieceRateMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Piece Rate
-            </Button>
+            
+            {/* Add Piece Rate Button - Only show if user has create permission */}
+            {(canCreate || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Piece Rate
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1541,26 +1683,29 @@ const PieceRateMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < currentPageRates.length}
-                    checked={currentPageRates.length > 0 && selected.length === currentPageRates.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {(canDelete || isSuperAdmin) && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < currentPageRates.length}
+                      checked={currentPageRates.length > 0 && selected.length === currentPageRates.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || currentPageRates.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || currentPageRates.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -1615,7 +1760,7 @@ const PieceRateMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading piece rates...
@@ -1624,7 +1769,7 @@ const PieceRateMaster = () => {
                 </TableRow>
               ) : currentPageRates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={(canDelete || isSuperAdmin) ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No piece rates found' : 'No piece rates available'}
@@ -1666,21 +1811,24 @@ const PieceRateMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(rate._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {(canDelete || isSuperAdmin) && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(rate._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar 
@@ -1761,6 +1909,8 @@ const PieceRateMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, rate)}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1796,134 +1946,144 @@ const PieceRateMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddPieceRate 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddRate}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {(canCreate || isSuperAdmin) && (
+        <AddPieceRate 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddRate}
+        />
+      )}
 
       {selectedRate && (
         <>
-          <ViewPieceRate 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedRate(null);
-            }}
-            pieceRate={selectedRate}
-          />
+          {(canViewPage || isSuperAdmin) && (
+            <ViewPieceRate 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedRate(null);
+              }}
+              pieceRate={selectedRate}
+            />
+          )}
 
-          <EditPieceRate 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedRate(null);
-            }}
-            pieceRate={selectedRate}
-            onUpdate={handleEditRate}
-          />
+          {(canUpdate || isSuperAdmin) && (
+            <EditPieceRate 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedRate(null);
+              }}
+              pieceRate={selectedRate}
+              onUpdate={handleEditRate}
+            />
+          )}
 
-          <DeletePieceRate 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedRate(null);
-            }}
-            pieceRate={selectedRate}
-            onDelete={handleDeleteRate}
-          />
+          {(canDelete || isSuperAdmin) && (
+            <DeletePieceRate 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedRate(null);
+              }}
+              pieceRate={selectedRate}
+              onDelete={handleDeleteRate}
+            />
+          )}
         </>
       )}
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <Dialog
-        open={openBulkDeleteDialog}
-        onClose={() => setOpenBulkDeleteDialog(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            overflow: 'hidden'
-          }
-        }}
-      >
-        <DialogTitle
-          sx={{
-            bgcolor: '#FEF2F2',
-            color: '#991B1B',
-            fontWeight: 600,
-            fontSize: '1rem',
-            p: 2,
-            borderBottom: `1px solid ${COLORS.border}`
+      {/* Bulk Delete Confirmation Dialog - Only show if user has delete permission */}
+      {(canDelete || isSuperAdmin) && (
+        <Dialog
+          open={openBulkDeleteDialog}
+          onClose={() => setOpenBulkDeleteDialog(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              overflow: 'hidden'
+            }
           }}
         >
-          Confirm Bulk Delete
-        </DialogTitle>
-
-        <DialogContent sx={{ p: 3 }}>
-          <Stack spacing={2}>
-            <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.primary }}>
-              Are you sure you want to delete <strong>{selected.length}</strong> selected piece rate(s)?
-            </Typography>
-
-            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-              This action cannot be undone.
-            </Typography>
-
-            {bulkDeleteError && (
-              <Alert 
-                severity="error" 
-                variant="filled"
-                sx={{ 
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem'
-                }}
-              >
-                {bulkDeleteError}
-              </Alert>
-            )}
-          </Stack>
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            p: 2,
-            borderTop: `1px solid ${COLORS.border}`,
-            bgcolor: COLORS.background.light
-          }}
-        >
-          <Button
-            onClick={() => setOpenBulkDeleteDialog(false)}
-            disabled={bulkDeleteLoading}
+          <DialogTitle
             sx={{
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              color: COLORS.text.secondary
+              bgcolor: '#FEF2F2',
+              color: '#991B1B',
+              fontWeight: 600,
+              fontSize: '1rem',
+              p: 2,
+              borderBottom: `1px solid ${COLORS.border}`
             }}
           >
-            Cancel
-          </Button>
+            Confirm Bulk Delete
+          </DialogTitle>
 
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleBulkDeleteConfirm}
-            disabled={bulkDeleteLoading}
-            startIcon={!bulkDeleteLoading && <DeleteIcon sx={{ fontSize: '1rem' }} />}
+          <DialogContent sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.primary }}>
+                Are you sure you want to delete <strong>{selected.length}</strong> selected piece rate(s)?
+              </Typography>
+
+              <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                This action cannot be undone.
+              </Typography>
+
+              {bulkDeleteError && (
+                <Alert 
+                  severity="error" 
+                  variant="filled"
+                  sx={{ 
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  {bulkDeleteError}
+                </Alert>
+              )}
+            </Stack>
+          </DialogContent>
+
+          <DialogActions
             sx={{
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              px: 3
+              p: 2,
+              borderTop: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.light
             }}
           >
-            {bulkDeleteLoading ? <CircularProgress size={20} /> : "Delete Selected"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <Button
+              onClick={() => setOpenBulkDeleteDialog(false)}
+              disabled={bulkDeleteLoading}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                color: COLORS.text.secondary
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleBulkDeleteConfirm}
+              disabled={bulkDeleteLoading}
+              startIcon={!bulkDeleteLoading && <DeleteIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                px: 3
+              }}
+            >
+              {bulkDeleteLoading ? <CircularProgress size={20} /> : "Delete Selected"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar

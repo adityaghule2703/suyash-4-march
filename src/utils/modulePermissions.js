@@ -64,6 +64,9 @@ export const MODULES = {
   // BOM Master
   BOM_MASTER: 'BOM_MASTER',
   
+  // Sales Order Master
+  SALES_ORDER_MASTER: 'SALES_ORDER_MASTER',
+  
   // Reports
   REPORTS: 'REPORTS'
 };
@@ -127,6 +130,9 @@ export const PAGES = {
   
   // BOM Master Pages
   BOM_MASTER: 'BOM Master',
+  
+  // Sales Order Master Pages
+  SALES_ORDER_MASTER: 'Sales Order Master',
   
   // Reports Pages
   RECRUITMENT_REPORT: 'Recruitment Report',
@@ -488,6 +494,17 @@ export const MODULE_PERMISSIONS_CONFIG = [
     category: 'BOM Master',
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SALES ORDER MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.SALES_ORDER_MASTER,
+    page: PAGES.SALES_ORDER_MASTER,
+    category: 'Sales Order Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -87,6 +87,7 @@ const ViewBom = ({ open, onClose, bom }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        mb: 2,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'

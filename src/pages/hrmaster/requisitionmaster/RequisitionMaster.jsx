@@ -1656,10 +1656,10 @@ const LoadingState = () => (
 // Access Denied component
 const AccessDenied = () => (
   <Box sx={{ p: 4, textAlign: 'center' }}>
-    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2, fontSize: '1rem' }}>
       Access Denied
     </Typography>
-    <Typography variant="body2" color="text.secondary">
+    <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
       You don't have permission to view this page. Please contact your administrator.
     </Typography>
   </Box>
@@ -1686,49 +1686,106 @@ const ActionMenu = ({
   anchorEl, 
   onClose, 
   onOpen,
-  permissions,
+  userPermissions,
   isSuperAdmin
 }) => {
-  // Check permissions
-  const canView = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.VIEW);
-  const canCreate = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.CREATE);
-  const canUpdate = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.UPDATE);
-  const canDelete = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.DELETE);
-  const canApprove = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.APPROVE);
-  const canReject = hasPermission(permissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.REJECT);
+  // Check permissions using hasPermission utility
+  const canView = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.VIEW);
+  const canCreate = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.CREATE);
+  const canUpdate = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.DELETE);
+  const canApprove = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.APPROVE);
+  const canReject = isSuperAdmin || hasPermission(userPermissions, MODULES.REQUISITION_MASTER, PAGES.HIRING_REQUESTS, ACTIONS.REJECT);
 
-  // Superadmin has all permissions
-  const hasFullAccess = isSuperAdmin;
-
-  // Status-based permission checks with permission validation
+  // Status-based permission checks
   const isDraft = requisition?.status === 'draft';
   const isPending = requisition?.status === 'pending_approval';
-  const canDeleteItem = (isDraft || requisition?.status === 'rejected') && (hasFullAccess || canDelete);
+  const canDeleteItem = (isDraft || requisition?.status === 'rejected') && canDelete;
 
   const actions = [
-    { key: 'view', label: 'View Details', icon: <ViewIcon fontSize="small" />, color: COLORS.primary, onClick: () => onView(requisition), show: (hasFullAccess || canView) },
-    { key: 'edit', label: 'Edit', icon: <EditIcon fontSize="small" />, color: COLORS.primary, onClick: () => onEdit(requisition), show: isDraft && (hasFullAccess || canUpdate) },
-    { key: 'submit', label: 'Submit for Approval', icon: <SendIcon fontSize="small" />, color: '#1976D2', onClick: () => onSubmit(requisition), show: isDraft && (hasFullAccess || canUpdate) },
-    { key: 'approve', label: 'Approve', icon: <ThumbUpIcon fontSize="small" />, color: '#2E7D32', onClick: () => onApprove(requisition), show: isPending && (hasFullAccess || canApprove) },
-    { key: 'reject', label: 'Reject', icon: <ThumbDownIcon fontSize="small" />, color: '#EF4444', onClick: () => onReject(requisition), show: isPending && (hasFullAccess || canReject) },
-    { key: 'comment', label: 'Add Comment', icon: <CommentIcon fontSize="small" />, color: '#7B1FA2', onClick: () => onComment(requisition), show: (hasFullAccess || canUpdate) },
-    { key: 'delete', label: 'Delete', icon: <DeleteIcon fontSize="small" />, color: '#EF4444', onClick: () => onDelete(requisition), show: canDeleteItem }
+    { 
+      key: 'view', 
+      label: 'View Details', 
+      icon: <ViewIcon fontSize="small" />, 
+      color: COLORS.primary, 
+      onClick: () => onView(requisition), 
+      show: canView 
+    },
+    { 
+      key: 'edit', 
+      label: 'Edit', 
+      icon: <EditIcon fontSize="small" />, 
+      color: COLORS.primary, 
+      onClick: () => onEdit(requisition), 
+      show: isDraft && canUpdate 
+    },
+    { 
+      key: 'submit', 
+      label: 'Submit for Approval', 
+      icon: <SendIcon fontSize="small" />, 
+      color: '#1976D2', 
+      onClick: () => onSubmit(requisition), 
+      show: isDraft && canUpdate 
+    },
+    { 
+      key: 'approve', 
+      label: 'Approve', 
+      icon: <ThumbUpIcon fontSize="small" />, 
+      color: '#2E7D32', 
+      onClick: () => onApprove(requisition), 
+      show: isPending && canApprove 
+    },
+    { 
+      key: 'reject', 
+      label: 'Reject', 
+      icon: <ThumbDownIcon fontSize="small" />, 
+      color: '#EF4444', 
+      onClick: () => onReject(requisition), 
+      show: isPending && canReject 
+    },
+    { 
+      key: 'comment', 
+      label: 'Add Comment', 
+      icon: <CommentIcon fontSize="small" />, 
+      color: '#7B1FA2', 
+      onClick: () => onComment(requisition), 
+      show: canUpdate 
+    },
+    { 
+      key: 'delete', 
+      label: 'Delete', 
+      icon: <DeleteIcon fontSize="small" />, 
+      color: '#EF4444', 
+      onClick: () => onDelete(requisition), 
+      show: canDeleteItem 
+    }
   ];
 
   const visibleActions = actions.filter(a => a.show);
 
+  // If only view action is available, show a simple view icon
   if (visibleActions.length === 1 && visibleActions[0].key === 'view') {
     return (
       <Tooltip title="View Details">
         <IconButton
           size="small"
           onClick={() => onView(requisition)}
-          sx={{ color: COLORS.text.secondary, '&:hover': { bgcolor: `${COLORS.primary}20` } }}
+          sx={{ 
+            color: COLORS.text.secondary, 
+            '&:hover': { 
+              bgcolor: `${COLORS.primary}20` 
+            } 
+          }}
         >
           <ViewIcon fontSize="small" />
         </IconButton>
       </Tooltip>
     );
+  }
+
+  // If no actions available, return null
+  if (visibleActions.length === 0) {
+    return null;
   }
 
   return (
@@ -1737,7 +1794,12 @@ const ActionMenu = ({
         <IconButton
           size="small"
           onClick={onOpen}
-          sx={{ color: COLORS.text.secondary, '&:hover': { bgcolor: `${COLORS.primary}20` } }}
+          sx={{ 
+            color: COLORS.text.secondary, 
+            '&:hover': { 
+              bgcolor: `${COLORS.primary}20` 
+            } 
+          }}
         >
           <MoreVertIcon fontSize="small" />
         </IconButton>
@@ -1758,7 +1820,14 @@ const ActionMenu = ({
         }}
       >
         {visibleActions.map((action) => (
-          <MenuItem key={action.key} onClick={() => { action.onClick(); onClose(); }} sx={{ py: 1.5 }}>
+          <MenuItem 
+            key={action.key} 
+            onClick={() => { 
+              action.onClick(); 
+              onClose(); 
+            }} 
+            sx={{ py: 1.5 }}
+          >
             <ListItemIcon sx={{ color: action.color, minWidth: 36 }}>
               {action.icon}
             </ListItemIcon>
@@ -1805,11 +1874,17 @@ const RequisitionMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Fetch user permissions
+  // Fetch user permissions from /api/auth/me
   useEffect(() => {
     const fetchUserPermissions = async () => {
       try {
         const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPermissionsLoaded(true);
+          return;
+        }
+
         const response = await axios.get(`${BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1826,6 +1901,8 @@ const RequisitionMaster = () => {
           } else {
             setUserPermissions([]);
           }
+        } else {
+          setUserPermissions([]);
         }
       } catch (err) {
         console.error('Error fetching user permissions:', err);
@@ -1925,7 +2002,10 @@ const RequisitionMaster = () => {
   };
 
   const handleSelectAll = (event) => {
-    if (!canDelete && !isSuperAdmin) return;
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete requisitions', 'error');
+      return;
+    }
     
     if (event.target.checked) {
       setSelected(paginatedRequisitions.map(req => req._id));
@@ -1935,7 +2015,10 @@ const RequisitionMaster = () => {
   };
 
   const handleSelect = (id) => {
-    if (!canDelete && !isSuperAdmin) return;
+    if (!canDelete && !isSuperAdmin) {
+      showNotification('You do not have permission to delete requisitions', 'error');
+      return;
+    }
     
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
@@ -2337,7 +2420,7 @@ const RequisitionMaster = () => {
                         anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                         onClose={handleActionMenuClose}
                         onOpen={(e) => handleActionMenuOpen(e, requisition)}
-                        permissions={userPermissions}
+                        userPermissions={userPermissions}
                         isSuperAdmin={isSuperAdmin}
                       />
                     </TableCell>
@@ -2569,7 +2652,11 @@ const RequisitionMaster = () => {
 
       {/* Modals - Only render if user has appropriate permissions */}
       {(canCreate || isSuperAdmin) && (
-        <AddRequisition open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handleAddRequisition} />
+        <AddRequisition 
+          open={openAddModal} 
+          onClose={() => setOpenAddModal(false)} 
+          onAdd={handleAddRequisition} 
+        />
       )}
 
       {selectedRequisition && (
