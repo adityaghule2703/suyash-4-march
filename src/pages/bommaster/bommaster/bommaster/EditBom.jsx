@@ -1,4 +1,4 @@
-// AddBom.jsx
+// EditBom.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -14,9 +14,7 @@ import {
   Paper,
   IconButton,
   Autocomplete,
-  Chip,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   Alert,
@@ -32,6 +30,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Close as CloseIcon,
+  Save as SaveIcon,
   Inventory as InventoryIcon,
   ProductionQuantityLimits as ProductionIcon,
   DateRange as DateRangeIcon,
@@ -40,7 +39,7 @@ import {
   NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import BASE_URL from '../../../config/Config';
+import BASE_URL from '../../../../config/Config';
 
 const COLORS = {
   primary: '#063C3F',
@@ -87,50 +86,31 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-const AddBom = ({ open, onClose, onAdd }) => {
+const EditBom = ({ open, onClose, bom, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   
-  // Data from APIs
   const [parentItems, setParentItems] = useState([]);
   const [componentItems, setComponentItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
   
-  // Form data
   const [formData, setFormData] = useState({
     parent_item_id: '',
-    bom_version: 'v1.0',
-    bom_type: 'Manufacturing',
-    status: 'Pending',
+    bom_version: '',
+    bom_type: '',
+    status: '',
     batch_size: 1,
     yield_percent: 100,
     setup_time_min: 30,
     cycle_time_min: 5.5,
-    effective_from: new Date().toISOString().split('T')[0],
-    effective_to: '',
-    created_by: localStorage.getItem('userId') || ''
+    effective_from: '',
+    effective_to: ''
   });
   
-  const [components, setComponents] = useState([
-    {
-      level: 1,
-      component_item_id: '',
-      component_part_no: '',
-      component_desc: '',
-      quantity_per: 1,
-      unit: 'Nos',
-      scrap_percent: 0,
-      is_phantom: false,
-      is_subcontract: false,
-      subcontract_vendor: null,
-      reference_designator: '',
-      remarks: ''
-    }
-  ]);
+  const [components, setComponents] = useState([]);
   
-  // Fetch parent items (item_role = 'parent')
   const fetchParentItems = useCallback(async () => {
     try {
       setLoadingItems(true);
@@ -150,7 +130,6 @@ const AddBom = ({ open, onClose, onAdd }) => {
     }
   }, []);
   
-  // Fetch component items (item_role = 'component')
   const fetchComponentItems = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -168,18 +147,35 @@ const AddBom = ({ open, onClose, onAdd }) => {
   }, []);
   
   useEffect(() => {
-    if (open) {
+    if (open && bom) {
       fetchParentItems();
       fetchComponentItems();
+      
+      setFormData({
+        parent_item_id: bom.parent_item_id?._id || bom.parent_item_id || '',
+        bom_version: bom.bom_version || '',
+        bom_type: bom.bom_type || 'Manufacturing',
+        status: bom.status || 'Pending',
+        batch_size: bom.batch_size || 1,
+        yield_percent: bom.yield_percent || 100,
+        setup_time_min: bom.setup_time_min || 30,
+        cycle_time_min: bom.cycle_time_min || 5.5,
+        effective_from: bom.effective_from ? new Date(bom.effective_from).toISOString().split('T')[0] : '',
+        effective_to: bom.effective_to ? new Date(bom.effective_to).toISOString().split('T')[0] : ''
+      });
+      
+      setComponents(bom.components?.map(comp => ({
+        ...comp,
+        component_item_id: comp.component_item_id?._id || comp.component_item_id || ''
+      })) || []);
+      
+      setActiveStep(0);
     }
-  }, [open, fetchParentItems, fetchComponentItems]);
+  }, [open, bom, fetchParentItems, fetchComponentItems]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
   };
   
@@ -187,7 +183,6 @@ const AddBom = ({ open, onClose, onAdd }) => {
     const updatedComponents = [...components];
     updatedComponents[index][field] = value;
     
-    // Auto-fill part_no and description when component_item_id is selected
     if (field === 'component_item_id' && value) {
       const selectedItem = componentItems.find(item => item._id === value);
       if (selectedItem) {
@@ -317,7 +312,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
         }))
       };
       
-      const response = await axios.post(`${BASE_URL}/api/boms`, submitData, {
+      const response = await axios.put(`${BASE_URL}/api/boms/${bom._id}`, submitData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -325,58 +320,17 @@ const AddBom = ({ open, onClose, onAdd }) => {
       });
       
       if (response.data.success) {
-        onAdd(response.data.data);
+        onUpdate();
         onClose();
-        resetForm();
       } else {
-        setError(response.data.message || 'Failed to add BOM');
+        setError(response.data.message || 'Failed to update BOM');
       }
     } catch (err) {
-      console.error('Error adding BOM:', err);
-      setError(err.response?.data?.message || 'Failed to add BOM. Please try again.');
+      console.error('Error updating BOM:', err);
+      setError(err.response?.data?.message || 'Failed to update BOM. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-  
-  const resetForm = () => {
-    setActiveStep(0);
-    setFormData({
-      parent_item_id: '',
-      bom_version: 'v1.0',
-      bom_type: 'Manufacturing',
-      status: 'Pending',
-      batch_size: 1,
-      yield_percent: 100,
-      setup_time_min: 30,
-      cycle_time_min: 5.5,
-      effective_from: new Date().toISOString().split('T')[0],
-      effective_to: '',
-      created_by: localStorage.getItem('userId') || ''
-    });
-    setComponents([
-      {
-        level: 1,
-        component_item_id: '',
-        component_part_no: '',
-        component_desc: '',
-        quantity_per: 1,
-        unit: 'Nos',
-        scrap_percent: 0,
-        is_phantom: false,
-        is_subcontract: false,
-        subcontract_vendor: null,
-        reference_designator: '',
-        remarks: ''
-      }
-    ]);
-    setFieldErrors({});
-    setError('');
-  };
-  
-  const handleClose = () => {
-    resetForm();
-    onClose();
   };
   
   const renderStepContent = (step) => {
@@ -402,7 +356,36 @@ const AddBom = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      BOM ID
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, py: 1 }}>
+                      {bom?.bom_id}
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      BOM VERSION <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="bom_version"
+                      value={formData.bom_version}
+                      onChange={handleChange}
+                      error={!!fieldErrors.bom_version}
+                      helperText={fieldErrors.bom_version}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       PARENT ITEM <span style={{ color: '#EF4444' }}>*</span>
@@ -423,33 +406,9 @@ const AddBom = ({ open, onClose, onAdd }) => {
                           size="small"
                           error={!!fieldErrors.parent_item_id}
                           helperText={fieldErrors.parent_item_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                         />
                       )}
-                    />
-                  </Box>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      BOM VERSION <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="bom_version"
-                      value={formData.bom_version}
-                      onChange={handleChange}
-                      placeholder="v1.0"
-                      error={!!fieldErrors.bom_version}
-                      helperText={fieldErrors.bom_version}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                     />
                   </Box>
                 </Grid>
@@ -562,71 +521,52 @@ const AddBom = ({ open, onClose, onAdd }) => {
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Batch Size
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      name="batch_size"
-                      value={formData.batch_size}
-                      onChange={handleChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Batch Size"
+                    type="number"
+                    size="small"
+                    name="batch_size"
+                    value={formData.batch_size}
+                    onChange={handleChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
                 </Grid>
-                
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Yield (%)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      name="yield_percent"
-                      value={formData.yield_percent}
-                      onChange={handleChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Yield %"
+                    type="number"
+                    size="small"
+                    name="yield_percent"
+                    value={formData.yield_percent}
+                    onChange={handleChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
                 </Grid>
-                
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Setup Time (min)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      name="setup_time_min"
-                      value={formData.setup_time_min}
-                      onChange={handleChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Setup Time (min)"
+                    type="number"
+                    size="small"
+                    name="setup_time_min"
+                    value={formData.setup_time_min}
+                    onChange={handleChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
                 </Grid>
-                
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Cycle Time (min)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      name="cycle_time_min"
-                      value={formData.cycle_time_min}
-                      onChange={handleChange}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Cycle Time (min)"
+                    type="number"
+                    size="small"
+                    name="cycle_time_min"
+                    value={formData.cycle_time_min}
+                    onChange={handleChange}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
                 </Grid>
               </Grid>
             </Paper>
@@ -669,11 +609,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
                       Component {index + 1}
                     </Typography>
                     {components.length > 1 && (
-                      <IconButton
-                        size="small"
-                        onClick={() => removeComponent(index)}
-                        sx={{ color: '#EF4444' }}
-                      >
+                      <IconButton size="small" onClick={() => removeComponent(index)} sx={{ color: '#EF4444' }}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -848,18 +784,24 @@ const AddBom = ({ open, onClose, onAdd }) => {
                   </Typography>
                   <Grid container spacing={1}>
                     <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Parent Item:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>BOM ID:</Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {parentItems.find(item => item._id === formData.parent_item_id)?.part_no || '-'}
-                      </Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{bom?.bom_id}</Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>BOM Version:</Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.bom_version}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Parent Item:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                        {parentItems.find(item => item._id === formData.parent_item_id)?.part_no || '-'}
+                      </Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>BOM Type:</Typography>
@@ -954,13 +896,12 @@ const AddBom = ({ open, onClose, onAdd }) => {
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
           borderRadius: 2,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: `1px solid ${COLORS.border}`,
           overflow: 'hidden'
         }
@@ -970,15 +911,14 @@ const AddBom = ({ open, onClose, onAdd }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
-        bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Add New BOM
+          Edit BOM
         </Typography>
-        <IconButton onClick={handleClose} size="small">
+        <IconButton onClick={onClose} size="small">
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
@@ -1051,7 +991,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
         </Button>
         <Box>
           <Button
-            onClick={handleClose}
+            onClick={onClose}
             disabled={loading}
             size="small"
             sx={{
@@ -1078,7 +1018,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
               onClick={handleSubmit}
               disabled={loading}
               size="small"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+              startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
@@ -1090,7 +1030,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
                 '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
-              {loading ? 'Adding...' : 'Add BOM'}
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           ) : (
             <Button
@@ -1119,4 +1059,4 @@ const AddBom = ({ open, onClose, onAdd }) => {
   );
 };
 
-export default AddBom;
+export default EditBom;

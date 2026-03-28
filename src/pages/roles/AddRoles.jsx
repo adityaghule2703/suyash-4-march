@@ -56,7 +56,7 @@ const COLORS = {
 // All available actions from your permission catalog
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules from your permission catalog - Updated with Training Record Master
+// All pages/modules from your permission catalog - Updated with all Sales Order pages
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -65,7 +65,7 @@ const ALL_PAGES = [
   { module: 'USERS', page: 'Users', category: 'Administration' },
   { module: 'ROLES', page: 'Roles', category: 'Administration' },
   
-  // Quotation Master - Updated (Removed Supplier)
+  // Quotation Master
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
   { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
   { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
@@ -82,7 +82,7 @@ const ALL_PAGES = [
   { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
   { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
-  // Procurement Master - Updated with correct sequence and added Purchase Invoice Master
+  // Procurement Master
   { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Procurement Master' },
   { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
   { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
@@ -90,7 +90,7 @@ const ALL_PAGES = [
   { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
   { module: 'PURCHASE_INVOICE_MASTER', page: 'Purchase Invoice Master', category: 'Procurement Master' },
   
-  // HR Master - Updated with Training Record Master
+  // HR Master
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
   { module: 'DESIGNATION_MASTER', page: 'Designation Master', category: 'HR Master' },
   { module: 'EMPLOYEE_MASTER', page: 'Employee Registry', category: 'HR Master' },
@@ -112,7 +112,22 @@ const ALL_PAGES = [
   { module: 'EMPLOYEE_BEHAVIOR_MASTER', page: 'Behavior Monitoring', category: 'HR Master' },
   { module: 'MEDICLAIM_MASTER', page: 'Mediclaim Master', category: 'HR Master' },
   { module: 'TRAINING_RECORD_MASTER', page: 'Training Record Master', category: 'HR Master' },
-  { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' }
+  { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' },
+  
+  // BOM Master
+  { module: 'BOM_MASTER', page: 'BOM Master', category: 'BOM Master' },
+  
+  // Sales Order Master - All Sales Order Pages
+  { module: 'SALES_ORDER_MASTER', page: 'Sales Order Master', category: 'Sales Order Master' },
+  { module: 'ORDER_BOOK', page: 'Order Book', category: 'Sales Order Master' },
+  { module: 'SO_REVISION', page: 'SO Revision', category: 'Sales Order Master' },
+  { module: 'SO_SUMMARY', page: 'SO Summary', category: 'Sales Order Master' },
+  { module: 'SO_PENDING_DELIVERY', page: 'SO Pending Delivery', category: 'Sales Order Master' },
+  
+  // Reports
+  { module: 'REPORTS', page: 'Recruitment Report', category: 'Reports' },
+  { module: 'REPORTS', page: 'Employee Report', category: 'Reports' },
+  { module: 'REPORTS', page: 'Interview Report', category: 'Reports' }
 ];
 
 const AddRoles = () => {

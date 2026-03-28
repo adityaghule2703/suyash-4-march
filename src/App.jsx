@@ -57,8 +57,14 @@ import PurchaseRequisitionMaster from './pages/procurementmaster/purchaserequisi
 import RFQMaster from './pages/procurementmaster/RFQ/RfqMaster'
 import PurchaseInvoiceMaster from './pages/procurementmaster/purchaseinvoice/PurchaseInvoiceMaster'
 import TrainingRecordMaster from './pages/hrmaster/trainingrecord/TrainingRecordMaster'
-import BomMaster from './pages/bommaster/bommaster/BomMaster'
+
 import SalesOrderMaster from './pages/salesordermaster/SalesOrderMaster'
+import OrderBook from './pages/salesordermaster/sodelivery/OrderBook'
+import SORevise from './pages/salesordermaster/sorevision/SORevise'
+import SOSummary from './pages/salesordermaster/soreports/SOSummary'
+import SOPendingDelivery from './pages/salesordermaster/soreports/SOPendingDelivery'
+import BomMaster from './pages/bommaster/bommaster/bommaster/BomMaster'
+import MachineMaster from './pages/bommaster/machinemaster/MachineMaster'
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -141,8 +147,13 @@ const App = () => {
 
 
           <Route path='bommaster/bommaster' element={<BomMaster/>} />
+          <Route path='machinemaster/machinemaster' element={<MachineMaster/>} />
 
           <Route path='salesordermaster/salesordermaster' element={<SalesOrderMaster/>} />
+          <Route path='salesordermaster/orderbook' element={<OrderBook/>} />
+          <Route path='salesordermaster/sorevision' element={<SORevise/>} />
+          <Route path='salesordermaster/sosummary' element={<SOSummary/>} />
+          <Route path='salesordermaster/sopendingdelivery' element={<SOPendingDelivery/>} />
 
         </Route>
 

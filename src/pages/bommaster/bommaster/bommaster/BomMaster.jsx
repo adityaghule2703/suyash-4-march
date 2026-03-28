@@ -57,14 +57,21 @@ import {
   Star as DefaultIcon,
   History as HistoryIcon,
   Autorenew as ReviseIcon,
- 
+  PlayArrow as ValidateIcon,
+  FileCopy as FileCopyIcon,
+   PictureAsPdf as PictureAsPdfIcon,
+
 } from '@mui/icons-material';
+import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
-import BASE_URL from '../../../config/Config';
+import BASE_URL from '../../../../config/Config';
 import AddBom from './AddBom';
 import ViewBom from './ViewBom';
 import EditBom from './EditBom';
+import ValidateBom from './ValidateBom';
 import DeleteBom from './DeleteBom';
+import CopyBom from './CopyBom';
+import DownloadPdf from './DownloadPdf';
 import { COLORS } from './constants';
 
 // Color constants
@@ -79,9 +86,9 @@ const STATUS_COLORS = {
 };
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault, onRevisions, onRevise, onExplosion }) => {
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault, onRevisions, onRevise, onExplosion, onValidate, onCopy,  onDownloadPdf  }) => {
   const isApproved = item?.status === 'Approved';
-  
+
   return (
     <>
       <Tooltip title="Actions">
@@ -123,7 +130,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
         <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
             <EditIcon fontSize="small" />
@@ -134,7 +141,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
         <MenuItem onClick={() => { onWhereUsed(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
             <WhereUsedIcon fontSize="small" />
@@ -145,7 +152,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
         <MenuItem onClick={() => { onRevisions(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
             <HistoryIcon fontSize="small" />
@@ -156,7 +163,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
         <MenuItem onClick={() => { onRevise(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
             <ReviseIcon fontSize="small" />
@@ -167,10 +174,10 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
         <MenuItem onClick={() => { onExplosion(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-            
+
           </ListItemIcon>
           <ListItemText>
             <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
@@ -178,7 +185,40 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </Typography>
           </ListItemText>
         </MenuItem>
-        
+
+        <MenuItem onClick={() => { onValidate(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
+            <ValidateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
+              Validate BOM
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={() => { onCopy(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
+            <FileCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
+              Copy BOM
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={() => { onDownloadPdf(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+            <PictureAsPdfIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
+              Download PDF
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+
         {item?.status === 'Pending' && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
@@ -191,7 +231,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </ListItemText>
           </MenuItem>
         )}
-        
+
         {isApproved && (
           <MenuItem onClick={() => { onSetDefault(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
@@ -204,9 +244,9 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </ListItemText>
           </MenuItem>
         )}
-        
+
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        
+
         <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
             <DeleteIcon fontSize="small" />
@@ -232,7 +272,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
       day: 'numeric'
     });
   };
-  
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Approved':
@@ -247,12 +287,12 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
         return <PendingIcon sx={{ fontSize: '0.8rem', color: '#4F46E5' }} />;
     }
   };
-  
+
   const getStatusColor = (status) => {
     const colors = STATUS_COLORS[status] || { bg: '#F1F5F9', color: '#475569' };
     return colors;
   };
-  
+
   return (
     <Dialog
       open={open}
@@ -284,7 +324,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -292,12 +332,12 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
           </Box>
         ) : (
           <>
-            <Paper sx={{ 
-              p: 2, 
-              mb: 2.5, 
-              bgcolor: COLORS.background.light, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}` 
+            <Paper sx={{
+              p: 2,
+              mb: 2.5,
+              bgcolor: COLORS.background.light,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`
             }}>
               <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
                 Component
@@ -309,17 +349,17 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                 {component?.part_description}
               </Typography>
             </Paper>
-            
+
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
               Used in {usedInBoms?.length || 0} BOM(s)
             </Typography>
-            
+
             {usedInBoms?.length === 0 ? (
-              <Paper sx={{ 
-                p: 3, 
-                textAlign: 'center', 
-                bgcolor: COLORS.background.light, 
-                borderRadius: 1.5 
+              <Paper sx={{
+                p: 3,
+                textAlign: 'center',
+                bgcolor: COLORS.background.light,
+                borderRadius: 1.5
               }}>
                 <InventoryIcon sx={{ fontSize: 40, color: COLORS.text.tertiary, mb: 1 }} />
                 <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.secondary }}>
@@ -351,7 +391,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             {bom.bom_id}
                           </Typography>
                         </Grid>
-                        
+
                         <Grid size={{ xs: 12, sm: 4 }}>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                             Parent Part
@@ -363,7 +403,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             {bom.parent_description}
                           </Typography>
                         </Grid>
-                        
+
                         <Grid size={{ xs: 6, sm: 2 }}>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                             Version
@@ -371,7 +411,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                           <Chip
                             label={bom.bom_version}
                             size="small"
-                            sx={{ 
+                            sx={{
                               fontSize: '0.65rem',
                               height: 22,
                               bgcolor: COLORS.primaryLight,
@@ -379,7 +419,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             }}
                           />
                         </Grid>
-                        
+
                         <Grid size={{ xs: 6, sm: 2 }}>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                             Status
@@ -388,7 +428,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             icon={getStatusIcon(bom.status)}
                             label={bom.status}
                             size="small"
-                            sx={{ 
+                            sx={{
                               fontSize: '0.65rem',
                               height: 24,
                               bgcolor: statusColors.bg,
@@ -397,7 +437,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             }}
                           />
                         </Grid>
-                        
+
                         <Grid size={{ xs: 6, sm: 3 }}>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                             Effective From
@@ -406,7 +446,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             {formatDate(bom.effective_from)}
                           </Typography>
                         </Grid>
-                        
+
                         <Grid size={{ xs: 6, sm: 3 }}>
                           <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                             Effective To
@@ -415,14 +455,14 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
                             {formatDate(bom.effective_to)}
                           </Typography>
                         </Grid>
-                        
+
                         {bom.is_default && (
                           <Grid size={{ xs: 12 }}>
                             <Chip
                               icon={<DefaultIcon sx={{ fontSize: '0.7rem' }} />}
                               label="Default Version"
                               size="small"
-                              sx={{ 
+                              sx={{
                                 fontSize: '0.65rem',
                                 height: 22,
                                 bgcolor: '#FEF3C7',
@@ -440,7 +480,7 @@ const WhereUsedModal = ({ open, onClose, component, usedInBoms, loading }) => {
           </>
         )}
       </DialogContent>
-      
+
       <DialogActions sx={{
         px: 2.5,
         py: 1.5,
@@ -478,7 +518,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
       minute: '2-digit'
     });
   };
-  
+
   return (
     <Dialog
       open={open}
@@ -510,7 +550,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -518,12 +558,12 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
           </Box>
         ) : revisionsData ? (
           <>
-            <Paper sx={{ 
-              p: 2, 
-              mb: 2.5, 
-              bgcolor: COLORS.background.light, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}` 
+            <Paper sx={{
+              p: 2,
+              mb: 2.5,
+              bgcolor: COLORS.background.light,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`
             }}>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -543,7 +583,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                   <Chip
                     label={`v${revisionsData.current_revision}`}
                     size="small"
-                    sx={{ 
+                    sx={{
                       fontSize: '0.7rem',
                       fontWeight: 600,
                       bgcolor: COLORS.primary,
@@ -559,11 +599,11 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                 </Grid>
               </Grid>
             </Paper>
-            
+
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
               Revision List
             </Typography>
-            
+
             <Stack spacing={1.5}>
               {revisionsData.revisions?.map((rev, index) => (
                 <Paper
@@ -589,7 +629,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                           <Chip
                             label="Current"
                             size="small"
-                            sx={{ 
+                            sx={{
                               ml: 1,
                               fontSize: '0.6rem',
                               height: 20,
@@ -600,7 +640,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                         )}
                       </Typography>
                     </Grid>
-                    
+
                     <Grid size={{ xs: 12, sm: 4 }}>
                       <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                         Created At
@@ -609,7 +649,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                         {formatDate(rev.created_at)}
                       </Typography>
                     </Grid>
-                    
+
                     <Grid size={{ xs: 12, sm: 5 }}>
                       <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
                         Change Description
@@ -618,13 +658,13 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
                         {rev.change_description || '-'}
                       </Typography>
                     </Grid>
-                    
+
                     {rev.has_pdf && (
                       <Grid size={{ xs: 12 }}>
                         <Chip
                           label="PDF Available"
                           size="small"
-                          sx={{ 
+                          sx={{
                             fontSize: '0.65rem',
                             bgcolor: '#E8F0F1',
                             color: COLORS.primary
@@ -639,7 +679,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
           </>
         ) : null}
       </DialogContent>
-      
+
       <DialogActions sx={{
         px: 2.5,
         py: 1.5,
@@ -669,7 +709,7 @@ const RevisionHistoryModal = ({ open, onClose, revisionsData, loading }) => {
 const CreateRevisionModal = ({ open, onClose, onSubmit, loading }) => {
   const [changeDescription, setChangeDescription] = useState('');
   const [error, setError] = useState('');
-  
+
   const handleSubmit = () => {
     if (!changeDescription.trim()) {
       setError('Change description is required');
@@ -677,7 +717,7 @@ const CreateRevisionModal = ({ open, onClose, onSubmit, loading }) => {
     }
     onSubmit(changeDescription);
   };
-  
+
   return (
     <Dialog
       open={open}
@@ -708,7 +748,7 @@ const CreateRevisionModal = ({ open, onClose, onSubmit, loading }) => {
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         <TextField
           fullWidth
@@ -732,7 +772,7 @@ const CreateRevisionModal = ({ open, onClose, onSubmit, loading }) => {
           }}
         />
       </DialogContent>
-      
+
       <DialogActions sx={{
         px: 2.5,
         py: 1.5,
@@ -781,7 +821,7 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
   const formatNumber = (num) => {
     return parseFloat(num).toFixed(4);
   };
-  
+
   return (
     <Dialog
       open={open}
@@ -813,7 +853,7 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -822,12 +862,12 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
         ) : explosionData ? (
           <>
             {/* Header Info */}
-            <Paper sx={{ 
-              p: 2, 
-              mb: 2.5, 
-              bgcolor: COLORS.background.light, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}` 
+            <Paper sx={{
+              p: 2,
+              mb: 2.5,
+              bgcolor: COLORS.background.light,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`
             }}>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -859,7 +899,7 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
                 </Grid>
               </Grid>
             </Paper>
-            
+
             {/* Summary Cards */}
             <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -886,7 +926,7 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
                           key={unit}
                           label={`${formatNumber(qty)} ${unit}`}
                           size="small"
-                          sx={{ 
+                          sx={{
                             fontSize: '0.7rem',
                             bgcolor: COLORS.primaryLight,
                             color: COLORS.primary
@@ -898,12 +938,12 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
                 </Card>
               </Grid>
             </Grid>
-            
+
             {/* Explosion Table */}
             <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
               Component Requirements
             </Typography>
-            
+
             <TableContainer component={Paper} sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
               <Table size="small">
                 <TableHead>
@@ -933,7 +973,7 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
           </>
         ) : null}
       </DialogContent>
-      
+
       <DialogActions sx={{
         px: 2.5,
         py: 1.5,
@@ -959,7 +999,6 @@ const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
   );
 };
 
-import CloseIcon from '@mui/icons-material/Close';
 
 const BomMaster = () => {
   const [boms, setBoms] = useState([]);
@@ -974,7 +1013,7 @@ const BomMaster = () => {
   const [selectedBomForAction, setSelectedBomForAction] = useState(null);
   const [selectedBom, setSelectedBom] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  
+
   // Modal states
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -984,7 +1023,10 @@ const BomMaster = () => {
   const [openRevisionHistoryModal, setOpenRevisionHistoryModal] = useState(false);
   const [openCreateRevisionModal, setOpenCreateRevisionModal] = useState(false);
   const [openExplosionModal, setOpenExplosionModal] = useState(false);
-  
+  const [openValidateModal, setOpenValidateModal] = useState(false);
+  const [openCopyModal, setOpenCopyModal] = useState(false);
+  const [openPdfModal, setOpenPdfModal] = useState(false);
+
   // Data states
   const [whereUsedData, setWhereUsedData] = useState(null);
   const [whereUsedLoading, setWhereUsedLoading] = useState(false);
@@ -1010,16 +1052,16 @@ const BomMaster = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       const params = new URLSearchParams({
         page: page + 1,
         limit: rowsPerPage
       });
-      
+
       if (searchTerm) {
         params.append('search', searchTerm);
       }
-      
+
       const response = await axios.get(`${BASE_URL}/api/boms?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1049,54 +1091,54 @@ const BomMaster = () => {
       setSelected([]);
     }
   };
-  
+
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-    
+
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
       newSelected = selected.filter(item => item !== id);
     }
-    
+
     setSelected(newSelected);
   };
-  
+
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     setSelected([]);
   };
-  
+
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
     setSelected([]);
   };
-  
+
   const handleAddBom = () => {
     fetchBoms();
     showNotification('BOM added successfully!', 'success');
   };
-  
+
   const handleEditBom = () => {
     fetchBoms();
     showNotification('BOM updated successfully!', 'success');
   };
-  
+
   const handleDeleteBom = () => {
     fetchBoms();
     setSelected([]);
     showNotification('BOM deleted successfully!', 'success');
   };
-  
+
   const handleApproveBom = async (bom) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${BASE_URL}/api/boms/${bom._id}/approve`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.data.success) {
         showNotification('BOM approved successfully!', 'success');
         fetchBoms();
@@ -1108,14 +1150,14 @@ const BomMaster = () => {
       showNotification('Failed to approve BOM', 'error');
     }
   };
-  
+
   const handleSetDefaultBom = async (bom) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${BASE_URL}/api/boms/${bom._id}/set-default`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.data.success) {
         showNotification('BOM set as default successfully!', 'success');
         fetchBoms();
@@ -1127,20 +1169,20 @@ const BomMaster = () => {
       showNotification('Failed to set BOM as default', 'error');
     }
   };
-  
+
   const handleWhereUsed = async (bom) => {
     setOpenWhereUsedModal(true);
     setWhereUsedLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
       const componentId = bom.components?.[0]?.component_item_id?._id || bom.components?.[0]?.component_item_id;
-      
+
       if (componentId) {
         const response = await axios.get(`${BASE_URL}/api/boms/where-used/${componentId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (response.data.success) {
           setWhereUsedData(response.data.data);
         } else {
@@ -1156,17 +1198,17 @@ const BomMaster = () => {
       setWhereUsedLoading(false);
     }
   };
-  
+
   const handleRevisionHistory = async (bom) => {
     setOpenRevisionHistoryModal(true);
     setRevisionsLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/boms/${bom._id}/revisions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.data.success) {
         setRevisionsData(response.data.data);
       } else {
@@ -1179,17 +1221,17 @@ const BomMaster = () => {
       setRevisionsLoading(false);
     }
   };
-  
+
   const handleCreateRevision = async (bom, changeDescription) => {
     setCreateRevisionLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${BASE_URL}/api/boms/${bom._id}/revisions/revise`, 
+      const response = await axios.post(`${BASE_URL}/api/boms/${bom._id}/revisions/revise`,
         { change_description: changeDescription },
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      
+
       if (response.data.success) {
         showNotification('New revision created successfully!', 'success');
         setOpenCreateRevisionModal(false);
@@ -1204,17 +1246,17 @@ const BomMaster = () => {
       setCreateRevisionLoading(false);
     }
   };
-  
+
   const handleExplosion = async (bom) => {
     setOpenExplosionModal(true);
     setExplosionLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/boms/${bom._id}/explosion?quantity=${explosionQuantity}&effective_date=${explosionEffectiveDate}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.data.success) {
         setExplosionData(response.data.data);
       } else {
@@ -1227,7 +1269,39 @@ const BomMaster = () => {
       setExplosionLoading(false);
     }
   };
-  
+
+  const handleValidateBom = (bom) => {
+    setSelectedBom(bom);
+    setOpenValidateModal(true);
+    handleActionMenuClose();
+  };
+
+  const handleValidationComplete = (validationResult) => {
+    console.log('Validation completed:', validationResult);
+    if (!validationResult.is_valid) {
+      showNotification(`BOM validation failed with ${validationResult.summary.error_count} errors`, 'warning');
+    } else {
+      showNotification('BOM validation passed successfully!', 'success');
+    }
+  };
+
+  const handleCopyBom = (bom) => {
+    setSelectedBom(bom);
+    setOpenCopyModal(true);
+    handleActionMenuClose();
+  };
+
+  const handleCopyComplete = (newBom) => {
+    showNotification(`BOM copied successfully! New BOM ID: ${newBom.bom_id}`, 'success');
+    fetchBoms(); // Refresh the list
+  };
+
+  const handleDownloadPdf = (bom) => {
+    setSelectedBom(bom);
+    setOpenPdfModal(true);
+    handleActionMenuClose();
+  };
+
   const handleActionMenuOpen = (event, bom) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedBomForAction(bom);
@@ -1243,59 +1317,59 @@ const BomMaster = () => {
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-  
+
   const openEditBomModal = (bom) => {
     setSelectedBom(bom);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-  
+
   const openDeleteBomDialog = (bom) => {
     setSelectedBom(bom);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-  
+
   const openWhereUsedModalFunc = (bom) => {
     setSelectedBom(bom);
     handleWhereUsed(bom);
     handleActionMenuClose();
   };
-  
+
   const openRevisionHistoryModalFunc = (bom) => {
     setSelectedBom(bom);
     handleRevisionHistory(bom);
     handleActionMenuClose();
   };
-  
+
   const openCreateRevisionModalFunc = (bom) => {
     setSelectedBom(bom);
     setOpenCreateRevisionModal(true);
     handleActionMenuClose();
   };
-  
+
   const openExplosionModalFunc = (bom) => {
     setSelectedBom(bom);
     handleExplosion(bom);
     handleActionMenuClose();
   };
-  
+
   const handleApprove = (bom) => {
     handleApproveBom(bom);
     handleActionMenuClose();
   };
-  
+
   const handleSetDefault = (bom) => {
     handleSetDefaultBom(bom);
     handleActionMenuClose();
   };
-  
+
   const handleCreateRevisionSubmit = (changeDescription) => {
     if (selectedBom) {
       handleCreateRevision(selectedBom, changeDescription);
     }
   };
-  
+
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -1303,7 +1377,7 @@ const BomMaster = () => {
       severity
     });
   };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1312,7 +1386,7 @@ const BomMaster = () => {
       day: 'numeric'
     });
   };
-  
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Approved':
@@ -1327,12 +1401,12 @@ const BomMaster = () => {
         return <PendingIcon sx={{ fontSize: '0.9rem', color: '#4F46E5' }} />;
     }
   };
-  
+
   const getBomInitials = (bom) => {
     if (!bom.parent_part_no) return 'BM';
     return bom.parent_part_no.substring(0, 2).toUpperCase();
   };
-  
+
   const getAvatarColor = (bom) => {
     if (!bom.parent_part_no) return COLORS.primary;
     const colors = [COLORS.primary, COLORS.primaryDark, '#074346', '#0D696C', '#128C7E'];
@@ -1411,10 +1485,10 @@ const BomMaster = () => {
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
       <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
+        <Typography
+          variant="h5"
+          component="h1"
+          sx={{
             fontSize: '1.25rem',
             fontWeight: 700,
             color: COLORS.text.primary,
@@ -1429,9 +1503,9 @@ const BomMaster = () => {
       </Box>
 
       {/* Action Bar */}
-      <Paper sx={{ 
-        p: 1.5, 
-        mb: 2.5, 
+      <Paper sx={{
+        p: 1.5,
+        mb: 2.5,
         borderRadius: 2,
         bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
@@ -1445,7 +1519,7 @@ const BomMaster = () => {
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              sx={{ 
+              sx={{
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
@@ -1461,7 +1535,7 @@ const BomMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                sx: { 
+                sx: {
                   height: 36,
                   bgcolor: COLORS.background.light,
                   '& input': {
@@ -1486,7 +1560,7 @@ const BomMaster = () => {
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                sx={{ 
+                sx={{
                   height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
@@ -1529,9 +1603,9 @@ const BomMaster = () => {
       </Paper>
 
       {/* BOMs Table */}
-      <Paper sx={{ 
-        width: '100%', 
-        borderRadius: 2, 
+      <Paper sx={{
+        width: '100%',
+        borderRadius: 2,
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: `1px solid ${COLORS.border}`
@@ -1539,7 +1613,7 @@ const BomMaster = () => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ 
+              <TableRow sx={{
                 bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
@@ -1625,13 +1699,13 @@ const BomMaster = () => {
                   const avatarColor = getAvatarColor(bom);
                   const statusColors = STATUS_COLORS[bom.status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
                   const parentItem = bom.parent_item_id || {};
-                  
+
                   return (
                     <React.Fragment key={bom._id}>
                       <TableRow
                         hover
                         selected={isSelected}
-                        sx={{ 
+                        sx={{
                           bgcolor: COLORS.background.white,
                           '&:hover': {
                             bgcolor: COLORS.background.hover
@@ -1690,7 +1764,7 @@ const BomMaster = () => {
                           <Chip
                             label={bom.bom_version}
                             size="small"
-                            sx={{ 
+                            sx={{
                               fontSize: '0.65rem',
                               fontWeight: 500,
                               height: 24,
@@ -1709,7 +1783,7 @@ const BomMaster = () => {
                             icon={getStatusIcon(bom.status)}
                             label={bom.status || 'Pending'}
                             size="small"
-                            sx={{ 
+                            sx={{
                               fontSize: '0.65rem',
                               fontWeight: 500,
                               height: 24,
@@ -1738,7 +1812,7 @@ const BomMaster = () => {
                           </Typography>
                         </TableCell>
                         <TableCell align="center" sx={{ width: 60 }}>
-                          <ActionMenu 
+                          <ActionMenu
                             item={bom}
                             anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                             onOpen={(e) => handleActionMenuOpen(e, bom)}
@@ -1752,6 +1826,9 @@ const BomMaster = () => {
                             onRevisions={openRevisionHistoryModalFunc}
                             onRevise={openCreateRevisionModalFunc}
                             onExplosion={openExplosionModalFunc}
+                            onValidate={handleValidateBom}
+                            onCopy={handleCopyBom}
+                             onDownloadPdf={handleDownloadPdf}
                           />
                         </TableCell>
                       </TableRow>
@@ -1790,7 +1867,7 @@ const BomMaster = () => {
       </Paper>
 
       {/* Modal Components */}
-      <AddBom 
+      <AddBom
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
         onAdd={handleAddBom}
@@ -1798,7 +1875,7 @@ const BomMaster = () => {
 
       {selectedBom && (
         <>
-          <ViewBom 
+          <ViewBom
             open={openViewModal}
             onClose={() => {
               setOpenViewModal(false);
@@ -1807,7 +1884,7 @@ const BomMaster = () => {
             bom={selectedBom}
           />
 
-          <EditBom 
+          <EditBom
             open={openEditModal}
             onClose={() => {
               setOpenEditModal(false);
@@ -1817,7 +1894,7 @@ const BomMaster = () => {
             onUpdate={handleEditBom}
           />
 
-          <DeleteBom 
+          <DeleteBom
             open={openDeleteDialog}
             onClose={() => {
               setOpenDeleteDialog(false);
@@ -1871,18 +1948,59 @@ const BomMaster = () => {
         loading={explosionLoading}
       />
 
+      {/* Validate BOM Modal */}
+      {selectedBom && (
+        <ValidateBom
+          open={openValidateModal}
+          onClose={() => {
+            setOpenValidateModal(false);
+            setSelectedBom(null);
+          }}
+          bomId={selectedBom._id}
+          bomData={selectedBom}
+          onValidationComplete={handleValidationComplete}
+        />
+      )}
+
+      {/* Copy BOM Modal */}
+      {selectedBom && (
+        <CopyBom
+          open={openCopyModal}
+          onClose={() => {
+            setOpenCopyModal(false);
+            setSelectedBom(null);
+          }}
+          bomId={selectedBom._id}
+          bomData={selectedBom}
+          onCopyComplete={handleCopyComplete}
+        />
+      )}
+
+      {/* Download PDF Modal */}
+{selectedBom && (
+  <DownloadPdf
+    open={openPdfModal}
+    onClose={() => {
+      setOpenPdfModal(false);
+      setSelectedBom(null);
+    }}
+    bomId={selectedBom._id}
+    bomData={selectedBom}
+  />
+)}
+
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: 1.5,
             fontSize: '0.75rem',

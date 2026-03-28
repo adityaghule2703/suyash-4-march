@@ -2,46 +2,53 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Typography,
-  Button,
-  Stack,
-  Grid,
   Paper,
-  IconButton,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Alert,
-  CircularProgress,
+  Grid,
   Stepper,
   Step,
   StepLabel,
   StepConnector,
   stepConnectorClasses,
+  TextField,
+  Typography,
+  Button,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  IconButton,
+  FormControl,
+  Select,
+  MenuItem,
+  Autocomplete,
   styled,
-  Divider
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Close as CloseIcon,
-  Save as SaveIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
   Business as BusinessIcon,
   Inventory as InventoryIcon,
   LocalShipping as ShippingIcon,
-  NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  AttachMoney as MoneyIcon,
+  Info as InfoIcon,
+  Close as CloseIcon,
+  Save as SaveIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
 
+// Color constants matching other components
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -60,13 +67,7 @@ const COLORS = {
   border: '#E3E8EF'
 };
 
-const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
-const DELIVERY_TERMS_OPTIONS = ['Ex-Works', 'FOR Destination', 'CIF', 'FOB', ''];
-const DELIVERY_MODE_OPTIONS = ['Road', 'Rail', 'Air', 'Sea', 'Hand Delivery', ''];
-const UNIT_OPTIONS = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
-
-const steps = ['Basic Information', 'Delivery Details', 'Items', 'Review & Submit'];
-
+// Modern Stepper Connector with Primary Color
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
@@ -85,6 +86,14 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
     borderRadius: 1,
   },
 }));
+
+// Options
+const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
+const DELIVERY_TERMS_OPTIONS = ['Ex-Works', 'FOR Destination', 'CIF', 'FOB', ''];
+const DELIVERY_MODE_OPTIONS = ['Road', 'Rail', 'Air', 'Sea', 'Hand Delivery', ''];
+const UNIT_OPTIONS = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
+
+const steps = ['Basic Information', 'Delivery Details', 'Items', 'Review & Submit'];
 
 const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
@@ -181,6 +190,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       
       calculateTotals(so.items);
       setActiveStep(0);
+      setError('');
+      setFieldErrors({});
     }
   }, [open, so, fetchCustomers, fetchItems]);
   
@@ -309,6 +320,42 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     return isValid;
   };
   
+  const validateAllFields = () => {
+    const errors = {};
+    let isValid = true;
+    
+    if (!formData.customer_id) {
+      errors.customer_id = 'Customer is required';
+      isValid = false;
+    }
+    
+    if (!formData.expected_delivery_date) {
+      errors.expected_delivery_date = 'Expected delivery date is required';
+      isValid = false;
+    }
+    
+    soItems.forEach((item, index) => {
+      if (!item.item_id) {
+        errors[`item_${index}_item_id`] = `Item ${index + 1}: Item is required`;
+        isValid = false;
+      }
+      if (!item.ordered_qty || item.ordered_qty <= 0) {
+        errors[`item_${index}_ordered_qty`] = `Item ${index + 1}: Valid quantity is required`;
+        isValid = false;
+      }
+      if (!item.unit_price || item.unit_price <= 0) {
+        errors[`item_${index}_unit_price`] = `Item ${index + 1}: Valid unit price is required`;
+        isValid = false;
+      }
+    });
+    
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix all validation errors');
+    }
+    return isValid;
+  };
+  
   const handleNext = () => {
     if (validateStep(activeStep)) {
       setError('');
@@ -322,7 +369,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   };
   
   const handleSubmit = async () => {
-    if (!validateStep(2)) {
+    if (!validateAllFields()) {
       return;
     }
     
@@ -367,7 +414,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   };
   
   const formatCurrency = (amount) => {
-    if (!amount) return '-';
+    if (!amount && amount !== 0) return '-';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: formData.currency || 'INR',
@@ -380,27 +427,48 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 0:
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            {/* Basic Information Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Basic Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      SO Number
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      SO NUMBER
                     </Typography>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, py: 1 }}>
-                      {so?.so_number}
+                    <Typography sx={{ 
+                      fontSize: '0.8rem', 
+                      fontWeight: 500, 
+                      color: COLORS.text.primary,
+                      py: 1,
+                      px: 1.5,
+                      bgcolor: COLORS.background.light,
+                      borderRadius: 1.5,
+                      border: `1px solid ${COLORS.border}`
+                    }}>
+                      {so?.so_number || '-'}
                     </Typography>
                   </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       CUSTOMER <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <Autocomplete
@@ -419,7 +487,21 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                           size="small"
                           error={!!fieldErrors.customer_id}
                           helperText={fieldErrors.customer_id}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
                         />
                       )}
                     />
@@ -427,61 +509,131 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Customer PO Number"
-                    size="small"
-                    name="customer_po_number"
-                    value={formData.customer_po_number}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="Customer PO Date"
-                    size="small"
-                    name="customer_po_date"
-                    value={formData.customer_po_date}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel sx={{ fontSize: '0.75rem' }}>Currency</InputLabel>
-                    <Select
-                      name="currency"
-                      value={formData.currency}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CUSTOMER PO NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="customer_po_number"
+                      value={formData.customer_po_number}
                       onChange={handleChange}
-                      label="Currency"
-                      sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                    >
-                      {CURRENCY_OPTIONS.map(option => (
-                        <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                      placeholder="e.g., PO-2025-001"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Payment Terms"
-                    size="small"
-                    name="payment_terms"
-                    value={formData.payment_terms}
-                    onChange={handleChange}
-                    placeholder="e.g., Net 30"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CUSTOMER PO DATE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      size="small"
+                      name="customer_po_date"
+                      value={formData.customer_po_date}
+                      onChange={handleChange}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      CURRENCY
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleChange}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1,
+                            px: 1.5
+                          }
+                        }}
+                      >
+                        {CURRENCY_OPTIONS.map(option => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      PAYMENT TERMS
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="payment_terms"
+                      value={formData.payment_terms}
+                      onChange={handleChange}
+                      placeholder="e.g., Net 30, 50% Advance"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -491,89 +643,170 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 1:
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            {/* Delivery Information Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 <ShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Delivery Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel sx={{ fontSize: '0.75rem' }}>Delivery Terms</InputLabel>
-                    <Select
-                      name="delivery_terms"
-                      value={formData.delivery_terms}
-                      onChange={handleChange}
-                      label="Delivery Terms"
-                      sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                    >
-                      {DELIVERY_TERMS_OPTIONS.map(option => (
-                        <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                          {option || 'None'}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      DELIVERY TERMS
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        name="delivery_terms"
+                        value={formData.delivery_terms}
+                        onChange={handleChange}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1,
+                            px: 1.5
+                          }
+                        }}
+                      >
+                        {DELIVERY_TERMS_OPTIONS.map(option => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option || 'None'}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel sx={{ fontSize: '0.75rem' }}>Delivery Mode</InputLabel>
-                    <Select
-                      name="delivery_mode"
-                      value={formData.delivery_mode}
-                      onChange={handleChange}
-                      label="Delivery Mode"
-                      sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                    >
-                      {DELIVERY_MODE_OPTIONS.map(option => (
-                        <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                          {option || 'None'}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      DELIVERY MODE
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        name="delivery_mode"
+                        value={formData.delivery_mode}
+                        onChange={handleChange}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1,
+                            px: 1.5
+                          }
+                        }}
+                      >
+                        {DELIVERY_MODE_OPTIONS.map(option => (
+                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                            {option || 'None'}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="Expected Delivery Date"
-                    size="small"
-                    name="expected_delivery_date"
-                    value={formData.expected_delivery_date}
-                    onChange={handleChange}
-                    error={!!fieldErrors.expected_delivery_date}
-                    helperText={fieldErrors.expected_delivery_date}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    InputLabelProps={{ shrink: true }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                      EXPECTED DELIVERY DATE <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      size="small"
+                      name="expected_delivery_date"
+                      value={formData.expected_delivery_date}
+                      onChange={handleChange}
+                      error={!!fieldErrors.expected_delivery_date}
+                      helperText={fieldErrors.expected_delivery_date}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
             
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            {/* Additional Information Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Additional Information
               </Typography>
               
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                size="small"
-                name="internal_remarks"
-                label="Internal Remarks"
-                value={formData.internal_remarks}
-                onChange={handleChange}
-                placeholder="Any internal notes or special instructions..."
-                sx={{
-                  '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' },
-                  '& .MuiInputLabel-root': { fontSize: '0.75rem' }
-                }}
-              />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                  INTERNAL REMARKS
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                  name="internal_remarks"
+                  value={formData.internal_remarks}
+                  onChange={handleChange}
+                  placeholder="Any internal notes or special instructions..."
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary,
+                      '&::placeholder': {
+                        color: COLORS.text.tertiary,
+                        fontSize: '0.75rem'
+                      }
+                    }
+                  }}
+                />
+              </Box>
             </Paper>
           </Stack>
         );
@@ -581,20 +814,45 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 2:
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            {/* Order Items Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
                 <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Order Items <span style={{ color: '#EF4444' }}>*</span>
               </Typography>
               
               {soItems.map((item, index) => (
-                <Paper key={index} sx={{ p: 2, mb: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    bgcolor: COLORS.background.light,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`
+                  }}
+                >
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       Item {index + 1}
                     </Typography>
                     {soItems.length > 1 && (
-                      <IconButton size="small" onClick={() => removeItem(index)} sx={{ color: '#EF4444' }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => removeItem(index)}
+                        sx={{ color: '#EF4444' }}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -602,131 +860,283 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                   
                   <Grid container spacing={1.5}>
                     <Grid size={{ xs: 12 }}>
-                      <Autocomplete
-                        fullWidth
-                        options={items}
-                        getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
-                        value={items.find(i => i._id === item.item_id) || null}
-                        onChange={(event, newValue) => handleItemChange(index, 'item_id', newValue?._id || '')}
-                        loading={loadingData}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Select Item"
-                            size="small"
-                            error={!!fieldErrors[`item_${index}_item_id`]}
-                            helperText={fieldErrors[`item_${index}_item_id`]}
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                          />
-                        )}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          ITEM <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <Autocomplete
+                          fullWidth
+                          options={items}
+                          getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
+                          value={items.find(i => i._id === item.item_id) || null}
+                          onChange={(event, newValue) => handleItemChange(index, 'item_id', newValue?._id || '')}
+                          loading={loadingData}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              error={!!fieldErrors[`item_${index}_item_id`]}
+                              helperText={fieldErrors[`item_${index}_item_id`]}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                                  '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PART NO
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={item.part_no}
+                          disabled
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              backgroundColor: COLORS.background.light
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.secondary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
-                      <TextField
-                        fullWidth
-                        label="Part No"
-                        size="small"
-                        value={item.part_no}
-                        disabled
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          UNIT
+                        </Typography>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={item.unit}
+                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                            sx={{
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '& .MuiSelect-select': {
+                                py: 1,
+                                px: 1.5
+                              }
+                            }}
+                          >
+                            {UNIT_OPTIONS.map(option => (
+                              <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                                {option}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel sx={{ fontSize: '0.75rem' }}>Unit</InputLabel>
-                        <Select
-                          value={item.unit}
-                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                          label="Unit"
-                          sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                        >
-                          {UNIT_OPTIONS.map(option => (
-                            <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                              {option}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={item.ordered_qty}
+                          onChange={(e) => handleItemChange(index, 'ordered_qty', e.target.value)}
+                          error={!!fieldErrors[`item_${index}_ordered_qty`]}
+                          helperText={fieldErrors[`item_${index}_ordered_qty`]}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
-                      <TextField
-                        fullWidth
-                        type="number"
-                        label="Quantity"
-                        size="small"
-                        value={item.ordered_qty}
-                        onChange={(e) => handleItemChange(index, 'ordered_qty', e.target.value)}
-                        error={!!fieldErrors[`item_${index}_ordered_qty`]}
-                        helperText={fieldErrors[`item_${index}_ordered_qty`]}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          UNIT PRICE <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={item.unit_price}
+                          onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
+                          error={!!fieldErrors[`item_${index}_unit_price`]}
+                          helperText={fieldErrors[`item_${index}_unit_price`]}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
-                      <TextField
-                        fullWidth
-                        type="number"
-                        label="Unit Price"
-                        size="small"
-                        value={item.unit_price}
-                        onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
-                        error={!!fieldErrors[`item_${index}_unit_price`]}
-                        helperText={fieldErrors[`item_${index}_unit_price`]}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 2 }}>
-                      <TextField
-                        fullWidth
-                        type="number"
-                        label="Discount %"
-                        size="small"
-                        value={item.discount_percent}
-                        onChange={(e) => handleItemChange(index, 'discount_percent', e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          DISCOUNT %
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={item.discount_percent}
+                          onChange={(e) => handleItemChange(index, 'discount_percent', e.target.value)}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
-                      <TextField
-                        fullWidth
-                        type="date"
-                        label="Required Date"
-                        size="small"
-                        value={item.required_date}
-                        onChange={(e) => handleItemChange(index, 'required_date', e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                        InputLabelProps={{ shrink: true }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          REQUIRED DATE
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          size="small"
+                          value={item.required_date}
+                          onChange={(e) => handleItemChange(index, 'required_date', e.target.value)}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
-                      <TextField
-                        fullWidth
-                        type="date"
-                        label="Committed Date"
-                        size="small"
-                        value={item.committed_date}
-                        onChange={(e) => handleItemChange(index, 'committed_date', e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                        InputLabelProps={{ shrink: true }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          COMMITTED DATE
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          size="small"
+                          value={item.committed_date}
+                          onChange={(e) => handleItemChange(index, 'committed_date', e.target.value)}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Box>
                     </Grid>
                     
                     <Grid size={{ xs: 12 }}>
-                      <TextField
-                        fullWidth
-                        label="Remarks"
-                        size="small"
-                        value={item.remarks}
-                        onChange={(e) => handleItemChange(index, 'remarks', e.target.value)}
-                        placeholder="Additional notes..."
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          REMARKS
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={item.remarks}
+                          onChange={(e) => handleItemChange(index, 'remarks', e.target.value)}
+                          placeholder="Additional notes..."
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary,
+                              '&::placeholder': {
+                                color: COLORS.text.tertiary,
+                                fontSize: '0.75rem'
+                              }
+                            }
+                          }}
+                        />
+                      </Box>
                     </Grid>
                   </Grid>
                 </Paper>
@@ -743,7 +1153,12 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                   border: `1px solid ${COLORS.border}`,
                   color: COLORS.text.secondary,
                   fontSize: '0.7rem',
-                  textTransform: 'none'
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
                 }}
               >
                 Add Item
@@ -755,99 +1170,128 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 3:
         return (
           <Stack spacing={2}>
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            {/* Review Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Review & Submit
               </Typography>
               
-              <Paper sx={{ p: 2, mb: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-                  Customer Information
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography>
+              <Stack spacing={2}>
+                {/* Customer Info Summary */}
+                <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
+                    Customer Information
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>SO Number:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{so?.so_number || '-'}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                        {customers.find(c => c._id === formData.customer_id)?.customer_name || '-'}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>PO Number:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.customer_po_number || '-'}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Expected Delivery:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.expected_delivery_date}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Currency:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.currency}</Typography>
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                      {customers.find(c => c._id === formData.customer_id)?.customer_name || '-'}
-                    </Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>PO Number:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.customer_po_number || '-'}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Expected Delivery:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.expected_delivery_date}</Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-              
-              <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-                  Order Summary
-                </Typography>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Item</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Qty</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Unit</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }} align="right">Price</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }} align="right">Total</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {soItems.map((item, idx) => {
-                        const total = (item.ordered_qty * item.unit_price) * (1 - (item.discount_percent / 100));
-                        return (
-                          <TableRow key={idx}>
-                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_no || '-'}</TableCell>
-                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.ordered_qty}</TableCell>
-                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.unit}</TableCell>
-                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(item.unit_price)}</TableCell>
-                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(total)}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                </Paper>
                 
-                <Divider sx={{ my: 2 }} />
-                
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Sub Total:</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.sub_total)}</Typography>
+                {/* Items Summary */}
+                <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
+                    Order Summary
+                  </Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Item</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Qty</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Unit</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }} align="right">Price</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }} align="right">Total</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {soItems.map((item, idx) => {
+                          const total = (item.ordered_qty * item.unit_price) * (1 - (item.discount_percent / 100));
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_no || '-'}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{item.ordered_qty}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{item.unit}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(item.unit_price)}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(total)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Sub Total:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.sub_total)}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Discount:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.discount_total)}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Taxable Amount:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.taxable_total)}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>GST (18%):</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.gst_total)}</Typography>
+                    </Stack>
+                    <Divider />
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>Grand Total:</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669' }}>
+                        {formatCurrency(calculatedTotals.grand_total)}
+                      </Typography>
+                    </Stack>
                   </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Discount:</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.discount_total)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Taxable Amount:</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.taxable_total)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>GST (18%):</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formatCurrency(calculatedTotals.gst_total)}</Typography>
-                  </Stack>
-                  <Divider />
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>Grand Total:</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669' }}>
-                      {formatCurrency(calculatedTotals.grand_total)}
-                    </Typography>
-                  </Stack>
-                </Stack>
-              </Paper>
+                </Paper>
+              </Stack>
             </Paper>
           </Stack>
         );
@@ -861,11 +1305,12 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
           borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: `1px solid ${COLORS.border}`,
           overflow: 'hidden'
         }
@@ -875,6 +1320,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -887,8 +1333,13 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         </IconButton>
       </DialogTitle>
       
+      {/* Modern Stepper with Primary Color */}
       <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-        <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+        >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>
@@ -903,7 +1354,21 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {renderStepContent(activeStep)}
-        {error && <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>{error}</Alert>}
+        
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              fontSize: '0.75rem',
+              py: 0.5,
+              '& .MuiAlert-icon': { fontSize: '1.25rem' }
+            }}
+          >
+            {error}
+          </Alert>
+        )}
       </DialogContent>
       
       <DialogActions sx={{
@@ -913,19 +1378,95 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         bgcolor: COLORS.background.white,
         justifyContent: 'space-between'
       }}>
-        <Button onClick={handleBack} disabled={activeStep === 0 || loading} startIcon={<NavigateBeforeIcon />} sx={{ height: 32, px: 2, borderRadius: 1.5, fontSize: '0.7rem' }}>
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
           Back
         </Button>
         <Box>
-          <Button onClick={onClose} disabled={loading} sx={{ height: 32, px: 2, mr: 1, borderRadius: 1.5, fontSize: '0.7rem' }}>
+          <Button
+            onClick={onClose}
+            disabled={loading}
+            size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
             Cancel
           </Button>
           {activeStep === steps.length - 1 ? (
-            <Button variant="contained" onClick={handleSubmit} disabled={loading} startIcon={<SaveIcon />} sx={{ height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem' }}>
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading}
+              size="small"
+              startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
+              }}
+            >
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           ) : (
-            <Button variant="contained" onClick={handleNext} disabled={loading} endIcon={<NavigateNextIcon />} sx={{ height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem' }}>
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: COLORS.primaryDark,
+                }
+              }}
+            >
               Next
             </Button>
           )}
@@ -934,8 +1475,5 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     </Dialog>
   );
 };
-
-import Table from '@mui/material/Table';
-import TableContainer from '@mui/material/TableContainer';
 
 export default EditSaleOrder;

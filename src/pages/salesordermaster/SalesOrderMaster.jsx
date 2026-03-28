@@ -28,7 +28,13 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  Grid
+  Grid,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -43,7 +49,10 @@ import {
   Cancel as CancelIcon,
   Print as PrintIcon,
   Download as DownloadIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  History as HistoryIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
@@ -83,7 +92,7 @@ const DELIVERY_TERMS_OPTIONS = ['Ex-Works', 'FOR Destination', 'CIF', 'FOB', '']
 const DELIVERY_MODE_OPTIONS = ['Road', 'Rail', 'Air', 'Sea', 'Hand Delivery', ''];
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate }) => {
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate, onHistory }) => {
   const currentStatus = item?.status || 'Draft';
   const availableTransitions = SO_STATUS_TRANSITIONS[currentStatus] || [];
 
@@ -140,8 +149,23 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </ListItemText>
         </MenuItem>
         
-        {availableTransitions.length > 0 && (
-          <MenuItem onClick={() => { onStatusUpdate(item); onClose(); }} sx={{ py: 1.5 }}>
+        {/* Confirm Button - POST API */}
+        {currentStatus === 'Draft' && (
+          <MenuItem onClick={() => { onStatusUpdate(item, 'confirm'); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <CheckCircleIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                Confirm
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {/* Regular Status Update for other transitions */}
+        {availableTransitions.length > 0 && currentStatus !== 'Draft' && (
+          <MenuItem onClick={() => { onStatusUpdate(item, 'regular'); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
               <SendIcon fontSize="small" />
             </ListItemIcon>
@@ -152,6 +176,18 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             </ListItemText>
           </MenuItem>
         )}
+        
+        {/* History Button */}
+        <MenuItem onClick={() => { onHistory(item); onClose(); }} sx={{ py: 1.5 }}>
+          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+            <HistoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+              View History
+            </Typography>
+          </ListItemText>
+        </MenuItem>
         
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         
@@ -167,6 +203,244 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
         </MenuItem>
       </Menu>
     </>
+  );
+};
+
+// History Modal Component
+const HistoryModal = ({ open, onClose, so, historyData, loading }) => {
+  const getStatusIcon = (action, status) => {
+    if (action === 'created') return <AddIcon sx={{ fontSize: '1rem', color: '#10B981' }} />;
+    if (status === 'Confirmed') return <CheckCircleIcon sx={{ fontSize: '1rem', color: '#3B82F6' }} />;
+    if (status === 'Cancelled') return <CancelIcon sx={{ fontSize: '1rem', color: '#EF4444' }} />;
+    if (status === 'Fully Delivered' || status === 'Closed') return <CheckCircleOutlineIcon sx={{ fontSize: '1rem', color: '#10B981' }} />;
+    return <ScheduleIcon sx={{ fontSize: '1rem', color: '#F59E0B' }} />;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStepStatus = (action, status, index, historyLength, currentStatus) => {
+    if (action === 'created') return 'completed';
+    if (index === historyLength - 1) return 'active';
+    return 'completed';
+  };
+
+  // Helper to format action label without showing email
+  const getActionLabel = (log) => {
+    if (log.action === 'created') {
+      return 'Order Created';
+    }
+    if (log.action === 'status_change') {
+      return `Status Changed to ${log.new_value}`;
+    }
+    return log.action;
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
+          maxHeight: '80vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <HistoryIcon sx={{ color: COLORS.primary, fontSize: '1.25rem' }} />
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+              Order History
+            </Typography>
+            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+              {so?.so_number} - {so?.customer_name}
+            </Typography>
+          </Box>
+        </Stack>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 0, bgcolor: COLORS.background.light }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+            <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : !historyData || historyData.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <HistoryIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
+            <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary }}>
+              No history available for this order
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ p: 2.5 }}>
+            {/* Current Status Badge */}
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Chip
+                icon={so?.status === 'Confirmed' ? <CheckCircleIcon /> : so?.status === 'Cancelled' ? <CancelIcon /> : <PendingIcon />}
+                label={`Current Status: ${so?.status || 'Draft'}`}
+                sx={{
+                  bgcolor: STATUS_COLORS[so?.status]?.bg || '#F1F5F9',
+                  color: STATUS_COLORS[so?.status]?.color || '#475569',
+                  fontWeight: 500,
+                  fontSize: '0.75rem'
+                }}
+              />
+            </Box>
+
+            {/* Stepper View */}
+            <Stepper orientation="vertical" activeStep={historyData.length - 1}>
+              {historyData.map((log, index) => {
+                const isLast = index === historyData.length - 1;
+                const actionLabel = getActionLabel(log);
+                
+                return (
+                  <Step key={log._id || index} active={isLast} completed={!isLast}>
+                    <StepLabel
+                      StepIconComponent={() => getStatusIcon(log.action, log.new_value)}
+                      sx={{
+                        '& .MuiStepLabel-label': {
+                          fontSize: '0.875rem',
+                          fontWeight: isLast ? 600 : 400,
+                          color: isLast ? COLORS.primary : COLORS.text.primary
+                        }
+                      }}
+                    >
+                      {actionLabel}
+                    </StepLabel>
+                    <StepContent>
+                      <Card sx={{ 
+                        mb: 2, 
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        boxShadow: 'none',
+                        bgcolor: COLORS.background.white
+                      }}>
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Grid container spacing={1}>
+                            {log.notes && (
+                              <Grid item xs={12}>
+                                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 1 }}>
+                                  {log.notes}
+                                </Typography>
+                              </Grid>
+                            )}
+                            <Grid item xs={12}>
+                              <Stack direction="row" spacing={2} alignItems="center">
+                                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                                  Changed by: <strong>{log.changed_by?.Username || 'System'}</strong>
+                                </Typography>
+                                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                                  {formatDate(log.changed_at)}
+                                </Typography>
+                              </Stack>
+                            </Grid>
+                            {log.old_value && log.new_value && log.action === 'status_change' && (
+                              <Grid item xs={12}>
+                                <Stack direction="row" spacing={1}>
+                                  <Chip 
+                                    label={`From: ${log.old_value}`} 
+                                    size="small"
+                                    sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#FEE2E2', color: '#DC2626' }}
+                                  />
+                                  <Chip 
+                                    label={`To: ${log.new_value}`} 
+                                    size="small"
+                                    sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#D1FAE5', color: '#059669' }}
+                                  />
+                                </Stack>
+                              </Grid>
+                            )}
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    </StepContent>
+                  </Step>
+                );
+              })}
+            </Stepper>
+
+            {/* Summary Card */}
+            <Card sx={{ 
+              mt: 3, 
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <CardContent sx={{ p: 2 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, mb: 1, color: COLORS.text.primary }}>
+                  Summary
+                </Typography>
+                <Stack direction="row" spacing={3}>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Total Events
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: COLORS.text.primary }}>
+                      {historyData.length}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Last Updated
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: COLORS.text.primary }}>
+                      {historyData.length > 0 ? formatDate(historyData[historyData.length - 1].changed_at) : '-'}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+      </DialogContent>
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
@@ -190,8 +464,12 @@ const SalesOrderMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openHistoryModal, setOpenHistoryModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
+  const [historyData, setHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -287,6 +565,32 @@ const SalesOrderMaster = () => {
     showNotification('Sales Order deleted successfully!', 'success');
   };
   
+  // Handle Confirm API Call
+  const handleConfirm = async (so) => {
+    setConfirmLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${BASE_URL}/api/sales-orders/${so._id}/confirm`,
+        {},
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        showNotification('Sales Order confirmed successfully!', 'success');
+        fetchSalesOrders();
+      } else {
+        showNotification(response.data.message || 'Failed to confirm order', 'error');
+      }
+    } catch (err) {
+      console.error('Error confirming order:', err);
+      showNotification('Failed to confirm order', 'error');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+  
+  // Handle Regular Status Update
   const handleStatusUpdate = async () => {
     if (!selectedSO || !selectedStatus) return;
     
@@ -313,6 +617,32 @@ const SalesOrderMaster = () => {
       showNotification('Failed to update status', 'error');
     } finally {
       setStatusLoading(false);
+    }
+  };
+  
+  // Handle View History
+  const handleViewHistory = async (so) => {
+    setSelectedSO(so);
+    setOpenHistoryModal(true);
+    setHistoryLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/sales-orders/${so._id}/history`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        setHistoryData(response.data.data);
+      } else {
+        showNotification('Failed to load history', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      showNotification('Failed to load history', 'error');
+    } finally {
+      setHistoryLoading(false);
     }
   };
   
@@ -344,10 +674,14 @@ const SalesOrderMaster = () => {
     handleActionMenuClose();
   };
   
-  const openStatusUpdateDialog = (so) => {
-    setSelectedSO(so);
-    setSelectedStatus(so.status || 'Draft');
-    setOpenStatusDialog(true);
+  const openStatusUpdateDialog = (so, type) => {
+    if (type === 'confirm') {
+      handleConfirm(so);
+    } else {
+      setSelectedSO(so);
+      setSelectedStatus(so.status || 'Draft');
+      setOpenStatusDialog(true);
+    }
     handleActionMenuClose();
   };
   
@@ -751,6 +1085,7 @@ const SalesOrderMaster = () => {
                           onEdit={openEditSOModal}
                           onDelete={openDeleteSODialog}
                           onStatusUpdate={openStatusUpdateDialog}
+                          onHistory={handleViewHistory}
                         />
                       </TableCell>
                     </TableRow>
@@ -822,6 +1157,19 @@ const SalesOrderMaster = () => {
             }}
             so={selectedSO}
             onDelete={handleDeleteSO}
+          />
+
+          {/* History Modal */}
+          <HistoryModal
+            open={openHistoryModal}
+            onClose={() => {
+              setOpenHistoryModal(false);
+              setSelectedSO(null);
+              setHistoryData(null);
+            }}
+            so={selectedSO}
+            historyData={historyData?.audit_log || []}
+            loading={historyLoading}
           />
 
           {/* Status Update Dialog */}

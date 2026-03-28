@@ -66,6 +66,10 @@ export const MODULES = {
   
   // Sales Order Master
   SALES_ORDER_MASTER: 'SALES_ORDER_MASTER',
+  ORDER_BOOK: 'ORDER_BOOK',
+  SO_REVISION: 'SO_REVISION',
+  SO_SUMMARY: 'SO_SUMMARY',
+  SO_PENDING_DELIVERY: 'SO_PENDING_DELIVERY',
   
   // Reports
   REPORTS: 'REPORTS'
@@ -133,6 +137,10 @@ export const PAGES = {
   
   // Sales Order Master Pages
   SALES_ORDER_MASTER: 'Sales Order Master',
+  ORDER_BOOK: 'Order Book',
+  SO_REVISION: 'SO Revision',
+  SO_SUMMARY: 'SO Summary',
+  SO_PENDING_DELIVERY: 'SO Pending Delivery',
   
   // Reports Pages
   RECRUITMENT_REPORT: 'Recruitment Report',
@@ -506,6 +514,32 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
+  {
+    moduleKey: MODULES.ORDER_BOOK,
+    page: PAGES.ORDER_BOOK,
+    category: 'Sales Order Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.SO_REVISION,
+    page: PAGES.SO_REVISION,
+    category: 'Sales Order Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.SO_SUMMARY,
+    page: PAGES.SO_SUMMARY,
+    category: 'Sales Order Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.SO_PENDING_DELIVERY,
+    page: PAGES.SO_PENDING_DELIVERY,
+    category: 'Sales Order Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.UPDATE]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // REPORTS
@@ -514,19 +548,19 @@ export const MODULE_PERMISSIONS_CONFIG = [
     moduleKey: MODULES.REPORTS,
     page: PAGES.RECRUITMENT_REPORT,
     category: 'Reports',
-    actions: [ACTIONS.VIEW]
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   },
   {
     moduleKey: MODULES.REPORTS,
     page: PAGES.EMPLOYEE_REPORT,
     category: 'Reports',
-    actions: [ACTIONS.VIEW]
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   },
   {
     moduleKey: MODULES.REPORTS,
     page: PAGES.INTERVIEW_REPORT,
     category: 'Reports',
-    actions: [ACTIONS.VIEW]
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   }
 ];
 
