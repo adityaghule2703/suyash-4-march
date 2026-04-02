@@ -1,4 +1,3 @@
-// BomMaster.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -59,12 +58,12 @@ import {
   Autorenew as ReviseIcon,
   PlayArrow as ValidateIcon,
   FileCopy as FileCopyIcon,
-   PictureAsPdf as PictureAsPdfIcon,
+  PictureAsPdf as PictureAsPdfIcon,
 
 } from '@mui/icons-material';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
-import BASE_URL from '../../../../config/Config';
+import BASE_URL from '../../../config/Config';
 import AddBom from './AddBom';
 import ViewBom from './ViewBom';
 import EditBom from './EditBom';
@@ -73,6 +72,7 @@ import DeleteBom from './DeleteBom';
 import CopyBom from './CopyBom';
 import DownloadPdf from './DownloadPdf';
 import { COLORS } from './constants';
+import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Color constants
 const STATUS_COLORS = {
@@ -85,9 +85,51 @@ const STATUS_COLORS = {
   Archived: { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' }
 };
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault, onRevisions, onRevise, onExplosion, onValidate, onCopy,  onDownloadPdf  }) => {
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onWhereUsed, onApprove, onSetDefault, onRevisions, onRevise, onExplosion, onValidate, onCopy, onDownloadPdf, permissions, isSuperAdmin }) => {
   const isApproved = item?.status === 'Approved';
+  const isPending = item?.status === 'Pending';
+
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.VIEW);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.CREATE);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.DELETE);
+  const canExport = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.EXPORT);
+  const canPrint = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.PRINT);
+
+  // Additional action permissions (using existing actions)
+  const canApprove = canUpdate; // Approve uses update permission
+  const canSetDefault = canUpdate; // Set as default uses update permission
+  const canCreateRevision = canUpdate; // Create revision uses update permission
+  const canWhereUsed = canView; // Where used uses view permission
+  const canValidate = canView; // Validate uses view permission
+  const canCopy = canCreate; // Copy uses create permission
+  const canDownloadPdf = canPrint; // Download PDF uses print permission
+
+  // If no actions available, don't render the menu
+  if (!canView && !canUpdate && !canDelete && !canExport && !canPrint && !canCreate) {
+    return null;
+  }
 
   return (
     <>
@@ -120,106 +162,124 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onWhereUsed(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-            <WhereUsedIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-              Where Used
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canWhereUsed && (
+          <MenuItem onClick={() => { onWhereUsed(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <WhereUsedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                Where Used
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onRevisions(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
-            <HistoryIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#06B6D4', fontSize: '0.75rem' }}>
-              Revision History
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onRevisions(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
+              <HistoryIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#06B6D4', fontSize: '0.75rem' }}>
+                Revision History
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onRevise(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
-            <ReviseIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
-              Create New Revision
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canCreateRevision && (
+          <MenuItem onClick={() => { onRevise(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+              <ReviseIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+                Create New Revision
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onExplosion(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+        {canView && (
+          <MenuItem onClick={() => { onExplosion(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
 
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
-              BOM Explosion
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                BOM Explosion
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onValidate(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
-            <ValidateIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
-              Validate BOM
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canValidate &&(
+          <MenuItem onClick={() => { onValidate(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
+              <ValidateIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
+                Validate BOM
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onCopy(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
-            <FileCopyIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
-              Copy BOM
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canCopy && (
+          <MenuItem onClick={() => { onCopy(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#3B82F6', minWidth: 36 }}>
+              <FileCopyIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#3B82F6', fontSize: '0.75rem' }}>
+                Copy BOM
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onDownloadPdf(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <PictureAsPdfIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
-              Download PDF
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canDownloadPdf && (
+          <MenuItem onClick={() => { onDownloadPdf(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <PictureAsPdfIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
+                Download PDF
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        {item?.status === 'Pending' && (
+        {item?.status === 'Pending' && canApprove && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
               <ApproveIcon fontSize="small" />
@@ -232,7 +292,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {isApproved && (
+        {isApproved && canSetDefault && (
           <MenuItem onClick={() => { onSetDefault(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
               <DefaultIcon fontSize="small" />
@@ -245,18 +305,22 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {(canView || canUpdate || canCreateRevision || canWhereUsed || canValidate || canCopy || canDownloadPdf) && canDelete && (
+          <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        )}
 
-        <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -1038,6 +1102,58 @@ const BomMaster = () => {
   const [explosionQuantity, setExplosionQuantity] = useState(1);
   const [explosionEffectiveDate, setExplosionEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, action);
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1048,6 +1164,11 @@ const BomMaster = () => {
   }, [searchInput]);
 
   // Fetch BOMs from API
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchBoms();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin, page, rowsPerPage, searchTerm]);
   const fetchBoms = useCallback(async () => {
     try {
       setLoading(true);
@@ -1080,11 +1201,8 @@ const BomMaster = () => {
     }
   }, [page, rowsPerPage, searchTerm]);
 
-  useEffect(() => {
-    fetchBoms();
-  }, [fetchBoms]);
-
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(boms.map(bom => bom._id));
     } else {
@@ -1093,6 +1211,7 @@ const BomMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
 
@@ -1171,6 +1290,8 @@ const BomMaster = () => {
   };
 
   const handleWhereUsed = async (bom) => {
+    if (!canViewPage) return;
+
     setOpenWhereUsedModal(true);
     setWhereUsedLoading(true);
 
@@ -1200,6 +1321,8 @@ const BomMaster = () => {
   };
 
   const handleRevisionHistory = async (bom) => {
+    if (!canViewPage) return;
+
     setOpenRevisionHistoryModal(true);
     setRevisionsLoading(true);
 
@@ -1223,6 +1346,8 @@ const BomMaster = () => {
   };
 
   const handleCreateRevision = async (bom, changeDescription) => {
+    if (!canUpdate) return;
+
     setCreateRevisionLoading(true);
 
     try {
@@ -1248,6 +1373,8 @@ const BomMaster = () => {
   };
 
   const handleExplosion = async (bom) => {
+    if (!canViewPage) return;
+
     setOpenExplosionModal(true);
     setExplosionLoading(true);
 
@@ -1271,6 +1398,8 @@ const BomMaster = () => {
   };
 
   const handleValidateBom = (bom) => {
+    if (!canViewPage) return;
+
     setSelectedBom(bom);
     setOpenValidateModal(true);
     handleActionMenuClose();
@@ -1286,6 +1415,8 @@ const BomMaster = () => {
   };
 
   const handleCopyBom = (bom) => {
+    if (!canCreate) return;
+
     setSelectedBom(bom);
     setOpenCopyModal(true);
     handleActionMenuClose();
@@ -1297,6 +1428,8 @@ const BomMaster = () => {
   };
 
   const handleDownloadPdf = (bom) => {
+    if (!canPrint) return;
+
     setSelectedBom(bom);
     setOpenPdfModal(true);
     handleActionMenuClose();
@@ -1313,59 +1446,77 @@ const BomMaster = () => {
   };
 
   const openViewBomModal = (bom) => {
+    if (!canViewPage) return;
+
     setSelectedBom(bom);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditBomModal = (bom) => {
+    if (!canUpdate) return;
+
     setSelectedBom(bom);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteBomDialog = (bom) => {
+    if (!canDelete) return;
+
     setSelectedBom(bom);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openWhereUsedModalFunc = (bom) => {
+    if (!canViewPage) return;
+
     setSelectedBom(bom);
     handleWhereUsed(bom);
     handleActionMenuClose();
   };
 
   const openRevisionHistoryModalFunc = (bom) => {
+    if (!canViewPage) return;
+
     setSelectedBom(bom);
     handleRevisionHistory(bom);
     handleActionMenuClose();
   };
 
   const openCreateRevisionModalFunc = (bom) => {
+    if (!canUpdate) return;
+
     setSelectedBom(bom);
     setOpenCreateRevisionModal(true);
     handleActionMenuClose();
   };
 
   const openExplosionModalFunc = (bom) => {
+    if (!canViewPage) return;
+
     setSelectedBom(bom);
     handleExplosion(bom);
     handleActionMenuClose();
   };
 
   const handleApprove = (bom) => {
+    if (!canUpdate) return;
+
     handleApproveBom(bom);
     handleActionMenuClose();
   };
 
   const handleSetDefault = (bom) => {
+    if (!canUpdate) return;
+
     handleSetDefaultBom(bom);
     handleActionMenuClose();
   };
 
   const handleCreateRevisionSubmit = (changeDescription) => {
-    if (selectedBom) {
+    if (selectedBom && canUpdate) {
       handleCreateRevision(selectedBom, changeDescription);
     }
   };
@@ -1481,6 +1632,16 @@ const BomMaster = () => {
     );
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -1553,9 +1714,11 @@ const BomMaster = () => {
             />
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons  - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1578,26 +1741,30 @@ const BomMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add BOM
-            </Button>
+
+            {/* Add BOM Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add BOM
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1621,26 +1788,30 @@ const BomMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < boms.length}
-                    checked={boms.length > 0 && selected.length === boms.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < boms.length}
+                      checked={boms.length > 0 && selected.length === boms.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || boms.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || boms.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 40 }}></TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   BOM ID / Parent Item
@@ -1723,21 +1894,24 @@ const BomMaster = () => {
                           }
                         }}
                       >
-                        <TableCell padding="checkbox" sx={{ width: 40 }}>
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => handleSelect(bom._id)}
-                            sx={{
-                              color: COLORS.primary,
-                              '&.Mui-checked': {
+                        {/* Checkbox Column - Only show if user has delete permission */}
+                        {canDelete && (
+                          <TableCell padding="checkbox" sx={{ width: 40 }}>
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => handleSelect(bom._id)}
+                              sx={{
                                 color: COLORS.primary,
-                              },
-                              '& .MuiSvgIcon-root': {
-                                fontSize: '1.25rem'
-                              }
-                            }}
-                          />
-                        </TableCell>
+                                '&.Mui-checked': {
+                                  color: COLORS.primary,
+                                },
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: '1.25rem'
+                                }
+                              }}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell sx={{ width: 40 }}>
                           {(bom.components?.length || 0) > 0 && (
                             <IconButton size="small">
@@ -1828,7 +2002,9 @@ const BomMaster = () => {
                             onExplosion={openExplosionModalFunc}
                             onValidate={handleValidateBom}
                             onCopy={handleCopyBom}
-                             onDownloadPdf={handleDownloadPdf}
+                            onDownloadPdf={handleDownloadPdf}
+                            permissions={userPermissions}
+                            isSuperAdmin={isSuperAdmin}
                           />
                         </TableCell>
                       </TableRow>
@@ -1867,59 +2043,70 @@ const BomMaster = () => {
       </Paper>
 
       {/* Modal Components */}
-      <AddBom
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddBom}
-      />
+      {canCreate && (
+        <AddBom
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddBom}
+        />
+      )}
 
       {selectedBom && (
         <>
-          <ViewBom
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedBom(null);
-            }}
-            bom={selectedBom}
-          />
+          {canViewPage && (
+            <ViewBom
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedBom(null);
+              }}
+              bom={selectedBom}
+            />
+          )}
 
-          <EditBom
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedBom(null);
-            }}
-            bom={selectedBom}
-            onUpdate={handleEditBom}
-          />
+          {canUpdate && (
+            <EditBom
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedBom(null);
+              }}
+              bom={selectedBom}
+              onUpdate={handleEditBom}
+            />
+          )}
 
-          <DeleteBom
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedBom(null);
-            }}
-            bom={selectedBom}
-            onDelete={handleDeleteBom}
-          />
+          {canDelete && (
+            <DeleteBom
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedBom(null);
+              }}
+              bom={selectedBom}
+              onDelete={handleDeleteBom}
+            />
+          )}
         </>
       )}
 
       {/* Where Used Modal */}
-      <WhereUsedModal
-        open={openWhereUsedModal}
-        onClose={() => {
-          setOpenWhereUsedModal(false);
-          setWhereUsedData(null);
-        }}
-        component={whereUsedData?.component}
-        usedInBoms={whereUsedData?.used_in_boms || []}
-        loading={whereUsedLoading}
-      />
-
+      {canViewPage && (
+        <>
+        <WhereUsedModal
+          open={openWhereUsedModal}
+          onClose={() => {
+            setOpenWhereUsedModal(false);
+            setWhereUsedData(null);
+          }}
+          component={whereUsedData?.component}
+          usedInBoms={whereUsedData?.used_in_boms || []}
+          loading={whereUsedLoading}
+        />
+      
       {/* Revision History Modal */}
-      <RevisionHistoryModal
+      {canViewPage && (
+        <RevisionHistoryModal
         open={openRevisionHistoryModal}
         onClose={() => {
           setOpenRevisionHistoryModal(false);
@@ -1928,17 +2115,12 @@ const BomMaster = () => {
         revisionsData={revisionsData}
         loading={revisionsLoading}
       />
+      )}
 
-      {/* Create Revision Modal */}
-      <CreateRevisionModal
-        open={openCreateRevisionModal}
-        onClose={() => setOpenCreateRevisionModal(false)}
-        onSubmit={handleCreateRevisionSubmit}
-        loading={createRevisionLoading}
-      />
 
       {/* BOM Explosion Modal */}
-      <ExplosionModal
+      {canViewPage && (
+        <ExplosionModal
         open={openExplosionModal}
         onClose={() => {
           setOpenExplosionModal(false);
@@ -1947,9 +2129,10 @@ const BomMaster = () => {
         explosionData={explosionData}
         loading={explosionLoading}
       />
+      )}
 
       {/* Validate BOM Modal */}
-      {selectedBom && (
+      {selectedBom && canViewPage && (
         <ValidateBom
           open={openValidateModal}
           onClose={() => {
@@ -1961,9 +2144,11 @@ const BomMaster = () => {
           onValidationComplete={handleValidationComplete}
         />
       )}
+        </>
+      )}
 
       {/* Copy BOM Modal */}
-      {selectedBom && (
+      {selectedBom && canCreate && (
         <CopyBom
           open={openCopyModal}
           onClose={() => {
@@ -1977,17 +2162,28 @@ const BomMaster = () => {
       )}
 
       {/* Download PDF Modal */}
-{selectedBom && (
-  <DownloadPdf
-    open={openPdfModal}
-    onClose={() => {
-      setOpenPdfModal(false);
-      setSelectedBom(null);
-    }}
-    bomId={selectedBom._id}
-    bomData={selectedBom}
-  />
-)}
+      {selectedBom && canPrint && (
+        <DownloadPdf
+          open={openPdfModal}
+          onClose={() => {
+            setOpenPdfModal(false);
+            setSelectedBom(null);
+          }}
+          bomId={selectedBom._id}
+          bomData={selectedBom}
+        />
+      )}
+
+      
+      {/* Create Revision Modal */}
+      {canUpdate && (
+      <CreateRevisionModal
+        open={openCreateRevisionModal}
+        onClose={() => setOpenCreateRevisionModal(false)}
+        onSubmit={handleCreateRevisionSubmit}
+        loading={createRevisionLoading}
+      />
+      )}
 
       {/* Snackbar Notification */}
       <Snackbar

@@ -32,7 +32,7 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import BASE_URL from '../../../../config/Config';
+import BASE_URL from '../../../config/Config';
 
 const COLORS = {
   primary: '#063C3F',

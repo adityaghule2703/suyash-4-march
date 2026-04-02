@@ -143,7 +143,7 @@ const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onO
         }}
       >
         {canView && (
-          <MenuItem 
+          <MenuItem
             onClick={() => {
               onView(employee);
               onClose();
@@ -160,9 +160,9 @@ const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onO
             </ListItemText>
           </MenuItem>
         )}
-        
+
         {canUpdate && (
-          <MenuItem 
+          <MenuItem
             onClick={() => {
               onEdit(employee);
               onClose();
@@ -179,11 +179,11 @@ const ActionMenu = ({ employee, onView, onEdit, onDelete, anchorEl, onClose, onO
             </ListItemText>
           </MenuItem>
         )}
-        
+
         {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
-        
+
         {canDelete && (
-          <MenuItem 
+          <MenuItem
             onClick={() => {
               onDelete(employee);
               onClose();
@@ -211,26 +211,26 @@ const EmployeeMaster = () => {
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
-  
+
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedEmployeeForAction, setSelectedEmployeeForAction] = useState(null);
-  
+
   // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openIncrementSummaryModal, setOpenIncrementSummaryModal] = useState(false);
-  
+
   // Selected employee
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  
+
   // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -253,11 +253,11 @@ const EmployeeMaster = () => {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (response.data.success) {
           const userData = response.data.data;
           setIsSuperAdmin(userData.isSuperAdmin || false);
-          
+
           // Set permissions array
           if (userData.permissions && Array.isArray(userData.permissions)) {
             setUserPermissions(userData.permissions);
@@ -272,7 +272,7 @@ const EmployeeMaster = () => {
         setPermissionsLoaded(true);
       }
     };
-    
+
     fetchUserPermissions();
   }, []);
 
@@ -280,7 +280,7 @@ const EmployeeMaster = () => {
   const checkPermission = (action) => {
     // Super admin has all permissions
     if (isSuperAdmin) return true;
-    
+
     return hasPermission(
       userPermissions,
       MODULES.EMPLOYEE_MASTER,
@@ -328,18 +328,18 @@ const EmployeeMaster = () => {
       setLoading(false);
     }
   };
-  
+
   // Handle refresh
   const handleRefresh = () => {
     fetchEmployees();
     showNotification('Data refreshed', 'success');
   };
-  
+
   // Handle search
   const handleSearch = (event) => {
     const value = event.target.value.toLowerCase();
     setSearchTerm(value);
-    
+
     const filtered = employees.filter(employee =>
       (employee.FirstName && employee.FirstName.toLowerCase().includes(value)) ||
       (employee.LastName && employee.LastName.toLowerCase().includes(value)) ||
@@ -348,69 +348,69 @@ const EmployeeMaster = () => {
       (employee.DepartmentID?.DepartmentName && employee.DepartmentID.DepartmentName.toLowerCase().includes(value)) ||
       (employee.DesignationID?.DesignationName && employee.DesignationID.DesignationName.toLowerCase().includes(value))
     );
-    
+
     setFilteredEmployees(filtered);
     setPage(0);
   };
-  
+
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
-    
+
     if (event.target.checked) {
       setSelected(filteredEmployees.map(employee => employee._id));
     } else {
       setSelected([]);
     }
   };
-  
+
   // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
     if (!canDelete) return;
-    
+
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-    
+
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
       newSelected = selected.filter(item => item !== id);
     }
-    
+
     setSelected(newSelected);
   };
-  
+
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     setSelected([]);
   };
-  
+
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
     setSelected([]);
   };
-  
+
   // Handle add employee
   const handleAddEmployee = (newEmployee) => {
     setEmployees([...employees, newEmployee]);
     setFilteredEmployees([...filteredEmployees, newEmployee]);
     showNotification('Employee added successfully!', 'success');
   };
-  
+
   // Handle edit employee
   const handleEditEmployee = (updatedEmployee) => {
     const updatedEmployees = employees.map(employee =>
       employee._id === updatedEmployee._id ? updatedEmployee : employee
     );
-    
+
     setEmployees(updatedEmployees);
     setFilteredEmployees(updatedEmployees);
     showNotification('Employee updated successfully!', 'success');
   };
-  
+
   // Handle delete employee
   const handleDeleteEmployee = (employeeId) => {
     const updatedEmployees = employees.filter(employee => employee._id !== employeeId);
@@ -419,13 +419,35 @@ const EmployeeMaster = () => {
     setSelected(selected.filter(id => id !== employeeId));
     showNotification('Employee deleted successfully!', 'success');
   };
-  
+
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+
+    try {
+      const token = localStorage.getItem('token');
+      // Assuming you have a bulk delete API endpoint
+      const response = await axios.delete(`${BASE_URL}/api/employees/bulk`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        data: { employeeIds: selected }
+      });
+
+      if (response.data.success) {
+        showNotification(`${selected.length} employees deleted successfully!`, 'success');
+        fetchEmployees(); // Refresh the list
+        setSelected([]); // Clear selection
+      } else {
+        showNotification('Failed to delete employees', 'error');
+      }
+    } catch (err) {
+      console.error('Error bulk deleting employees:', err);
+      showNotification('Failed to delete employees. Please try again.', 'error');
+    }
   };
-  
+
+
   // Action menu handlers
   const handleActionMenuOpen = (event, employee) => {
     setActionMenuAnchor(event.currentTarget);
@@ -444,7 +466,7 @@ const EmployeeMaster = () => {
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-  
+
   // Open view modal
   const openViewEmployeeModal = (employee) => {
     if (!canViewPage) return;
@@ -452,7 +474,7 @@ const EmployeeMaster = () => {
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-  
+
   // Open delete confirmation
   const openDeleteEmployeeDialog = (employee) => {
     if (!canDelete) return;
@@ -460,7 +482,7 @@ const EmployeeMaster = () => {
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-  
+
   // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
@@ -469,7 +491,7 @@ const EmployeeMaster = () => {
       severity
     });
   };
-  
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -479,10 +501,10 @@ const EmployeeMaster = () => {
       day: 'numeric'
     });
   };
-  
+
   // Updated status handling based on schema
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'active': return 'success';
       case 'resigned': return 'default';
       case 'terminated': return 'error';
@@ -490,9 +512,9 @@ const EmployeeMaster = () => {
       default: return 'default';
     }
   };
-  
+
   const getStatusText = (status) => {
-    switch(status) {
+    switch (status) {
       case 'active': return 'Active';
       case 'resigned': return 'Resigned';
       case 'terminated': return 'Terminated';
@@ -500,42 +522,42 @@ const EmployeeMaster = () => {
       default: return status;
     }
   };
-  
+
   // Get employment type text
   const getEmploymentTypeText = (type) => {
-    switch(type) {
+    switch (type) {
       case 'Monthly': return 'Monthly';
       case 'Hourly': return 'Hourly';
       case 'PieceRate': return 'Piece Rate';
       default: return type;
     }
   };
-  
+
   // Get gender icon
   const getGenderIcon = (gender) => {
     if (gender === 'M') return '👨';
     if (gender === 'F') return '👩';
     return '👤';
   };
-  
+
   // Get gender text
   const getGenderText = (gender) => {
     if (gender === 'M') return 'Male';
     if (gender === 'F') return 'Female';
     return 'Other';
   };
-  
+
   // Get avatar initials
   const getAvatarInitials = (firstName, lastName) => {
     const first = firstName ? firstName.charAt(0) : '';
     const last = lastName ? lastName.charAt(0) : '';
     return `${first}${last}`.toUpperCase() || 'U';
   };
-  
+
   // Get avatar color based on name
   const getAvatarColor = (firstName) => {
     if (!firstName) return COLORS.primary;
-    
+
     const colors = [
       COLORS.primary,
       COLORS.primaryDark,
@@ -543,11 +565,11 @@ const EmployeeMaster = () => {
       '#0D696C',
       '#128C7E'
     ];
-    
+
     const charCode = firstName.charCodeAt(0) || 0;
     return colors[charCode % colors.length];
   };
-  
+
   // Paginated employees
   const paginatedEmployees = filteredEmployees.slice(
     page * rowsPerPage,
@@ -568,10 +590,10 @@ const EmployeeMaster = () => {
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
       <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
+        <Typography
+          variant="h5"
+          component="h1"
+          sx={{
             fontSize: '1.25rem',
             fontWeight: 700,
             color: COLORS.text.primary,
@@ -586,9 +608,9 @@ const EmployeeMaster = () => {
       </Box>
 
       {/* Action Bar */}
-      <Paper sx={{ 
-        p: 1.5, 
-        mb: 2.5, 
+      <Paper sx={{
+        p: 1.5,
+        mb: 2.5,
         borderRadius: 2,
         bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
@@ -602,7 +624,7 @@ const EmployeeMaster = () => {
               size="small"
               value={searchTerm}
               onChange={handleSearch}
-              sx={{ 
+              sx={{
                 width: { xs: '100%', sm: 360 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
@@ -618,7 +640,7 @@ const EmployeeMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                sx: { 
+                sx: {
                   height: 36,
                   bgcolor: COLORS.background.light,
                   '& input': {
@@ -645,7 +667,7 @@ const EmployeeMaster = () => {
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
-                sx={{ 
+                sx={{
                   height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
@@ -663,7 +685,7 @@ const EmployeeMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            
+
             {/* Increment Summary Button - Only show if user has view permission */}
             {canViewPage && (
               <Button
@@ -688,7 +710,7 @@ const EmployeeMaster = () => {
                 Increment Summary
               </Button>
             )}
-            
+
             {/* Add Employee Button - Only show if user has create permission */}
             {canCreate && (
               <Button
@@ -717,9 +739,9 @@ const EmployeeMaster = () => {
       </Paper>
 
       {/* Employees Table */}
-      <Paper sx={{ 
-        width: '100%', 
-        borderRadius: 2, 
+      <Paper sx={{
+        width: '100%',
+        borderRadius: 2,
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: `1px solid ${COLORS.border}`
@@ -727,7 +749,7 @@ const EmployeeMaster = () => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ 
+              <TableRow sx={{
                 bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
@@ -758,56 +780,56 @@ const EmployeeMaster = () => {
                     />
                   </TableCell>
                 )}
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Employee
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Employee ID
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Contact
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Department
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Designation
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Employment Type
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   width: 60,
@@ -843,7 +865,7 @@ const EmployeeMaster = () => {
               ) : (
                 paginatedEmployees.map((employee, index) => {
                   const isSelected = selected.includes(employee._id);
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) &&
                     selectedEmployeeForAction?._id === employee._id;
                   const avatarColor = getAvatarColor(employee.FirstName);
 
@@ -852,7 +874,7 @@ const EmployeeMaster = () => {
                       key={employee._id}
                       hover
                       selected={isSelected}
-                      sx={{ 
+                      sx={{
                         bgcolor: COLORS.background.white,
                         '&:hover': {
                           bgcolor: COLORS.background.hover
@@ -890,10 +912,10 @@ const EmployeeMaster = () => {
                       )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar 
-                            sx={{ 
-                              width: 32, 
-                              height: 32, 
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
                               bgcolor: avatarColor,
                               fontSize: '0.7rem',
                               fontWeight: 600
@@ -936,7 +958,7 @@ const EmployeeMaster = () => {
                         <Chip
                           label={employee.DepartmentID?.DepartmentName || 'No Dept'}
                           size="small"
-                          sx={{ 
+                          sx={{
                             height: 20,
                             fontSize: '0.65rem',
                             fontWeight: 500,
@@ -962,7 +984,7 @@ const EmployeeMaster = () => {
                         <Chip
                           label={getEmploymentTypeText(employee.EmploymentType)}
                           size="small"
-                          sx={{ 
+                          sx={{
                             height: 20,
                             fontSize: '0.65rem',
                             fontWeight: 500,
@@ -975,7 +997,7 @@ const EmployeeMaster = () => {
                         />
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
+                        <ActionMenu
                           employee={employee}
                           onView={openViewEmployeeModal}
                           onEdit={openEditEmployeeModal}
@@ -1021,29 +1043,35 @@ const EmployeeMaster = () => {
 
       {/* Separate Modal Components - Only render if user has appropriate permissions */}
       {canCreate && (
-        <AddEmployees 
+        <AddEmployees
           open={openAddModal}
           onClose={() => setOpenAddModal(false)}
-          onAdd={handleAddEmployee}
+          onAdd={(newEmployee) => {
+            handleAddEmployee(newEmployee);
+            fetchEmployees(); // Add this line to refresh the list
+          }}
         />
       )}
 
       {selectedEmployee && (
         <>
           {canUpdate && (
-            <EditEmployees 
+            <EditEmployees
               open={openEditModal}
               onClose={() => {
                 setOpenEditModal(false);
                 setSelectedEmployee(null);
               }}
               employee={selectedEmployee}
-              onUpdate={handleEditEmployee}
+              onUpdate={(handleEditEmployee) => {
+                handleEditEmployee(updatedEmployee);
+                fetchEmployees();
+              }}
             />
           )}
 
           {canViewPage && (
-            <ViewEmployees 
+            <ViewEmployees
               open={openViewModal}
               onClose={() => {
                 setOpenViewModal(false);
@@ -1053,21 +1081,24 @@ const EmployeeMaster = () => {
               onEdit={() => {
                 if (canUpdate) {
                   setOpenViewModal(false);
-                  setOpenEditModal(true);
+                  setOpenEditModal(true);  // Add this line to refresh the list
                 }
               }}
             />
           )}
 
           {canDelete && (
-            <DeleteEmployees 
+            <DeleteEmployees
               open={openDeleteDialog}
               onClose={() => {
                 setOpenDeleteDialog(false);
                 setSelectedEmployee(null);
               }}
               employee={selectedEmployee}
-              onDelete={handleDeleteEmployee}
+              onDelete={(employeeId) => {
+                handleDeleteEmployee(employeeId);
+                fetchEmployees(); // Add this line to refresh the list
+              }}
             />
           )}
         </>
@@ -1075,7 +1106,7 @@ const EmployeeMaster = () => {
 
       {/* Employee Increment Summary Modal - Only show if user has view permission */}
       {canViewPage && (
-        <EmployeeIncrementSummary 
+        <EmployeeIncrementSummary
           open={openIncrementSummaryModal}
           onClose={() => setOpenIncrementSummaryModal(false)}
         />
@@ -1085,14 +1116,14 @@ const EmployeeMaster = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: 1.5,
             fontSize: '0.75rem',

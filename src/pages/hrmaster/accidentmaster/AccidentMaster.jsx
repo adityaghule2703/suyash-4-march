@@ -1344,7 +1344,8 @@ import {
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
   Warning as WarningIcon,
-  ArrowUpward as ArrowUpwardIcon
+  ArrowUpward as ArrowUpwardIcon,
+  // Status as StatusIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -1357,25 +1358,30 @@ import ViewAccident from './ViewAccident';
 // import DeleteAccident from './DeleteAccident';
 
 // Color constants
+// Color constants - Single color #063C3F throughout (matching DepartmentMaster)
 const COLORS = {
-  primary: '#00B4D8',
-  primaryDark: '#0e7490',
-  primaryLight: '#E0F7FA',
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
   text: {
-    primary: '#0f172a',
-    secondary: '#475569',
-    tertiary: '#94a3b8',
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
     light: '#FFFFFF',
     lightMuted: 'rgba(255, 255, 255, 0.9)'
   },
   background: {
     white: '#FFFFFF',
-    light: '#f8fafc',
-    hover: '#f1f5f9',
-    tableHeader: 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)'
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
   },
-  border: '#e2e8f0',
+  border: '#E3E8EF',
   chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2',
     minor: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
     moderate: { bg: '#e0f2fe', color: '#0c4a6e', border: '#7dd3fc' },
     severe: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
@@ -1385,7 +1391,6 @@ const COLORS = {
     closed: { bg: '#dcfce7', color: '#166534', border: '#86efac' }
   }
 };
-
 // Loading state component
 const LoadingState = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -1487,7 +1492,7 @@ const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onO
         
         {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
-        {canDelete && (
+        {/* {canDelete && (
           <MenuItem 
             onClick={() => {
               onDelete(accident);
@@ -1504,7 +1509,7 @@ const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onO
               </Typography>
             </ListItemText>
           </MenuItem>
-        )}
+        )} */}
       </Menu>
     </>
   );
@@ -1723,11 +1728,14 @@ const AccidentMaster = () => {
   
   // Handle edit accident
   const handleEditAccident = (updatedAccident) => {
+      console.log('Received updated accident:', updatedAccident);
+  console.log('New status:', updatedAccident.investigationStatus);
     const updatedAccidents = accidents.map(accident =>
       accident._id === updatedAccident._id ? updatedAccident : accident
     );
     
     setAccidents(updatedAccidents);
+     setFilteredAccidents(updatedAccidents);
     showNotification('Investigation updated successfully!', 'success');
   };
   
@@ -1829,36 +1837,68 @@ const AccidentMaster = () => {
       />
     );
   };
+
+  const formatStatusLabel = (status) => {
+  if (!status) return 'Open';
   
-  // Get status chip styles
+  const s = status.toLowerCase();
+  
+  if (s === 'under investigation' || s === 'investigating') return 'Under Investigation';
+  if (s === 'closed') return 'Closed';
+  if (s === 'resolved') return 'Resolved';
+  if (s === 'open') return 'Open';
+  
+  return status;
+};
+  
+//  const getStatusChip = (status) => {
+//   if (!status) return null;
+
+  // const s = status.toLowerCase().trim();
+
   const getStatusChip = (status) => {
-    const s = status?.toLowerCase();
-    const styles = {
-      open: COLORS.chips.open,
-      investigating: COLORS.chips.investigating,
-      closed: COLORS.chips.closed
-    };
-    const style = styles[s] || COLORS.chips.open;
-    
-    return (
-      <Chip
-        label={status || 'Open'}
-        size="small"
-        sx={{
-          bgcolor: style.bg,
-          color: style.color,
-          border: `1px solid ${style.border}`,
-          fontSize: '0.7rem',
-          fontWeight: 600,
-          height: 24,
-          '& .MuiChip-label': {
-            px: 1,
-            py: 0.5
-          }
-        }}
-      />
-    );
+  if (!status) return null;
+
+  const statusLower = status.toLowerCase();
+  
+  // Map all possible status values to their display text
+  const displayText = {
+    'open': 'Open',
+    'under investigation': 'Under Investigation',
+    'investigating': 'Under Investigation',
+    'closed': 'Closed',
+    'resolved': 'Resolved'
+  }[statusLower] || status;
+
+  const styles = {
+    open: COLORS.chips.open,
+    closed: COLORS.chips.closed,
+    resolved: COLORS.chips.closed,
+    investigating: COLORS.chips.investigating,
+    "under investigation": COLORS.chips.investigating
   };
+
+  const style = styles[statusLower] || COLORS.chips.open;
+
+  return (
+   <Chip
+      label={displayText}
+      size="small"
+      sx={{
+        bgcolor: style.bg,
+        color: style.color,
+        border: `1px solid ${style.border}`,
+        fontSize: '0.7rem',
+        fontWeight: 600,
+        height: 24,
+        '& .MuiChip-label': {
+          px: 1,
+          py: 0.5
+        }
+      }}
+    />
+  );
+};
   
   // Paginated accidents
   const paginatedAccidents = filteredAccidents.slice(
@@ -2059,7 +2099,7 @@ const AccidentMaster = () => {
                 }
               }}>
                 {/* Checkbox Column - Only show if user has delete permission */}
-                {canDelete && (
+                {/* {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
                       indeterminate={selected.length > 0 && selected.length < filteredAccidents.length}
@@ -2080,7 +2120,7 @@ const AccidentMaster = () => {
                       disabled={loading || filteredAccidents.length === 0}
                     />
                   </TableCell>
-                )}
+                )} */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -2197,7 +2237,7 @@ const AccidentMaster = () => {
                       }}
                     >
                       {/* Checkbox Column - Only show if user has delete permission */}
-                      {canDelete && (
+                      {/* {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
                           <Checkbox
                             checked={isSelected}
@@ -2213,7 +2253,7 @@ const AccidentMaster = () => {
                             }}
                           />
                         </TableCell>
-                      )}
+                      )} */}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {formatDate(accident.date)}
@@ -2325,7 +2365,7 @@ const AccidentMaster = () => {
             />
           )}
 
-          {canDelete && (
+          {/* {canDelete && (
             <DeleteAccident 
               open={openDeleteDialog}
               onClose={() => {
@@ -2335,7 +2375,7 @@ const AccidentMaster = () => {
               accident={selectedAccident}
               onDelete={handleDeleteAccident}
             />
-          )}
+          )} */}
         </>
       )}
 

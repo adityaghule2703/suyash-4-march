@@ -119,7 +119,8 @@ const Header = () => {
     { name: 'RFQ Master', path: '/procurementmaster/rfqmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.RFQ_MASTER, page: PAGES.RFQ_MASTER },
     { name: 'Purchase Order Master', path: '/procurementmaster/purchaseordermaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.PURCHASE_ORDER_MASTER, page: PAGES.PURCHASE_ORDER_MASTER },
     { name: 'GRN Master', path: '/procurementmaster/grnmaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.GRN_MASTER, page: PAGES.GRN_MASTER },
-    { name: 'Purchase Invoice Master', path: '/procurementmaster/purchaseinvoicemaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_INVOICE_MASTER, page: PAGES.PURCHASE_INVOICE_MASTER }
+    { name: 'Purchase Invoice Master', path: '/procurementmaster/purchaseinvoicemaster', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.PURCHASE_INVOICE_MASTER, page: PAGES.PURCHASE_INVOICE_MASTER },
+    { name: 'Vendor Payments', path: '/procurementmaster/vendor-payments', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z', moduleKey: MODULES.VENDOR_PAYMENTS, page: PAGES.VENDOR_PAYMENTS },
   ];
 
   // HR Master submenu items
@@ -1405,6 +1406,7 @@ const Header = () => {
                     <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                       Master
                     </div>
+                   
                     
                     {/* Quotation Master Items */}
                     {filteredQuotationItems.length > 0 && (

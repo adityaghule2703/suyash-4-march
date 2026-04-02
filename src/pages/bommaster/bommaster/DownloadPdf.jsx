@@ -1,4 +1,4 @@
-// DownloadPdf.jsx - FINAL VERSION WITH INTEGER REVISION SELECTION
+// DownloadPdf.jsx - FIXED with POST method
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -32,7 +32,7 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import BASE_URL from '../../../../config/Config';
+import BASE_URL from '../../../config/Config';
 
 const COLORS = {
   primary: '#063C3F',
@@ -62,7 +62,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [revisions, setRevisions] = useState([]);
-  const [selectedRevisionNo, setSelectedRevisionNo] = useState(null);
+  const [selectedRevisionNo, setSelectedRevisionNo] = useState('');
   const [selectedRevision, setSelectedRevision] = useState(null);
   const [revisionsData, setRevisionsData] = useState(null);
 
@@ -104,10 +104,10 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
         // Auto-select the current revision if available
         const currentRev = revisionsList.find(rev => rev.is_current === true);
         if (currentRev) {
-          setSelectedRevisionNo(currentRev.revision_no);
+          setSelectedRevisionNo(currentRev.revision_no.toString());
           setSelectedRevision(currentRev);
         } else if (revisionsList.length > 0) {
-          setSelectedRevisionNo(revisionsList[0].revision_no);
+          setSelectedRevisionNo(revisionsList[0].revision_no.toString());
           setSelectedRevision(revisionsList[0]);
         }
       } else {
@@ -130,8 +130,10 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
 
   const handleRevisionChange = (event) => {
     const revNo = event.target.value;
+    console.log('Selected revision value:', revNo);
     setSelectedRevisionNo(revNo);
-    const revision = revisions.find(rev => rev.revision_no === revNo);
+    const revision = revisions.find(rev => rev.revision_no.toString() === revNo);
+    console.log('Found revision:', revision);
     setSelectedRevision(revision);
     setError('');
   };
@@ -154,19 +156,18 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
         return;
       }
 
-      // Use the revision number as integer in the URL
+      // Use POST method as per Swagger
       const url = `${BASE_URL}/api/boms/${bomId}/revisions/${selectedRevision.revision_no}/pdf`;
       console.log('Downloading PDF from URL:', url);
       
-      const response = await axios.get(
-        url,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          responseType: 'blob'
-        }
-      );
+      const response = await axios({
+        method: 'post',
+        url: url,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        responseType: 'blob'
+      });
       
       // Create blob link to download
       const url_blob = window.URL.createObjectURL(new Blob([response.data]));
@@ -187,7 +188,9 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
       if (err.response?.status === 401) {
         setError('Unauthorized. Please login again.');
       } else if (err.response?.status === 404) {
-        setError('PDF not found for this revision.');
+        setError('PDF not found for this revision. Please check if PDF is generated.');
+      } else if (err.response?.status === 500) {
+        setError('Server error while generating PDF. Please try again later.');
       } else {
         setError(err.response?.data?.message || 'Failed to download PDF. Please try again.');
       }
@@ -211,7 +214,6 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
   const getCreatedByName = (createdBy) => {
     if (!createdBy) return 'System';
     if (typeof createdBy === 'string') {
-      // If it's a MongoDB ID string, show as 'User'
       if (createdBy.match(/^[0-9a-fA-F]{24}$/)) {
         return 'User';
       }
@@ -232,7 +234,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
   const handleClose = () => {
     if (!downloading && !loading) {
       setRevisions([]);
-      setSelectedRevisionNo(null);
+      setSelectedRevisionNo('');
       setSelectedRevision(null);
       setRevisionsData(null);
       setError('');
@@ -391,7 +393,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                 <FormControl fullWidth size="small">
                   <InputLabel sx={{ fontSize: '0.75rem' }}>Select Revision</InputLabel>
                   <Select
-                    value={selectedRevisionNo !== null ? selectedRevisionNo : ''}
+                    value={selectedRevisionNo}
                     onChange={handleRevisionChange}
                     label="Select Revision"
                     sx={{ 
@@ -407,7 +409,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                       return (
                         <MenuItem 
                           key={rev.revision_no} 
-                          value={rev.revision_no}
+                          value={rev.revision_no.toString()}
                           sx={{ fontSize: '0.75rem' }}
                         >
                           <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
@@ -424,9 +426,6 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                                 color: status.color
                               }}
                             />
-                            {!rev.has_pdf && (
-                              <WarningIcon sx={{ fontSize: '0.8rem', color: COLORS.warning, ml: 1 }} />
-                            )}
                           </Stack>
                         </MenuItem>
                       );
@@ -482,22 +481,6 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                           </Typography>
                         </Paper>
                       </Grid>
-                      
-                      {!selectedRevision.has_pdf && (
-                        <Grid size={{ xs: 12 }}>
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
-                              borderRadius: 1.5,
-                              fontSize: '0.7rem'
-                            }}
-                          >
-                            <Typography sx={{ fontSize: '0.7rem' }}>
-                              <strong>Note:</strong> PDF is not available for this revision. It may be generating or not yet generated.
-                            </Typography>
-                          </Alert>
-                        </Grid>
-                      )}
                     </Grid>
                   </Stack>
                 )}
@@ -565,7 +548,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
         <Button
           variant="contained"
           onClick={handleDownloadPdf}
-          disabled={downloading || !selectedRevision || !selectedRevision?.has_pdf || revisionsLoading}
+          disabled={downloading || !selectedRevision || revisionsLoading}
           size="small"
           startIcon={downloading ? <CircularProgress size={16} /> : <DownloadIcon sx={{ fontSize: '1rem' }} />}
           sx={{

@@ -63,8 +63,11 @@ import OrderBook from './pages/salesordermaster/sodelivery/OrderBook'
 import SORevise from './pages/salesordermaster/sorevision/SORevise'
 import SOSummary from './pages/salesordermaster/soreports/SOSummary'
 import SOPendingDelivery from './pages/salesordermaster/soreports/SOPendingDelivery'
-import BomMaster from './pages/bommaster/bommaster/bommaster/BomMaster'
+
 import MachineMaster from './pages/bommaster/machinemaster/MachineMaster'
+import BomMaster from './pages/bommaster/bommaster/BomMaster'
+import VendorPayments from './pages/procurementmaster/vendorpayments/VendorPayments'
+
 
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -79,6 +82,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
+    {/* <BrowserRouter basename="/suyashtest-front"> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -144,6 +148,7 @@ const App = () => {
           <Route path='procurementmaster/purchaserequisitionmaster' element={<PurchaseRequisitionMaster/>} />
           <Route path='procurementmaster/rfqmaster' element={<RFQMaster/>} />
           <Route path='procurementmaster/purchaseinvoicemaster' element={<PurchaseInvoiceMaster/>} />
+           <Route path='procurementmaster/vendor-payments' element={<VendorPayments/>} />
 
 
           <Route path='bommaster/bommaster' element={<BomMaster/>} />

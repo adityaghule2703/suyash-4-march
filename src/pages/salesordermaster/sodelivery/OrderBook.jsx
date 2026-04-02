@@ -890,7 +890,7 @@ const OrderBook = () => {
             )}
             
             {/* Export Button - Only show if user has EXPORT permission */}
-            {canExport && (
+            {/* {canExport && (
               <Tooltip title="Export">
                 <IconButton
                   onClick={() => {
@@ -907,10 +907,10 @@ const OrderBook = () => {
                   <ExportIcon sx={{ fontSize: '1rem' }} />
                 </IconButton>
               </Tooltip>
-            )}
+            )} */}
             
             {/* Print Button - Only show if user has PRINT permission */}
-            {canPrint && (
+            {/* {canPrint && (
               <Tooltip title="Print">
                 <IconButton
                   onClick={() => {
@@ -927,10 +927,10 @@ const OrderBook = () => {
                   <PrintIcon sx={{ fontSize: '1rem' }} />
                 </IconButton>
               </Tooltip>
-            )}
+            )} */}
             
             {/* Refresh Button - Always show for users with view permission */}
-            <Tooltip title="Refresh">
+            {/* <Tooltip title="Refresh">
               <IconButton
                 onClick={handleRefresh}
                 disabled={loading}
@@ -943,7 +943,7 @@ const OrderBook = () => {
               >
                 <RefreshIcon sx={{ fontSize: '1rem' }} />
               </IconButton>
-            </Tooltip>
+            </Tooltip> */}
           </Stack>
         </Stack>
       </Paper>
@@ -1002,9 +1002,9 @@ const OrderBook = () => {
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Delivery
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
+                {/* <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
                   Actions
-                </TableCell>
+                </TableCell> */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1117,7 +1117,7 @@ const OrderBook = () => {
                           EDD: {formatDate(order.expected_delivery_date)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ width: 60 }}>
+                      {/* <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu
                           order={order}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
@@ -1129,7 +1129,7 @@ const OrderBook = () => {
                           permissions={userPermissions}
                           isSuperAdmin={isSuperAdmin}
                         />
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   );
                 })

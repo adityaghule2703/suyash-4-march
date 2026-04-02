@@ -216,24 +216,24 @@
 //     EmploymentStatus: 'active',
 //     EmploymentType: 'Monthly',
 //     PayStructureType: 'Fixed',
-    
+
 //     // Employment Type Specific
 //     BasicSalary: '',
 //     HourlyRate: '',
 //     OvertimeRateMultiplier: 1.5,
-    
+
 //     // Work Information
 //     SkillLevel: 'Semi-Skilled',
 //     WorkStation: '',
 //     LineNumber: '',
-    
+
 //     // Tax & Identification
 //     PAN: '',
 //     AadharNumber: '',
 //     PFNumber: '',
 //     UAN: '',
 //     ESINumber: '',
-    
+
 //     // Bank Details (flattened)
 //     BankAccountNumber: '',
 //     BankAccountHolderName: '',
@@ -241,7 +241,7 @@
 //     BankBranch: '',
 //     BankIfscCode: '',
 //     BankAccountType: 'Savings',
-    
+
 //     // Emergency Contact (flattened)
 //     EmergencyContactName: '',
 //     EmergencyContactRelationship: '',
@@ -291,7 +291,7 @@
 
 //   // Gender options
 //   const genderOptions = ['M', 'F', 'O'];
-  
+
 //   // Employment Status options based on schema
 //   const employmentStatusOptions = [
 //     { value: 'active', label: 'Active' },
@@ -299,7 +299,7 @@
 //     { value: 'terminated', label: 'Terminated' },
 //     { value: 'retired', label: 'Retired' }
 //   ];
-  
+
 //   // Employment Type options - only Monthly, Hourly, PieceRate
 //   const employmentTypeOptions = [
 //     { value: 'Monthly', label: 'Monthly' },
@@ -314,7 +314,7 @@
 //     { value: 'Commission', label: 'Commission' },
 //     { value: 'PieceRate', label: 'Piece Rate' }
 //   ];
-  
+
 //   // Skill Level options based on schema
 //   const skillLevelOptions = [
 //     { value: 'Unskilled', label: 'Unskilled' },
@@ -322,7 +322,7 @@
 //     { value: 'Skilled', label: 'Skilled' },
 //     { value: 'Highly Skilled', label: 'Highly Skilled' }
 //   ];
-  
+
 //   // Account types options based on schema
 //   const accountTypeOptions = [
 //     { value: 'Savings', label: 'Savings' },
@@ -352,24 +352,24 @@
 //         EmploymentStatus: employee.EmploymentStatus || 'active',
 //         EmploymentType: employee.EmploymentType || 'Monthly',
 //         PayStructureType: employee.PayStructureType || 'Fixed',
-        
+
 //         // Employment Type Specific
 //         BasicSalary: employee.BasicSalary || '',
 //         HourlyRate: employee.HourlyRate || '',
 //         OvertimeRateMultiplier: employee.OvertimeRateMultiplier || 1.5,
-        
+
 //         // Work Information
 //         SkillLevel: employee.SkillLevel || 'Semi-Skilled',
 //         WorkStation: employee.WorkStation || '',
 //         LineNumber: employee.LineNumber || '',
-        
+
 //         // Tax & Identification
 //         PAN: employee.PAN || '',
 //         AadharNumber: employee.AadharNumber || '',
 //         PFNumber: employee.PFNumber || '',
 //         UAN: employee.UAN || '',
 //         ESINumber: employee.ESINumber || '',
-        
+
 //         // Bank Details (flattened)
 //         BankAccountNumber: employee.BankDetails?.accountNumber || '',
 //         BankAccountHolderName: employee.BankDetails?.accountHolderName || '',
@@ -377,7 +377,7 @@
 //         BankBranch: employee.BankDetails?.branch || '',
 //         BankIfscCode: employee.BankDetails?.ifscCode || '',
 //         BankAccountType: employee.BankDetails?.accountType || 'Savings',
-        
+
 //         // Emergency Contact (flattened)
 //         EmergencyContactName: employee.EmergencyContact?.name || '',
 //         EmergencyContactRelationship: employee.EmergencyContact?.relationship || '',
@@ -396,12 +396,12 @@
 //     try {
 //       setLoadingData(true);
 //       const token = localStorage.getItem('token');
-      
+
 //       // Fetch departments
 //       const deptResponse = await axios.get(`${BASE_URL}/api/departments`, {
 //         headers: { 'Authorization': `Bearer ${token}` }
 //       });
-      
+
 //       // Fetch designations
 //       const desigResponse = await axios.get(`${BASE_URL}/api/designations`, {
 //         headers: { 'Authorization': `Bearer ${token}` }
@@ -410,7 +410,7 @@
 //       if (deptResponse.data.success) {
 //         setDepartments(deptResponse.data.data || []);
 //       }
-      
+
 //       if (desigResponse.data.success) {
 //         setDesignations(desigResponse.data.data || []);
 //       }
@@ -435,131 +435,131 @@
 //           return ''; // Required validation handled separately
 //         }
 //         break;
-      
+
 //       case 'Email':
 //         if (value && !validateEmail(value)) {
 //           return 'Please enter a valid email address';
 //         }
 //         break;
-      
+
 //       case 'Phone':
 //         if (value && !validatePhone(value)) {
 //           return 'Phone number must be 10 digits';
 //         }
 //         break;
-      
+
 //       case 'Address':
 //         if (value && !validateAddress(value)) {
 //           return 'Address contains invalid characters';
 //         }
 //         break;
-      
+
 //       // Work Information
 //       case 'WorkStation':
 //         if (value && !validateWorkStation(value)) {
 //           return 'Work station can only contain letters, numbers, spaces, and hyphens';
 //         }
 //         break;
-      
+
 //       case 'LineNumber':
 //         if (value && !validateLineNumber(value)) {
 //           return 'Line number can only contain letters, numbers, spaces, and hyphens';
 //         }
 //         break;
-      
+
 //       // Tax & Identification
 //       case 'PAN':
 //         if (value && !validatePAN(value)) {
 //           return 'PAN must be in format: ABCDE1234F';
 //         }
 //         break;
-      
+
 //       case 'AadharNumber':
 //         if (value && !validateAadhar(value)) {
 //           return 'Aadhar number must be 12 digits';
 //         }
 //         break;
-      
+
 //       case 'PFNumber':
 //         if (value && !validatePFNumber(value)) {
 //           return 'PF number must be in format: XX/12345/1234567';
 //         }
 //         break;
-      
+
 //       case 'UAN':
 //         if (value && !validateUAN(value)) {
 //           return 'UAN must be 12 digits';
 //         }
 //         break;
-      
+
 //       case 'ESINumber':
 //         if (value && !validateESINumber(value)) {
 //           return 'ESI number must be 17 digits';
 //         }
 //         break;
-      
+
 //       // Bank Details
 //       case 'BankAccountNumber':
 //         if (value && !validateAccountNumber(value)) {
 //           return 'Account number must be 9-18 digits';
 //         }
 //         break;
-      
+
 //       case 'BankAccountHolderName':
 //         if (value && !validateAccountHolderName(value)) {
 //           return 'Account holder name can only contain letters, spaces, dots, and hyphens';
 //         }
 //         break;
-      
+
 //       case 'BankName':
 //         if (value && !validateBankName(value)) {
 //           return 'Bank name can only contain letters, spaces, dots, apostrophes, and hyphens';
 //         }
 //         break;
-      
+
 //       case 'BankBranch':
 //         if (value && !validateBranchName(value)) {
 //           return 'Branch name can only contain letters, numbers, spaces, dots, and hyphens';
 //         }
 //         break;
-      
+
 //       case 'BankIfscCode':
 //         if (value && !validateIFSC(value)) {
 //           return 'IFSC code must be in format: ABCD0123456';
 //         }
 //         break;
-      
+
 //       // Emergency Contact
 //       case 'EmergencyContactName':
 //         if (value && !validateEmergencyContactName(value)) {
 //           return 'Contact name can only contain letters, spaces, dots, and hyphens';
 //         }
 //         break;
-      
+
 //       case 'EmergencyContactRelationship':
 //         if (value && !validateRelationship(value)) {
 //           return 'Relationship can only contain letters and spaces';
 //         }
 //         break;
-      
+
 //       case 'EmergencyContactPhone':
 //         if (value && !validatePhone(value)) {
 //           return 'Emergency contact phone must be 10 digits';
 //         }
 //         break;
-      
+
 //       case 'EmergencyContactAddress':
 //         if (value && !validateAddress(value)) {
 //           return 'Address contains invalid characters';
 //         }
 //         break;
-      
+
 //       case 'EmergencyContactPIN':
 //         if (value && !validatePIN(value)) {
 //           return 'PIN code must be 6 digits';
 //         }
 //         break;
-      
+
 //       default:
 //         return '';
 //     }
@@ -568,10 +568,10 @@
 
 //   const handleChange = (e) => {
 //     const { name, value } = e.target;
-    
+
 //     // For text fields, prevent numbers if they shouldn't be there
 //     let processedValue = value;
-    
+
 //     // Apply specific field constraints
 //     switch(name) {
 //       case 'FirstName':
@@ -582,45 +582,45 @@
 //         // Only allow letters, spaces, and specific characters, no numbers
 //         processedValue = value.replace(/[^A-Za-z\s.'-]/g, '');
 //         break;
-      
+
 //       case 'BankName':
 //         // Only allow letters, spaces, and specific characters for bank name
 //         processedValue = value.replace(/[^A-Za-z\s.'&-]/g, '');
 //         break;
-      
+
 //       case 'Address':
 //       case 'EmergencyContactAddress':
 //         // Allow common address characters but restrict special ones
 //         processedValue = value.replace(/[^A-Za-z0-9\s,.#\-/]/g, '');
 //         break;
-      
+
 //       case 'WorkStation':
 //       case 'LineNumber':
 //         // Allow letters, numbers, spaces, hyphens
 //         processedValue = value.replace(/[^A-Za-z0-9\s-]/g, '');
 //         break;
-      
+
 //       case 'BankBranch':
 //         // Allow letters, numbers, spaces, dots, hyphens
 //         processedValue = value.replace(/[^A-Za-z0-9\s.-]/g, '');
 //         break;
-      
+
 //       case 'Phone':
 //       case 'EmergencyContactPhone':
 //         // Only allow digits
 //         processedValue = value.replace(/\D/g, '');
 //         break;
-      
+
 //       case 'BankAccountNumber':
 //         // Only allow digits
 //         processedValue = value.replace(/\D/g, '');
 //         break;
-      
+
 //       case 'PAN':
 //         // Automatically uppercase PAN
 //         processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 //         break;
-      
+
 //       case 'AadharNumber':
 //       case 'UAN':
 //       case 'ESINumber':
@@ -628,21 +628,21 @@
 //         // Only allow digits
 //         processedValue = value.replace(/\D/g, '');
 //         break;
-      
+
 //       case 'PFNumber':
 //         // Format PF number with allowed characters
 //         processedValue = value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
 //         break;
-      
+
 //       case 'BankIfscCode':
 //         // Format IFSC code
 //         processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 //         break;
-      
+
 //       default:
 //         processedValue = value;
 //     }
-    
+
 //     // Update form data
 //     setFormData(prev => ({
 //       ...prev,
@@ -669,7 +669,7 @@
 
 //   const handleBlur = (e) => {
 //     const { name, value } = e.target;
-    
+
 //     // Mark field as touched
 //     setTouched(prev => ({
 //       ...prev,
@@ -701,7 +701,7 @@
 //   const handleEmploymentTypeChange = (e) => {
 //     const employmentType = e.target.value;
 //     const defaultPayStructure = getDefaultPayStructureType(employmentType);
-    
+
 //     setFormData(prev => ({
 //       ...prev,
 //       EmploymentType: employmentType,
@@ -748,7 +748,7 @@
 //           setError('Please correct first name format');
 //           isValid = false;
 //         }
-        
+
 //         // Last Name validation
 //         if (!formData.LastName.trim()) {
 //           setError('Last name is required');
@@ -759,7 +759,7 @@
 //           setError('Please correct last name format');
 //           isValid = false;
 //         }
-        
+
 //         // Email validation
 //         if (!formData.Email.trim()) {
 //           setError('Email is required');
@@ -770,7 +770,7 @@
 //           setError('Please correct email format');
 //           isValid = false;
 //         }
-        
+
 //         // Phone validation if provided
 //         if (formData.Phone && !validatePhone(formData.Phone)) {
 //           newFieldErrors.Phone = 'Phone number must be 10 digits';
@@ -778,7 +778,7 @@
 //           setError('Please correct phone number');
 //           isValid = false;
 //         }
-        
+
 //         // Address validation if provided
 //         if (formData.Address && !validateAddress(formData.Address)) {
 //           newFieldErrors.Address = 'Address contains invalid characters';
@@ -809,7 +809,7 @@
 //           setError('Hourly rate is required for hourly employees');
 //           isValid = false;
 //         }
-        
+
 //         // Validate work fields if provided
 //         if (formData.WorkStation && !validateWorkStation(formData.WorkStation)) {
 //           newFieldErrors.WorkStation = 'Work station can only contain letters, numbers, spaces, and hyphens';
@@ -817,14 +817,14 @@
 //           setError('Please correct work station format');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.LineNumber && !validateLineNumber(formData.LineNumber)) {
 //           newFieldErrors.LineNumber = 'Line number can only contain letters, numbers, spaces, and hyphens';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct line number format');
 //           isValid = false;
 //         }
-        
+
 //         // Validate tax fields if provided
 //         if (formData.PAN && !validatePAN(formData.PAN)) {
 //           newFieldErrors.PAN = 'PAN must be in format: ABCDE1234F';
@@ -866,35 +866,35 @@
 //           setError('Please correct account number format');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.BankAccountHolderName && !validateAccountHolderName(formData.BankAccountHolderName)) {
 //           newFieldErrors.BankAccountHolderName = 'Account holder name can only contain letters, spaces, dots, and hyphens';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct account holder name');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.BankName && !validateBankName(formData.BankName)) {
 //           newFieldErrors.BankName = 'Bank name can only contain letters, spaces, dots, and hyphens';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct bank name');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.BankBranch && !validateBranchName(formData.BankBranch)) {
 //           newFieldErrors.BankBranch = 'Branch name can only contain letters, numbers, spaces, and hyphens';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct branch name');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.BankIfscCode && !validateIFSC(formData.BankIfscCode)) {
 //           newFieldErrors.BankIfscCode = 'IFSC code must be in format: ABCD0123456';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct IFSC code format');
 //           isValid = false;
 //         }
-        
+
 //         // Validate emergency contact fields if provided
 //         if (formData.EmergencyContactName && !validateEmergencyContactName(formData.EmergencyContactName)) {
 //           newFieldErrors.EmergencyContactName = 'Contact name can only contain letters, spaces, dots, and hyphens';
@@ -902,28 +902,28 @@
 //           setError('Please correct emergency contact name');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.EmergencyContactRelationship && !validateRelationship(formData.EmergencyContactRelationship)) {
 //           newFieldErrors.EmergencyContactRelationship = 'Relationship can only contain letters and spaces';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct relationship');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.EmergencyContactPhone && !validatePhone(formData.EmergencyContactPhone)) {
 //           newFieldErrors.EmergencyContactPhone = 'Emergency contact phone must be 10 digits';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct emergency contact phone');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.EmergencyContactAddress && !validateAddress(formData.EmergencyContactAddress)) {
 //           newFieldErrors.EmergencyContactAddress = 'Address contains invalid characters';
 //           setFieldErrors(newFieldErrors);
 //           setError('Please correct emergency contact address');
 //           isValid = false;
 //         }
-        
+
 //         if (formData.EmergencyContactPIN && !validatePIN(formData.EmergencyContactPIN)) {
 //           newFieldErrors.EmergencyContactPIN = 'PIN code must be 6 digits';
 //           setFieldErrors(newFieldErrors);
@@ -942,7 +942,7 @@
 //   const handleSubmit = async () => {
 //     // Validate all required fields
 //     setError('');
-    
+
 //     // First Name validation
 //     if (!formData.FirstName.trim()) {
 //       setError('First name is required');
@@ -1099,24 +1099,24 @@
 //         EmploymentStatus: formData.EmploymentStatus,
 //         EmploymentType: formData.EmploymentType,
 //         PayStructureType: formData.PayStructureType,
-        
+
 //         // Employment Type Specific Fields
 //         BasicSalary: formData.EmploymentType === 'Monthly' ? Number(formData.BasicSalary || 0) : 0,
 //         HourlyRate: formData.EmploymentType === 'Hourly' ? Number(formData.HourlyRate || 0) : 0,
 //         OvertimeRateMultiplier: Number(formData.OvertimeRateMultiplier || 1.5),
-        
+
 //         // Work Information
 //         SkillLevel: formData.SkillLevel || undefined,
 //         WorkStation: formData.WorkStation || undefined,
 //         LineNumber: formData.LineNumber || undefined,
-        
+
 //         // Tax & Identification
 //         PAN: formData.PAN || undefined,
 //         AadharNumber: formData.AadharNumber || undefined,
 //         PFNumber: formData.PFNumber || undefined,
 //         UAN: formData.UAN || undefined,
 //         ESINumber: formData.ESINumber || undefined,
-        
+
 //         // Bank Details (as nested object)
 //         BankDetails: {}
 //       };
@@ -1132,7 +1132,7 @@
 //           ifscCode: formData.BankIfscCode || undefined,
 //           accountType: formData.BankAccountType || 'Savings'
 //         };
-        
+
 //         // Remove undefined values from BankDetails
 //         Object.keys(payload.BankDetails).forEach(key => 
 //           payload.BankDetails[key] === undefined && delete payload.BankDetails[key]
@@ -1149,7 +1149,7 @@
 //           address: formData.EmergencyContactAddress || undefined,
 //           pinCode: formData.EmergencyContactPIN || undefined
 //         };
-        
+
 //         // Remove undefined values from EmergencyContact
 //         Object.keys(payload.EmergencyContact).forEach(key => 
 //           payload.EmergencyContact[key] === undefined && delete payload.EmergencyContact[key]
@@ -1165,7 +1165,7 @@
 //       if (payload.BankDetails && Object.keys(payload.BankDetails).length === 0) {
 //         delete payload.BankDetails;
 //       }
-      
+
 //       if (payload.EmergencyContact && Object.keys(payload.EmergencyContact).length === 0) {
 //         delete payload.EmergencyContact;
 //       }
@@ -1287,7 +1287,7 @@
 //                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
 //               />
 //             </Stack>
-          
+
 //             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
 //               <FormControl fullWidth>
 //                 <InputLabel>Gender</InputLabel>
@@ -1307,7 +1307,7 @@
 //                   ))}
 //                 </Select>
 //               </FormControl>
-              
+
 //               <TextField
 //                 fullWidth
 //                 label="Date of Birth"
@@ -1322,7 +1322,7 @@
 //                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
 //               />
 //             </Stack>
-          
+
 //             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
 //               <TextField
 //                 fullWidth
@@ -1437,7 +1437,7 @@
 //                   isOptionEqualToValue={(option, value) => option._id === value._id}
 //                 />
 //               </FormControl>
-              
+
 //               <FormControl fullWidth>
 //                 <Autocomplete
 //                   options={designations}
@@ -1488,7 +1488,7 @@
 //                 />
 //               </FormControl>
 //             </Stack>
-          
+
 //             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
 //               <TextField
 //                 fullWidth
@@ -1507,7 +1507,7 @@
 //                 variant="outlined"
 //                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
 //               />
-              
+
 //               <FormControl fullWidth>
 //                 <InputLabel>Employment Status</InputLabel>
 //                 <Select
@@ -1536,7 +1536,7 @@
 //             <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', fontWeight: 600 }}>
 //               Pay & Work Information
 //             </Typography>
-            
+
 //             {/* Employment Type and Pay Structure Type */}
 //             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
 //               <FormControl fullWidth>
@@ -1707,7 +1707,7 @@
 //             <Typography variant="subtitle2" sx={{ mb: 2, color: '#1976D2', fontWeight: 600 }}>
 //               Tax & Identification (Optional)
 //             </Typography>
-            
+
 //             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
 //               <TextField
 //                 fullWidth
@@ -2034,7 +2034,7 @@
 //           </Typography>
 //         </Stack>
 //       </DialogTitle>
-      
+
 //       <DialogContent sx={{ pt: 3, overflowY: 'auto'}}>
 //         <Stack spacing={3}>
 //           {/* Stepper */}
@@ -2056,7 +2056,7 @@
 //           <Paper elevation={0} sx={{ p: 3, backgroundColor: '#F9F9F9', borderRadius: 2 }}>
 //             <Stack spacing={3}>
 //               {renderStepContent()}
-              
+
 //               {error && (
 //                 <Alert 
 //                   severity="error" 
@@ -2074,7 +2074,7 @@
 //           </Paper>
 //         </Stack>
 //       </DialogContent>
-      
+
 //       <DialogActions sx={{ 
 //         px: 3, 
 //         pb: 3, 
@@ -2101,7 +2101,7 @@
 //         >
 //           Cancel
 //         </Button>
-        
+
 //         <Stack direction="row" spacing={2}>
 //           {activeStep > 0 && (
 //             <Button
@@ -2195,10 +2195,12 @@ import {
   styled,
   FormHelperText,
   InputAdornment,
-  Autocomplete
+  Autocomplete,
+  
 } from '@mui/material';
-import { 
-  Edit as EditIcon, 
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
   Search as SearchIcon,
@@ -2209,6 +2211,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddDepartments from '../departmentmaster/AddDepartments';
+import AddDesignations from '../designationmaster/AddDesignations';
 
 // Color constants matching Users component
 const COLORS = {
@@ -2365,13 +2369,13 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     Email: '',
     Phone: '',
     Address: '',
-    
+
     // Employment Details
     DepartmentID: '',
     DesignationID: '',
     DateOfJoining: '',
     EmploymentStatus: 'active',
-    
+
     // Pay & Work
     EmploymentType: 'Monthly',
     PayStructureType: 'Fixed',
@@ -2381,14 +2385,14 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     SkillLevel: 'Semi-Skilled',
     WorkStation: '',
     LineNumber: '',
-    
+
     // Tax & Identification
     PAN: '',
     AadharNumber: '',
     PFNumber: '',
     UAN: '',
     ESINumber: '',
-    
+
     // Bank Details
     BankAccountNumber: '',
     BankAccountHolderName: '',
@@ -2396,7 +2400,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     BankBranch: '',
     BankIfscCode: '',
     BankAccountType: 'Savings',
-    
+
     // Emergency Contact
     EmergencyContactName: '',
     EmergencyContactRelationship: '',
@@ -2410,25 +2414,28 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState('');
-  
+
   // Dropdown data
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
-  
+
+  const [addDepartmentOpen, setAddDepartmentOpen] = useState(false);
+  const [addDesignationOpen, setAddDesignationOpen] = useState(false);
+
   // Search states
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [designationSearch, setDesignationSearch] = useState('');
 
   // Options
   const genderOptions = ['M', 'F', 'O'];
-  
+
   const employmentStatusOptions = [
     { value: 'active', label: 'Active' },
     { value: 'resigned', label: 'Resigned' },
     { value: 'terminated', label: 'Terminated' },
     { value: 'retired', label: 'Retired' }
   ];
-  
+
   const employmentTypeOptions = [
     { value: 'Monthly', label: 'Monthly' },
     { value: 'Hourly', label: 'Hourly' },
@@ -2441,14 +2448,14 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     { value: 'Commission', label: 'Commission' },
     { value: 'PieceRate', label: 'Piece Rate' }
   ];
-  
+
   const skillLevelOptions = [
     { value: 'Unskilled', label: 'Unskilled' },
     { value: 'Semi-Skilled', label: 'Semi-Skilled' },
     { value: 'Skilled', label: 'Skilled' },
     { value: 'Highly Skilled', label: 'Highly Skilled' }
   ];
-  
+
   const accountTypeOptions = [
     { value: 'Savings', label: 'Savings' },
     { value: 'Current', label: 'Current' },
@@ -2474,13 +2481,13 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         Email: employee.Email || '',
         Phone: employee.Phone || '',
         Address: employee.Address || '',
-        
+
         // Employment Details
         DepartmentID: employee.DepartmentID?._id || employee.DepartmentID || '',
         DesignationID: employee.DesignationID?._id || employee.DesignationID || '',
         DateOfJoining: employee.DateOfJoining ? employee.DateOfJoining.split('T')[0] : '',
         EmploymentStatus: employee.EmploymentStatus || 'active',
-        
+
         // Pay & Work
         EmploymentType: employee.EmploymentType || 'Monthly',
         PayStructureType: employee.PayStructureType || 'Fixed',
@@ -2490,14 +2497,14 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         SkillLevel: employee.SkillLevel || 'Semi-Skilled',
         WorkStation: employee.WorkStation || '',
         LineNumber: employee.LineNumber || '',
-        
+
         // Tax & Identification
         PAN: employee.PAN || '',
         AadharNumber: employee.AadharNumber || '',
         PFNumber: employee.PFNumber || '',
         UAN: employee.UAN || '',
         ESINumber: employee.ESINumber || '',
-        
+
         // Bank Details
         BankAccountNumber: employee.BankDetails?.accountNumber || '',
         BankAccountHolderName: employee.BankDetails?.accountHolderName || '',
@@ -2505,7 +2512,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         BankBranch: employee.BankDetails?.branch || '',
         BankIfscCode: employee.BankDetails?.ifscCode || '',
         BankAccountType: employee.BankDetails?.accountType || 'Savings',
-        
+
         // Emergency Contact
         EmergencyContactName: employee.EmergencyContact?.name || '',
         EmergencyContactRelationship: employee.EmergencyContact?.relationship || '',
@@ -2520,7 +2527,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
     try {
       setLoadingData(true);
       const token = localStorage.getItem('token');
-      
+
       const [deptResponse, desigResponse] = await Promise.all([
         axios.get(`${BASE_URL}/api/departments`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -2533,7 +2540,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       if (deptResponse.data.success) {
         setDepartments(deptResponse.data.data || []);
       }
-      
+
       if (desigResponse.data.success) {
         setDesignations(desigResponse.data.data || []);
       }
@@ -2613,11 +2620,11 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     let processedValue = value;
-    
+
     // Apply field-specific formatting
-    switch(name) {
+    switch (name) {
       case 'FirstName':
       case 'LastName':
       case 'BankAccountHolderName':
@@ -2643,7 +2650,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       default:
         processedValue = value;
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
@@ -2676,7 +2683,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
-    
+
     setTouched(prev => ({
       ...prev,
       [name]: true
@@ -2692,16 +2699,52 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
   const handleEmploymentTypeChange = (e) => {
     const employmentType = e.target.value;
     let payStructureType = 'Fixed';
-    
+
     if (employmentType === 'PieceRate') {
       payStructureType = 'PieceRate';
     }
-    
+
     setFormData(prev => ({
       ...prev,
       EmploymentType: employmentType,
       PayStructureType: payStructureType
     }));
+  };
+
+  // Handle department added from modal
+  const handleDepartmentAdded = (newDepartment) => {
+    // Add the new department to the departments list
+    setDepartments(prev => [...prev, newDepartment]);
+    // Automatically select the newly added department
+    setFormData(prev => ({
+      ...prev,
+      DepartmentID: newDepartment._id
+    }));
+    // Clear any department-related error
+    if (fieldErrors.DepartmentID) {
+      setFieldErrors(prev => ({
+        ...prev,
+        DepartmentID: ''
+      }));
+    }
+  };
+
+  // Handle designation added from modal
+  const handleDesignationAdded = (newDesignation) => {
+    // Add the new designation to the designation list
+    setDesignations(prev => [...prev, newDesignation]);
+    // Automatically select the newly added designation
+    setFormData(prev => ({
+      ...prev,
+      DesignationID: newDesignation._id
+    }));
+    // Clear any designation-related error
+    if (fieldErrors.DesignationID) {
+      setFieldErrors(prev => ({
+        ...prev,
+        DesignationID: ''
+      }));
+    }
   };
 
   const validateStep = (step) => {
@@ -2974,36 +3017,36 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         EmploymentStatus: formData.EmploymentStatus,
         EmploymentType: formData.EmploymentType,
         PayStructureType: formData.PayStructureType,
-        
+
         // Optional fields
         ...(formData.DateOfBirth && { DateOfBirth: formData.DateOfBirth }),
         ...(formData.Phone && { Phone: formData.Phone }),
         ...(formData.Address && { Address: formData.Address }),
-        
+
         // Pay fields
         ...(formData.BasicSalary && { BasicSalary: Number(formData.BasicSalary) }),
         ...(formData.HourlyRate && { HourlyRate: Number(formData.HourlyRate) }),
         OvertimeRateMultiplier: Number(formData.OvertimeRateMultiplier || 1.5),
-        
+
         // Work info
         ...(formData.SkillLevel && { SkillLevel: formData.SkillLevel }),
         ...(formData.WorkStation && { WorkStation: formData.WorkStation }),
         ...(formData.LineNumber && { LineNumber: formData.LineNumber }),
-        
+
         // Tax & ID
         ...(formData.PAN && { PAN: formData.PAN }),
         ...(formData.AadharNumber && { AadharNumber: formData.AadharNumber }),
         ...(formData.PFNumber && { PFNumber: formData.PFNumber }),
         ...(formData.UAN && { UAN: formData.UAN }),
         ...(formData.ESINumber && { ESINumber: formData.ESINumber }),
-        
+
         // Bank Details
         BankDetails: {}
       };
 
       // Add BankDetails if any field is provided
-      if (formData.BankAccountNumber || formData.BankAccountHolderName || 
-          formData.BankName || formData.BankBranch || formData.BankIfscCode) {
+      if (formData.BankAccountNumber || formData.BankAccountHolderName ||
+        formData.BankName || formData.BankBranch || formData.BankIfscCode) {
         payload.BankDetails = {
           ...(formData.BankAccountNumber && { accountNumber: formData.BankAccountNumber }),
           ...(formData.BankAccountHolderName && { accountHolderName: formData.BankAccountHolderName }),
@@ -3015,8 +3058,8 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       }
 
       // Add EmergencyContact if any field is provided
-      if (formData.EmergencyContactName || formData.EmergencyContactRelationship || 
-          formData.EmergencyContactPhone || formData.EmergencyContactAddress || formData.EmergencyContactPIN) {
+      if (formData.EmergencyContactName || formData.EmergencyContactRelationship ||
+        formData.EmergencyContactPhone || formData.EmergencyContactAddress || formData.EmergencyContactPIN) {
         payload.EmergencyContact = {
           ...(formData.EmergencyContactName && { name: formData.EmergencyContactName }),
           ...(formData.EmergencyContactRelationship && { relationship: formData.EmergencyContactRelationship }),
@@ -3110,17 +3153,17 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       case 0: // Personal Information
         return (
           <Stack spacing={2}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
                 mb: 1.5,
                 display: 'flex',
                 alignItems: 'center',
@@ -3129,7 +3172,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                 <PersonIcon sx={{ fontSize: '1rem' }} />
                 Personal Details
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -3169,7 +3212,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                     />
                   </Box>
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
@@ -3402,17 +3445,17 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       case 1: // Employment Details
         return (
           <Stack spacing={2}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
                 mb: 1.5,
                 display: 'flex',
                 alignItems: 'center',
@@ -3421,61 +3464,93 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                 <WorkIcon sx={{ fontSize: '1rem' }} />
                 Employment Details
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      options={departments}
-                      getOptionLabel={(option) => option?.DepartmentName || ''}
-                      value={departments.find(dept => dept._id === formData.DepartmentID) || null}
-                      onChange={(event, newValue) => {
-                        handleAutocompleteChange('DepartmentID', newValue?._id || '');
-                      }}
-                      onInputChange={(event, newInputValue) => {
-                        setDepartmentSearch(newInputValue);
-                      }}
-                      loading={loadingData}
-                      disabled={loading || loadingData}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Select department"
-                          error={!!fieldErrors.DepartmentID}
-                          helperText={fieldErrors.DepartmentID}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                              </InputAdornment>
-                            ),
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          options={departments}
+                          getOptionLabel={(option) => option?.DepartmentName || ''}
+                          value={departments.find(dept => dept._id === formData.DepartmentID) || null}
+                          onChange={(event, newValue) => {
+                            handleAutocompleteChange('DepartmentID', newValue?._id || '');
                           }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
+                          onInputChange={(event, newInputValue) => {
+                            setDepartmentSearch(newInputValue);
                           }}
+                          loading={loadingData}
+                          disabled={loading || loadingData}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select department"
+                              error={!!fieldErrors.DepartmentID}
+                              helperText={fieldErrors.DepartmentID}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                  </InputAdornment>
+                                ),
+                              }}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                                  '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                          PaperComponent={CustomPaper}
+                          noOptionsText={departments.length === 0 ? "No departments available" : "No matching departments"}
+                          isOptionEqualToValue={(option, value) => option?._id === value?._id}
                         />
-                      )}
-                      PaperComponent={CustomPaper}
-                      noOptionsText={departments.length === 0 ? "No departments available" : "No matching departments"}
-                      isOptionEqualToValue={(option, value) => option?._id === value?._id}
-                    />
+                      </Box>
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setAddDepartmentOpen(true)}
+                        disabled={loading || loadingData}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 32,
+                          minWidth: 'auto',
+                          px: 1.5,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
+                          }
+                        }}
+                      >
+                        Add New
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
 
@@ -3484,54 +3559,86 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       DESIGNATION <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      options={designations}
-                      getOptionLabel={(option) => option?.DesignationName || ''}
-                      value={designations.find(desig => desig._id === formData.DesignationID) || null}
-                      onChange={(event, newValue) => {
-                        handleAutocompleteChange('DesignationID', newValue?._id || '');
-                      }}
-                      onInputChange={(event, newInputValue) => {
-                        setDesignationSearch(newInputValue);
-                      }}
-                      loading={loadingData}
-                      disabled={loading || loadingData}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Select designation"
-                          error={!!fieldErrors.DesignationID}
-                          helperText={fieldErrors.DesignationID}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                              </InputAdornment>
-                            ),
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          options={designations}
+                          getOptionLabel={(option) => option?.DesignationName || ''}
+                          value={designations.find(desig => desig._id === formData.DesignationID) || null}
+                          onChange={(event, newValue) => {
+                            handleAutocompleteChange('DesignationID', newValue?._id || '');
                           }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
+                          onInputChange={(event, newInputValue) => {
+                            setDesignationSearch(newInputValue);
                           }}
+                          loading={loadingData}
+                          disabled={loading || loadingData}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select designation"
+                              error={!!fieldErrors.DesignationID}
+                              helperText={fieldErrors.DesignationID}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                  </InputAdornment>
+                                ),
+                              }}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+                                  '&.Mui-error fieldset': { borderColor: '#EF4444' }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                          PaperComponent={CustomPaper}
+                          noOptionsText={designations.length === 0 ? "No designations available" : "No matching designations"}
+                          isOptionEqualToValue={(option, value) => option?._id === value?._id}
                         />
-                      )}
-                      PaperComponent={CustomPaper}
-                      noOptionsText={designations.length === 0 ? "No designations available" : "No matching designations"}
-                      isOptionEqualToValue={(option, value) => option?._id === value?._id}
-                    />
+                      </Box>
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setAddDesignationOpen(true)}
+                        disabled={loading || loadingData}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 32,
+                          minWidth: 'auto',
+                          px: 1.5,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
+                          }
+                        }}
+                      >
+                        Add New
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
 
@@ -3611,22 +3718,22 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       case 2: // Pay & Work
         return (
           <Stack spacing={2}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
+                mb: 1.5
               }}>
                 Pay Structure
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -3954,22 +4061,22 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
               </Grid>
             </Paper>
 
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
+                mb: 1.5
               }}>
                 Tax & Identification (Optional)
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -4178,17 +4285,17 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
       case 3: // Bank & Emergency
         return (
           <Stack spacing={2}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
                 mb: 1.5,
                 display: 'flex',
                 alignItems: 'center',
@@ -4197,7 +4304,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                 <AccountBalanceIcon sx={{ fontSize: '1rem' }} />
                 Bank Details (Optional)
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -4430,17 +4537,17 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
               </Grid>
             </Paper>
 
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
+              <Typography sx={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: COLORS.primary,
                 mb: 1.5,
                 display: 'flex',
                 alignItems: 'center',
@@ -4449,7 +4556,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
                 <EmergencyIcon sx={{ fontSize: '1rem' }} />
                 Emergency Contact (Optional)
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -4690,7 +4797,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
             <Chip
               label={`ID: ${employee._id.slice(-6)}`}
               size="small"
-              sx={{ 
+              sx={{
                 fontSize: '0.65rem',
                 fontWeight: 500,
                 height: 20,
@@ -4706,7 +4813,7 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
           <Chip
             label={employee?.EmploymentStatus === 'active' ? 'Active' : 'Inactive'}
             size="small"
-            sx={{ 
+            sx={{
               fontSize: '0.65rem',
               fontWeight: 500,
               height: 20,
@@ -4743,10 +4850,10 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
+          <Alert
+            severity="error"
+            sx={{
+              mt: 2,
               borderRadius: 1.5,
               fontSize: '0.75rem',
               py: 0.5,
@@ -4859,6 +4966,19 @@ const EditEmployees = ({ open, onClose, employee, onUpdate }) => {
           )}
         </Box>
       </DialogActions>
+      {/* Add Department Modal */}
+      <AddDepartments
+        open={addDepartmentOpen}
+        onClose={() => setAddDepartmentOpen(false)}
+        onAdd={handleDepartmentAdded}
+      />
+
+      {/* Add Designation Modal */}
+      <AddDesignations
+        open={addDesignationOpen}
+        onClose={() => setAddDesignationOpen(false)}
+        onAdd={handleDesignationAdded}
+      />
     </Dialog>
   );
 };

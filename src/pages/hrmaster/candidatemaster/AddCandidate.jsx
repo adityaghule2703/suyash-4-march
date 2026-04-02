@@ -2519,12 +2519,14 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
                     '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' }
                   }}
                 >
+                  <MenuItem value="naukri" sx={{ fontSize: '0.75rem' }}>Naukri</MenuItem>
+                  <MenuItem value="linkedin" sx={{ fontSize: '0.75rem' }}>LinkedIn</MenuItem>
+                  <MenuItem value="indeed" sx={{ fontSize: '0.75rem' }}>Indeed</MenuItem>
                   <MenuItem value="walkin" sx={{ fontSize: '0.75rem' }}>Walk-in</MenuItem>
-                  <MenuItem value="portal" sx={{ fontSize: '0.75rem' }}>Job Portal</MenuItem>
-                  <MenuItem value="referral" sx={{ fontSize: '0.75rem' }}>Referral</MenuItem>
-                  <MenuItem value="consultant" sx={{ fontSize: '0.75rem' }}>Consultant</MenuItem>
+                  <MenuItem value="reference" sx={{ fontSize: '0.75rem' }}>Reference</MenuItem>
+                  <MenuItem value="careerPage" sx={{ fontSize: '0.75rem' }}>Career Page</MenuItem>
                   <MenuItem value="other" sx={{ fontSize: '0.75rem' }}>Other</MenuItem>
-                </Select>
+                  </Select>
               </FormControl>
             </Box>
           </Stack>
@@ -2550,23 +2552,23 @@ const AddCandidate = ({ open, onClose, onAdd, jobId = '' }) => {
         }
       }}
     >
-  <DialogTitle sx={{
-  borderBottom: `1px solid ${COLORS.border}`,
-  py: 1.5,
-  px: 2.5,
-  bgcolor: COLORS.background.white,
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center'
-}}>
-  <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-    <AddIcon sx={{ mr: 1, verticalAlign: 'middle', color: COLORS.primary }} />
-    Add New Candidate
-  </Typography>
-  <IconButton onClick={handleClose} size="small">
-    <CloseIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
-  </IconButton>
-</DialogTitle>
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          <AddIcon sx={{ mr: 1, verticalAlign: 'middle', color: COLORS.primary }} />
+          Add New Candidate
+        </Typography>
+        <IconButton onClick={handleClose} size="small">
+          <CloseIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
+        </IconButton>
+      </DialogTitle>
 
       <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
         <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>

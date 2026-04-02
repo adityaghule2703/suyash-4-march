@@ -730,6 +730,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddEmployees from '../employeemaster/AddEmployees';
+import AddMachine from '../../bommaster/machinemaster/AddMachine';
 
 // Color constants matching AddVendor component
 const COLORS = {
@@ -860,12 +862,15 @@ const AddAccident = ({ open, onClose, onAdd }) => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [touched, setTouched] = useState({});
   // Data fetching states
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [machines, setMachines] = useState([]);
+  const [addMachineOpen, setAddMachineOpen] = useState(false);
 
   // Enum options
   const injuryTypeOptions = [
@@ -874,6 +879,50 @@ const AddAccident = ({ open, onClose, onAdd }) => {
   ];
 
   const severityOptions = ['Minor', 'Moderate', 'Major', 'Fatal'];
+
+  // Shared styles matching AddEmployee
+  const textFieldStyles = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+      '&.Mui-error fieldset': { borderColor: '#EF4444' }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary,
+      '&::placeholder': {
+        color: COLORS.text.tertiary,
+        fontSize: '0.75rem'
+      }
+    },
+    '& input[type=number]': {
+      MozAppearance: 'textfield'
+    },
+    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+      WebkitAppearance: 'none',
+      margin: 0
+    }
+  };
+
+  const selectStyles = {
+    borderRadius: 1.5,
+    fontSize: '0.75rem',
+    '& .MuiSelect-select': {
+      py: 1,
+      fontSize: '0.75rem'
+    },
+    '&:hover .MuiOutlinedInput-notchedOutline': {
+      borderColor: COLORS.primary
+    },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+      borderColor: COLORS.primary,
+      borderWidth: 1
+    }
+  };
 
   // Fetch employees, departments, and users when dialog opens
   useEffect(() => {
@@ -946,6 +995,34 @@ const AddAccident = ({ open, onClose, onAdd }) => {
       setFetchingData(false);
     }
   };
+
+  const fetchMachines = async () => {
+    setFetchingData(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/machines`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setMachines(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching machines:', err);
+    } finally {
+      setFetchingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchEmployees();
+      fetchDepartments();
+      fetchUsers();
+      fetchMachines(); // Add this line
+    }
+  }, [open]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -972,53 +1049,77 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     }
   };
 
-const handleAutocompleteChange = (name, value) => {
-  setFieldErrors(prev => ({
-    ...prev,
-    [name]: ''
-  }));
-  
-  // If employee is selected, fetch and set their department
-  if (name === 'employee' && value) {
-    const selectedEmployee = employees.find(emp => emp._id === value);
-    if (selectedEmployee) {
-      // Check if employee has department data
-      let departmentId = '';
-      
-      if (selectedEmployee.department) {
-        // If department is an object with _id
-        if (typeof selectedEmployee.department === 'object' && selectedEmployee.department._id) {
-          departmentId = selectedEmployee.department._id;
-        } 
-        // If department is a string (ID)
-        else if (typeof selectedEmployee.department === 'string') {
-          departmentId = selectedEmployee.department;
-        }
-      }
-      
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        department: departmentId
-      }));
-      
-      // Clear department error if exists
-      if (departmentId) {
-        setFieldErrors(prev => ({
+  const handleAutocompleteChange = (name, value) => {
+    setFieldErrors(prev => ({
+      ...prev,
+      [name]: ''
+    }));
+
+    // If machine is selected, fetch and set machine name
+    if (name === 'machineId' && value) {
+      const selectedMachine = machines.find(machine => machine._id === value);
+      if (selectedMachine) {
+        setFormData(prev => ({
           ...prev,
-          department: ''
+          machineId: value,
+          machineName: selectedMachine.machine_name || selectedMachine.machine_name || ''
         }));
+        return;
       }
-      
-      return;
     }
-  }
-  
-  setFormData(prev => ({
-    ...prev,
-    [name]: value || ''
-  }));
-};
+
+    // If employee is selected, fetch and set their department
+    if (name === 'employee' && value) {
+      const selectedEmployee = employees.find(emp => emp._id === value);
+      if (selectedEmployee) {
+        // Check if employee has department data
+        let departmentId = '';
+
+        // Handle different possible structures
+        if (selectedEmployee.DepartmentID) {
+          // If department is an object with _id
+          if (typeof selectedEmployee.DepartmentID === 'object' && selectedEmployee.DepartmentID._id) {
+            departmentId = selectedEmployee.DepartmentID._id;
+          }
+          // If department is a string (ID)
+          else if (typeof selectedEmployee.DepartmentID === 'string') {
+            departmentId = selectedEmployee.DepartmentID;
+          }
+        }
+
+        // Also check for department field
+        if (!departmentId && selectedEmployee.department) {
+          if (typeof selectedEmployee.department === 'object' && selectedEmployee.department._id) {
+            departmentId = selectedEmployee.department._id;
+          }
+          else if (typeof selectedEmployee.department === 'string') {
+            departmentId = selectedEmployee.department;
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          department: departmentId
+        }));
+
+        // Clear department error if exists
+        if (departmentId) {
+          setFieldErrors(prev => ({
+            ...prev,
+            department: ''
+          }));
+        }
+
+        return;
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: value || ''
+    }));
+  };
 
   const handleSelectChange = (event) => {
     const { name, value } = event.target;
@@ -1080,6 +1181,52 @@ const handleAutocompleteChange = (name, value) => {
         return '';
     }
     return '';
+  };
+
+  // Handle employee added from modal
+  const handleEmployeeAdded = (newEmployee) => {
+    // Add the new employee to the employees list
+    setEmployees(prev => [...prev, newEmployee]);
+    // Automatically select the newly added employee
+    setFormData(prev => ({
+      ...prev,
+      employee: newEmployee._id,
+      // If the employee has department, set it automatically
+      department: newEmployee.DepartmentID?._id || newEmployee.DepartmentID || ''
+    }));
+    // Clear any employee-related error
+    if (fieldErrors.employee) {
+      setFieldErrors(prev => ({
+        ...prev,
+        employee: ''
+      }));
+    }
+    // Clear department error if department was set
+    if (newEmployee.DepartmentID?._id || newEmployee.DepartmentID) {
+      setFieldErrors(prev => ({
+        ...prev,
+        department: ''
+      }));
+    }
+  };
+
+  // Handle machine added from modal
+  const handleMachineAdded = (newMachine) => {
+    // Add the new machine to the machines list
+    setMachines(prev => [...prev, newMachine]);
+    // Automatically select the newly added machine
+    setFormData(prev => ({
+      ...prev,
+      machineId: newMachine._id,
+      machineName: newMachine.machine_name || ''
+    }));
+    // Clear any machine-related error
+    if (fieldErrors.machineId) {
+      setFieldErrors(prev => ({
+        ...prev,
+        machineId: ''
+      }));
+    }
   };
 
   const validateStep = (step) => {
@@ -1336,59 +1483,75 @@ const handleAutocompleteChange = (name, value) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       EMPLOYEE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      options={employees}
-                      getOptionLabel={(option) => {
-                        if (!option) return '';
-                        const firstName = option.FirstName || '';
-                        const lastName = option.LastName || '';
-                        const employeeId = option.EmployeeID || '';
-                        return `${firstName} ${lastName} (${employeeId})`.trim();
-                      }}
-                      value={employees.find(emp => emp._id === formData.employee) || null}
-                      onChange={(event, newValue) => {
-                        handleAutocompleteChange('employee', newValue?._id || '');
-                      }}
-                      loading={fetchingData}
-                      disabled={loading}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder="Search employee..."
-                          error={!!fieldErrors.employee}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                              </InputAdornment>
-                            ),
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          options={employees}
+                          getOptionLabel={(option) => {
+                            if (!option) return '';
+                            const firstName = option.FirstName || '';
+                            const lastName = option.LastName || '';
+                            const employeeId = option.EmployeeID || '';
+                            return `${firstName} ${lastName} (${employeeId})`.trim();
                           }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
+                          value={employees.find(emp => emp._id === formData.employee) || null}
+                          onChange={(event, newValue) => {
+                            handleAutocompleteChange('employee', newValue?._id || '');
                           }}
+                          loading={fetchingData}
+                          disabled={loading}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Search employee..."
+                              error={!!fieldErrors.employee}
+                              sx={textFieldStyles}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          )}
+                          PaperComponent={CustomPaper}
+                          noOptionsText="No employees found"
+                          isOptionEqualToValue={(option, value) => option._id === value?._id}
                         />
-                      )}
-                      PaperComponent={CustomPaper}
-                      noOptionsText="No employees found"
-                      isOptionEqualToValue={(option, value) => option._id === value?._id}
-                    />
+                      </Box>
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setAddEmployeeOpen(true)}
+                        disabled={loading || fetchingData}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 32,
+                          minWidth: 'auto',
+                          px: 1.5,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
+                          }
+                        }}
+                      >
+                        Add New
+                      </Button>
+                    </Box>
+
                     {fieldErrors.employee && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
                         {fieldErrors.employee}
@@ -1403,10 +1566,7 @@ const handleAutocompleteChange = (name, value) => {
                     </Typography>
                     <Autocomplete
                       options={departments}
-                      getOptionLabel={(option) => {
-                        if (!option) return '';
-                        return option.DepartmentName || '';
-                      }}
+                      getOptionLabel={(option) => option?.DepartmentName || ''}
                       value={departments.find(dept => dept._id === formData.department) || null}
                       onChange={(event, newValue) => {
                         handleAutocompleteChange('department', newValue?._id || '');
@@ -1416,8 +1576,10 @@ const handleAutocompleteChange = (name, value) => {
                       renderInput={(params) => (
                         <TextField
                           {...params}
-                          placeholder="Search department..."
+                          size="small"
+                          placeholder="Auto-populated from employee"
                           error={!!fieldErrors.department}
+                          sx={textFieldStyles}
                           InputProps={{
                             ...params.InputProps,
                             startAdornment: (
@@ -1425,25 +1587,6 @@ const handleAutocompleteChange = (name, value) => {
                                 <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                               </InputAdornment>
                             ),
-                          }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
                           }}
                         />
                       )}
@@ -1473,21 +1616,7 @@ const handleAutocompleteChange = (name, value) => {
                       disabled={loading}
                       error={!!fieldErrors.date}
                       InputLabelProps={{ shrink: true }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                     {fieldErrors.date && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
@@ -1510,25 +1639,7 @@ const handleAutocompleteChange = (name, value) => {
                       disabled={loading}
                       placeholder="e.g., Production Floor, Section A"
                       error={!!fieldErrors.location}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                     {fieldErrors.location && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
@@ -1537,68 +1648,7 @@ const handleAutocompleteChange = (name, value) => {
                     )}
                   </Box>
                 </Grid>
-                {/* <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Autocomplete
-                      options={departments}
-                      getOptionLabel={(option) => {
-                        if (!option) return '';
-                        return option.DepartmentName || '';
-                      }}
-                      value={departments.find(dept => dept._id === formData.department) || null}
-                      onChange={(event, newValue) => {
-                        handleAutocompleteChange('department', newValue?._id || '');
-                      }}
-                      loading={fetchingData}
-                      disabled={loading}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder="Search department..."
-                          error={!!fieldErrors.department}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                              </InputAdornment>
-                            ),
-                          }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
-                        />
-                      )}
-                      PaperComponent={CustomPaper}
-                      noOptionsText="No departments found"
-                      isOptionEqualToValue={(option, value) => option._id === value?._id}
-                    />
-                    {fieldErrors.department && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.25 }}>
-                        {fieldErrors.department}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid> */}
+
               </Grid>
             </Paper>
           </Stack>
@@ -1627,36 +1677,77 @@ const handleAutocompleteChange = (name, value) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      MACHINE ID
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="machineId"
-                      value={formData.machineId}
-                      onChange={handleChange}
-                      disabled={loading}
-                      placeholder="e.g., MCH-001"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        MACHINE
+                      </Typography>
+
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          options={machines}
+                          getOptionLabel={(option) => {
+                            if (!option) return '';
+                            const machineId = option.machine_id || '';
+                            const machineName = option.machine_name || '';
+                            return `${machineId} - ${machineName}`;
+                          }}
+                          value={machines.find(machine => machine._id === formData.machineId) || null}
+                          onChange={(event, newValue) => {
+                            handleAutocompleteChange('machineId', newValue?._id || '');
+                          }}
+                          loading={fetchingData}
+                          disabled={loading}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select machine..."
+                              sx={textFieldStyles}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          )}
+                          PaperComponent={CustomPaper}
+                          noOptionsText="No machines found"
+                          isOptionEqualToValue={(option, value) => option._id === value?._id}
+                        />
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setAddMachineOpen(true)}
+                        disabled={loading || fetchingData}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 34,
+                          minWidth: 'auto',
                           px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.65rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
                           }
-                        }
-                      }}
-                    />
+                        }}
+                      >
+                        Add New
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -1670,24 +1761,13 @@ const handleAutocompleteChange = (name, value) => {
                       name="machineName"
                       value={formData.machineName}
                       onChange={handleChange}
-                      disabled={loading}
-                      placeholder="e.g., CNC Machine"
+                      disabled={true}
+                      placeholder="Auto-populated from machine selection"
                       sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
+                        ...textFieldStyles,
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: COLORS.text.secondary,
+                          backgroundColor: COLORS.background.light
                         }
                       }}
                     />
@@ -1704,26 +1784,7 @@ const handleAutocompleteChange = (name, value) => {
                         value={formData.injuryType}
                         onChange={handleSelectChange}
                         disabled={loading}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                            borderWidth: 1
-                          },
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: fieldErrors.injuryType ? '#EF4444' : COLORS.border
-                          }
-                        }}
+                        sx={textFieldStyles}
                       >
                         {injuryTypeOptions.map((option) => (
                           <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
@@ -1750,26 +1811,7 @@ const handleAutocompleteChange = (name, value) => {
                         value={formData.severity}
                         onChange={handleSelectChange}
                         disabled={loading}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5,
-                            fontSize: '0.75rem',
-                            color: COLORS.text.primary
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: COLORS.primary,
-                            borderWidth: 1
-                          },
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: fieldErrors.severity ? '#EF4444' : COLORS.border
-                          }
-                        }}
+                        sx={textFieldStyles}
                       >
                         {severityOptions.map((option) => (
                           <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
@@ -1802,25 +1844,7 @@ const handleAutocompleteChange = (name, value) => {
                       placeholder="Describe what happened..."
                       error={!!fieldErrors.description}
                       helperText={fieldErrors.description}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                   </Box>
                 </Grid>
@@ -1837,24 +1861,7 @@ const handleAutocompleteChange = (name, value) => {
                       onChange={handleChange}
                       disabled={loading}
                       placeholder="e.g., Left hand, Right eye"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                   </Box>
                 </Grid>
@@ -1876,32 +1883,7 @@ const handleAutocompleteChange = (name, value) => {
                         min: 0,
                         onWheel: (e) => e.target.blur()
                       }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        },
-                        '& input[type=number]': {
-                          MozAppearance: 'textfield'
-                        },
-                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                          WebkitAppearance: 'none',
-                          margin: 0
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
                       Number of work days lost (0 if none)
@@ -1954,24 +1936,7 @@ const handleAutocompleteChange = (name, value) => {
                       rows={3}
                       disabled={loading}
                       placeholder="What immediate action was taken?"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                   </Box>
                 </Grid>
@@ -1990,86 +1955,11 @@ const handleAutocompleteChange = (name, value) => {
                       rows={3}
                       disabled={loading}
                       placeholder="What was the root cause of the incident?"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      sx={textFieldStyles}
                     />
                   </Box>
                 </Grid>
-                {/* <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      REPORTED BY
-                    </Typography>
-                    <Autocomplete
-                      options={users}
-                      getOptionLabel={(option) => {
-                        if (!option) return '';
-                        const username = option.Username || '';
-                        const employeeInfo = option.EmployeeID 
-                          ? ` - ${option.EmployeeID.FirstName || ''} ${option.EmployeeID.LastName || ''}`
-                          : '';
-                        return `${username}${employeeInfo}`;
-                      }}
-                      value={users.find(user => user._id === formData.reportedBy) || null}
-                      onChange={(event, newValue) => {
-                        handleAutocompleteChange('reportedBy', newValue?._id || '');
-                      }}
-                      loading={fetchingData}
-                      disabled={loading}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder="Search user..."
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                              </InputAdornment>
-                            ),
-                          }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
-                        />
-                      )}
-                      PaperComponent={CustomPaper}
-                      noOptionsText="No users found"
-                      isOptionEqualToValue={(option, value) => option._id === value?._id}
-                    />
-                  </Box>
-                </Grid> */}
+
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
@@ -2127,24 +2017,7 @@ const handleAutocompleteChange = (name, value) => {
                               </InputAdornment>
                             ),
                           }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
+                          sx={textFieldStyles}
                         />
                       )}
                       PaperComponent={CustomPaper}
@@ -2331,6 +2204,20 @@ const handleAutocompleteChange = (name, value) => {
           )}
         </Box>
       </DialogActions>
+      {/* Add Employee Modal */}
+      <AddEmployees
+        open={addEmployeeOpen}
+        onClose={() => setAddEmployeeOpen(false)}
+        onAdd={handleEmployeeAdded}
+      />
+
+      {/* Add Machine Modal */}
+      <AddMachine
+        open={addMachineOpen}
+        onClose={() => setAddMachineOpen(false)}
+        onAdd={handleMachineAdded}
+      />
+
     </Dialog>
   );
 };
