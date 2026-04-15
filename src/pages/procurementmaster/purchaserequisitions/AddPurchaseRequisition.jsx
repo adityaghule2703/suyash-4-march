@@ -23,16 +23,22 @@ import {
   MenuItem,
   Autocomplete,
   InputAdornment,
-  styled
+  styled,
+  Tooltip,
+  IconButton,
+  CircularProgress
 } from '@mui/material';
 import { 
   Add as AddIcon,
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  NavigateBefore as NavigateBeforeIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddItem from '../../master/itemmaster/AddItem';
+
 
 const COLORS = {
   primary: '#063C3F',
@@ -71,6 +77,10 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  
+  // State for Add Item dialog
+  const [addItemOpen, setAddItemOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     pr_type: 'Material',
@@ -146,11 +156,45 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleItemChange = (field, value) => {
-    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+  const handleItemChange = (event, newValue) => {
+    setSelectedItem(newValue);
+    setFieldErrors(prev => ({ ...prev, item_id: '' }));
     setFormData(prev => ({
       ...prev,
-      item: { ...prev.item, [field]: value }
+      item: { ...prev.item, item_id: newValue?._id || '' }
+    }));
+  };
+
+  const handleItemQuantityChange = (value) => {
+    setFieldErrors(prev => ({ ...prev, required_qty: '' }));
+    setFormData(prev => ({
+      ...prev,
+      item: { ...prev.item, required_qty: value }
+    }));
+  };
+
+  const handleItemPriceChange = (value) => {
+    setFieldErrors(prev => ({ ...prev, estimated_price: '' }));
+    setFormData(prev => ({
+      ...prev,
+      item: { ...prev.item, estimated_price: value }
+    }));
+  };
+
+  const handleItemRemarksChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      item: { ...prev.item, remarks: value }
+    }));
+  };
+
+  const handleItemAdded = (newItem) => {
+    setItems(prev => [...prev, newItem]);
+    // Auto-select the newly added item
+    setSelectedItem(newItem);
+    setFormData(prev => ({
+      ...prev,
+      item: { ...prev.item, item_id: newItem._id }
     }));
   };
 
@@ -283,6 +327,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
         remarks: ''
       }
     });
+    setSelectedItem(null);
     setFieldErrors({});
     setError('');
     setActiveStep(0);
@@ -293,11 +338,41 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
     onClose();
   };
 
-  const selectedItem = items.find(i => i._id === formData.item.item_id);
+  const getItemLabel = (item) => {
+    if (!item) return '';
+    const partNo = item.part_no || '';
+    const partName = item.part_name || '';
+    return `${partNo}${partNo && partName ? ' - ' : ''}${partName}`;
+  };
+
   const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price 
     ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price) 
     : 0;
   const today = new Date().toISOString().split('T')[0];
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      backgroundColor: COLORS.background.white,
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
+  };
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -312,7 +387,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       PR TYPE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.pr_type}>
@@ -320,13 +395,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         name="pr_type"
                         value={formData.pr_type}
                         onChange={handleSelectChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
-                        }}
+                        sx={inputStyle}
                       >
                         {prTypes.map(type => <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.75rem' }}>{type.label}</MenuItem>)}
                       </Select>
@@ -335,7 +404,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       SOURCE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.source}>
@@ -343,13 +412,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         name="source"
                         value={formData.source}
                         onChange={handleSelectChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
-                        }}
+                        sx={inputStyle}
                       >
                         {sources.map(src => <MenuItem key={src.value} value={src.value} sx={{ fontSize: '0.75rem' }}>{src.label}</MenuItem>)}
                       </Select>
@@ -358,7 +421,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.department}>
@@ -366,13 +429,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         name="department"
                         value={formData.department}
                         onChange={handleSelectChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
-                        }}
+                        sx={inputStyle}
                       >
                         {departments.map(dept => <MenuItem key={dept.value} value={dept.value} sx={{ fontSize: '0.75rem' }}>{dept.label}</MenuItem>)}
                       </Select>
@@ -381,7 +438,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       REQUIRED DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField 
@@ -395,22 +452,13 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                       helperText={fieldErrors.required_date}
                       InputLabelProps={{ shrink: true }}
                       inputProps={{ min: today }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       MRP RUN ID
                     </Typography>
                     <TextField 
@@ -420,15 +468,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                       value={formData.mrp_run_id} 
                       onChange={handleChange} 
                       placeholder="e.g., MRP-20250315-001"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
@@ -448,38 +488,83 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      SELECT ITEM <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography sx={labelStyle}>
+                        SELECT ITEM <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <Tooltip title="Add New Item">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddItemOpen(true)}
+                          disabled={loading}
+                          sx={{
+                            color: COLORS.primary,
+                            '&:hover': {
+                              bgcolor: COLORS.primaryLight
+                            }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '1rem' }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Autocomplete
+                      fullWidth
                       options={items}
                       loading={loadingItems}
-                      value={selectedItem || null}
-                      onChange={(e, val) => handleItemChange('item_id', val?._id || '')}
-                      getOptionLabel={(opt) => {
-                        const partNo = opt.part_no || opt.PartNo || '';
-                        const desc = opt.part_description || opt.Description || '';
-                        return `${partNo} - ${desc}`;
-                      }}
+                      value={selectedItem}
+                      onChange={handleItemChange}
+                      getOptionLabel={(opt) => getItemLabel(opt)}
+                      isOptionEqualToValue={(option, value) => option._id === value?._id}
                       renderInput={(params) => (
                         <TextField 
                           {...params} 
                           size="small" 
-                          placeholder="Search and select an item..." 
+                          placeholder="Search item by part number or name..." 
                           error={!!fieldErrors.item_id} 
                           helperText={fieldErrors.item_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                            '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
+                          sx={inputStyle}
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <>
+                                {loadingItems && <CircularProgress size={16} />}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
                           }}
                         />
                       )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Box>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                              {option.part_no} - {option.part_name}
+                            </Typography>
+                            {option.part_description && (
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                {option.part_description}
+                              </Typography>
+                            )}
+                          </Box>
+                        </li>
+                      )}
+                      ListboxProps={{
+                        sx: {
+                          maxHeight: 250,
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem',
+                            py: 1,
+                            px: 1.5
+                          }
+                        }
+                      }}
+                      noOptionsText="No items found. Click + to add."
                     />
                   </Box>
                 </Grid>
@@ -488,13 +573,11 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                   <>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          PART NUMBER
-                        </Typography>
+                        <Typography sx={labelStyle}>PART NUMBER</Typography>
                         <TextField
                           fullWidth
                           size="small"
-                          value={selectedItem.part_no || selectedItem.PartNo || ''}
+                          value={selectedItem.part_no || ''}
                           disabled
                           sx={{
                             '& .MuiOutlinedInput-root': {
@@ -510,13 +593,11 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
 
                     <Grid size={{ xs: 12, md: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          DESCRIPTION
-                        </Typography>
+                        <Typography sx={labelStyle}>DESCRIPTION</Typography>
                         <TextField
                           fullWidth
                           size="small"
-                          value={selectedItem.part_description || selectedItem.Description || ''}
+                          value={selectedItem.part_description || ''}
                           disabled
                           sx={{
                             '& .MuiOutlinedInput-root': {
@@ -532,13 +613,11 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
 
                     <Grid size={{ xs: 12, md: 4 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          UNIT
-                        </Typography>
+                        <Typography sx={labelStyle}>UNIT</Typography>
                         <TextField
                           fullWidth
                           size="small"
-                          value={selectedItem.unit || selectedItem.Unit || 'Nos'}
+                          value={selectedItem.unit || 'Nos'}
                           disabled
                           sx={{
                             '& .MuiOutlinedInput-root': {
@@ -554,7 +633,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
 
                     <Grid size={{ xs: 12, md: 4 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                        <Typography sx={labelStyle}>
                           QUANTITY <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
                         <TextField 
@@ -563,27 +642,18 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                           type="number" 
                           placeholder="Enter quantity" 
                           value={formData.item.required_qty} 
-                          onChange={(e) => handleItemChange('required_qty', e.target.value)} 
+                          onChange={(e) => handleItemQuantityChange(e.target.value)} 
                           error={!!fieldErrors.required_qty} 
                           helperText={fieldErrors.required_qty} 
                           inputProps={{ step: 1, min: 1 }} 
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                            '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                          }}
+                          sx={inputStyle}
                         />
                       </Box>
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                        <Typography sx={labelStyle}>
                           ESTIMATED PRICE <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
                         <TextField 
@@ -592,29 +662,18 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                           type="number" 
                           placeholder="Enter price" 
                           value={formData.item.estimated_price} 
-                          onChange={(e) => handleItemChange('estimated_price', e.target.value)} 
+                          onChange={(e) => handleItemPriceChange(e.target.value)} 
                           error={!!fieldErrors.estimated_price} 
                           helperText={fieldErrors.estimated_price} 
                           InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} 
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                            '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                          }}
+                          sx={inputStyle}
                         />
                       </Box>
                     </Grid>
 
                     <Grid size={{ xs: 12 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          REMARKS
-                        </Typography>
+                        <Typography sx={labelStyle}>REMARKS</Typography>
                         <TextField 
                           fullWidth 
                           size="small" 
@@ -622,16 +681,8 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                           rows={2}
                           placeholder="Enter any remarks" 
                           value={formData.item.remarks} 
-                          onChange={(e) => handleItemChange('remarks', e.target.value)} 
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                          }}
+                          onChange={(e) => handleItemRemarksChange(e.target.value)} 
+                          sx={inputStyle}
                         />
                       </Box>
                     </Grid>
@@ -668,106 +719,85 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Create Purchase Requisition
-        </Typography>
-
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 0.5, mt: 0.5 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Create Purchase Requisition
+          </Typography>
+
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 0.5, mt: 0.5 }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
           <Button
-            onClick={handleClose}
-            disabled={loading}
-            startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -783,52 +813,82 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={loading || !formData.item.item_id || !formData.item.required_qty || !formData.item.estimated_price || !formData.required_date}
-              startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              {loading ? 'Creating...' : 'Create Requisition'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
+              onClick={handleClose}
               disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
               }}
             >
-              Next
+              Cancel
             </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading || !formData.item.item_id || !formData.item.required_qty || !formData.item.estimated_price || !formData.required_date}
+                startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                {loading ? 'Creating...' : 'Create Requisition'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => setAddItemOpen(false)}
+        onAdd={handleItemAdded}
+      />
+    </>
   );
 };
 

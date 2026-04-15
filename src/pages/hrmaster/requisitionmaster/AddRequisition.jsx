@@ -49,6 +49,7 @@ import {
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import AddDepartments from '../departmentmaster/AddDepartments';
+import AddComapanies from '../../master/companymaster/AddCompanies';
 
 // Color constants matching other components
 const COLORS = {
@@ -140,6 +141,14 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
 
   const priorities = ['Low', 'Medium', 'High', 'Urgent'];
 
+  const [locations, setLocations] = useState([]);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationSearch, setLocationSearch] = useState('');
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationInputValue, setLocationInputValue] = useState('');
+
+  const [addLocationOpen, setAddLocationOpen] = useState(false);
+
   const fetchDepartments = async (search = '') => {
     setDepartmentLoading(true);
     try {
@@ -158,6 +167,63 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
       setDepartmentLoading(false);
     }
   };
+
+  // Fetch company locations from API
+  const fetchLocations = async (search = '') => {
+    setLocationLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/company`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Extract locations from company data
+        // Each company has an address field that can be used as location
+        const companyLocations = response.data.data.map(company => ({
+          id: company._id,
+          name: company.company_name,
+          address: company.address,
+          city: company.state || '',
+          fullLocation: company.address ? `${company.company_name} - ${company.address}` : company.company_name
+        }));
+
+        // Filter locations based on search
+        let filteredLocations = companyLocations;
+        if (search) {
+          const searchLower = search.toLowerCase();
+          filteredLocations = companyLocations.filter(loc =>
+            loc.name.toLowerCase().includes(searchLower) ||
+            (loc.address && loc.address.toLowerCase().includes(searchLower)) ||
+            (loc.city && loc.city.toLowerCase().includes(searchLower))
+          );
+        }
+
+        setLocations(filteredLocations);
+      }
+    } catch (err) {
+      console.error('Error fetching locations:', err);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  // Fetch locations when dropdown opens
+  useEffect(() => {
+    if (locationOpen) {
+      fetchLocations(locationSearch);
+    }
+  }, [locationOpen]);
+
+  // Debounced search for locations
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (locationOpen) {
+        fetchLocations(locationSearch);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [locationSearch, locationOpen]);
 
   useEffect(() => {
     if (departmentOpen) {
@@ -230,34 +296,68 @@ const AddRequisition = ({ open, onClose, onAdd }) => {
   };
 
   // Handle department added from modal
-const handleDepartmentAdded = (newDepartment) => {
-  // Add the new department to the departments list
-  setDepartments(prev => [...prev, newDepartment]);
-  // Automatically select the newly added department
-  setFormData(prev => ({
-    ...prev,
-    department: newDepartment
-  }));
-  // Clear any department-related error
-  if (fieldErrors.department) {
-    setFieldErrors(prev => ({
+  const handleDepartmentAdded = (newDepartment) => {
+    // Add the new department to the departments list
+    setDepartments(prev => [...prev, newDepartment]);
+    // Automatically select the newly added department
+    setFormData(prev => ({
       ...prev,
-      department: ''
+      department: newDepartment
     }));
-  }
-  // Clear touched state for department
-  setTouched(prev => ({
-    ...prev,
-    department: true
-  }));
-};
+    // Clear any department-related error
+    if (fieldErrors.department) {
+      setFieldErrors(prev => ({
+        ...prev,
+        department: ''
+      }));
+    }
+    // Clear touched state for department
+    setTouched(prev => ({
+      ...prev,
+      department: true
+    }));
+  };
+
+  // Handle location added from modal
+  const handleLocationAdded = (newLocation) => {
+    // Add the new location to the locations list
+    const formattedLocation = {
+      id: newLocation._id,
+      name: newLocation.company_name,
+      address: newLocation.address,
+      city: newLocation.state || '',
+      fullLocation: newLocation.address ? `${newLocation.company_name} - ${newLocation.address}` : newLocation.company_name
+    };
+
+    setLocations(prev => [...prev, formattedLocation]);
+
+    // Automatically select the newly added location
+    setFormData(prev => ({
+      ...prev,
+      location: formattedLocation
+    }));
+
+    // Clear any location-related error
+    if (fieldErrors.location) {
+      setFieldErrors(prev => ({
+        ...prev,
+        location: ''
+      }));
+    }
+
+    // Clear touched state for location
+    setTouched(prev => ({
+      ...prev,
+      location: true
+    }));
+  };
 
   const validateStep = (step) => {
     const errors = {};
 
     if (step === 0) {
       if (!formData.department) errors.department = 'Department is required';
-      if (!formData.location.trim()) errors.location = 'Location is required';
+      if (!formData.location) errors.location = 'Location is required';
       if (!formData.positionTitle.trim()) errors.positionTitle = 'Position title is required';
       if (!formData.noOfPositions) errors.noOfPositions = 'Number of positions is required';
       else if (parseInt(formData.noOfPositions) < 1) errors.noOfPositions = 'Must be at least 1 position';
@@ -268,8 +368,8 @@ const handleDepartmentAdded = (newDepartment) => {
       if (!formData.education.trim()) errors.education = 'Education requirement is required';
       if (!formData.budgetMin) errors.budgetMin = 'Minimum budget is required';
       if (!formData.budgetMax) errors.budgetMax = 'Maximum budget is required';
-      if (formData.budgetMin && formData.budgetMax && 
-          parseInt(formData.budgetMax) <= parseInt(formData.budgetMin)) {
+      if (formData.budgetMin && formData.budgetMax &&
+        parseInt(formData.budgetMax) <= parseInt(formData.budgetMin)) {
         errors.budgetMax = 'Maximum budget must be greater than minimum budget';
       }
       if (!formData.justification.trim()) errors.justification = 'Justification is required';
@@ -308,7 +408,7 @@ const handleDepartmentAdded = (newDepartment) => {
 
       const submitData = {
         department: formData.department?.DepartmentName || formData.department,
-        location: formData.location,
+        location: formData.location?.fullLocation || formData.location?.address || formData.location?.name || '',
         positionTitle: formData.positionTitle,
         noOfPositions: parseInt(formData.noOfPositions),
         employmentType: formData.employmentType,
@@ -346,7 +446,7 @@ const handleDepartmentAdded = (newDepartment) => {
   const resetForm = () => {
     setFormData({
       department: null,
-      location: '',
+      location: 'null',
       positionTitle: '',
       noOfPositions: '',
       employmentType: '',
@@ -413,10 +513,10 @@ const handleDepartmentAdded = (newDepartment) => {
       case 0:
         return (
           <Stack spacing={2.5}>
-            <Paper sx={{ 
-              p: 2.5, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2.5,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
@@ -428,113 +528,201 @@ const handleDepartmentAdded = (newDepartment) => {
               </Box>
 
               <Grid container spacing={2}>
-             <Grid size={{ xs: 12 }}>
-  <Typography sx={labelStyle}>Department *</Typography>
-  
-  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-    <Box sx={{ flex: 1 }}>
-      <Autocomplete
-        size="small"
-        open={departmentOpen}
-        onOpen={() => setDepartmentOpen(true)}
-        onClose={() => setDepartmentOpen(false)}
-        options={departments}
-        loading={departmentLoading}
-        value={formData.department}
-        onChange={(event, newValue) => {
-          setFormData(prev => ({ ...prev, department: newValue }));
-          if (fieldErrors.department) setFieldErrors(prev => ({ ...prev, department: '' }));
-        }}
-        onBlur={() => handleBlur({ target: { name: 'department' } })}
-        inputValue={departmentInputValue}
-        onInputChange={(event, newInputValue) => {
-          setDepartmentInputValue(newInputValue);
-          setDepartmentSearch(newInputValue);
-        }}
-        getOptionLabel={(option) => option?.DepartmentName || ''}
-        fullWidth
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Select department"
-            size="small"
-            error={touched.department && !!fieldErrors.department}
-            helperText={touched.department ? fieldErrors.department : ''}
-            sx={inputStyle}
-            InputProps={{
-              ...params.InputProps,
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BusinessIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <>
-                  {departmentLoading && <CircularProgress size={16} />}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
-        )}
-        renderOption={(props, option) => (
-          <li {...props}>
-            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-              {option.DepartmentName}
-            </Typography>
-          </li>
-        )}
-      />
-    </Box>
-    
-    <Button
-      variant="outlined"
-      size="small"
-      onClick={() => setAddDepartmentOpen(true)}
-      disabled={loading}
-      startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
-      sx={{
-        height: 36,
-        minWidth: 'auto',
-        px: 1.5,
-        borderRadius: 1.5,
-        border: `1px solid ${COLORS.border}`,
-        color: COLORS.text.secondary,
-        fontSize: '0.7rem',
-        fontWeight: 500,
-        textTransform: 'none',
-        whiteSpace: 'nowrap',
-        '&:hover': {
-          borderColor: COLORS.primary,
-          bgcolor: `${COLORS.primary}10`,
-          color: COLORS.primary
-        }
-      }}
-    >
-      Add New
-    </Button>
-  </Box>
-</Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>Department *</Typography>
+
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Autocomplete
+                        size="small"
+                        open={departmentOpen}
+                        onOpen={() => setDepartmentOpen(true)}
+                        onClose={() => setDepartmentOpen(false)}
+                        options={departments}
+                        loading={departmentLoading}
+                        value={formData.department}
+                        onChange={(event, newValue) => {
+                          setFormData(prev => ({ ...prev, department: newValue }));
+                          if (fieldErrors.department) setFieldErrors(prev => ({ ...prev, department: '' }));
+                        }}
+                        onBlur={() => handleBlur({ target: { name: 'department' } })}
+                        inputValue={departmentInputValue}
+                        onInputChange={(event, newInputValue) => {
+                          setDepartmentInputValue(newInputValue);
+                          setDepartmentSearch(newInputValue);
+                        }}
+                        getOptionLabel={(option) => option?.DepartmentName || ''}
+                        fullWidth
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Select department"
+                            size="small"
+                            error={touched.department && !!fieldErrors.department}
+                            helperText={touched.department ? fieldErrors.department : ''}
+                            sx={inputStyle}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <BusinessIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                                </InputAdornment>
+                              ),
+                              endAdornment: (
+                                <>
+                                  {departmentLoading && <CircularProgress size={16} />}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        renderOption={(props, option) => (
+                          <li {...props}>
+                            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                              {option.DepartmentName}
+                            </Typography>
+                          </li>
+                        )}
+                      />
+                    </Box>
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setAddDepartmentOpen(true)}
+                      disabled={loading}
+                      startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                      sx={{
+                        height: 36,
+                        minWidth: 'auto',
+                        px: 1.5,
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text.secondary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          bgcolor: `${COLORS.primary}10`,
+                          color: COLORS.primary
+                        }
+                      }}
+                    >
+                      Add New
+                    </Button>
+                  </Box>
+                </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Typography sx={labelStyle}>Location *</Typography>
-                  <TextField
-                    fullWidth
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="e.g., Plant Unit A"
-                    {...getErrorProps('location')}
-                    sx={inputStyle}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LocationIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
+
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Autocomplete
+                        size="small"
+                        open={locationOpen}
+                        onOpen={() => setLocationOpen(true)}
+                        onClose={() => setLocationOpen(false)}
+                        options={locations}
+                        loading={locationLoading}
+                        value={formData.location}
+                        onChange={(event, newValue) => {
+                          setFormData(prev => ({ ...prev, location: newValue }));
+                          if (fieldErrors.location) setFieldErrors(prev => ({ ...prev, location: '' }));
+                        }}
+                        onBlur={() => handleBlur({ target: { name: 'location' } })}
+                        inputValue={locationInputValue}
+                        onInputChange={(event, newInputValue) => {
+                          setLocationInputValue(newInputValue);
+                          setLocationSearch(newInputValue);
+                        }}
+                        getOptionLabel={(option) => {
+                          if (!option) return '';
+                          // Display company name and address for better context
+                          if (option.address) {
+                            return `${option.name} - ${option.address}`;
+                          }
+                          return option.name || '';
+                        }}
+                        isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                        fullWidth
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Select location"
+                            size="small"
+                            error={touched.location && !!fieldErrors.location}
+                            helperText={touched.location ? fieldErrors.location : ''}
+                            sx={inputStyle}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <LocationIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                                </InputAdornment>
+                              ),
+                              endAdornment: (
+                                <>
+                                  {locationLoading && <CircularProgress size={16} />}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        renderOption={(props, option) => (
+                          <li {...props}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                                {option.name}
+                              </Typography>
+                              {option.address && (
+                                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                  {option.address}
+                                </Typography>
+                              )}
+                              {option.city && (
+                                <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                                  {option.city}
+                                </Typography>
+                              )}
+                            </Box>
+                          </li>
+                        )}
+                        noOptionsText="No locations found"
+                      />
+                    </Box>
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setAddLocationOpen(true)}
+                      disabled={loading}
+                      startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                      sx={{
+                        height: 36,
+                        minWidth: 'auto',
+                        px: 1.5,
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text.secondary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          bgcolor: `${COLORS.primary}10`,
+                          color: COLORS.primary
+                        }
+                      }}
+                    >
+                      Add New
+                    </Button>
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 5 }}>
                   <Typography sx={labelStyle}>Position Title *</Typography>
@@ -721,10 +909,10 @@ const handleDepartmentAdded = (newDepartment) => {
       case 1:
         return (
           <Stack spacing={2.5}>
-            <Paper sx={{ 
-              p: 2.5, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2.5,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
@@ -821,10 +1009,10 @@ const handleDepartmentAdded = (newDepartment) => {
       case 2:
         return (
           <Stack spacing={2.5}>
-            <Paper sx={{ 
-              p: 2.5, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
+            <Paper sx={{
+              p: 2.5,
+              bgcolor: COLORS.background.white,
+              borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               boxShadow: 'none'
             }}>
@@ -842,10 +1030,26 @@ const handleDepartmentAdded = (newDepartment) => {
                     {formData.department?.DepartmentName || formData.department || 'Not set'}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 6 }}>
+                {/* <Grid size={{ xs: 6 }}>
                   <Typography sx={labelStyle}>Location</Typography>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                     {formData.location || 'Not set'}
+                  </Typography>
+                </Grid> */}
+
+                <Grid size={{ xs: 6 }}>
+                  <Typography sx={labelStyle}>Location</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                    {formData.location ? (
+                      <>
+                        {formData.location.name}
+                        {formData.location.address && (
+                          <Typography component="span" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, display: 'block' }}>
+                            {formData.location.address}
+                          </Typography>
+                        )}
+                      </>
+                    ) : 'Not set'}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -874,16 +1078,16 @@ const handleDepartmentAdded = (newDepartment) => {
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography sx={labelStyle}>Priority</Typography>
-                  <Chip 
-                    label={formData.priority} 
+                  <Chip
+                    label={formData.priority}
                     size="small"
                     sx={{
                       bgcolor: formData.priority === 'High' ? COLORS.status.error :
-                               formData.priority === 'Medium' ? COLORS.status.warning :
-                               formData.priority === 'Low' ? COLORS.status.success : COLORS.status.info,
+                        formData.priority === 'Medium' ? COLORS.status.warning :
+                          formData.priority === 'Low' ? COLORS.status.success : COLORS.status.info,
                       color: formData.priority === 'High' ? '#991B1B' :
-                             formData.priority === 'Medium' ? '#92400E' :
-                             formData.priority === 'Low' ? COLORS.primaryDark : COLORS.primaryDark,
+                        formData.priority === 'Medium' ? '#92400E' :
+                          formData.priority === 'Low' ? COLORS.primaryDark : COLORS.primaryDark,
                       fontSize: '0.65rem',
                       height: 24
                     }}
@@ -930,10 +1134,10 @@ const handleDepartmentAdded = (newDepartment) => {
                     <Typography sx={labelStyle}>Skills</Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                       {formData.skills.map(skill => (
-                        <Chip 
-                          key={skill} 
-                          label={skill} 
-                          size="small" 
+                        <Chip
+                          key={skill}
+                          label={skill}
+                          size="small"
                           sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primaryDark, fontSize: '0.65rem', height: 24 }}
                         />
                       ))}
@@ -1108,11 +1312,18 @@ const handleDepartmentAdded = (newDepartment) => {
       </DialogActions>
 
       {/* Add Department Modal */}
-<AddDepartments
-  open={addDepartmentOpen}
-  onClose={() => setAddDepartmentOpen(false)}
-  onAdd={handleDepartmentAdded}
-/>
+      <AddDepartments
+        open={addDepartmentOpen}
+        onClose={() => setAddDepartmentOpen(false)}
+        onAdd={handleDepartmentAdded}
+      />
+
+      {/* Add Location Modal */}
+      <AddComapanies
+        open={addLocationOpen}
+        onClose={() => setAddLocationOpen(false)}
+        onAdd={handleLocationAdded}
+      />
     </Dialog>
   );
 };

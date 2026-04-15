@@ -851,6 +851,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     machineId: '',
     machineName: '',
     injuryType: 'Cut',
+    otherInjuryType: '',
     bodyPartAffected: '',
     severity: 'Minor',
     description: '',
@@ -1162,6 +1163,11 @@ const AddAccident = ({ open, onClose, onAdd }) => {
           return 'Injury type is required';
         }
         break;
+      case 'otherInjuryType':
+        if (formData.injuryType === 'Other' && !value?.trim()) {
+          return 'Please specify the injury type';
+        }
+        break;
       case 'severity':
         if (!value) {
           return 'Severity is required';
@@ -1270,6 +1276,12 @@ const AddAccident = ({ open, onClose, onAdd }) => {
           isValid = false;
         }
 
+        // Other injury type
+        if (formData.injuryType === 'Other' && !formData.otherInjuryType?.trim()) {
+          errors.otherInjuryType = 'Please specify the injury type';
+          isValid = false;
+        }
+
         // Severity
         if (!formData.severity) {
           errors.severity = 'Severity is required';
@@ -1341,6 +1353,12 @@ const AddAccident = ({ open, onClose, onAdd }) => {
       isValid = false;
     }
 
+    // Other injury type
+    if (formData.injuryType === 'Other' && !formData.otherInjuryType?.trim()) {
+      errors.otherInjuryType = 'Please specify the injury type';
+      isValid = false;
+    }
+
     // Severity
     if (!formData.severity) {
       errors.severity = 'Severity is required';
@@ -1388,6 +1406,12 @@ const AddAccident = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       const lostDaysNum = formData.lostDays ? parseInt(formData.lostDays, 10) : 0;
+
+      // Prepare injury type value
+      let injuryTypeValue = formData.injuryType;
+      if (formData.injuryType === 'Other' && formData.otherInjuryType) {
+        injuryTypeValue = `Other: ${formData.otherInjuryType}`;
+      }
 
       const submissionData = {
         employee: formData.employee,
@@ -1437,6 +1461,7 @@ const AddAccident = ({ open, onClose, onAdd }) => {
       machineId: '',
       machineName: '',
       injuryType: 'Cut',
+      otherInjuryType: '',
       bodyPartAffected: '',
       severity: 'Minor',
       description: '',
@@ -1800,6 +1825,30 @@ const AddAccident = ({ open, onClose, onAdd }) => {
                     )}
                   </Box>
                 </Grid>
+
+                {/* Dynamic field for Other injury type */}
+                {formData.injuryType === 'Other' && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        SPECIFY INJURY TYPE <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        name="otherInjuryType"
+                        value={formData.otherInjuryType}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="Please specify the injury type"
+                        error={!!fieldErrors.otherInjuryType}
+                        helperText={fieldErrors.otherInjuryType}
+                        sx={textFieldStyles}
+                      />
+                    </Box>
+                  </Grid>
+                )}
+
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>

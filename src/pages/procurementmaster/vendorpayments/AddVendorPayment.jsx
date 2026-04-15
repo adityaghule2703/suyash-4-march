@@ -35,14 +35,20 @@ import {
   TableHead,
   TableRow,
   Divider,
+  Tooltip,
+  IconButton,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddVendor from '../../master/vendormaster/AddVendor';
+
 
 const COLORS = {
   primary: '#063C3F',
@@ -131,6 +137,11 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
   const [invoices, setInvoices] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  
+  // State for Add Vendor dialog
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -176,6 +187,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
 
   const fetchVendors = async () => {
     try {
+      setLoadingVendors(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/vendors?page=1&limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -185,11 +197,14 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
       }
     } catch (err) {
       console.error('Error fetching vendors:', err);
+    } finally {
+      setLoadingVendors(false);
     }
   };
 
   const fetchInvoices = async () => {
     try {
+      setLoadingInvoices(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/purchase-invoices?page=1&limit=100&status=Approved`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -199,17 +214,26 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
       }
     } catch (err) {
       console.error('Error fetching invoices:', err);
+    } finally {
+      setLoadingInvoices(false);
     }
   };
 
   // Handle vendor selection and auto-fetch invoice details
-  const handleVendorSelect = (vendor) => {
-    setSelectedVendor(vendor);
+  const handleVendorSelect = (event, value) => {
+    setSelectedVendor(value);
     setSelectedInvoices([]);
     setAllocations([]);
     setTotalAmount(0);
     setTdsAmount(0);
     setNetAmount(0);
+    setFieldErrors(prev => ({ ...prev, vendor: '' }));
+  };
+
+  const handleVendorAdded = (newVendor) => {
+    setVendors(prev => [...prev, newVendor]);
+    // Auto-select the newly added vendor
+    setSelectedVendor(newVendor);
   };
 
   // Handle invoice selection with allocation
@@ -592,6 +616,30 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
     setError('');
   };
 
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      backgroundColor: COLORS.background.white,
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Select Invoices
@@ -602,23 +650,83 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                 Select Vendor
               </Typography>
               
-              <Autocomplete
-                fullWidth
-                options={vendors}
-                value={selectedVendor}
-                onChange={(e, newValue) => handleVendorSelect(newValue)}
-                getOptionLabel={(option) => `${option.vendor_code} - ${option.vendor_name}`}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    placeholder="Search vendor..."
-                    error={!!fieldErrors.vendor}
-                    helperText={fieldErrors.vendor}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                  />
-                )}
-              />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography sx={labelStyle}>
+                    VENDOR <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Tooltip title="Add New Vendor">
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddVendorOpen(true)}
+                      disabled={loading}
+                      sx={{
+                        color: COLORS.primary,
+                        '&:hover': {
+                          bgcolor: COLORS.primaryLight
+                        }
+                      }}
+                    >
+                      <AddIcon sx={{ fontSize: '1rem' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                <Autocomplete
+                  fullWidth
+                  options={vendors}
+                  loading={loadingVendors}
+                  value={selectedVendor}
+                  onChange={handleVendorSelect}
+                  getOptionLabel={(option) => `${option.vendor_code} - ${option.vendor_name}`}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Search vendor by code or name..."
+                      error={!!fieldErrors.vendor}
+                      helperText={fieldErrors.vendor}
+                      sx={inputStyle}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <>
+                            {loadingVendors && <CircularProgress size={16} />}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          {option.vendor_name}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          Code: {option.vendor_code} | GST: {option.gstin || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  ListboxProps={{
+                    sx: {
+                      maxHeight: 250,
+                      '& .MuiAutocomplete-option': {
+                        fontSize: '0.75rem',
+                        py: 1,
+                        px: 1.5
+                      }
+                    }
+                  }}
+                  noOptionsText="No vendors found. Click + to add."
+                />
+              </Box>
             </Paper>
 
             {selectedVendor && (
@@ -780,7 +888,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     error={!!fieldErrors.payment_date}
                     helperText={fieldErrors.payment_date}
                     InputLabelProps={{ shrink: true }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -791,7 +899,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                       value={formData.payment_mode}
                       onChange={handleSelectChange}
                       label="Payment Mode"
-                      sx={{ borderRadius: 1.5 }}
+                      sx={inputStyle}
                     >
                       {paymentModes.map(mode => (
                         <MenuItem key={mode} value={mode} sx={{ fontSize: '0.75rem' }}>{mode}</MenuItem>
@@ -811,7 +919,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     error={!!fieldErrors.reference_no}
                     helperText={fieldErrors.reference_no}
                     inputProps={{ maxLength: 50 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                   <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5, display: 'block' }}>
                     Enter UTR number for NEFT/RTGS, Cheque number, or transaction ID
@@ -829,7 +937,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     size="small"
                     placeholder="Additional remarks (optional)"
                     inputProps={{ maxLength: 500 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                 </Grid>
               </Grid>
@@ -867,7 +975,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                         value={formData.tds_section}
                         onChange={handleSelectChange}
                         label="TDS Section"
-                        sx={{ borderRadius: 1.5 }}
+                        sx={inputStyle}
                       >
                         {tdsSections.map(section => (
                           <MenuItem key={section.value} value={section.value} sx={{ fontSize: '0.75rem' }}>
@@ -889,7 +997,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.tds_rate}
                       helperText={fieldErrors.tds_rate}
                       InputProps={{ inputProps: { min: 0, max: 100, step: 0.1 } }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                      sx={inputStyle}
                     />
                   </Grid>
                 </Grid>
@@ -917,7 +1025,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     error={!!fieldErrors['from_bank_account.bank_name']}
                     helperText={fieldErrors['from_bank_account.bank_name']}
                     inputProps={{ maxLength: 100 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -931,7 +1039,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     error={!!fieldErrors['from_bank_account.account_no']}
                     helperText={fieldErrors['from_bank_account.account_no']}
                     inputProps={{ maxLength: 18 }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                   <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5, display: 'block' }}>
                     9-18 digits, numbers only
@@ -948,7 +1056,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
                     error={!!fieldErrors['from_bank_account.ifsc']}
                     helperText={fieldErrors['from_bank_account.ifsc']}
                     inputProps={{ maxLength: 11, style: { textTransform: 'uppercase' } }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    sx={inputStyle}
                   />
                   <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5, display: 'block' }}>
                     Format: First 4 letters, then 0, then 6 alphanumeric (e.g., HDFC0001234)
@@ -1117,82 +1225,67 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-      }}>
-        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Create Vendor Payment
-        </Typography>
-        
-        <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />} sx={{ mt: 1.5 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-        
-        {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            textTransform: 'none',
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+        }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Create Vendor Payment
+          </Typography>
+          
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />} sx={{ mt: 1.5 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+          
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between'
+        }}>
           <Button
-            onClick={onClose}
-            disabled={loading}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -1203,48 +1296,72 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
               textTransform: 'none',
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
+              onClick={onClose}
               disabled={loading}
-              startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 textTransform: 'none',
-                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
-              {loading ? 'Creating...' : 'Create Payment'}
+              Cancel
             </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                textTransform: 'none',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+                startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                {loading ? 'Creating...' : 'Create Payment'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Vendor Dialog */}
+      <AddVendor
+        open={addVendorOpen}
+        onClose={() => setAddVendorOpen(false)}
+        onAdd={handleVendorAdded}
+      />
+    </>
   );
 };
 

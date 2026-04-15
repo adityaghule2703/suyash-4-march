@@ -33,7 +33,8 @@ import {
   StepLabel,
   StepConnector,
   stepConnectorClasses,
-  styled
+  styled,
+  Tooltip
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -41,10 +42,13 @@ import {
   Save as SaveIcon,
   Delete as DeleteIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  NavigateBefore as NavigateBeforeIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddPurchaseOrder from '../purchaseorder/AddPurchaseOrder';
+
 
 const COLORS = {
   primary: '#063C3F',
@@ -121,6 +125,10 @@ const AddGRN = ({ open, onClose, onAdd }) => {
   const [loadingPos, setLoadingPos] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [poItems, setPoItems] = useState([]);
+  
+  // State for Add PO dialog
+  const [addPOOpen, setAddPOOpen] = useState(false);
+  
   const [formData, setFormData] = useState({
     po_id: '',
     vehicle_no: '',
@@ -185,6 +193,30 @@ const AddGRN = ({ open, onClose, onAdd }) => {
     } else {
       setPoItems([]);
       setFormData(prev => ({ ...prev, items: [] }));
+    }
+  };
+
+  const handlePOAdded = (newPO) => {
+    setPos(prev => [...prev, newPO]);
+    // Auto-select the newly added PO
+    setSelectedPO(newPO);
+    setFormData(prev => ({ ...prev, po_id: newPO._id }));
+    
+    if (newPO && newPO.items) {
+      const initialItems = newPO.items.map(item => ({
+        po_item_id: item._id,
+        item_id: item.item_id,
+        part_no: item.part_no,
+        description: item.description,
+        unit: item.unit,
+        ordered_qty: item.ordered_qty,
+        received_qty: '',
+        batch_no: '',
+        heat_no: '',
+        storage_location: ''
+      }));
+      setPoItems(initialItems);
+      setFormData(prev => ({ ...prev, items: initialItems }));
     }
   };
 
@@ -356,6 +388,30 @@ const AddGRN = ({ open, onClose, onAdd }) => {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      backgroundColor: COLORS.background.white,
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Select PO
@@ -367,9 +423,26 @@ const AddGRN = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  PO <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography sx={labelStyle}>
+                    PO <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Tooltip title="Add New Purchase Order">
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddPOOpen(true)}
+                      disabled={loading}
+                      sx={{
+                        color: COLORS.primary,
+                        '&:hover': {
+                          bgcolor: COLORS.primaryLight
+                        }
+                      }}
+                    >
+                      <AddIcon sx={{ fontSize: '1rem' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
                 <Autocomplete
                   options={pos}
                   loading={loadingPos}
@@ -380,18 +453,23 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                     <TextField
                       {...params}
                       size="small"
-                      placeholder={loadingPos ? 'Loading POs...' : 'Select Purchase Order...'}
+                      placeholder={loadingPos ? 'Loading POs...' : 'Search PO by number or vendor...'}
                       error={!!fieldErrors.po_id}
                       helperText={fieldErrors.po_id}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
+                      sx={inputStyle}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <>
+                            {loadingPos && <CircularProgress size={16} />}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
                       }}
                     />
                   )}
@@ -405,6 +483,17 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       </Box>
                     </li>
                   )}
+                  ListboxProps={{
+                    sx: {
+                      maxHeight: 250,
+                      '& .MuiAutocomplete-option': {
+                        fontSize: '0.75rem',
+                        py: 1,
+                        px: 1.5
+                      }
+                    }
+                  }}
+                  noOptionsText="No eligible POs found. Click + to add."
                 />
               </Box>
 
@@ -453,7 +542,7 @@ const AddGRN = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       VEHICLE NUMBER <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -465,22 +554,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.vehicle_no}
                       helperText={fieldErrors.vehicle_no}
                       placeholder="e.g., MH-01-AB-1234"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       LR NUMBER <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -492,22 +572,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.lr_number}
                       helperText={fieldErrors.lr_number}
                       placeholder="e.g., LR-7890-2026"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       LR DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -521,22 +592,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       helperText={fieldErrors.lr_date}
                       InputLabelProps={{ shrink: true }}
                       inputProps={{ max: today }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       TRANSPORTER NAME <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -548,22 +610,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.transporter_name}
                       helperText={fieldErrors.transporter_name}
                       placeholder="e.g., ABC Transport Services"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       VENDOR INVOICE NO <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -575,22 +628,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.vendor_invoice_no}
                       helperText={fieldErrors.vendor_invoice_no}
                       placeholder="e.g., INV-VED-2026-001"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       VENDOR INVOICE DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -604,22 +648,13 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       helperText={fieldErrors.vendor_invoice_date}
                       InputLabelProps={{ shrink: true }}
                       inputProps={{ max: today }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       RECEIVING STORE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -631,16 +666,7 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.receiving_store}
                       helperText={fieldErrors.receiving_store}
                       placeholder="e.g., Raw Material Store - Warehouse A"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
-                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
-                      }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
@@ -738,15 +764,7 @@ const AddGRN = ({ open, onClose, onAdd }) => {
                 value={formData.remarks}
                 onChange={handleChange}
                 placeholder="Enter any remarks about the received goods..."
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5,
-                    fontSize: '0.75rem',
-                    '&:hover fieldset': { borderColor: COLORS.primary },
-                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                  },
-                  '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                }}
+                sx={inputStyle}
               />
             </Paper>
           </Stack>
@@ -758,106 +776,85 @@ const AddGRN = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Create Goods Receipt Note
-        </Typography>
-
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 0.5, mt: 0.5 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel StepIconComponent={CustomStepIcon}>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Create Goods Receipt Note
+          </Typography>
+
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 0.5, mt: 0.5 }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel StepIconComponent={CustomStepIcon}>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
           <Button
-            onClick={handleClose}
-            disabled={loading}
-            startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -873,52 +870,82 @@ const AddGRN = ({ open, onClose, onAdd }) => {
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={loading || !formData.po_id}
-              startIcon={loading ? null : <SaveIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              {loading ? 'Creating...' : 'Create GRN'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
+              onClick={handleClose}
               disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark }
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
               }}
             >
-              Next
+              Cancel
             </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading || !formData.po_id}
+                startIcon={loading ? null : <SaveIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                {loading ? 'Creating...' : 'Create GRN'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Purchase Order Dialog */}
+      <AddPurchaseOrder
+        open={addPOOpen}
+        onClose={() => setAddPOOpen(false)}
+        onAdd={handlePOAdded}
+      />
+    </>
   );
 };
 

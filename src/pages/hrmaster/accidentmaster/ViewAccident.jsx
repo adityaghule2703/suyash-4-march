@@ -1423,7 +1423,7 @@ const ViewAccident = ({ open, onClose, accident, onEdit }) => {
           </Button>
         )}
 
-        <Button
+        {/* <Button
           variant="contained"
           onClick={handleEdit}
           startIcon={<EditIcon sx={{ fontSize: '1rem' }} />}
@@ -1440,7 +1440,7 @@ const ViewAccident = ({ open, onClose, accident, onEdit }) => {
           }}
         >
           Update Investigation
-        </Button>
+        </Button> */}
       </DialogActions>
     </Dialog>
   );

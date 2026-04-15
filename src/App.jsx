@@ -64,9 +64,14 @@ import SORevise from './pages/salesordermaster/sorevision/SORevise'
 import SOSummary from './pages/salesordermaster/soreports/SOSummary'
 import SOPendingDelivery from './pages/salesordermaster/soreports/SOPendingDelivery'
 
-import MachineMaster from './pages/bommaster/machinemaster/MachineMaster'
-import BomMaster from './pages/bommaster/bommaster/BomMaster'
+
 import VendorPayments from './pages/procurementmaster/vendorpayments/VendorPayments'
+import BomMaster from './pages/bommaster/BOM/BomMaster'
+import MachineMaster from './pages/bommaster/machinemaster/MachineMaster'
+import OeeMaster from './pages/bommaster/oeemaster/OeeMaster'
+import RoutingMaster from './pages/bommaster/routing/RoutingMaster'
+import MrpMaster from './pages/bommaster/MRP/MrpMaster'
+import WorkOrdersMaster from './pages/productionmaster/workordersmaster/WorkOrdersMaster'
 
 
 const PrivateRoute = ({ children }) => {
@@ -153,12 +158,17 @@ const App = () => {
 
           <Route path='bommaster/bommaster' element={<BomMaster/>} />
           <Route path='machinemaster/machinemaster' element={<MachineMaster/>} />
+          <Route path='oeemaster/oeemaster' element={<OeeMaster/>} />
+          <Route path='bommaster/MRP/MrpMaster' element={<MrpMaster />} />
+          <Route path='bommaster/routing/routingmaster' element={<RoutingMaster />} />
 
           <Route path='salesordermaster/salesordermaster' element={<SalesOrderMaster/>} />
           <Route path='salesordermaster/orderbook' element={<OrderBook/>} />
           <Route path='salesordermaster/sorevision' element={<SORevise/>} />
           <Route path='salesordermaster/sosummary' element={<SOSummary/>} />
           <Route path='salesordermaster/sopendingdelivery' element={<SOPendingDelivery/>} />
+
+          <Route path='productionmaster/workordersmaster' element={<WorkOrdersMaster/>} />
 
         </Route>
 

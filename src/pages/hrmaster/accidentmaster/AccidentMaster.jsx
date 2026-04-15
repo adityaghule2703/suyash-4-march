@@ -582,13 +582,13 @@
 //   const handleSelect = (id) => {
 //     const selectedIndex = selected.indexOf(id);
 //     let newSelected = [];
-    
+
 //     if (selectedIndex === -1) {
 //       newSelected = newSelected.concat(selected, id);
 //     } else {
 //       newSelected = selected.filter(item => item !== id);
 //     }
-    
+
 //     setSelected(newSelected);
 //   };
 
@@ -611,7 +611,7 @@
 //     const updatedAccidents = accidents.map(accident =>
 //       accident._id === updatedAccident._id ? updatedAccident : accident
 //     );
-    
+
 //     setAccidents(updatedAccidents);
 //     setFilteredAccidents(updatedAccidents);
 //     showNotification('Investigation updated successfully!', 'success');
@@ -1353,9 +1353,10 @@ import { hasPermission, getAllowedActions, ACTIONS, MODULES, PAGES } from '../..
 
 // Import modal components
 import AddAccident from './AddAccident';
-import EditAccident from './EditAccident';
+import InvestigateAccident from './InvestigateAccident';
 import ViewAccident from './ViewAccident';
-// import DeleteAccident from './DeleteAccident';
+import DeleteAccident from './DeleteAccident';
+import EditAccident from './EditAccident';
 
 // Color constants
 // Color constants - Single color #063C3F throughout (matching DepartmentMaster)
@@ -1411,105 +1412,48 @@ const AccessDenied = () => (
 );
 
 // Action Menu Component with permission checks
-const ActionMenu = ({ accident, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
+const ActionMenu = ({ accident, onView, onInvestigate, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
   const canView = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.VIEW);
   const canUpdate = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.UPDATE);
   const canDelete = hasPermission(permissions, MODULES.ACCIDENT_MASTER, PAGES.ACCIDENT_REPORTING, ACTIONS.DELETE);
 
-  // If no actions available, don't render the menu
-  if (!canView && !canUpdate && !canDelete) {
-    return null;
-  }
+  if (!canView && !canUpdate && !canDelete) return null;
 
   return (
     <>
-      <Tooltip title="Actions">
-        <IconButton
-          size="small"
-          onClick={onOpen}
-          sx={{
-            color: COLORS.text.secondary,
-            '&:hover': {
-              bgcolor: `${COLORS.primary}20`
-            }
-          }}
-        >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={onClose}
-        PaperProps={{
-          elevation: 3,
-          sx: {
-            mt: 1,
-            minWidth: 180,
-            borderRadius: 2,
-            border: `1px solid ${COLORS.border}`,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }
-        }}
-      >
+      <IconButton size="small" onClick={onOpen}>
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
+        
         {canView && (
-          <MenuItem 
-            onClick={() => {
-              onView(accident);
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-              <ViewIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                View Details
-              </Typography>
-            </ListItemText>
+          <MenuItem onClick={() => { onView(accident); onClose(); }}>
+            <ListItemIcon><ViewIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>View</ListItemText>
           </MenuItem>
         )}
-        
+
         {canUpdate && (
-          <MenuItem 
-            onClick={() => {
-              onEdit(accident);
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-              <EditIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                Investigate
-              </Typography>
-            </ListItemText>
+          <>
+            <MenuItem onClick={() => { onEdit(accident); onClose(); }}>
+              <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Edit</ListItemText>
+            </MenuItem>
+
+            <MenuItem onClick={() => { onInvestigate(accident); onClose(); }}>
+              <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Investigate</ListItemText>
+            </MenuItem>
+          </>
+        )}
+
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(accident); onClose(); }}>
+            <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Delete</ListItemText>
           </MenuItem>
         )}
-        
-        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
-        
-        {/* {canDelete && (
-          <MenuItem 
-            onClick={() => {
-              onDelete(accident);
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-              <DeleteIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-                Delete
-              </Typography>
-            </ListItemText>
-          </MenuItem>
-        )} */}
       </Menu>
     </>
   );
@@ -1523,25 +1467,26 @@ const AccidentMaster = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  
+
   // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
-  
+
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedAccidentForAction, setSelectedAccidentForAction] = useState(null);
-  
+
   // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
+  const [openInvestigateModal, setOpenInvestigateModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  
+  const [openEditModal, setOpenEditModal] = useState(false);
+
   // Selected accident
   const [selectedAccident, setSelectedAccident] = useState(null);
-  
+
   // Notification state
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -1564,11 +1509,11 @@ const AccidentMaster = () => {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (response.data.success) {
           const userData = response.data.data;
           setIsSuperAdmin(userData.isSuperAdmin || false);
-          
+
           // Set permissions array
           if (userData.permissions && Array.isArray(userData.permissions)) {
             setUserPermissions(userData.permissions);
@@ -1583,7 +1528,7 @@ const AccidentMaster = () => {
         setPermissionsLoaded(true);
       }
     };
-    
+
     fetchUserPermissions();
   }, []);
 
@@ -1591,7 +1536,7 @@ const AccidentMaster = () => {
   const checkPermission = (action) => {
     // Super admin has all permissions
     if (isSuperAdmin) return true;
-    
+
     return hasPermission(
       userPermissions,
       MODULES.ACCIDENT_MASTER,
@@ -1648,20 +1593,20 @@ const AccidentMaster = () => {
       setLoading(false);
     }
   };
-  
+
   // Handle refresh
   const handleRefresh = () => {
     fetchAccidents();
     showNotification('Data refreshed', 'success');
   };
-  
+
   // Handle search (client-side filtering)
   const handleSearch = () => {
     if (!searchTerm) {
       setFilteredAccidents(accidents);
       return;
     }
-    
+
     const value = searchTerm.toLowerCase();
     const filtered = accidents.filter(accident =>
       accident.location?.toLowerCase().includes(value) ||
@@ -1671,7 +1616,7 @@ const AccidentMaster = () => {
       accident.employee?.FirstName?.toLowerCase().includes(value) ||
       accident.reportedBy?.name?.toLowerCase().includes(value)
     );
-    
+
     setFilteredAccidents(filtered);
   };
 
@@ -1679,66 +1624,76 @@ const AccidentMaster = () => {
   useEffect(() => {
     handleSearch();
   }, [searchTerm, accidents]);
-  
+
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
-    
+
     if (event.target.checked) {
       setSelected(filteredAccidents.map(accident => accident._id));
     } else {
       setSelected([]);
     }
   };
-  
+
   // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
     if (!canDelete) return;
-    
+
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-    
+
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
       newSelected = selected.filter(item => item !== id);
     }
-    
+
     setSelected(newSelected);
   };
-  
+
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     setSelected([]);
   };
-  
+
   // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
     setSelected([]);
   };
-  
+
   // Handle add accident
   const handleAddAccident = (newAccident) => {
     setAccidents(prev => [newAccident, ...prev]);
     showNotification('Accident reported successfully!', 'success');
   };
-  
-  // Handle edit accident
-  const handleEditAccident = (updatedAccident) => {
-      console.log('Received updated accident:', updatedAccident);
-  console.log('New status:', updatedAccident.investigationStatus);
+
+  // Handle Investigate accident
+  const handleInvestigateAccident = (updatedAccident) => {
+    console.log('Received updated accident:', updatedAccident);
+    console.log('New status:', updatedAccident.investigationStatus);
     const updatedAccidents = accidents.map(accident =>
       accident._id === updatedAccident._id ? updatedAccident : accident
     );
-    
+
     setAccidents(updatedAccidents);
-     setFilteredAccidents(updatedAccidents);
+    setFilteredAccidents(updatedAccidents);
     showNotification('Investigation updated successfully!', 'success');
   };
-  
+
+  const handleEditAccident = (updatedAccident) => {
+    console.log('Received updated accident:', updatedAccident);
+    const updatedAccidents = accidents.map(accident =>
+      accident._id === updatedAccident._id ? updatedAccident : accident
+    );
+    setAccidents(updatedAccidents);
+    setFilteredAccidents(updatedAccidents);
+    showNotification('Accident updated successfully!', 'success');
+  };
+
   // Handle delete accident
   const handleDeleteAccident = (accidentId) => {
     const updatedAccidents = accidents.filter(accident => accident._id !== accidentId);
@@ -1746,13 +1701,13 @@ const AccidentMaster = () => {
     setSelected(selected.filter(id => id !== accidentId));
     showNotification('Accident record deleted successfully!', 'success');
   };
-  
+
   // Handle bulk delete
   const handleBulkDelete = () => {
     if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
   };
-  
+
   // Action menu handlers
   const handleActionMenuOpen = (event, accident) => {
     setActionMenuAnchor(event.currentTarget);
@@ -1763,15 +1718,22 @@ const AccidentMaster = () => {
     setActionMenuAnchor(null);
     setSelectedAccidentForAction(null);
   };
-  
-  // Open edit modal
+
+  // Open Investigate modal
+  const openInvestigateAccidentModal = (accident) => {
+    if (!canUpdate) return;
+    setSelectedAccident(accident);
+    setOpenInvestigateModal(true);
+    handleActionMenuClose();
+  };
+
   const openEditAccidentModal = (accident) => {
     if (!canUpdate) return;
     setSelectedAccident(accident);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-  
+
   // Open view modal
   const openViewAccidentModal = (accident) => {
     if (!canViewPage) return;
@@ -1779,7 +1741,7 @@ const AccidentMaster = () => {
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-  
+
   // Open delete confirmation
   const openDeleteAccidentDialog = (accident) => {
     if (!canDelete) return;
@@ -1787,7 +1749,7 @@ const AccidentMaster = () => {
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-  
+
   // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
@@ -1796,7 +1758,7 @@ const AccidentMaster = () => {
       severity
     });
   };
-  
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -1806,7 +1768,7 @@ const AccidentMaster = () => {
       day: 'numeric'
     });
   };
-  
+
   // Get severity chip styles
   const getSeverityChip = (severity) => {
     const s = severity?.toLowerCase();
@@ -1817,7 +1779,7 @@ const AccidentMaster = () => {
       fatal: COLORS.chips.fatal
     };
     const style = styles[s] || COLORS.chips.minor;
-    
+
     return (
       <Chip
         label={severity || 'N/A'}
@@ -1839,67 +1801,67 @@ const AccidentMaster = () => {
   };
 
   const formatStatusLabel = (status) => {
-  if (!status) return 'Open';
-  
-  const s = status.toLowerCase();
-  
-  if (s === 'under investigation' || s === 'investigating') return 'Under Investigation';
-  if (s === 'closed') return 'Closed';
-  if (s === 'resolved') return 'Resolved';
-  if (s === 'open') return 'Open';
-  
-  return status;
-};
-  
-//  const getStatusChip = (status) => {
-//   if (!status) return null;
+    if (!status) return 'Open';
+
+    const s = status.toLowerCase();
+
+    if (s === 'under investigation' || s === 'investigating') return 'Under Investigation';
+    if (s === 'closed') return 'Closed';
+    if (s === 'resolved') return 'Resolved';
+    if (s === 'open') return 'Open';
+
+    return status;
+  };
+
+  //  const getStatusChip = (status) => {
+  //   if (!status) return null;
 
   // const s = status.toLowerCase().trim();
 
   const getStatusChip = (status) => {
-  if (!status) return null;
+    if (!status) return null;
 
-  const statusLower = status.toLowerCase();
-  
-  // Map all possible status values to their display text
-  const displayText = {
-    'open': 'Open',
-    'under investigation': 'Under Investigation',
-    'investigating': 'Under Investigation',
-    'closed': 'Closed',
-    'resolved': 'Resolved'
-  }[statusLower] || status;
+    const statusLower = status.toLowerCase();
 
-  const styles = {
-    open: COLORS.chips.open,
-    closed: COLORS.chips.closed,
-    resolved: COLORS.chips.closed,
-    investigating: COLORS.chips.investigating,
-    "under investigation": COLORS.chips.investigating
+    // Map all possible status values to their display text
+    const displayText = {
+      'open': 'Open',
+      'under investigation': 'Under Investigation',
+      'investigating': 'Under Investigation',
+      'closed': 'Closed',
+      'resolved': 'Resolved'
+    }[statusLower] || status;
+
+    const styles = {
+      open: COLORS.chips.open,
+      closed: COLORS.chips.closed,
+      resolved: COLORS.chips.closed,
+      investigating: COLORS.chips.investigating,
+      "under investigation": COLORS.chips.investigating
+    };
+
+    const style = styles[statusLower] || COLORS.chips.open;
+
+    return (
+      <Chip
+        label={displayText}
+        size="small"
+        sx={{
+          bgcolor: style.bg,
+          color: style.color,
+          border: `1px solid ${style.border}`,
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          height: 24,
+          '& .MuiChip-label': {
+            px: 1,
+            py: 0.5
+          }
+        }}
+      />
+    );
   };
 
-  const style = styles[statusLower] || COLORS.chips.open;
-
-  return (
-   <Chip
-      label={displayText}
-      size="small"
-      sx={{
-        bgcolor: style.bg,
-        color: style.color,
-        border: `1px solid ${style.border}`,
-        fontSize: '0.7rem',
-        fontWeight: 600,
-        height: 24,
-        '& .MuiChip-label': {
-          px: 1,
-          py: 0.5
-        }
-      }}
-    />
-  );
-};
-  
   // Paginated accidents
   const paginatedAccidents = filteredAccidents.slice(
     page * rowsPerPage,
@@ -1920,10 +1882,10 @@ const AccidentMaster = () => {
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
       <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
+        <Typography
+          variant="h5"
+          component="h1"
+          sx={{
             fontSize: '1.25rem',
             fontWeight: 700,
             color: COLORS.text.primary,
@@ -1974,9 +1936,9 @@ const AccidentMaster = () => {
       </Stack> */}
 
       {/* Action Bar */}
-      <Paper sx={{ 
-        p: 1.5, 
-        mb: 2.5, 
+      <Paper sx={{
+        p: 1.5,
+        mb: 2.5,
         borderRadius: 2,
         bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
@@ -1990,7 +1952,7 @@ const AccidentMaster = () => {
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              sx={{ 
+              sx={{
                 width: { xs: '100%', sm: 360 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
@@ -2006,7 +1968,7 @@ const AccidentMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                sx: { 
+                sx: {
                   height: 36,
                   bgcolor: COLORS.background.light,
                   '& input': {
@@ -2033,7 +1995,7 @@ const AccidentMaster = () => {
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
                 onClick={handleBulkDelete}
-                sx={{ 
+                sx={{
                   height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
@@ -2051,7 +2013,7 @@ const AccidentMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            
+
             {/* Add Accident Button - Only show if user has create permission */}
             {canCreate && (
               <Button
@@ -2080,9 +2042,9 @@ const AccidentMaster = () => {
       </Paper>
 
       {/* Accidents Table */}
-      <Paper sx={{ 
-        width: '100%', 
-        borderRadius: 2, 
+      <Paper sx={{
+        width: '100%',
+        borderRadius: 2,
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: `1px solid ${COLORS.border}`
@@ -2090,7 +2052,7 @@ const AccidentMaster = () => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ 
+              <TableRow sx={{
                 background: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
@@ -2099,7 +2061,7 @@ const AccidentMaster = () => {
                 }
               }}>
                 {/* Checkbox Column - Only show if user has delete permission */}
-                {/* {canDelete && (
+                {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
                       indeterminate={selected.length > 0 && selected.length < filteredAccidents.length}
@@ -2120,9 +2082,9 @@ const AccidentMaster = () => {
                       disabled={loading || filteredAccidents.length === 0}
                     />
                   </TableCell>
-                )} */}
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                )}
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
@@ -2132,48 +2094,48 @@ const AccidentMaster = () => {
                     <ArrowUpwardIcon sx={{ fontSize: 12, opacity: 0.9 }} />
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Location
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Machine
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Severity
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Status
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Reported By
                 </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
+                <TableCell sx={{
+                  fontWeight: 600,
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   width: 60,
@@ -2210,7 +2172,7 @@ const AccidentMaster = () => {
               ) : (
                 paginatedAccidents.map((accident, index) => {
                   const isSelected = selected.includes(accident._id);
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                  const isActionMenuOpen = Boolean(actionMenuAnchor) &&
                     selectedAccidentForAction?._id === accident._id;
 
                   return (
@@ -2218,7 +2180,7 @@ const AccidentMaster = () => {
                       key={accident._id || index}
                       hover
                       selected={isSelected}
-                      sx={{ 
+                      sx={{
                         bgcolor: COLORS.background.white,
                         '&:hover': {
                           bgcolor: COLORS.background.hover
@@ -2237,7 +2199,7 @@ const AccidentMaster = () => {
                       }}
                     >
                       {/* Checkbox Column - Only show if user has delete permission */}
-                      {/* {canDelete && (
+                      {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
                           <Checkbox
                             checked={isSelected}
@@ -2253,7 +2215,7 @@ const AccidentMaster = () => {
                             }}
                           />
                         </TableCell>
-                      )} */}
+                      )}
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {formatDate(accident.date)}
@@ -2281,11 +2243,12 @@ const AccidentMaster = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
+                        <ActionMenu
                           accident={accident}
                           onView={openViewAccidentModal}
-                          onEdit={openEditAccidentModal}
+                          onInvestigate={openInvestigateAccidentModal}
                           onDelete={openDeleteAccidentDialog}
+                          onEdit={openEditAccidentModal}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, accident)}
@@ -2327,7 +2290,7 @@ const AccidentMaster = () => {
 
       {/* Modal Components - Only render if user has appropriate permissions */}
       {canCreate && (
-        <AddAccident 
+        <AddAccident
           open={openAddModal}
           onClose={() => setOpenAddModal(false)}
           onAdd={handleAddAccident}
@@ -2337,7 +2300,48 @@ const AccidentMaster = () => {
       {selectedAccident && (
         <>
           {canUpdate && (
-            <EditAccident 
+            <InvestigateAccident
+              open={openInvestigateModal}
+              onClose={() => {
+                setOpenInvestigateModal(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onUpdate={handleInvestigateAccident}
+            />
+          )}
+
+          {canViewPage && (
+            <ViewAccident
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onInvestigate={() => {
+                if (canUpdate) {
+                  setOpenViewModal(false);
+                  setOpenInvestigateModal(true);
+                }
+              }}
+            />
+          )}
+
+          {canDelete && (
+            <DeleteAccident
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedAccident(null);
+              }}
+              accident={selectedAccident}
+              onDelete={handleDeleteAccident}
+            />
+          )}
+
+          { canUpdate&& (
+            <EditAccident
               open={openEditModal}
               onClose={() => {
                 setOpenEditModal(false);
@@ -2347,35 +2351,6 @@ const AccidentMaster = () => {
               onUpdate={handleEditAccident}
             />
           )}
-
-          {canViewPage && (
-            <ViewAccident 
-              open={openViewModal}
-              onClose={() => {
-                setOpenViewModal(false);
-                setSelectedAccident(null);
-              }}
-              accident={selectedAccident}
-              onEdit={() => {
-                if (canUpdate) {
-                  setOpenViewModal(false);
-                  setOpenEditModal(true);
-                }
-              }}
-            />
-          )}
-
-          {/* {canDelete && (
-            <DeleteAccident 
-              open={openDeleteDialog}
-              onClose={() => {
-                setOpenDeleteDialog(false);
-                setSelectedAccident(null);
-              }}
-              accident={selectedAccident}
-              onDelete={handleDeleteAccident}
-            />
-          )} */}
         </>
       )}
 
@@ -2383,14 +2358,14 @@ const AccidentMaster = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: 1.5,
             fontSize: '0.75rem',

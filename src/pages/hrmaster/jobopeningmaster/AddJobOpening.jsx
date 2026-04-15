@@ -134,7 +134,7 @@ const AddJobOpening = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     requisitionId: '',
     description: '',
-    companyIntro: '',
+    companyIntro: '🌟 Suyash Enterprises – Build Your Future With Us Suyash Enterprises is a fast- growing and innovation - driven manufacturing company specializing in precision engineering solutions.We manufacture high - quality precision sheet metal stamping parts, copper and aluminium busbars, and rubberised & cork gaskets. With a strong in -house toolroom setup, we ensure accuracy, efficiency, and customization to meet evolving industry needs.Our solutions power key sectors such as Automobile, Switchgear, Electric Vehicles(EV), and Machine Building, making us a trusted partner for leading industries. At Suyash Enterprises, we don’t just manufacture products — we build careers, encourage innovation, and create opportunities for growth.',
     requirements: [],
     responsibilities: [],
     publishTo: [],
@@ -381,21 +381,21 @@ const AddJobOpening = ({ open, onClose, onAdd }) => {
   };
 
   // Handle department added from modal
-const handleDepartmentAdded = (newDepartment) => {
-  // Add the new department to the departments list
-  setDepartments(prev => [...prev, newDepartment]);
-  // Automatically select the newly added department
-  setFormData(prev => ({
-    ...prev,
-    department: newDepartment.DepartmentName
-  }));
-  // Clear any department-related error
-  if (fieldErrors.department) {
-    setFieldErrors(prev => ({ ...prev, department: '' }));
-  }
-  // Clear touched state for department
-  setTouched(prev => ({ ...prev, department: true }));
-};
+  const handleDepartmentAdded = (newDepartment) => {
+    // Add the new department to the departments list
+    setDepartments(prev => [...prev, newDepartment]);
+    // Automatically select the newly added department
+    setFormData(prev => ({
+      ...prev,
+      department: newDepartment.DepartmentName
+    }));
+    // Clear any department-related error
+    if (fieldErrors.department) {
+      setFieldErrors(prev => ({ ...prev, department: '' }));
+    }
+    // Clear touched state for department
+    setTouched(prev => ({ ...prev, department: true }));
+  };
 
   const validateStep0 = () => {
     const errors = {};
@@ -636,66 +636,66 @@ const handleDepartmentAdded = (newDepartment) => {
                 </Box>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-  <Box>
-    <Typography sx={labelStyle}>Department *</Typography>
-    
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-      <Box sx={{ flex: 1 }}>
-        <FormControl fullWidth size="small" error={touched.department && !!fieldErrors.department}>
-          <Select
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            displayEmpty
-            disabled={loading || departmentsLoading}
-            sx={inputStyle}
-            MenuProps={selectMenuProps}
-          >
-            <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>Select department</MenuItem>
-            {departmentsLoading ? (
-              <MenuItem disabled><CircularProgress size={16} /> Loading...</MenuItem>
-            ) : departments.map(dept => (
-              <MenuItem key={dept._id} value={dept.DepartmentName} sx={{ fontSize: '0.75rem' }}>
-                {dept.DepartmentName}
-              </MenuItem>
-            ))}
-          </Select>
-          {touched.department && fieldErrors.department && (
-            <FormHelperText sx={{ fontSize: '0.65rem' }}>{fieldErrors.department}</FormHelperText>
-          )}
-        </FormControl>
-      </Box>
-      
-      <Button
-        variant="outlined"
-        size="small"
-        onClick={() => setAddDepartmentOpen(true)}
-        disabled={loading}
-        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
-        sx={{
-          height: 36,
-          minWidth: 'auto',
-          px: 1.5,
-          borderRadius: 1.5,
-          border: `1px solid ${COLORS.border}`,
-          color: COLORS.text.secondary,
-          fontSize: '0.7rem',
-          fontWeight: 500,
-          textTransform: 'none',
-          whiteSpace: 'nowrap',
-          '&:hover': {
-            borderColor: COLORS.primary,
-            bgcolor: `${COLORS.primary}10`,
-            color: COLORS.primary
-          }
-        }}
-      >
-        Add New
-      </Button>
-    </Box>
-  </Box>
-</Grid>
+                <Box>
+                  <Typography sx={labelStyle}>Department *</Typography>
+
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <FormControl fullWidth size="small" error={touched.department && !!fieldErrors.department}>
+                        <Select
+                          name="department"
+                          value={formData.department}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          displayEmpty
+                          disabled={loading || departmentsLoading}
+                          sx={inputStyle}
+                          MenuProps={selectMenuProps}
+                        >
+                          <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>Select department</MenuItem>
+                          {departmentsLoading ? (
+                            <MenuItem disabled><CircularProgress size={16} /> Loading...</MenuItem>
+                          ) : departments.map(dept => (
+                            <MenuItem key={dept._id} value={dept.DepartmentName} sx={{ fontSize: '0.75rem' }}>
+                              {dept.DepartmentName}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                        {touched.department && fieldErrors.department && (
+                          <FormHelperText sx={{ fontSize: '0.65rem' }}>{fieldErrors.department}</FormHelperText>
+                        )}
+                      </FormControl>
+                    </Box>
+
+                    {/* <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setAddDepartmentOpen(true)}
+                      disabled={loading}
+                      startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                      sx={{
+                        height: 36,
+                        minWidth: 'auto',
+                        px: 1.5,
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text.secondary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          bgcolor: `${COLORS.primary}10`,
+                          color: COLORS.primary
+                        }
+                      }}
+                    >
+                      Add New
+                    </Button> */}
+                  </Box>
+                </Box>
+              </Grid>
               <Grid size={{ xs: 12 }}>
                 <Box>
                   <Typography sx={labelStyle}>Employment Type *</Typography>
@@ -1249,11 +1249,11 @@ const handleDepartmentAdded = (newDepartment) => {
       </DialogActions>
 
       {/* Add Department Modal */}
-<AddDepartments
-  open={addDepartmentOpen}
-  onClose={() => setAddDepartmentOpen(false)}
-  onAdd={handleDepartmentAdded}
-/>
+      <AddDepartments
+        open={addDepartmentOpen}
+        onClose={() => setAddDepartmentOpen(false)}
+        onAdd={handleDepartmentAdded}
+      />
     </Dialog>
   );
 };

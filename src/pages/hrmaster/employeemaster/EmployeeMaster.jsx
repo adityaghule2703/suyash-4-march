@@ -1046,63 +1046,60 @@ const EmployeeMaster = () => {
         <AddEmployees
           open={openAddModal}
           onClose={() => setOpenAddModal(false)}
-          onAdd={(newEmployee) => {
-            handleAddEmployee(newEmployee);
-            fetchEmployees(); // Add this line to refresh the list
-          }}
+          onAdd={handleAddEmployee}
         />
       )}
 
-      {selectedEmployee && (
-        <>
-          {canUpdate && (
-            <EditEmployees
-              open={openEditModal}
-              onClose={() => {
-                setOpenEditModal(false);
-                setSelectedEmployee(null);
-              }}
-              employee={selectedEmployee}
-              onUpdate={(handleEditEmployee) => {
-                handleEditEmployee(updatedEmployee);
-                fetchEmployees();
-              }}
-            />
-          )}
+     {selectedEmployee && (
+  <>
+    {canUpdate && (
+      <EditEmployees
+        open={openEditModal}
+        onClose={() => {
+          setOpenEditModal(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onUpdate={(updatedEmployee) => {  // ✅ CORRECT: updatedEmployee is the parameter
+          handleEditEmployee(updatedEmployee);  // ✅ CORRECT: passing the updated employee
+          fetchEmployees();
+        }}
+      />
+    )}
 
-          {canViewPage && (
-            <ViewEmployees
-              open={openViewModal}
-              onClose={() => {
-                setOpenViewModal(false);
-                setSelectedEmployee(null);
-              }}
-              employee={selectedEmployee}
-              onEdit={() => {
-                if (canUpdate) {
-                  setOpenViewModal(false);
-                  setOpenEditModal(true);  // Add this line to refresh the list
-                }
-              }}
-            />
-          )}
+    {canViewPage && (
+      <ViewEmployees
+        open={openViewModal}
+        onClose={() => {
+          setOpenViewModal(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onEdit={() => {
+          if (canUpdate) {
+            setOpenViewModal(false);
+            setOpenEditModal(true);
+          }
+        }}
+      />
+    )}
 
-          {canDelete && (
-            <DeleteEmployees
-              open={openDeleteDialog}
-              onClose={() => {
-                setOpenDeleteDialog(false);
-                setSelectedEmployee(null);
-              }}
-              employee={selectedEmployee}
-              onDelete={(employeeId) => {
-                handleDeleteEmployee(employeeId);
-                fetchEmployees(); // Add this line to refresh the list
-              }}
-            />
-          )}
-        </>
-      )}
+    {canDelete && (
+      <DeleteEmployees
+        open={openDeleteDialog}
+        onClose={() => {
+          setOpenDeleteDialog(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onDelete={(employeeId) => {
+          handleDeleteEmployee(employeeId);
+          fetchEmployees();
+        }}
+      />
+    )}
+  </>
+)}
 
       {/* Employee Increment Summary Modal - Only show if user has view permission */}
       {canViewPage && (
