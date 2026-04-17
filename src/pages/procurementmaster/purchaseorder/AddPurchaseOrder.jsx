@@ -32,22 +32,17 @@ import {
   StepLabel,
   StepConnector,
   stepConnectorClasses,
-  styled,
-  Tooltip,
-  IconButton
+  styled
 } from '@mui/material';
 import { 
   Add as AddIcon,
   Close as CloseIcon,
   Send as SendIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon,
-  Search as SearchIcon
+  NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
-import AddRFQ from '../RFQ/AddRFQ';
-
 
 const COLORS = {
   primary: '#063C3F',
@@ -123,10 +118,6 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
   const [rfqs, setRfqs] = useState([]);
   const [loadingRfqs, setLoadingRfqs] = useState(false);
   const [selectedRfq, setSelectedRfq] = useState(null);
-  
-  // State for Add RFQ dialog
-  const [addRfqOpen, setAddRfqOpen] = useState(false);
-  
   const [formData, setFormData] = useState({
     rfq_id: '',
     po_type: 'Regular',
@@ -200,13 +191,6 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
     setSelectedRfq(value);
     setFormData(prev => ({ ...prev, rfq_id: value?._id || '' }));
     setFieldErrors(prev => ({ ...prev, rfq_id: '' }));
-  };
-
-  const handleRfqAdded = (newRfq) => {
-    setRfqs(prev => [...prev, newRfq]);
-    // Auto-select the newly added RFQ
-    setSelectedRfq(newRfq);
-    setFormData(prev => ({ ...prev, rfq_id: newRfq._id }));
   };
 
   const handleChange = (e) => {
@@ -332,30 +316,6 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      backgroundColor: COLORS.background.white,
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary
-    }
-  };
-
-  const labelStyle = {
-    fontSize: '0.7rem',
-    fontWeight: 600,
-    color: COLORS.text.secondary,
-    letterSpacing: '0.5px',
-    mb: 0.5
-  };
-
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Select RFQ
@@ -367,26 +327,9 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                  <Typography sx={labelStyle}>
-                    RFQ <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Tooltip title="Add New RFQ">
-                    <IconButton
-                      size="small"
-                      onClick={() => setAddRfqOpen(true)}
-                      disabled={loading}
-                      sx={{
-                        color: COLORS.primary,
-                        '&:hover': {
-                          bgcolor: COLORS.primaryLight
-                        }
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: '1rem' }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  RFQ <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
                 <Autocomplete
                   options={rfqs}
                   loading={loadingRfqs}
@@ -397,23 +340,18 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                     <TextField
                       {...params}
                       size="small"
-                      placeholder={loadingRfqs ? 'Loading RFQs...' : 'Search RFQ by number or PR...'}
+                      placeholder={loadingRfqs ? 'Loading RFQs...' : 'Select RFQ...'}
                       error={!!fieldErrors.rfq_id}
                       helperText={fieldErrors.rfq_id}
-                      sx={inputStyle}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <>
-                            {loadingRfqs && <CircularProgress size={16} />}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
                       }}
                     />
                   )}
@@ -427,17 +365,6 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                       </Box>
                     </li>
                   )}
-                  ListboxProps={{
-                    sx: {
-                      maxHeight: 250,
-                      '& .MuiAutocomplete-option': {
-                        fontSize: '0.75rem',
-                        py: 1,
-                        px: 1.5
-                      }
-                    }
-                  }}
-                  noOptionsText="No eligible RFQs found. Click + to add."
                 />
               </Box>
 
@@ -486,7 +413,7 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       PO TYPE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.po_type}>
@@ -494,7 +421,13 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                         name="po_type" 
                         value={formData.po_type} 
                         onChange={handleSelectChange}
-                        sx={inputStyle}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
                       >
                         {poTypes.map(type => (
                           <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.75rem' }}>{type.label}</MenuItem>
@@ -505,7 +438,7 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       DELIVERY DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -519,19 +452,36 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                       helperText={fieldErrors.delivery_date}
                       InputLabelProps={{ shrink: true }}
                       inputProps={{ min: today }}
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                        '& .MuiFormHelperText-root': { fontSize: '0.65rem', marginLeft: 0 }
+                      }}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>DELIVERY MODE</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      DELIVERY MODE
+                    </Typography>
                     <FormControl fullWidth size="small">
                       <Select 
                         name="delivery_mode" 
                         value={formData.delivery_mode} 
                         onChange={handleSelectChange}
-                        sx={inputStyle}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
                       >
                         <MenuItem value="" sx={{ fontSize: '0.75rem' }}>None</MenuItem>
                         {deliveryModes.map(mode => (
@@ -543,13 +493,21 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>FREIGHT TERMS</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      FREIGHT TERMS
+                    </Typography>
                     <FormControl fullWidth size="small">
                       <Select 
                         name="freight_terms" 
                         value={formData.freight_terms} 
                         onChange={handleSelectChange}
-                        sx={inputStyle}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
                       >
                         <MenuItem value="" sx={{ fontSize: '0.75rem' }}>None</MenuItem>
                         {freightTermsOptions.map(term => (
@@ -561,7 +519,7 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       PAYMENT TERMS <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.payment_terms}>
@@ -569,7 +527,13 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                         name="payment_terms" 
                         value={formData.payment_terms} 
                         onChange={handleSelectChange}
-                        sx={inputStyle}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5, fontSize: '0.75rem' },
+                          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }}
                       >
                         {paymentTermsOptions.map(term => (
                           <MenuItem key={term} value={term} sx={{ fontSize: '0.75rem' }}>{term}</MenuItem>
@@ -580,7 +544,9 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={labelStyle}>INTERNAL REMARKS</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      INTERNAL REMARKS
+                    </Typography>
                     <TextField
                       fullWidth
                       multiline
@@ -590,7 +556,15 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
                       value={formData.internal_remarks}
                       onChange={handleChange}
                       placeholder="Add any internal notes..."
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                      }}
                     />
                   </Box>
                 </Grid>
@@ -635,85 +609,106 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 5,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: `1px solid ${COLORS.border}`,
-            overflow: 'hidden',
-            maxHeight: '95vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{
-          borderBottom: `1px solid ${COLORS.border}`,
-          py: 1.5,
-          px: 2.5,
-          bgcolor: COLORS.background.white,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1
-        }}>
-          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-            Create Purchase Order
-          </Typography>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
+          maxHeight: '95vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
+      }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Create Purchase Order
+        </Typography>
 
-          <Stepper
-            activeStep={activeStep}
-            alternativeLabel
-            connector={<ColorConnector />}
-            sx={{ mb: 0.5, mt: 0.5 }}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ mb: 0.5, mt: 0.5 }}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                  {label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+        {renderStepContent(activeStep)}
+
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
           >
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel StepIconComponent={CustomStepIcon}>
-                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                    {label}
-                  </Typography>
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </DialogTitle>
+            {error}
+          </Alert>
+        )}
+      </DialogContent>
 
-        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-          {renderStepContent(activeStep)}
-
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mt: 2, 
-                borderRadius: 1.5,
-                '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
-                fontSize: '0.75rem',
-                py: 0.5
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{
-          px: 2.5,
-          py: 1.5,
-          borderTop: `1px solid ${COLORS.border}`,
-          bgcolor: COLORS.background.white,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 1
-        }}>
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
+      }}>
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
+        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            onClick={handleBack}
-            disabled={activeStep === 0 || loading}
-            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            onClick={handleClose}
+            disabled={loading}
+            startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -729,82 +724,52 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
               }
             }}
           >
-            Back
+            Cancel
           </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          {activeStep === steps.length - 1 ? (
             <Button
-              onClick={handleClose}
-              disabled={loading}
-              startIcon={<CloseIcon sx={{ fontSize: '1rem' }} />}
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading || !formData.rfq_id || !formData.delivery_date || !formData.payment_terms}
+              startIcon={loading ? null : <SendIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text.secondary,
+                bgcolor: COLORS.primary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: `${COLORS.primary}10`
-                }
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
-              Cancel
+              {loading ? 'Creating...' : 'Create PO'}
             </Button>
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading || !formData.rfq_id || !formData.delivery_date || !formData.payment_terms}
-                startIcon={loading ? null : <SendIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                {loading ? 'Creating...' : 'Create PO'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={loading}
-                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                Next
-              </Button>
-            )}
-          </Box>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add RFQ Dialog */}
-      <AddRFQ
-        open={addRfqOpen}
-        onClose={() => setAddRfqOpen(false)}
-        onAdd={handleRfqAdded}
-      />
-    </>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
+    </Dialog>
   );
 };
 

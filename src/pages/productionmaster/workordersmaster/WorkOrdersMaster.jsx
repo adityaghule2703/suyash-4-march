@@ -1,4 +1,4 @@
-// WorkOrdersMaster.jsx (Complete with all buttons - Updated)
+// WorkOrdersMaster.jsx (Complete with all buttons - Updated with new features)
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead,
@@ -6,7 +6,8 @@ import {
   Typography, Snackbar, TablePagination, Checkbox, Stack, Chip,
   Avatar, Menu, MenuItem, ListItemIcon, ListItemText, Divider,
   Alert, CircularProgress, Dialog, DialogTitle, DialogContent,
-  DialogActions, Autocomplete, Switch, FormControlLabel
+  DialogActions, Autocomplete, Switch, FormControlLabel,
+  Grid, Tabs, Tab, Card, CardContent
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -28,7 +29,12 @@ import {
   TaskAlt as CompleteOpIcon,
   FactCheck as CompleteWOIcon,
   WorkHistory as LabourIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  MonetizationOn as JobCostingIcon,
+  Receipt as JobCardIcon,
+  Timeline as TimelineIcon,
+  Assessment as WipReportIcon,
+  Queue as AssemblyQueueIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -75,17 +81,1013 @@ const PRIORITY_COLORS = {
   'Low': { bg: '#D1FAE5', color: '#059669' }
 };
 
-// Add Operations Popup Component (NEW)
+// Job Costing Popup Component
+const JobCostingPopup = ({ open, onClose, workOrder }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [costingData, setCostingData] = useState(null);
+
+  useEffect(() => {
+    if (open && workOrder) {
+      fetchJobCosting();
+    }
+  }, [open, workOrder]);
+
+  const fetchJobCosting = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/work-orders/${workOrder._id}/job-costing`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setCostingData(response.data.data);
+      } else {
+        setError(response.data.message || 'Failed to load job costing data');
+      }
+    } catch (err) {
+      console.error('Error fetching job costing:', err);
+      setError(err.response?.data?.message || 'Failed to load job costing data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value || 0);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <JobCostingIcon sx={{ color: '#059669' }} />
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Job Costing Details
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
+        ) : costingData ? (
+          <Stack spacing={2.5}>
+            {/* Work Order Info */}
+            <Paper sx={{ p: 1.5, bgcolor: COLORS.primaryLight, borderRadius: 1.5 }}>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>WO Number:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{costingData.wo_number}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Part No:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{costingData.part_no}</Typography>
+                  </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Completed Qty:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{costingData.completed_qty}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Costing Date:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                      {new Date(costingData.costing_date).toLocaleDateString()}
+                    </Typography>
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Actual Costs Section */}
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: COLORS.primary, mt: 1 }}>
+              Actual Costs
+            </Typography>
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary, mb: 0.5 }}>Raw Material Cost</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                      {formatCurrency(costingData.actual_rm_cost)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary, mb: 0.5 }}>Process Cost</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                      {formatCurrency(costingData.actual_process_cost)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary, mb: 0.5 }}>Overhead</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                      {formatCurrency(costingData.actual_overhead)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Totals */}
+            <Paper sx={{ p: 1.5, bgcolor: '#F0FDF4', borderRadius: 1.5, border: `1px solid #A7F3D0` }}>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Stack>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Actual Total Cost</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#059669' }}>
+                      {formatCurrency(costingData.actual_total_cost)}
+                    </Typography>
+                  </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Stack>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Estimated Total Cost</Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {formatCurrency(costingData.estimated_total_cost)}
+                    </Typography>
+                  </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Stack>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Unit Cost</Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {formatCurrency(costingData.actual_unit_cost)} / pc
+                    </Typography>
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Variance */}
+            {(costingData.variance_amount !== 0 || costingData.variance_percent !== 0) && (
+              <Paper sx={{ p: 1.5, bgcolor: costingData.variance_amount > 0 ? '#FEF3C7' : '#FEE2E2', borderRadius: 1.5 }}>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Stack>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Variance Amount</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: costingData.variance_amount > 0 ? '#D97706' : '#DC2626' }}>
+                        {formatCurrency(costingData.variance_amount)}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Stack>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Variance Percent</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: costingData.variance_percent > 0 ? '#D97706' : '#DC2626' }}>
+                        {costingData.variance_percent > 0 ? '+' : ''}{costingData.variance_percent}%
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+
+            {/* Profitability */}
+            {costingData.selling_price_total > 0 && (
+              <Paper sx={{ p: 1.5, bgcolor: costingData.gross_profit > 0 ? '#D1FAE5' : '#FEE2E2', borderRadius: 1.5 }}>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Stack>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Selling Price</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 500 }}>{formatCurrency(costingData.selling_price_total)}</Typography>
+                    </Stack>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Stack>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Gross Profit</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: costingData.gross_profit > 0 ? '#059669' : '#DC2626' }}>
+                        {formatCurrency(costingData.gross_profit)}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Stack>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Gross Margin</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: costingData.gross_margin_percent > 0 ? '#059669' : '#DC2626' }}>
+                        {costingData.gross_margin_percent}%
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+          </Stack>
+        ) : (
+          <Alert severity="info" sx={{ borderRadius: 1.5 }}>No costing data available</Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Timeline Popup Component
+const TimelinePopup = ({ open, onClose, workOrder }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [timelineData, setTimelineData] = useState(null);
+  const [selectedTab, setSelectedTab] = useState(0);
+
+  useEffect(() => {
+    if (open && workOrder) {
+      fetchTimeline();
+    }
+  }, [open, workOrder]);
+
+  const fetchTimeline = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/work-orders/${workOrder._id}/operations/timeline`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setTimelineData(response.data.data);
+      } else {
+        setError(response.data.message || 'Failed to load timeline data');
+      }
+    } catch (err) {
+      console.error('Error fetching timeline:', err);
+      setError(err.response?.data?.message || 'Failed to load timeline data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('en-IN', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Completed': return '#059669';
+      case 'In Progress': return '#0284C7';
+      case 'Pending': return '#94A3B8';
+      default: return '#94A3B8';
+    }
+  };
+
+  const getStatusBg = (status) => {
+    switch (status) {
+      case 'Completed': return '#D1FAE5';
+      case 'In Progress': return '#E0F2FE';
+      case 'Pending': return '#F1F5F9';
+      default: return '#F1F5F9';
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <TimelineIcon sx={{ color: COLORS.primary }} />
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Operations Timeline
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
+        ) : timelineData ? (
+          <Stack spacing={2.5}>
+            {/* Summary Cards */}
+            <Paper sx={{ p: 1.5, bgcolor: COLORS.primaryLight, borderRadius: 1.5 }}>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>WO Number</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{timelineData.summary.wo_number}</Typography>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Part</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{timelineData.summary.part_no}</Typography>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Progress</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: '#059669' }}>{timelineData.summary.percent_complete}%</Typography>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Status</Typography>
+                  <Chip 
+                    label={timelineData.summary.wo_status} 
+                    size="small" 
+                    sx={{ 
+                      fontSize: '0.6rem', 
+                      height: 20,
+                      bgcolor: STATUS_COLORS[timelineData.summary.wo_status]?.bg || '#F1F5F9',
+                      color: STATUS_COLORS[timelineData.summary.wo_status]?.color || '#475569'
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Time Summary */}
+            <Paper sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Planned Total</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600 }}>{timelineData.summary.total_planned_min} min</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Actual Total</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#D97706' }}>{timelineData.summary.total_actual_min} min</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Overall Yield</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#059669' }}>{timelineData.summary.overall_yield_percent}%</Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Timeline View */}
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: COLORS.primary, mt: 1 }}>
+              Operation Timeline
+            </Typography>
+
+            <Box sx={{ position: 'relative' }}>
+              {timelineData.operations.map((op, index) => (
+                <Box key={op.op_sequence} sx={{ display: 'flex', mb: 2 }}>
+                  {/* Timeline line */}
+                  <Box sx={{ position: 'relative', width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Box 
+                      sx={{ 
+                        width: 12, 
+                        height: 12, 
+                        borderRadius: '50%', 
+                        bgcolor: getStatusColor(op.status),
+                        border: `2px solid ${getStatusBg(op.status)}`,
+                        zIndex: 1
+                      }} 
+                    />
+                    {index < timelineData.operations.length - 1 && (
+                      <Box 
+                        sx={{ 
+                          position: 'absolute', 
+                          top: 12, 
+                          width: 2, 
+                          height: 'calc(100% + 8px)', 
+                          bgcolor: '#E5E7EB',
+                          zIndex: 0
+                        }} 
+                      />
+                    )}
+                  </Box>
+
+                  {/* Operation Card */}
+                  <Paper 
+                    sx={{ 
+                      flex: 1, 
+                      ml: 1.5, 
+                      p: 1.5, 
+                      borderRadius: 2, 
+                      border: `1px solid ${op.status === 'In Progress' ? COLORS.primary : COLORS.border}`,
+                      bgcolor: op.status === 'In Progress' ? `${COLORS.primary}05` : COLORS.background.white
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.primary }}>
+                          Op {op.op_sequence}
+                        </Typography>
+                        <Chip 
+                          label={op.status} 
+                          size="small" 
+                          sx={{ 
+                            fontSize: '0.55rem', 
+                            height: 18,
+                            bgcolor: getStatusBg(op.status),
+                            color: getStatusColor(op.status)
+                          }}
+                        />
+                      </Stack>
+                      {op.is_current && (
+                        <Chip 
+                          label="Current" 
+                          size="small" 
+                          sx={{ 
+                            fontSize: '0.55rem', 
+                            height: 18,
+                            bgcolor: COLORS.primary,
+                            color: '#FFFFFF'
+                          }}
+                        />
+                      )}
+                    </Stack>
+
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.primary }}>
+                      {op.operation_name}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary, mb: 1 }}>
+                      {op.work_centre}
+                    </Typography>
+
+                    <Grid container spacing={1}>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Planned Qty</Typography>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>{op.planned.qty}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Output Qty</Typography>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>{op.output.output_qty}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Yield</Typography>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, color: '#059669' }}>{op.output.yield_percent}%</Typography>
+                      </Grid>
+                    </Grid>
+
+                    {op.actual.start && (
+                      <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${COLORS.border}` }}>
+                        <Grid container spacing={1}>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Start</Typography>
+                            <Typography sx={{ fontSize: '0.6rem' }}>{formatDate(op.actual.start)}</Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>End</Typography>
+                            <Typography sx={{ fontSize: '0.6rem' }}>{formatDate(op.actual.end)}</Typography>
+                          </Grid>
+                        </Grid>
+                        <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Setup (min)</Typography>
+                            <Typography sx={{ fontSize: '0.6rem' }}>{op.actual.setup_min}</Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Run (min/pc)</Typography>
+                            <Typography sx={{ fontSize: '0.6rem' }}>{op.actual.run_min_per_pc}</Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    )}
+                  </Paper>
+                </Box>
+              ))}
+            </Box>
+          </Stack>
+        ) : (
+          <Alert severity="info" sx={{ borderRadius: 1.5 }}>No timeline data available</Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// WIP Report Popup Component
+const WipReportPopup = ({ open, onClose }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [wipData, setWipData] = useState(null);
+
+  useEffect(() => {
+    if (open) {
+      fetchWipReport();
+    }
+  }, [open]);
+
+  const fetchWipReport = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/work-orders/wip-report`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setWipData(response.data.data);
+      } else {
+        setError(response.data.message || 'Failed to load WIP report');
+      }
+    } catch (err) {
+      console.error('Error fetching WIP report:', err);
+      setError(err.response?.data?.message || 'Failed to load WIP report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value || 0);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <WipReportIcon sx={{ color: COLORS.primary }} />
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Work In Progress (WIP) Report
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
+        ) : wipData ? (
+          <Stack spacing={2.5}>
+            {/* Summary Cards */}
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Open Work Orders</Typography>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>{wipData.open_wo_count}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Machining WIP Value</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.primary }}>{formatCurrency(wipData.machining_wip_value)}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Card sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>Assembly WIP Value</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.primary }}>{formatCurrency(wipData.assembly_wip_value)}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Total WIP Value */}
+            <Paper sx={{ p: 1.5, bgcolor: COLORS.primaryLight, borderRadius: 1.5 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>Total WIP Value</Typography>
+                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: COLORS.primary }}>{formatCurrency(wipData.total_wip_value)}</Typography>
+              </Stack>
+            </Paper>
+
+            {/* Work Orders Table */}
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: COLORS.primary, mt: 1 }}>
+              Work Orders in Progress
+            </Typography>
+
+            <TableContainer component={Paper} sx={{ borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>WO Number</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Part No</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Customer</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Type</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Qty</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ color: COLORS.text.light, fontSize: '0.65rem', fontWeight: 600 }}>Planned Start</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {wipData.work_orders?.map((wo) => {
+                    const statusColors = STATUS_COLORS[wo.status] || { bg: '#F1F5F9', color: '#475569' };
+                    const completionPercent = wo.planned_qty > 0 ? (wo.completed_qty / wo.planned_qty) * 100 : 0;
+                    return (
+                      <TableRow key={wo._id} hover>
+                        <TableCell><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.wo_number}</Typography></TableCell>
+                        <TableCell><Typography sx={{ fontSize: '0.7rem' }}>{wo.part_no}</Typography></TableCell>
+                        <TableCell><Typography sx={{ fontSize: '0.7rem' }}>{wo.customer_name}</Typography></TableCell>
+                        <TableCell><Chip label={wo.wo_type || 'N/A'} size="small" sx={{ fontSize: '0.6rem', height: 20 }} /></TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.completed_qty} / {wo.planned_qty}</Typography>
+                          <Box sx={{ width: 60, mt: 0.5, bgcolor: '#E5E7EB', borderRadius: 1, overflow: 'hidden' }}>
+                            <Box sx={{ width: `${completionPercent}%`, bgcolor: COLORS.primary, height: 2 }} />
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={wo.status} size="small" sx={{ fontSize: '0.6rem', height: 20, bgcolor: statusColors.bg, color: statusColors.color }} />
+                        </TableCell>
+                        <TableCell><Typography sx={{ fontSize: '0.65rem' }}>{formatDate(wo.planned_start)}</Typography></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Stack>
+        ) : (
+          <Alert severity="info" sx={{ borderRadius: 1.5 }}>No WIP data available</Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Assembly Queue Popup Component
+const AssemblyQueuePopup = ({ open, onClose }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [assemblyData, setAssemblyData] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      fetchAssemblyQueue();
+    }
+  }, [open]);
+
+  const fetchAssemblyQueue = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/work-orders/assembly-queue`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setAssemblyData(response.data.data || []);
+      } else {
+        setError(response.data.message || 'Failed to load assembly queue');
+      }
+    } catch (err) {
+      console.error('Error fetching assembly queue:', err);
+      setError(err.response?.data?.message || 'Failed to load assembly queue');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Completed': return '#059669';
+      case 'In Progress': return '#0284C7';
+      case 'Released': return '#4338CA';
+      case 'On Hold': return '#DC2626';
+      default: return '#94A3B8';
+    }
+  };
+
+  const getStatusBg = (status) => {
+    switch (status) {
+      case 'Completed': return '#D1FAE5';
+      case 'In Progress': return '#E0F2FE';
+      case 'Released': return '#E0E7FF';
+      case 'On Hold': return '#FEE2E2';
+      default: return '#F1F5F9';
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <AssemblyQueueIcon sx={{ color: COLORS.primary }} />
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Assembly Queue
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
+        ) : assemblyData.length === 0 ? (
+          <Alert severity="info" sx={{ borderRadius: 1.5 }}>No assembly work orders in queue</Alert>
+        ) : (
+          <Stack spacing={2}>
+            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+              Total Assembly Orders: <strong>{assemblyData.length}</strong>
+            </Typography>
+
+            {assemblyData.map((wo) => {
+              const inProgressOps = wo.operations?.filter(op => op.status === 'In Progress').length || 0;
+              const completedOps = wo.operations?.filter(op => op.status === 'Completed').length || 0;
+              const totalOps = wo.operations?.length || 0;
+              const progressPercent = totalOps > 0 ? (completedOps / totalOps) * 100 : 0;
+              const statusColors = { bg: getStatusBg(wo.status), color: getStatusColor(wo.status) };
+
+              return (
+                <Paper
+                  key={wo._id}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    border: `1px solid ${COLORS.border}`,
+                    bgcolor: COLORS.background.white,
+                    '&:hover': { borderColor: COLORS.primary }
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: COLORS.primary }}>
+                          {wo.wo_number}
+                        </Typography>
+                        <Chip 
+                          label={wo.wo_type} 
+                          size="small" 
+                          sx={{ fontSize: '0.6rem', height: 20, bgcolor: COLORS.primaryLight, color: COLORS.primary }}
+                        />
+                        <Chip 
+                          label={wo.status} 
+                          size="small" 
+                          sx={{ fontSize: '0.6rem', height: 20, bgcolor: statusColors.bg, color: statusColors.color }}
+                        />
+                      </Stack>
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        SO: {wo.so_number || 'N/A'}
+                      </Typography>
+                    </Stack>
+
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Part</Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.part_no} - {wo.part_name}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, sm: 2 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Planned Qty</Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.planned_qty}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, sm: 2 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Completed</Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.completed_qty}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Assembly Line</Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{wo.assembly_line || 'Not Assigned'}</Typography>
+                      </Grid>
+                    </Grid>
+
+                    {/* Operation Progress */}
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.55rem', color: COLORS.text.tertiary }}>Operation Progress</Typography>
+                        <Typography sx={{ fontSize: '0.55rem', fontWeight: 500 }}>
+                          {completedOps}/{totalOps} operations
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ width: '100%', bgcolor: '#E5E7EB', borderRadius: 1, overflow: 'hidden' }}>
+                        <Box sx={{ width: `${progressPercent}%`, bgcolor: COLORS.primary, height: 4 }} />
+                      </Box>
+                    </Box>
+
+                    {/* Current Operation Status */}
+                    {inProgressOps > 0 && (
+                      <Box sx={{ p: 1, bgcolor: '#E0F2FE', borderRadius: 1 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: '#0284C7' }}>
+                          ⚡ {inProgressOps} operation(s) currently in progress
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Dates */}
+                    <Stack direction="row" spacing={2} sx={{ pt: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                        Planned: {formatDate(wo.planned_start)} → {formatDate(wo.planned_end)}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                        Required By: {formatDate(wo.required_by)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            textTransform: 'none'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Add Operations Popup Component (UPDATED with improved layout)
 const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [routings, setRoutings] = useState([]);
+  const [machines, setMachines] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [loadingRoutings, setLoadingRoutings] = useState(false);
+  const [loadingMachines, setLoadingMachines] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [selectedRouting, setSelectedRouting] = useState(null);
+  const [availableOperations, setAvailableOperations] = useState([]);
+  
   const [operations, setOperations] = useState([
     {
       op_sequence: 10,
+      operation_id: '',
       operation_name: '',
       work_centre: '',
       machine_id: '',
-      operator_id: '',
+      employee_id: '',
       required_skill: '',
       planned_setup_min: '',
       planned_run_min: '',
@@ -96,9 +1098,157 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
     }
   ]);
 
+  // Fetch Routings
+  useEffect(() => {
+    if (open) {
+      fetchRoutings();
+      fetchMachines();
+      fetchEmployees();
+      fetchVendors();
+    }
+  }, [open]);
+
+  const fetchRoutings = async () => {
+    try {
+      setLoadingRoutings(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/routings?page=1&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setRoutings(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching routings:', err);
+    } finally {
+      setLoadingRoutings(false);
+    }
+  };
+
+  const fetchMachines = async () => {
+    try {
+      setLoadingMachines(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setMachines(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching machines:', err);
+    } finally {
+      setLoadingMachines(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      setLoadingEmployees(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/employees`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setEmployees(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      setLoadingVendors(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/vendors?page=1&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setVendors(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
+
+  // Handle routing selection
+  const handleRoutingChange = (routing) => {
+    setSelectedRouting(routing);
+    if (routing && routing.operations) {
+      const ops = routing.operations.map(op => ({
+        _id: op.operation_id?._id || op.operation_id,
+        op_sequence: op.op_sequence,
+        operation_name: op.operation_name,
+        operation_id: op.operation_id?._id || op.operation_id,
+        work_centre: op.work_centre,
+        machine_id: op.machine_id?._id || op.machine_id,
+        planned_setup_min: op.planned_setup_min,
+        planned_run_min: op.planned_run_min,
+        is_subcontract: op.is_subcontract,
+        subcontract_vendor: op.subcontract_vendor
+      }));
+      setAvailableOperations(ops);
+      
+      // Reset operations with first operation from routing
+      if (ops.length > 0) {
+        setOperations([{
+          op_sequence: ops[0].op_sequence || 10,
+          operation_id: ops[0]._id || '',
+          operation_name: ops[0].operation_name || '',
+          work_centre: ops[0].work_centre || '',
+          machine_id: ops[0].machine_id || '',
+          employee_id: '',
+          required_skill: '',
+          planned_setup_min: ops[0].planned_setup_min || '',
+          planned_run_min: ops[0].planned_run_min || '',
+          planned_qty: '',
+          is_subcontract: ops[0].is_subcontract || false,
+          subcontract_vendor: ops[0].subcontract_vendor || '',
+          planned_start: ''
+        }]);
+      }
+    } else {
+      setAvailableOperations([]);
+      setOperations([{
+        op_sequence: 10,
+        operation_id: '',
+        operation_name: '',
+        work_centre: '',
+        machine_id: '',
+        employee_id: '',
+        required_skill: '',
+        planned_setup_min: '',
+        planned_run_min: '',
+        planned_qty: '',
+        is_subcontract: false,
+        subcontract_vendor: '',
+        planned_start: ''
+      }]);
+    }
+  };
+
   const handleOperationChange = (index, field, value) => {
     const updatedOps = [...operations];
     updatedOps[index][field] = value;
+    
+    if (field === 'operation_id' && selectedRouting) {
+      const selectedOp = availableOperations.find(op => op._id === value);
+      if (selectedOp) {
+        updatedOps[index].operation_name = selectedOp.operation_name || '';
+        updatedOps[index].work_centre = selectedOp.work_centre || '';
+        updatedOps[index].machine_id = selectedOp.machine_id || '';
+        updatedOps[index].planned_setup_min = selectedOp.planned_setup_min || '';
+        updatedOps[index].planned_run_min = selectedOp.planned_run_min || '';
+        updatedOps[index].is_subcontract = selectedOp.is_subcontract || false;
+        updatedOps[index].subcontract_vendor = selectedOp.subcontract_vendor || '';
+      }
+    }
+    
     setOperations(updatedOps);
   };
 
@@ -110,10 +1260,11 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
       ...operations,
       {
         op_sequence: nextSequence,
+        operation_id: '',
         operation_name: '',
         work_centre: '',
         machine_id: '',
-        operator_id: '',
+        employee_id: '',
         required_skill: '',
         planned_setup_min: '',
         planned_run_min: '',
@@ -134,15 +1285,15 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
   };
 
   const handleSubmit = async () => {
-    // Validate operations
+    if (!selectedRouting) {
+      setError('Please select a routing');
+      return;
+    }
+
     for (let i = 0; i < operations.length; i++) {
       const op = operations[i];
-      if (!op.operation_name.trim()) {
-        setError(`Operation ${i + 1}: Operation name is required`);
-        return;
-      }
-      if (!op.work_centre.trim()) {
-        setError(`Operation ${i + 1}: Work centre is required`);
+      if (!op.operation_id) {
+        setError(`Operation ${i + 1}: Please select an operation`);
         return;
       }
       if (!op.op_sequence || op.op_sequence <= 0) {
@@ -156,19 +1307,30 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
 
     try {
       const token = localStorage.getItem('token');
-      // Prepare operations data - convert numeric fields
+      
       const operationsData = operations.map(op => ({
-        ...op,
         op_sequence: Number(op.op_sequence),
+        operation_id: op.operation_id,
+        work_centre: op.work_centre,
+        machine_id: op.machine_id || undefined,
+        employee_id: op.employee_id || undefined,
+        required_skill: op.required_skill || undefined,
         planned_setup_min: Number(op.planned_setup_min) || 0,
         planned_run_min: Number(op.planned_run_min) || 0,
         planned_qty: Number(op.planned_qty) || 0,
+        is_subcontract: op.is_subcontract || false,
+        subcontract_vendor: op.is_subcontract ? op.subcontract_vendor : undefined,
         planned_start: op.planned_start || undefined
       }));
 
+      const requestBody = {
+        routing_id: selectedRouting._id,
+        operations: operationsData
+      };
+
       const response = await axios.post(
         `${BASE_URL}/api/work-orders/${workOrder._id}/operations/add`,
-        { operations: operationsData },
+        requestBody,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -187,13 +1349,16 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
   };
 
   const handleClose = () => {
+    setSelectedRouting(null);
+    setAvailableOperations([]);
     setOperations([
       {
         op_sequence: 10,
+        operation_id: '',
         operation_name: '',
         work_centre: '',
         machine_id: '',
-        operator_id: '',
+        employee_id: '',
         required_skill: '',
         planned_setup_min: '',
         planned_run_min: '',
@@ -211,7 +1376,7 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
+      maxWidth="lg"
       fullWidth
       PaperProps={{
         sx: {
@@ -226,266 +1391,571 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <SettingsIcon sx={{ color: COLORS.primary }} />
-          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-            Add Operations
-          </Typography>
-        </Stack>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Add Operations
+        </Typography>
         <Button
           size="small"
           variant="outlined"
-          startIcon={<AddIcon />}
+          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
           onClick={addOperation}
           sx={{
             height: 32,
+            px: 2,
             borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
             textTransform: 'none',
-            fontSize: '0.7rem'
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
           Add Operation
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, maxHeight: '70vh', overflowY: 'auto' }}>
-        <Stack spacing={3}>
-          {/* Work Order Info */}
-          <Paper sx={{ p: 1.5, bgcolor: COLORS.primaryLight, borderRadius: 1.5 }}>
-            <Stack spacing={0.5}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>WO Number:</Typography>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{workOrder?.wo_number}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Part:</Typography>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{workOrder?.part_no} - {workOrder?.part_name}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{workOrder?.customer_name}</Typography>
-              </Stack>
-            </Stack>
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        <Stack spacing={2.5}>
+          {/* Work Order Info Card */}
+          <Paper sx={{ 
+            p: 2, 
+            bgcolor: COLORS.primaryLight, 
+            borderRadius: 2, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            <Typography sx={{ 
+              fontSize: '0.75rem', 
+              fontWeight: 600, 
+              color: COLORS.primary, 
+              mb: 1.5 
+            }}>
+              Work Order Information
+            </Typography>
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>WO Number:</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>{workOrder?.wo_number}</Typography>
+                </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Part:</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>{workOrder?.part_no}</Typography>
+                </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>{workOrder?.customer_name}</Typography>
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Routing Selection */}
+          <Paper sx={{ 
+            p: 2, 
+            bgcolor: COLORS.background.white, 
+            borderRadius: 2, 
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: 'none'
+          }}>
+            <Typography sx={{ 
+              fontSize: '0.75rem', 
+              fontWeight: 600, 
+              color: COLORS.primary, 
+              mb: 1.5 
+            }}>
+              Select Routing <span style={{ color: '#EF4444' }}>*</span>
+            </Typography>
+            <Autocomplete
+              fullWidth
+              options={routings}
+              getOptionLabel={(option) => `${option.routing_id} - ${option.routing_name} (${option.routing_type || 'N/A'})`}
+              value={selectedRouting}
+              onChange={(event, newValue) => handleRoutingChange(newValue)}
+              loading={loadingRoutings}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  placeholder="Select routing"
+                  error={!!error && !selectedRouting}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    }
+                  }}
+                />
+              )}
+            />
           </Paper>
 
           {/* Operations List */}
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.secondary }}>
-            OPERATIONS
-          </Typography>
+          {selectedRouting && (
+            <>
+              <Typography sx={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mt: 1 
+              }}>
+                Operations
+              </Typography>
 
-          {operations.map((op, index) => (
-            <Paper
-              key={index}
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: `1px solid ${COLORS.border}`,
-                position: 'relative'
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary }}>
-                    Operation {index + 1}
-                  </Typography>
-                  {operations.length > 1 && (
-                    <IconButton
-                      size="small"
-                      onClick={() => removeOperation(index)}
-                      sx={{ color: '#DC2626' }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Stack>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      OP SEQUENCE *
+              {operations.map((op, index) => (
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    border: `1px solid ${COLORS.border}`,
+                    bgcolor: COLORS.background.white,
+                    boxShadow: 'none',
+                    position: 'relative'
+                  }}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary }}>
+                      Operation {index + 1}
                     </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      value={op.op_sequence}
-                      onChange={(e) => handleOperationChange(index, 'op_sequence', e.target.value)}
-                      placeholder="e.g., 10"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 2 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      OPERATION NAME *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={op.operation_name}
-                      onChange={(e) => handleOperationChange(index, 'operation_name', e.target.value)}
-                      placeholder="e.g., Blanking"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      WORK CENTRE *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={op.work_centre}
-                      onChange={(e) => handleOperationChange(index, 'work_centre', e.target.value)}
-                      placeholder="e.g., Press Shop"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                </Stack>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      MACHINE ID
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={op.machine_id}
-                      onChange={(e) => handleOperationChange(index, 'machine_id', e.target.value)}
-                      placeholder="Machine ID"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      OPERATOR ID
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={op.operator_id}
-                      onChange={(e) => handleOperationChange(index, 'operator_id', e.target.value)}
-                      placeholder="Operator ID"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      REQUIRED SKILL
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={op.required_skill}
-                      onChange={(e) => handleOperationChange(index, 'required_skill', e.target.value)}
-                      placeholder="e.g., PRESS-OPS"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                </Stack>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      PLANNED SETUP (min)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      value={op.planned_setup_min}
-                      onChange={(e) => handleOperationChange(index, 'planned_setup_min', e.target.value)}
-                      placeholder="e.g., 15"
-                      inputProps={{ min: 0, step: 0.5 }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      PLANNED RUN (min)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      value={op.planned_run_min}
-                      onChange={(e) => handleOperationChange(index, 'planned_run_min', e.target.value)}
-                      placeholder="e.g., 1.5"
-                      inputProps={{ min: 0, step: 0.1 }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      PLANNED QTY
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      size="small"
-                      value={op.planned_qty}
-                      onChange={(e) => handleOperationChange(index, 'planned_qty', e.target.value)}
-                      placeholder="Planned quantity"
-                      inputProps={{ min: 0 }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                </Stack>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Box sx={{ flex: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          size="small"
-                          checked={op.is_subcontract}
-                          onChange={(e) => handleOperationChange(index, 'is_subcontract', e.target.checked)}
-                        />
-                      }
-                      label={<Typography sx={{ fontSize: '0.7rem' }}>Subcontract Operation</Typography>}
-                    />
-                  </Box>
-                  {op.is_subcontract && (
-                    <Box sx={{ flex: 2 }}>
-                      <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                        SUBCONTRACT VENDOR
-                      </Typography>
-                      <TextField
-                        fullWidth
+                    {operations.length > 1 && (
+                      <IconButton
                         size="small"
-                        value={op.subcontract_vendor}
-                        onChange={(e) => handleOperationChange(index, 'subcontract_vendor', e.target.value)}
-                        placeholder="Vendor name"
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
-                    </Box>
-                  )}
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                      PLANNED START DATE
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      size="small"
-                      value={op.planned_start}
-                      onChange={(e) => handleOperationChange(index, 'planned_start', e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                    />
-                  </Box>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
+                        onClick={() => removeOperation(index)}
+                        sx={{ color: '#EF4444' }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Stack>
+
+                  <Grid container spacing={1.5}>
+                    {/* Row 1: Op Sequence and Operation */}
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          OP SEQUENCE <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={op.op_sequence}
+                          onChange={(e) => handleOperationChange(index, 'op_sequence', e.target.value)}
+                          placeholder="e.g., 10"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 9 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          OPERATION <span style={{ color: '#EF4444' }}>*</span>
+                        </Typography>
+                        <Autocomplete
+                          fullWidth
+                          options={availableOperations}
+                          getOptionLabel={(option) => `${option.op_sequence}. ${option.operation_name}`}
+                          value={availableOperations.find(o => o._id === op.operation_id) || null}
+                          onChange={(event, newValue) => {
+                            handleOperationChange(index, 'operation_id', newValue?._id || '');
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select operation"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {/* Row 2: Work Centre and Required Skill */}
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          WORK CENTRE
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={op.work_centre}
+                          onChange={(e) => handleOperationChange(index, 'work_centre', e.target.value)}
+                          placeholder="Work centre"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          REQUIRED SKILL
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={op.required_skill}
+                          onChange={(e) => handleOperationChange(index, 'required_skill', e.target.value)}
+                          placeholder="e.g., PRESS-OPS"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {/* Row 3: Machine and Employee */}
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          MACHINE
+                        </Typography>
+                        <Autocomplete
+                          fullWidth
+                          options={machines}
+                          getOptionLabel={(option) => `${option.machine_code} - ${option.machine_name}`}
+                          value={machines.find(m => m._id === op.machine_id) || null}
+                          onChange={(event, newValue) => {
+                            handleOperationChange(index, 'machine_id', newValue?._id || '');
+                          }}
+                          loading={loadingMachines}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select machine"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          EMPLOYEE
+                        </Typography>
+                        <Autocomplete
+                          fullWidth
+                          options={employees}
+                          getOptionLabel={(option) => `${option.EmployeeID} - ${option.FirstName} ${option.LastName || ''}`}
+                          value={employees.find(e => e._id === op.employee_id) || null}
+                          onChange={(event, newValue) => {
+                            handleOperationChange(index, 'employee_id', newValue?._id || '');
+                          }}
+                          loading={loadingEmployees}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Select employee"
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  '&:hover fieldset': { borderColor: COLORS.primary },
+                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                },
+                                '& .MuiInputBase-input': {
+                                  py: 1,
+                                  px: 1.5,
+                                  fontSize: '0.75rem',
+                                  color: COLORS.text.primary
+                                }
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {/* Row 4: Planned Times */}
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PLANNED SETUP (min)
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={op.planned_setup_min}
+                          onChange={(e) => handleOperationChange(index, 'planned_setup_min', e.target.value)}
+                          placeholder="e.g., 15"
+                          inputProps={{ min: 0, step: 0.5 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PLANNED RUN (min)
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={op.planned_run_min}
+                          onChange={(e) => handleOperationChange(index, 'planned_run_min', e.target.value)}
+                          placeholder="e.g., 1.5"
+                          inputProps={{ min: 0, step: 0.1 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PLANNED QTY
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={op.planned_qty}
+                          onChange={(e) => handleOperationChange(index, 'planned_qty', e.target.value)}
+                          placeholder="Planned quantity"
+                          inputProps={{ min: 0 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {/* Row 5: Subcontract and Planned Start */}
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', pt: 1 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              size="small"
+                              checked={op.is_subcontract}
+                              onChange={(e) => handleOperationChange(index, 'is_subcontract', e.target.checked)}
+                            />
+                          }
+                          label={<Typography sx={{ fontSize: '0.7rem' }}>Subcontract Operation</Typography>}
+                        />
+                      </Box>
+                    </Grid>
+
+                    {op.is_subcontract && (
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                            SUBCONTRACT VENDOR
+                          </Typography>
+                          <Autocomplete
+                            fullWidth
+                            options={vendors}
+                            getOptionLabel={(option) => `${option.vendor_code} - ${option.vendor_name}`}
+                            value={vendors.find(v => v._id === op.subcontract_vendor) || null}
+                            onChange={(event, newValue) => {
+                              handleOperationChange(index, 'subcontract_vendor', newValue?._id || '');
+                            }}
+                            loading={loadingVendors}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                size="small"
+                                placeholder="Select vendor"
+                                sx={{
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1.5,
+                                    fontSize: '0.75rem',
+                                    '&:hover fieldset': { borderColor: COLORS.primary },
+                                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                                  },
+                                  '& .MuiInputBase-input': {
+                                    py: 1,
+                                    px: 1.5,
+                                    fontSize: '0.75rem',
+                                    color: COLORS.text.primary
+                                  }
+                                }}
+                              />
+                            )}
+                          />
+                        </Box>
+                      </Grid>
+                    )}
+
+                    <Grid size={{ xs: 12, sm: op.is_subcontract ? 4 : 8 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                          PLANNED START DATE
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          size="small"
+                          value={op.planned_start}
+                          onChange={(e) => handleOperationChange(index, 'planned_start', e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </>
+          )}
 
           {error && (
-            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                fontSize: '0.75rem',
+                py: 0.5,
+                '& .MuiAlert-icon': { fontSize: '1.25rem' }
+              }}
+            >
               {error}
             </Alert>
           )}
@@ -513,7 +1983,10 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
             fontSize: '0.7rem',
             fontWeight: 500,
             textTransform: 'none',
-            '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
           Cancel
@@ -521,8 +1994,8 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
-          startIcon={<SettingsIcon sx={{ fontSize: '1rem' }} />}
+          disabled={loading || !selectedRouting}
+          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,
             px: 2,
@@ -531,7 +2004,10 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
             fontSize: '0.7rem',
             fontWeight: 500,
             textTransform: 'none',
-            '&:hover': { bgcolor: COLORS.primaryDark }
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              bgcolor: COLORS.primaryDark,
+            }
           }}
         >
           {loading ? 'Adding...' : 'Add Operations'}
@@ -541,7 +2017,7 @@ const AddOperationsPopup = ({ open, onClose, workOrder, onOperationsAdded }) => 
   );
 };
 
-// Complete Operation Popup Component
+// Complete Operation Popup Component (UPDATED - Auto-selects In Progress operation)
 const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -555,6 +2031,23 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
   });
 
   const operations = workOrder?.operations || [];
+  
+  // Find the operation with status "In Progress"
+  const inProgressOperation = operations.find(op => op.status === 'In Progress');
+
+  // Auto-select the In Progress operation when component opens or workOrder changes
+  useEffect(() => {
+    if (open && workOrder && inProgressOperation) {
+      setSelectedOperation(inProgressOperation);
+      setFormData(prev => ({
+        ...prev,
+        output_qty: inProgressOperation.planned_qty || workOrder?.planned_qty || ''
+      }));
+      setError('');
+    } else if (open && workOrder && !inProgressOperation) {
+      setError('No operation is currently In Progress. Please start an operation first.');
+    }
+  }, [open, workOrder, inProgressOperation]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -649,6 +2142,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
 
       <DialogContent sx={{ p: 2.5 }}>
         <Stack spacing={2}>
+          {/* Work Order Info */}
           <Paper sx={{ p: 1.5, bgcolor: COLORS.primaryLight, borderRadius: 1.5 }}>
             <Stack spacing={0.5}>
               <Stack direction="row" justifyContent="space-between">
@@ -662,43 +2156,97 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
             </Stack>
           </Paper>
 
+          {/* Operation Selection - Auto-selected and Read-only */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
               OPERATION <span style={{ color: '#EF4444' }}>*</span>
             </Typography>
-            <Autocomplete
-              fullWidth
-              options={operations}
-              getOptionLabel={(option) => `${option.op_sequence}. ${option.operation_name} - ${option.work_centre} (Planned: ${option.planned_qty})`}
-              value={selectedOperation}
-              onChange={(event, newValue) => {
-                setSelectedOperation(newValue);
-                if (newValue) {
-                  setFormData(prev => ({
-                    ...prev,
-                    output_qty: newValue.planned_qty || ''
-                  }));
-                }
-                setError('');
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  size="small"
-                  placeholder="Select operation"
-                  error={!!error && !selectedOperation}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary }
-                    }
-                  }}
-                />
-              )}
-            />
+            {inProgressOperation ? (
+              <Paper 
+                sx={{ 
+                  p: 1.5, 
+                  bgcolor: `${COLORS.primary}10`, 
+                  borderRadius: 1.5,
+                  border: `1px solid ${COLORS.primary}`,
+                  cursor: 'not-allowed'
+                }}
+              >
+                <Stack spacing={0.5}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Operation Sequence:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary }}>
+                      {inProgressOperation.op_sequence}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Operation Name:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary }}>
+                      {inProgressOperation.operation_name}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Work Centre:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {inProgressOperation.work_centre}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Planned Qty:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {inProgressOperation.planned_qty || workOrder?.planned_qty}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Status:</Typography>
+                    <Chip 
+                      label={inProgressOperation.status} 
+                      size="small"
+                      sx={{ 
+                        fontSize: '0.6rem', 
+                        height: 20,
+                        bgcolor: STATUS_COLORS['In Progress']?.bg || '#E0F2FE',
+                        color: STATUS_COLORS['In Progress']?.color || '#0284C7'
+                      }}
+                    />
+                  </Stack>
+                </Stack>
+              </Paper>
+            ) : (
+              <Autocomplete
+                fullWidth
+                options={operations}
+                getOptionLabel={(option) => `${option.op_sequence}. ${option.operation_name} - ${option.work_centre} (Planned: ${option.planned_qty})`}
+                value={selectedOperation}
+                onChange={(event, newValue) => {
+                  setSelectedOperation(newValue);
+                  if (newValue) {
+                    setFormData(prev => ({
+                      ...prev,
+                      output_qty: newValue.planned_qty || workOrder?.planned_qty || ''
+                    }));
+                  }
+                  setError('');
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select operation"
+                    error={!!error && !selectedOperation}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary }
+                      }
+                    }}
+                  />
+                )}
+              />
+            )}
           </Box>
 
+          {/* Output Quantity */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
               OUTPUT QUANTITY <span style={{ color: '#EF4444' }}>*</span>
@@ -725,6 +2273,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
             </Typography>
           </Box>
 
+          {/* Rejection Quantity */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
               REJECTION QUANTITY
@@ -748,6 +2297,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
             />
           </Box>
 
+          {/* Rejection Reason - shown only if rejection_qty > 0 */}
           {formData.rejection_qty > 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
@@ -773,6 +2323,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
             </Box>
           )}
 
+          {/* Actual Setup Min */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
               ACTUAL SETUP TIME (minutes)
@@ -796,6 +2347,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
             />
           </Box>
 
+          {/* Actual Run Min */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
               ACTUAL RUN TIME (minutes)
@@ -856,7 +2408,7 @@ const CompleteOperationPopup = ({ open, onClose, workOrder, onComplete }) => {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || !selectedOperation}
           startIcon={<CompleteOpIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,
@@ -1317,7 +2869,7 @@ const HoldWorkOrderPopup = ({ open, onClose, workOrder, onHold }) => {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 5, border: `1px solid ${COLORS.border}`, overflow: 'hidden' } }}>
-      <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, py: 1.5, px: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, py: 1.5, px: 2.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
         <HoldIcon sx={{ color: '#D97706' }} />
         <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>Hold Work Order</Typography>
       </DialogTitle>
@@ -1367,7 +2919,7 @@ const ResumeWorkOrderPopup = ({ open, onClose, workOrder, onResume }) => {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 5, border: `1px solid ${COLORS.border}`, overflow: 'hidden' } }}>
-      <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, py: 1.5, px: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, py: 1.5, px: 2.5,mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
         <ResumeIcon sx={{ color: '#059669' }} />
         <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>Resume Work Order</Typography>
       </DialogTitle>
@@ -1446,12 +2998,13 @@ const CancelWorkOrderPopup = ({ open, onClose, workOrder, onCancel }) => {
   );
 };
 
-// Action Menu Component (UPDATED)
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onRelease, onCancel, onHold, onStart, onResume, onCompleteOp, onCompleteWO, onLabour, onOperations }) => {
+// Updated Action Menu Component (with new buttons)
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onRelease, onCancel, onHold, onStart, onResume, onCompleteOp, onCompleteWO, onLabour, onOperations, onJobCosting, onJobCard, onTimeline }) => {
   const isPlanned = item?.status === 'Planned';
   const isReleased = item?.status === 'Released';
   const isOnHold = item?.status === 'On Hold';
   const isInProgress = item?.status === 'In Progress';
+  const isPartiallyCompleted = item?.status === 'Partially Completed';
   
   const menuItem = (onClick, icon, label, color = COLORS.text.primary, disabled = false, tooltipMsg = '') => {
     const el = (
@@ -1470,6 +3023,10 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onRelease
         {menuItem(() => onView(item), <ViewIcon fontSize="small" />, 'View details')}
         {menuItem(() => onEdit(item), <EditIcon fontSize="small" />, 'Edit')}
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {menuItem(() => onJobCosting(item), <JobCostingIcon fontSize="small" />, 'Job Costing', '#8B5CF6')}
+        {menuItem(() => onJobCard(item), <JobCardIcon fontSize="small" />, 'Job Card', '#F59E0B')}
+        {menuItem(() => onTimeline(item), <TimelineIcon fontSize="small" />, 'Timeline', COLORS.primary)}
+        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         {isPlanned && menuItem(() => onRelease(item), <RocketLaunchIcon fontSize="small" />, 'Release Work Order', '#059669')}
         {isPlanned && menuItem(() => onCancel(item), <BlockIcon fontSize="small" />, 'Cancel Work Order', '#DC2626')}
         
@@ -1482,6 +3039,8 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onRelease
         {isInProgress && menuItem(() => onCompleteOp(item), <CompleteOpIcon fontSize="small" />, 'Complete Operation', '#8B5CF6')}
         {isInProgress && menuItem(() => onCompleteWO(item), <CompleteWOIcon fontSize="small" />, 'Complete Work Order', '#059669')}
         {isInProgress && menuItem(() => onLabour(item), <LabourIcon fontSize="small" />, 'Labour Entry', '#F59E0B')}
+
+        {isPartiallyCompleted && menuItem(() => onCompleteWO(item), <CompleteWOIcon fontSize="small" />, 'Complete Work Order', '#059669')}
       </Menu>
     </>
   );
@@ -1512,7 +3071,12 @@ const WorkOrdersMaster = () => {
   const [openCompleteOp, setOpenCompleteOp] = useState(false);
   const [openCompleteWO, setOpenCompleteWO] = useState(false);
   const [openLabour, setOpenLabour] = useState(false);
-  const [openOperations, setOpenOperations] = useState(false); // NEW state for operations popup
+  const [openOperations, setOpenOperations] = useState(false);
+  const [openJobCosting, setOpenJobCosting] = useState(false);
+  const [openJobCardLoading, setOpenJobCardLoading] = useState(false);
+  const [openTimeline, setOpenTimeline] = useState(false);
+  const [openWipReport, setOpenWipReport] = useState(false);
+  const [openAssemblyQueue, setOpenAssemblyQueue] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => { setSearchTerm(searchInput); setPage(0); }, 500); return () => clearTimeout(t); }, [searchInput]);
 
@@ -1552,7 +3116,6 @@ const WorkOrdersMaster = () => {
     }
   };
 
-  // NEW: Start Work Order function (for Released status)
   const handleStart = async (workOrder) => {
     try {
       setLoading(true);
@@ -1578,7 +3141,6 @@ const WorkOrdersMaster = () => {
     }
   };
 
-  // NEW: Open Operations popup (for Released status)
   const handleOpenOperations = (workOrder) => {
     setSelectedWorkOrder(workOrder);
     setOpenOperations(true);
@@ -1586,12 +3148,71 @@ const WorkOrdersMaster = () => {
     setSelectedWorkOrderForMenu(null);
   };
 
-  // NEW: Handle operations added successfully
   const handleOperationsAdded = (updatedWorkOrder) => {
     notify(`Operations added to Work Order ${updatedWorkOrder.wo_number} successfully!`);
     fetchWorkOrders();
     setOpenOperations(false);
     setSelectedWorkOrder(null);
+  };
+
+  // NEW: Job Costing handler
+  const handleJobCosting = (workOrder) => {
+    setSelectedWorkOrder(workOrder);
+    setOpenJobCosting(true);
+    setActionMenuAnchor(null);
+    setSelectedWorkOrderForMenu(null);
+  };
+
+  // NEW: Job Card handler - downloads PDF
+  const handleJobCard = async (workOrder) => {
+    try {
+      setOpenJobCardLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/api/work-orders/${workOrder._id}/job-card`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        }
+      );
+      
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `JobCard_${workOrder.wo_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      notify(`Job Card for ${workOrder.wo_number} downloaded successfully!`);
+    } catch (err) {
+      console.error('Error downloading job card:', err);
+      notify(err.response?.data?.message || 'Failed to download job card', 'error');
+    } finally {
+      setOpenJobCardLoading(false);
+      setActionMenuAnchor(null);
+      setSelectedWorkOrderForMenu(null);
+    }
+  };
+
+  // NEW: Timeline handler
+  const handleTimeline = (workOrder) => {
+    setSelectedWorkOrder(workOrder);
+    setOpenTimeline(true);
+    setActionMenuAnchor(null);
+    setSelectedWorkOrderForMenu(null);
+  };
+
+  // NEW: WIP Report handler
+  const handleWipReport = () => {
+    setOpenWipReport(true);
+  };
+
+  // NEW: Assembly Queue handler
+  const handleAssemblyQueue = () => {
+    setOpenAssemblyQueue(true);
   };
 
   const handleCancel = (workOrder) => { setSelectedWorkOrder(workOrder); setOpenCancel(true); };
@@ -1642,6 +3263,43 @@ const WorkOrdersMaster = () => {
           <TextField placeholder="Search by WO number, SO number, customer, part number..." size="small" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} disabled={loading} sx={{ width: { xs: '100%', sm: 450 }, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} /></InputAdornment>, sx: { height: 36, bgcolor: COLORS.background.light, '& input': { padding: '6px 12px', fontSize: '0.75rem' } } }} />
           <Stack direction="row" spacing={1.5} alignItems="center">
             {selected.length > 0 && <Button variant="outlined" color="error" startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />} sx={{ height: 36, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem' }} disabled={loading}>Delete ({selected.length})</Button>}
+            
+            {/* NEW: WIP Report Button */}
+            <Button 
+              variant="outlined" 
+              startIcon={<WipReportIcon sx={{ fontSize: '1rem' }} />} 
+              onClick={handleWipReport}
+              sx={{ 
+                height: 36, 
+                borderRadius: 1.5, 
+                textTransform: 'none', 
+                fontSize: '0.75rem',
+                borderColor: COLORS.primary,
+                color: COLORS.primary,
+                '&:hover': { borderColor: COLORS.primaryDark, bgcolor: `${COLORS.primary}10` }
+              }}
+            >
+              WIP Report
+            </Button>
+            
+            {/* NEW: Assembly Queue Button */}
+            <Button 
+              variant="outlined" 
+              startIcon={<AssemblyQueueIcon sx={{ fontSize: '1rem' }} />} 
+              onClick={handleAssemblyQueue}
+              sx={{ 
+                height: 36, 
+                borderRadius: 1.5, 
+                textTransform: 'none', 
+                fontSize: '0.75rem',
+                borderColor: COLORS.primary,
+                color: COLORS.primary,
+                '&:hover': { borderColor: COLORS.primaryDark, bgcolor: `${COLORS.primary}10` }
+              }}
+            >
+              Assembly Queue
+            </Button>
+            
             <Button variant="contained" startIcon={<AddIcon sx={{ fontSize: '1rem' }} />} onClick={() => setOpenAdd(true)} sx={{ height: 36, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.75rem', textTransform: 'none', '&:hover': { bgcolor: COLORS.primaryDark } }} disabled={loading}>Add Work Order</Button>
           </Stack>
         </Stack>
@@ -1684,12 +3342,15 @@ const WorkOrdersMaster = () => {
                       onRelease={(w) => handleRelease(w)} 
                       onCancel={(w) => handleCancel(w)} 
                       onHold={(w) => handleHold(w)} 
-                      onStart={(w) => handleStart(w)}  // Updated: Now calls handleStart directly
+                      onStart={(w) => handleStart(w)}
                       onResume={(w) => handleResume(w)} 
                       onCompleteOp={(w) => handleCompleteOp(w)} 
                       onCompleteWO={(w) => handleCompleteWO(w)} 
                       onLabour={(w) => handleLabour(w)}
-                      onOperations={(w) => handleOpenOperations(w)}  // NEW: Operations button handler
+                      onOperations={(w) => handleOpenOperations(w)}
+                      onJobCosting={(w) => handleJobCosting(w)}
+                      onJobCard={(w) => handleJobCard(w)}
+                      onTimeline={(w) => handleTimeline(w)}
                     /></TableCell>
                   </TableRow>
                 );
@@ -1711,7 +3372,16 @@ const WorkOrdersMaster = () => {
         <CompleteWorkOrderPopup open={openCompleteWO} onClose={() => setOpenCompleteWO(false)} workOrder={selectedWorkOrder} onComplete={handleCompleteWOSubmit} />
         <LabourEntryPopup open={openLabour} onClose={() => setOpenLabour(false)} workOrder={selectedWorkOrder} onLabour={handleLabourSubmit} />
         <AddOperationsPopup open={openOperations} onClose={() => setOpenOperations(false)} workOrder={selectedWorkOrder} onOperationsAdded={handleOperationsAdded} />
+        <JobCostingPopup open={openJobCosting} onClose={() => setOpenJobCosting(false)} workOrder={selectedWorkOrder} />
+        <TimelinePopup open={openTimeline} onClose={() => setOpenTimeline(false)} workOrder={selectedWorkOrder} />
       </>)}
+      
+      {/* WIP Report Popup */}
+      <WipReportPopup open={openWipReport} onClose={() => setOpenWipReport(false)} />
+      
+      {/* Assembly Queue Popup */}
+      <AssemblyQueuePopup open={openAssemblyQueue} onClose={() => setOpenAssemblyQueue(false)} />
+      
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Alert onClose={() => setSnackbar(s => ({ ...s, open: false }))} severity={snackbar.severity} variant="filled" sx={{ width: '100%', borderRadius: 1.5, fontSize: '0.75rem' }}>{snackbar.message}</Alert></Snackbar>
     </Box>
   );

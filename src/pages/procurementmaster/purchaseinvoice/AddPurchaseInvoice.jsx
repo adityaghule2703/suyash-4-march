@@ -34,8 +34,7 @@ import {
   IconButton,
   Checkbox,
   FormControlLabel,
-  styled,
-  Tooltip
+  styled
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -51,14 +50,10 @@ import {
   LocalShipping as LocalShippingIcon,
   AttachMoney as AttachMoneyIcon,
   Description as DescriptionIcon,
-  Assignment as AssignmentIcon,
-  Search as SearchIcon
+  Assignment as AssignmentIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
-import AddGRN from '../GRN/AddGRN';
-import AddPurchaseOrder from '../purchaseorder/AddPurchaseOrder';
-
 
 // Color constants matching other components
 const COLORS = {
@@ -132,11 +127,6 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
   const [loadingGrns, setLoadingGrns] = useState(false);
   const [selectedGrns, setSelectedGrns] = useState([]);
   const [invoiceItems, setInvoiceItems] = useState([]);
-  
-  // State for Add dialogs
-  const [addPOOpen, setAddPOOpen] = useState(false);
-  const [addGRNOpen, setAddGRNOpen] = useState(false);
-  
   const [formData, setFormData] = useState({
     po_id: '',
     grn_ids: [],
@@ -285,14 +275,6 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
     }
   };
 
-  const handlePOAdded = (newPO) => {
-    setPos(prev => [...prev, newPO]);
-    // Auto-select the newly added PO
-    setSelectedPO(newPO);
-    setFormData(prev => ({ ...prev, po_id: newPO._id }));
-    fetchGRNsForPO(newPO._id);
-  };
-
   const handleGRNChange = (event, values) => {
     setSelectedGrns(values);
     setFormData(prev => ({ ...prev, grn_ids: values.map(v => v._id) }));
@@ -360,21 +342,6 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
       }));
       
       setAutoFilledFromGRN(!!vendorInvoiceNo);
-    }
-  };
-
-  const handleGRNAadded = (newGRN) => {
-    setGrns(prev => [...prev, newGRN]);
-    // Auto-select the newly added GRN
-    setSelectedGrns(prev => [...prev, newGRN]);
-    setFormData(prev => ({ 
-      ...prev, 
-      grn_ids: [...prev.grn_ids, newGRN._id] 
-    }));
-    
-    // Fetch updated GRNs for the current PO
-    if (selectedPO) {
-      fetchGRNsForPO(selectedPO._id);
     }
   };
 
@@ -774,30 +741,6 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
   const tdsAmount = formData.tds_applicable ? (totals.taxable * (formData.tds_rate / 100)) : 0;
   const netPayable = totals.grand - tdsAmount;
 
-  const inputStyle = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5,
-      fontSize: '0.75rem',
-      backgroundColor: COLORS.background.white,
-      '&:hover fieldset': { borderColor: COLORS.primary },
-      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-    },
-    '& .MuiInputBase-input': {
-      py: 1,
-      px: 1.5,
-      fontSize: '0.75rem',
-      color: COLORS.text.primary
-    }
-  };
-
-  const labelStyle = {
-    fontSize: '0.7rem',
-    fontWeight: 600,
-    color: COLORS.text.secondary,
-    letterSpacing: '0.5px',
-    mb: 0.5
-  };
-
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Select PO & GRN
@@ -807,167 +750,65 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 <AssignmentIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Purchase Order
               </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                  <Typography sx={labelStyle}>
-                    SELECT PO <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Tooltip title="Add New Purchase Order">
-                    <IconButton
-                      size="small"
-                      onClick={() => setAddPOOpen(true)}
-                      disabled={loading}
-                      sx={{
-                        color: COLORS.primary,
-                        '&:hover': {
-                          bgcolor: COLORS.primaryLight
-                        }
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: '1rem' }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-                <Autocomplete
-                  options={pos}
-                  loading={loadingPos}
-                  value={selectedPO}
-                  onChange={handlePOChange}
-                  getOptionLabel={(opt) => `${opt.po_number} - ${opt.vendor_name} (${opt.status})`}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      placeholder={loadingPos ? 'Loading POs...' : 'Search PO by number or vendor...'}
-                      error={!!fieldErrors.po_id}
-                      helperText={fieldErrors.po_id}
-                      sx={inputStyle}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <>
-                            {loadingPos && <CircularProgress size={16} />}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                  renderOption={(props, opt) => (
-                    <li {...props}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{opt.po_number}</Typography>
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Vendor: {opt.vendor_name} | Status: {opt.status} | Items: {opt.items?.length || 0}
-                        </Typography>
-                      </Box>
-                    </li>
-                  )}
-                  ListboxProps={{
-                    sx: {
-                      maxHeight: 250,
-                      '& .MuiAutocomplete-option': {
+              <Autocomplete
+                options={pos}
+                loading={loadingPos}
+                value={selectedPO}
+                onChange={handlePOChange}
+                getOptionLabel={(opt) => `${opt.po_number} - ${opt.vendor_name}`}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder={loadingPos ? 'Loading POs...' : 'Select Purchase Order...'}
+                    error={!!fieldErrors.po_id}
+                    helperText={fieldErrors.po_id}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
                         fontSize: '0.75rem',
-                        py: 1,
-                        px: 1.5
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                       }
-                    }
-                  }}
-                  noOptionsText="No eligible POs found. Click + to add."
-                />
-              </Box>
+                    }}
+                  />
+                )}
+              />
             </Paper>
 
-            {selectedPO && (
+            {selectedPO && grns.length > 0 && (
               <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
                 <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                   <LocalShippingIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Goods Receipt Notes
                 </Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                    <Typography sx={labelStyle}>
-                      SELECT GRNs <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Tooltip title="Add New GRN">
-                      <IconButton
-                        size="small"
-                        onClick={() => setAddGRNOpen(true)}
-                        disabled={loading}
-                        sx={{
-                          color: COLORS.primary,
-                          '&:hover': {
-                            bgcolor: COLORS.primaryLight
-                          }
-                        }}
-                      >
-                        <AddIcon sx={{ fontSize: '1rem' }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  <Autocomplete
-                    multiple
-                    options={grns}
-                    loading={loadingGrns}
-                    value={selectedGrns}
-                    onChange={handleGRNChange}
-                    getOptionLabel={(opt) => `${opt.grn_number} - Received: ${opt.total_received_qty} units`}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Search GRNs..."
-                        error={!!fieldErrors.grn_ids}
-                        helperText={fieldErrors.grn_ids}
-                        sx={inputStyle}
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
-                            </InputAdornment>
-                          ),
-                          endAdornment: (
-                            <>
-                              {loadingGrns && <CircularProgress size={16} />}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderOption={(props, opt) => (
-                      <li {...props}>
-                        <Box>
-                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{opt.grn_number}</Typography>
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                            Date: {new Date(opt.createdAt).toLocaleDateString()} | Items: {opt.items?.length || 0}
-                          </Typography>
-                        </Box>
-                      </li>
-                    )}
-                    ListboxProps={{
-                      sx: {
-                        maxHeight: 250,
-                        '& .MuiAutocomplete-option': {
+                <Autocomplete
+                  multiple
+                  options={grns}
+                  loading={loadingGrns}
+                  value={selectedGrns}
+                  onChange={handleGRNChange}
+                  getOptionLabel={(opt) => `${opt.grn_number} - Received: ${opt.total_received_qty} units`}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Select GRNs..."
+                      error={!!fieldErrors.grn_ids}
+                      helperText={fieldErrors.grn_ids}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
                           fontSize: '0.75rem',
-                          py: 1,
-                          px: 1.5
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         }
-                      }
-                    }}
-                    noOptionsText="No GRNs found. Click + to add."
-                  />
-                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 1, display: 'block' }}>
-                    All GRNs for this PO are auto-selected. You can modify the selection as needed.
-                  </Typography>
-                </Box>
+                      }}
+                    />
+                  )}
+                />
+                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 1, display: 'block' }}>
+                  All GRNs for this PO are auto-selected. You can modify the selection as needed.
+                </Typography>
               </Paper>
             )}
           </Stack>
@@ -1014,7 +855,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       VENDOR INVOICE NO <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -1026,13 +867,20 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.vendor_invoice_no}
                       helperText={fieldErrors.vendor_invoice_no}
                       placeholder="e.g., INV-VED-2026-001"
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       VENDOR INVOICE DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -1045,13 +893,20 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.vendor_invoice_date}
                       helperText={fieldErrors.vendor_invoice_date}
                       InputLabelProps={{ shrink: true }}
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       INVOICE DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -1064,13 +919,20 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.invoice_date}
                       helperText={fieldErrors.invoice_date}
                       InputLabelProps={{ shrink: true }}
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       DUE DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -1083,13 +945,20 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                       error={!!fieldErrors.due_date}
                       helperText={fieldErrors.due_date}
                       InputLabelProps={{ shrink: true }}
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       GST TYPE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.gst_type}>
@@ -1097,7 +966,11 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                         name="gst_type"
                         value={formData.gst_type}
                         onChange={handleChange}
-                        sx={inputStyle}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': { py: 1, px: 1.5 }
+                        }}
                       >
                         {gstTypes.map(type => (
                           <MenuItem key={type} value={type} sx={{ fontSize: '0.75rem' }}>
@@ -1125,7 +998,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Box>
-                    <Typography sx={labelStyle}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                       INTERNAL REMARKS
                     </Typography>
                     <TextField
@@ -1137,7 +1010,14 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                       value={formData.internal_remarks}
                       onChange={handleChange}
                       placeholder="Add any internal notes..."
-                      sx={inputStyle}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
@@ -1297,7 +1177,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Box>
-                      <Typography sx={labelStyle}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                         TDS SECTION <span style={{ color: '#EF4444' }}>*</span>
                       </Typography>
                       <FormControl fullWidth size="small" error={!!fieldErrors.tds_section}>
@@ -1305,7 +1185,11 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                           name="tds_section" 
                           value={formData.tds_section} 
                           onChange={handleChange}
-                          sx={inputStyle}
+                          sx={{
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '& .MuiSelect-select': { py: 1, px: 1.5 }
+                          }}
                         >
                           <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Select Section</MenuItem>
                           {tdsSections.map(section => (
@@ -1317,7 +1201,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Box>
-                      <Typography sx={labelStyle}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
                         TDS RATE (%) <span style={{ color: '#EF4444' }}>*</span>
                       </Typography>
                       <TextField
@@ -1330,7 +1214,14 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                         error={!!fieldErrors.tds_rate}
                         helperText={fieldErrors.tds_rate}
                         InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-                        sx={inputStyle}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          }
+                        }}
                       />
                     </Box>
                   </Grid>
@@ -1341,13 +1232,13 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
                 <Stack direction="row" justifyContent="flex-end" spacing={3}>
                   <Box>
                     <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>TDS Amount:</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#F59E0B' }}>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: COLORS.warning }}>
                       ₹{tdsAmount.toLocaleString()}
                     </Typography>
                   </Box>
                   <Box>
                     <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Net Payable:</Typography>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#10B981' }}>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.success }}>
                       ₹{netPayable.toLocaleString()}
                     </Typography>
                   </Box>
@@ -1363,84 +1254,104 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 5,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: `1px solid ${COLORS.border}`,
-            overflow: 'hidden',
-            maxHeight: '95vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{
-          borderBottom: `1px solid ${COLORS.border}`,
-          py: 1.5,
-          px: 2.5,
-          bgcolor: COLORS.background.white,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1
-        }}>
-          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-            Create Purchase Invoice
-          </Typography>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden',
+          maxHeight: '95vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
+      }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Create Purchase Invoice
+        </Typography>
 
-          <Stepper
-            activeStep={activeStep}
-            alternativeLabel
-            connector={<ColorConnector />}
-            sx={{ mb: 0.5, mt: 0.5 }}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ mb: 0.5, mt: 0.5 }}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>
+                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                  {label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5, overflow: 'auto', backgroundColor: COLORS.background.light }}>
+        {renderStepContent(activeStep)}
+
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1.5,
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
           >
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>
-                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                    {label}
-                  </Typography>
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </DialogTitle>
+            {error}
+          </Alert>
+        )}
+      </DialogContent>
 
-        <DialogContent sx={{ p: 2.5, overflow: 'auto', backgroundColor: COLORS.background.light }}>
-          {renderStepContent(activeStep)}
-
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mt: 2, 
-                borderRadius: 1.5,
-                fontSize: '0.75rem',
-                py: 0.5
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{
-          px: 2.5,
-          py: 1.5,
-          borderTop: `1px solid ${COLORS.border}`,
-          bgcolor: COLORS.background.white,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 1
-        }}>
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 1
+      }}>
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
+        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            onClick={handleBack}
-            disabled={activeStep === 0 || loading}
-            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            onClick={handleClose}
+            disabled={loading}
             sx={{
               height: 32,
               px: 2,
@@ -1456,86 +1367,50 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
               }
             }}
           >
-            Back
+            Cancel
           </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          {activeStep === steps.length - 1 ? (
             <Button
-              onClick={handleClose}
-              disabled={loading}
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading || invoiceItems.length === 0}
+              startIcon={loading ? null : <SaveIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text.secondary,
+                bgcolor: COLORS.primary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: `${COLORS.primary}10`
-                }
+                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
-              Cancel
+              {loading ? 'Creating...' : 'Create Invoice'}
             </Button>
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading || invoiceItems.length === 0}
-                startIcon={loading ? null : <SaveIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                {loading ? 'Creating...' : 'Create Invoice'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={loading}
-                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                Next
-              </Button>
-            )}
-          </Box>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Purchase Order Dialog */}
-      <AddPurchaseOrder
-        open={addPOOpen}
-        onClose={() => setAddPOOpen(false)}
-        onAdd={handlePOAdded}
-      />
-
-      {/* Add GRN Dialog */}
-      <AddGRN
-        open={addGRNOpen}
-        onClose={() => setAddGRNOpen(false)}
-        onAdd={handleGRNAadded}
-      />
-    </>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading}
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
+    </Dialog>
   );
 };
 

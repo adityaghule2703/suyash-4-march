@@ -39,7 +39,8 @@ import {
   NavigateBefore as NavigateBeforeIcon,
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Warehouse as WarehouseIcon
 } from '@mui/icons-material';
 
 const HEADER_GRADIENT = 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)';
@@ -126,7 +127,9 @@ const getQCStatusStyles = (status) => {
   const styles = {
     Pending: { bg: '#E0F2FE', color: '#0C4A6E', border: '#BAE6FD' },
     'In Progress': { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' },
-    Completed: { bg: '#D1FAE5', color: '#065F46', border: '#86EFAC' }
+    Passed: { bg: '#D1FAE5', color: '#065F46', border: '#86EFAC' },
+    Failed: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA' },
+    'Partially Passed': { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' }
   };
   return styles[status] || styles.Pending;
 };
@@ -144,6 +147,15 @@ const ViewGRN = ({ open, onClose, grn }) => {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  const formatShortDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
     });
   };
 
@@ -190,6 +202,20 @@ const ViewGRN = ({ open, onClose, grn }) => {
   const statusStyles = getStatusStyles(grn.status);
   const qcStatusStyles = getQCStatusStyles(grn.qc_status || 'Pending');
 
+  // Get warehouse display name
+  const getWarehouseDisplay = () => {
+    if (grn.warehouse_name && grn.warehouse_name !== 'Unknown Warehouse') {
+      return grn.warehouse_name;
+    }
+    if (grn.receiving_store && typeof grn.receiving_store === 'object') {
+      return grn.receiving_store.warehouse_name || grn.receiving_store.warehouse_id || 'Unknown';
+    }
+    if (typeof grn.receiving_store === 'string') {
+      return grn.receiving_store;
+    }
+    return 'Not specified';
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Basic Info
@@ -211,9 +237,9 @@ const ViewGRN = ({ open, onClose, grn }) => {
                 </Avatar>
                 <Stack direction="row" spacing={1}>
                   <Chip 
-                    icon={grn.status === 'QC Passed' || grn.status === 'Accepted' ? 
+                    icon={grn.status === 'Accepted' ? 
                       <CheckCircleIcon sx={{ fontSize: 12 }} /> : 
-                      grn.status === 'QC Failed' || grn.status === 'Rejected' ? 
+                      grn.status === 'Rejected' ? 
                       <CancelIcon sx={{ fontSize: 12 }} /> : 
                       <ScheduleIcon sx={{ fontSize: 12 }} />}
                     label={grn.status} 
@@ -258,7 +284,7 @@ const ViewGRN = ({ open, onClose, grn }) => {
                   {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'GRN Date', formatDate(grn.grn_date))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<Person sx={{ fontSize: 16 }} />, 'Received By', grn.received_by?.Username || grn.received_by?.Email)}
+                  {renderField(<Person sx={{ fontSize: 16 }} />, 'Received By', grn.received_by?.Username || grn.received_by?.Email || 'N/A')}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'Receipt Time', formatDate(grn.receipt_time))}
@@ -266,12 +292,15 @@ const ViewGRN = ({ open, onClose, grn }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(<QrCodeIcon sx={{ fontSize: 16 }} />, 'Total Received Qty', `${grn.total_received_qty} units`)}
                 </Grid>
+                <Grid size={{ xs: 12 }}>
+                  {renderField(<WarehouseIcon sx={{ fontSize: 16 }} />, 'Receiving Warehouse', getWarehouseDisplay())}
+                </Grid>
               </Grid>
             </Paper>
 
             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1.5, border: '1px solid #E3E8EF' }}>
               <Typography variant="subtitle2" sx={{ color: PRIMARY_DARK, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                <Business sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Vendor & PO Information
+                <Business sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Vendor Information
               </Typography>
               
               <Grid container spacing={1.5}>
@@ -279,10 +308,13 @@ const ViewGRN = ({ open, onClose, grn }) => {
                   {renderField(<Business sx={{ fontSize: 16 }} />, 'Vendor Name', grn.vendor_name)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<Business sx={{ fontSize: 16 }} />, 'Vendor Code', grn.vendor_id?.vendor_code)}
+                  {renderField(<Business sx={{ fontSize: 16 }} />, 'Vendor Code', grn.vendor_id?.vendor_code || 'N/A')}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<Receipt sx={{ fontSize: 16 }} />, 'PO Number', grn.po_number)}
+                  {renderField(<Receipt sx={{ fontSize: 16 }} />, 'Vendor Invoice No', grn.vendor_invoice_no || 'N/A')}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'Invoice Date', formatShortDate(grn.vendor_invoice_date))}
                 </Grid>
               </Grid>
             </Paper>
@@ -308,6 +340,13 @@ const ViewGRN = ({ open, onClose, grn }) => {
                     formatDate(grn.updatedAt)
                   )}
                 </Grid>
+                <Grid size={{ xs: 12 }}>
+                  {renderField(
+                    <Person sx={{ fontSize: 16 }} />, 
+                    'Created By', 
+                    grn.created_by?.Username || grn.created_by?.Email || 'N/A'
+                  )}
+                </Grid>
               </Grid>
             </Paper>
           </Stack>
@@ -318,31 +357,44 @@ const ViewGRN = ({ open, onClose, grn }) => {
           <Stack spacing={1.5} sx={{ pb: 1 }}>
             <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1.5, border: '1px solid #E3E8EF' }}>
               <Typography variant="subtitle2" sx={{ color: PRIMARY_DARK, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                <LocalShippingIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Shipment Details
+                <LocalShippingIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Transport Details
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'Vehicle Number', grn.vehicle_no)}
+                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'Vehicle Number', grn.vehicle_no || 'N/A')}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'LR Number', grn.lr_number)}
+                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'LR Number', grn.lr_number || 'N/A')}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'LR Date', formatDate(grn.lr_date))}
+                  {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'LR Date', formatShortDate(grn.lr_date))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'Transporter', grn.transporter_name)}
+                  {renderField(<LocalShippingIcon sx={{ fontSize: 16 }} />, 'Transporter', grn.transporter_name || 'N/A')}
                 </Grid>
+              </Grid>
+            </Paper>
+
+            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1.5, border: '1px solid #E3E8EF' }}>
+              <Typography variant="subtitle2" sx={{ color: PRIMARY_DARK, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+                <InfoIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> QC Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<Receipt sx={{ fontSize: 16 }} />, 'Vendor Invoice No', grn.vendor_invoice_no)}
+                  {renderField(<CheckCircleIcon sx={{ fontSize: 16 }} />, 'QC Status', grn.qc_status || 'Pending')}
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'Vendor Invoice Date', formatDate(grn.vendor_invoice_date))}
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  {renderField(<LocationOn sx={{ fontSize: 16 }} />, 'Receiving Store', grn.receiving_store)}
-                </Grid>
+                {grn.qc_completed_at && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    {renderField(<CalendarToday sx={{ fontSize: 16 }} />, 'QC Completed', formatDate(grn.qc_completed_at))}
+                  </Grid>
+                )}
+                {grn.qc_completed_by && (
+                  <Grid size={{ xs: 12 }}>
+                    {renderField(<Person sx={{ fontSize: 16 }} />, 'QC Completed By', grn.qc_completed_by?.Username || 'N/A')}
+                  </Grid>
+                )}
               </Grid>
             </Paper>
 
@@ -351,7 +403,7 @@ const ViewGRN = ({ open, onClose, grn }) => {
                 <Typography variant="subtitle2" sx={{ color: PRIMARY_DARK, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
                   <InfoIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Remarks
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, whiteSpace: 'pre-wrap' }}>
                   {grn.remarks}
                 </Typography>
               </Paper>
@@ -367,14 +419,15 @@ const ViewGRN = ({ open, onClose, grn }) => {
                 <Receipt sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Items Received
               </Typography>
               
-              <TableContainer>
-                <Table size="small">
+              <TableContainer sx={{ maxHeight: 400 }}>
+                <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: '#F8FAFC' }}>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part No</TableCell>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Description</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Ordered</TableCell>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Received</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Accepted</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Rejected</TableCell>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="center">Unit</TableCell>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Batch No</TableCell>
                       <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Heat No</TableCell>
@@ -386,12 +439,25 @@ const ViewGRN = ({ open, onClose, grn }) => {
                       <TableRow key={idx}>
                         <TableCell sx={{ fontSize: '0.75rem' }}>{item.part_no}</TableCell>
                         <TableCell sx={{ fontSize: '0.75rem' }}>{item.description}</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem' }} align="center">{item.ordered_qty || '-'}</TableCell>
                         <TableCell sx={{ fontSize: '0.75rem' }} align="center">
                           <Chip 
-                            label={`${item.received_qty}`} 
+                            label={item.received_qty} 
                             size="small" 
                             sx={{ fontSize: '0.7rem', height: 22, bgcolor: '#E8F0F1', color: PRIMARY_DARK }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem' }} align="center">
+                          <Chip 
+                            label={item.accepted_qty || 0} 
+                            size="small" 
+                            sx={{ fontSize: '0.7rem', height: 22, bgcolor: '#D1FAE5', color: '#065F46' }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem' }} align="center">
+                          <Chip 
+                            label={item.rejected_qty || 0} 
+                            size="small" 
+                            sx={{ fontSize: '0.7rem', height: 22, bgcolor: '#FEE2E2', color: '#991B1B' }}
                           />
                         </TableCell>
                         <TableCell sx={{ fontSize: '0.75rem' }} align="center">{item.unit}</TableCell>
@@ -406,12 +472,54 @@ const ViewGRN = ({ open, onClose, grn }) => {
               
               <Divider sx={{ my: 2 }} />
               
-              <Stack direction="row" justifyContent="flex-end" spacing={3}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Received:</Typography>
-                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: COLORS.text.primary }}>{grn.total_received_qty} units</Typography>
-                </Box>
-              </Stack>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Total Received</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: PRIMARY_DARK }}>{grn.total_received_qty} units</Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Total Accepted</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#10B981' }}>{grn.total_accepted_qty || 0} units</Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Total Rejected</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#EF4444' }}>{grn.total_rejected_qty || 0} units</Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Acceptance Rate</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: PRIMARY_BLUE }}>
+                      {grn.total_received_qty > 0 
+                        ? `${((grn.total_accepted_qty || 0) / grn.total_received_qty * 100).toFixed(1)}%` 
+                        : '0%'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Rejection Reason if any */}
+              {grn.items?.some(item => item.rejection_reason) && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle2" sx={{ color: '#EF4444', mb: 1, fontWeight: 600, fontSize: '0.75rem' }}>
+                    Rejection Reasons
+                  </Typography>
+                  {grn.items.map((item, idx) => (
+                    item.rejection_reason && (
+                      <Box key={idx} sx={{ mb: 1, p: 1, bgcolor: '#FEF2F2', borderRadius: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: '#991B1B' }}>{item.part_no}:</Typography>
+                        <Typography variant="caption" sx={{ color: '#7F1D1D', ml: 1 }}>{item.rejection_reason}</Typography>
+                      </Box>
+                    )
+                  ))}
+                </>
+              )}
             </Paper>
           </Stack>
         );
