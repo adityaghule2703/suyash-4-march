@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
-import { hasPermission, ACTIONS, MODULES, PAGES, getAllowedActions } from '../../../utils/modulePermissions';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import BomList from './bom/BomList';
 import BomRevisionMaster from './bomrevisionmaster/BomRevisionMaster';
 import BomCosting from './bomcosting/BomCosting';
@@ -94,21 +94,18 @@ const BomMaster = () => {
 
   const [whereUsedData, setWhereUsedData] = useState(null);
   const [whereUsedLoading, setWhereUsedLoading] = useState(false);
-  const [explosionData, setExplosionData] = useState(null);
-  const [explosionLoading, setExplosionLoading] = useState(false);
 
   // User permissions
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
-  const [pagePermissions, setPagePermissions] = useState({ view: false, create: false, update: false, delete: false, approve: false });
-
-  const AccessDenied = () => (
-  <Box sx={{ p: 4, textAlign: 'center' }}>
-    <Typography variant="h6" color="error">Access Denied</Typography>
-    <Typography variant="body2" color="text.secondary">You don't have permission to view this page.</Typography>
-  </Box>
-);
+  const [pagePermissions, setPagePermissions] = useState({ 
+    view: false, 
+    create: false, 
+    update: false, 
+    delete: false, 
+    approve: false 
+  });
 
   // Fetch user permissions
   useEffect(() => {
@@ -139,7 +136,8 @@ const BomMaster = () => {
         view: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.VIEW),
         create: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.CREATE),
         update: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.UPDATE),
-        delete: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.DELETE)
+        delete: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, ACTIONS.DELETE),
+        approve: isSuperAdmin || hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.BOM_MASTER, 'approve')
       });
     }
   }, [permissionsLoaded, userPermissions, isSuperAdmin]);
@@ -202,31 +200,6 @@ const BomMaster = () => {
     fetchBoms();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Approved': return <CheckCircleIcon sx={{ fontSize: '0.8rem', color: '#059669' }} />;
-      case 'Pending': return <PendingIcon sx={{ fontSize: '0.8rem', color: '#D97706' }} />;
-      default: return <PendingIcon sx={{ fontSize: '0.8rem', color: '#4F46E5' }} />;
-    }
-  };
-
-  const getBomInitials = (bom) => {
-    if (!bom?.bom_id) return 'BM';
-    return bom.bom_id.substring(0, 2).toUpperCase();
-  };
-
-  const getAvatarColor = (bom) => {
-    if (!bom?.bom_id) return COLORS.primary;
-    const colors = [COLORS.primary, COLORS.primaryDark, '#074346', '#0D696C', '#128C7E'];
-    const charCode = bom.bom_id.charCodeAt(0) || 0;
-    return colors[charCode % colors.length];
-  };
-
   // BOM Action handlers
   const handleAddBom = () => setOpenAddModal(true);
   const handleAddSuccess = () => { refreshBomList(); showNotification('BOM added successfully!', 'success'); };
@@ -280,29 +253,10 @@ const BomMaster = () => {
   };
 
   // BOM Explosion Handler
-  const handleExplosionBom = async (bom) => {
+  const handleExplosionBom = (bom) => {
     if (!pagePermissions.view) return;
     setSelectedBom(bom);
     setOpenExplosionModal(true);
-    setExplosionLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const quantity = 1;
-      const effectiveDate = new Date().toISOString().split('T')[0];
-      const response = await axios.get(`${BASE_URL}/api/boms/${bom._id}/explosion?quantity=${quantity}&effective_date=${effectiveDate}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.data.success) {
-        setExplosionData(response.data.data);
-      } else {
-        showNotification('Failed to load BOM explosion', 'error');
-      }
-    } catch (err) {
-      console.error('Error fetching BOM explosion:', err);
-      showNotification('Failed to load BOM explosion', 'error');
-    } finally {
-      setExplosionLoading(false);
-    }
   };
 
   // Define actions object for BomList
@@ -379,78 +333,6 @@ const BomMaster = () => {
     );
   };
 
-  // BOM Explosion Modal Component
-  const ExplosionModal = ({ open, onClose, explosionData, loading }) => {
-    const formatNumber = (num) => {
-      return parseFloat(num).toFixed(4);
-    };
-
-    return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, py: 1.5, px: 2.5 }}>
-          <Typography sx={{ fontWeight: 600 }}>BOM Explosion</Typography>
-        </DialogTitle>
-        <DialogContent sx={{ p: 2.5 }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={32} />
-            </Box>
-          ) : explosionData ? (
-            <>
-              <Paper sx={{ p: 2, mb: 2.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="text.secondary">BOM ID</Typography>
-                    <Typography sx={{ fontWeight: 600 }}>{explosionData.bom_id}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="text.secondary">Requested Quantity</Typography>
-                    <Typography sx={{ fontWeight: 600 }}>{explosionData.requested_quantity}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <Typography variant="caption" color="text.secondary">Parent Item</Typography>
-                    <Typography sx={{ fontWeight: 600 }}>{explosionData.parent_item?.part_no}</Typography>
-                    <Typography variant="body2" color="text.secondary">{explosionData.parent_item?.description}</Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-              <Typography sx={{ fontWeight: 600, mb: 1.5 }}>Component Requirements</Typography>
-              <TableContainer component={Paper} sx={{ borderRadius: 1.5 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Level</TableCell>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Part No</TableCell>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Description</TableCell>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Quantity</TableCell>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Unit</TableCell>
-                      <TableCell sx={{ color: COLORS.text.light, fontWeight: 600 }}>Scrap %</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {explosionData.explosion?.map((item, idx) => (
-                      <TableRow key={idx} hover>
-                        <TableCell>{item.level}</TableCell>
-                        <TableCell>{item.part_no}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{formatNumber(item.quantity)}</TableCell>
-                        <TableCell>{item.unit}</TableCell>
-                        <TableCell>{item.scrap_percent}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </>
-          ) : null}
-        </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: `1px solid ${COLORS.border}` }}>
-          <Button onClick={onClose}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
-
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -476,7 +358,6 @@ const BomMaster = () => {
 
         {/* BOM Tab */}
         <TabPanel value={tabValue} index={0}>
-     
           <BomList
             boms={boms}
             loading={loading}
@@ -493,10 +374,6 @@ const BomMaster = () => {
             permissions={pagePermissions}
             onAddBom={pagePermissions.create ? handleAddBom : null}
             actions={actions}
-            formatDate={formatDate}
-            getStatusIcon={getStatusIcon}
-            getBomInitials={getBomInitials}
-            getAvatarColor={getAvatarColor}
           />
         </TabPanel>
 
@@ -519,78 +396,74 @@ const BomMaster = () => {
         </TabPanel>
       </Paper>
 
-      {/* Modals */}
+      {/* Modals - Only show if user has permissions */}
       {pagePermissions.create && (
         <AddBom open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handleAddSuccess} />
-        )}
+      )}
 
-   // Replace the modals section (around line 480)
-{/* Modals - Only show if user has permissions */}
-{pagePermissions.create && (
-  <AddBom open={openAddModal} onClose={() => setOpenAddModal(false)} onAdd={handleAddSuccess} />
-)}
+      {selectedBom && pagePermissions.view && (
+        <ViewBom open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedBom(null); }} bom={selectedBom} />
+      )}
 
-{selectedBom && pagePermissions.view && (
-  <ViewBom open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedBom(null); }} bom={selectedBom} />
-)}
+      {selectedBom && pagePermissions.update && (
+        <EditBom open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedBom(null); }} bom={selectedBom} onUpdate={handleEditSuccess} />
+      )}
 
-{selectedBom && pagePermissions.update && (
-  <EditBom open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedBom(null); }} bom={selectedBom} onUpdate={handleEditSuccess} />
-)}
+      {selectedBom && pagePermissions.delete && (
+        <DeleteBom open={openDeleteModal} onClose={() => { setOpenDeleteModal(false); setSelectedBom(null); }} bom={selectedBom} onDelete={handleDeleteSuccess} />
+      )}
 
-{selectedBom && pagePermissions.delete && (
-  <DeleteBom open={openDeleteModal} onClose={() => { setOpenDeleteModal(false); setSelectedBom(null); }} bom={selectedBom} onDelete={handleDeleteSuccess} />
-)}
+      {selectedBom && pagePermissions.create && (
+        <CopyBom open={openCopyModal} onClose={() => { setOpenCopyModal(false); setSelectedBom(null); }} bomId={selectedBom._id} bomData={selectedBom} onCopyComplete={handleCopySuccess} />
+      )}
 
-{selectedBom && pagePermissions.create && (
-  <CopyBom open={openCopyModal} onClose={() => { setOpenCopyModal(false); setSelectedBom(null); }} bomId={selectedBom._id} bomData={selectedBom} onCopyComplete={handleCopySuccess} />
-)}
+      {selectedBom && pagePermissions.view && (
+        <>
+          <ValidateBom 
+            open={openValidateModal} 
+            onClose={() => { setOpenValidateModal(false); setSelectedBom(null); }} 
+            bomId={selectedBom._id} 
+            bomData={selectedBom} 
+            onValidationComplete={() => {}} 
+          />
+          <BomExplosion 
+            open={openExplosionModal} 
+            onClose={() => { setOpenExplosionModal(false); setSelectedBom(null); }} 
+            bomId={selectedBom._id} 
+            bomData={selectedBom} 
+          />
+        </>
+      )}
 
-{selectedBom && pagePermissions.view && (
-  <>
-    <ValidateBom open={openValidateModal} onClose={() => { setOpenValidateModal(false); setSelectedBom(null); }} bomId={selectedBom._id} bomData={selectedBom} onValidationComplete={() => {}} />
-    <BomExplosion open={openExplosionModal} onClose={() => { setOpenExplosionModal(false); setSelectedBom(null); }} bomId={selectedBom._id} bomData={selectedBom} />
-  </>
-)}
+      {selectedBom && pagePermissions.approve && (
+        <ApproveBom open={openApproveModal} onClose={() => { setOpenApproveModal(false); setSelectedBom(null); }} bomId={selectedBom._id} onSuccess={handleApproveSuccess} />
+      )}
 
-{selectedBom && pagePermissions.approve && (
-  <ApproveBom open={openApproveModal} onClose={() => { setOpenApproveModal(false); setSelectedBom(null); }} bomId={selectedBom._id} onSuccess={handleApproveSuccess} />
-)}
-
-{selectedBom && pagePermissions.update && (
-  <SetDefaultBom open={openSetDefaultModal} onClose={() => { setOpenSetDefaultModal(false); setSelectedBom(null); }} bomId={selectedBom._id} onSuccess={handleSetDefaultSuccess} />
-)}
+      {selectedBom && pagePermissions.update && (
+        <SetDefaultBom open={openSetDefaultModal} onClose={() => { setOpenSetDefaultModal(false); setSelectedBom(null); }} bomId={selectedBom._id} onSuccess={handleSetDefaultSuccess} />
+      )}
 
       {/* Where Used Modal */}
       {pagePermissions.view && (
         <WhereUsedModal
-        open={openWhereUsedModal}
-        onClose={() => {
-          setOpenWhereUsedModal(false);
-          setWhereUsedData(null);
-        }}
-        component={whereUsedData?.component}
-        usedInBoms={whereUsedData?.used_in_boms || []}
-        loading={whereUsedLoading}
-      />
-      )}
-
-      {/* BOM Explosion Modal */}
-      {pagePermissions.view && ( 
-        <ExplosionModal
-        open={openExplosionModal}
-        onClose={() => {
-          setOpenExplosionModal(false);
-          setExplosionData(null);
-          setExplosionLoading(false);
-        }}
-        explosionData={explosionData}
-        loading={explosionLoading}
-      />
+          open={openWhereUsedModal}
+          onClose={() => {
+            setOpenWhereUsedModal(false);
+            setWhereUsedData(null);
+          }}
+          component={whereUsedData?.component}
+          usedInBoms={whereUsedData?.used_in_boms || []}
+          loading={whereUsedLoading}
+        />
       )}
 
       {/* Snackbar */}
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={3000} 
+        onClose={() => setSnackbar({ ...snackbar, open: false })} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
         <Alert severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
       </Snackbar>
     </Box>

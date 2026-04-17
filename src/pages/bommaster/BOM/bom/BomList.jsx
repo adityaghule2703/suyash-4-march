@@ -25,7 +25,7 @@ import {
     ListItemText,
     Divider,
     CircularProgress,
-    Collapse
+    Collapse,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -215,8 +215,11 @@ const BomActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDele
 };
 
 // Expandable Row Component for Components List
+// Fix the ExpandableRow component - add null/undefined checks
 const ExpandableRow = ({ bom }) => {
     const [expanded, setExpanded] = useState(false);
+    
+    // Add safety check at the beginning
     if (!bom || !bom.components || bom.components.length === 0) return null;
 
     return (
@@ -253,12 +256,12 @@ const ExpandableRow = ({ bom }) => {
                                 <TableBody>
                                     {bom.components.map((comp, idx) => (
                                         <TableRow key={idx}>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.level}</TableCell>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.component_part_no}</TableCell>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.component_desc}</TableCell>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.quantity_per}</TableCell>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.unit}</TableCell>
-                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.scrap_percent}%</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.level || idx + 1}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.component_part_no || '-'}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.component_desc || '-'}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.quantity_per || 0}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.unit || '-'}</TableCell>
+                                            <TableCell sx={{ fontSize: '0.7rem' }}>{comp.scrap_percent || 0}%</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -526,7 +529,7 @@ const BomList = ({
                                                 />
                                             </TableCell>
                                         </TableRow>
-                                        <ExpandableRow bom={bom} />
+                                        {bom && bom.components && bom.components.length > 0 && <ExpandableRow bom={bom} />}
                                     </React.Fragment>
                                 );
                             })

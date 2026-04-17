@@ -1,4 +1,4 @@
-// OeeMaster.jsx
+// OeeMaster.jsx - UPDATED TABLE STYLING
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -62,7 +62,8 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
-  FilterList as FilterListIcon
+  FilterList as FilterListIcon,
+  CalendarToday as CalendarIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -74,33 +75,76 @@ import EditOee from './EditOee';
 import MachineLoading from './MachineLoading';
 import MachineOEETrend from './MachineOEETrend';
 import AddDowntime from './AddDowntime';
+import { hasPermission, MODULES, PAGES, ACTIONS } from '../../../utils/modulePermissions';
+import DeleteOee from './DeleteOee';
 
 const COLORS = {
-  primary: '#1976D2',
-  primaryDark: '#1565C0',
-  success: '#2E7D32',
-  warning: '#ED6C02',
-  error: '#D32F2F',
-  info: '#0288D1',
-  border: '#E5E7EB',
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
+  border: '#E3E8EF',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF',
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
     light: '#6B7280'
   },
   background: {
-    light: '#F9FAFB',
+    light: '#F8FFFC',
     white: '#FFFFFF',
-    hover: '#F3F4F6',
+    hover: '#F0FDF9',
     tableHeader: '#F9FAFB'
   }
 };
 
 const SHIFT_OPTIONS = ['All', 'General', 'Morning', 'Afternoon', 'Night'];
 
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onLoadingAnalysis, onTrendAnalysis, onAddDowntime }) => {
+const ActionMenu = ({
+  item,
+  anchorEl,
+  onOpen,
+  onClose,
+  onView,
+  onEdit,
+  onDelete,
+  onLoadingAnalysis,
+  onTrendAnalysis,
+  onAddDowntime,
+  permissions,
+  isSuperAdmin
+}) => {
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.DELETE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.CREATE);
+
+  const hasAnyActions = canView || canUpdate || canDelete || canCreate;
+
+  if (!hasAnyActions) return null;
+
   return (
     <>
       <Tooltip title="Actions">
@@ -132,75 +176,75 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit Record
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit Record
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onLoadingAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <BarChartIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                Loading Analysis
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onLoadingAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-            <BarChartIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
-              Loading Analysis
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onTrendAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <TimelineIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                OEE Trend Analysis
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => { onTrendAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-            <TimelineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-              OEE Trend Analysis
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => {
-          onAddDowntime(item);
-          onClose();
-        }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-            <ScheduleIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-              Log Downtime
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canCreate && (
+          <MenuItem onClick={() => {
+            onAddDowntime(item);
+            onClose();
+          }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <ScheduleIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                Log Downtime
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
 
-        <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete Record
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete Record
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -220,11 +264,11 @@ const OeeMaster = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [machines, setMachines] = useState([]);
-  const [selectedMachine, setSelectedMachine] = useState('');
   const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().setDate(new Date().getDate() - 30)),
-    to: new Date()
+    from: null,
+    to: null
   });
+  const [machineFilter, setMachineFilter] = useState('all');
   const [shiftFilter, setShiftFilter] = useState('All');
 
   // Modal states
@@ -251,12 +295,75 @@ const OeeMaster = () => {
     poorCount: 0
   });
 
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(userPermissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, action);
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
 
   // Fetch machines on component mount
   useEffect(() => {
-    fetchMachines();
-  }, []);
+    if (permissionsLoaded && canViewPage) {
+      fetchMachines();
+    }
+  }, [permissionsLoaded, canViewPage]);
+
+  const fetchMachines = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setMachines(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching machines:', err);
+      showNotification('Failed to load machines', 'error');
+    }
+  };
 
   // Debounce search
   useEffect(() => {
@@ -269,29 +376,10 @@ const OeeMaster = () => {
 
   // Fetch records when dependencies change
   useEffect(() => {
-    if (selectedMachine) {
+    if (permissionsLoaded && canViewPage) {
       fetchRecords();
     }
-  }, [selectedMachine, page, rowsPerPage, searchTerm, dateRange, shiftFilter]);
-
-  const fetchMachines = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        setMachines(response.data.data);
-        if (response.data.data.length > 0) {
-          setSelectedMachine(response.data.data[0]._id);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching machines:', err);
-      showNotification('Failed to load machines', 'error');
-    }
-  };
+  }, [machineFilter, page, rowsPerPage, searchTerm, dateRange.from, dateRange.to, shiftFilter, permissionsLoaded, canViewPage]);
 
   const fetchRecords = async () => {
     try {
@@ -299,7 +387,9 @@ const OeeMaster = () => {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams();
-      params.append('machine_id', selectedMachine);
+      if (machineFilter && machineFilter !== 'all') {
+        params.append('machine_id', machineFilter);
+      }
       if (shiftFilter && shiftFilter !== 'All') params.append('shift', shiftFilter);
       if (dateRange.from) params.append('from', dateRange.from.toISOString().split('T')[0]);
       if (dateRange.to) params.append('to', dateRange.to.toISOString().split('T')[0]);
@@ -441,57 +531,44 @@ const OeeMaster = () => {
     handleActionMenuClose();
   };
 
-  const openEditRecordModal = (record) => {
-    setSelectedRecord(record);
-    setOpenEditModal(true);
-    handleActionMenuClose();
-  };
-
   const openDeleteRecordDialog = (record) => {
     setSelectedRecord(record);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
-  const openLoadingAnalysis = (record) => {
+  const openEditRecordModal = (record) => {
     setSelectedRecord(record);
+    setOpenEditModal(true);
+    handleActionMenuClose();
+  };
+
+  const openLoadingAnalysis = (record) => {
+    // Create a normalized copy of the record
+    const normalizedRecord = {
+      ...record,
+      machine_id: record.machine_id?._id || record.machine_id
+    };
+    setSelectedRecord(normalizedRecord);
     setOpenLoadingDialog(true);
     handleActionMenuClose();
   };
 
   const openTrendAnalysis = (record) => {
-    setSelectedRecord(record);
+    // Normalize the record to ensure machine_id is a string
+    const normalizedRecord = {
+      ...record,
+      machine_id: record.machine_id?._id || record.machine_id
+    };
+    setSelectedRecord(normalizedRecord);
     setOpenTrendDialog(true);
     handleActionMenuClose();
   };
 
   const openDowntimeModalFunc = (record) => {
-    console.log('Opening downtime modal for record:', record);
     setSelectedRecordForDowntime(record);
     setOpenDowntimeModal(true);
     handleActionMenuClose();
-  };
-  const handleDeleteConfirm = async () => {
-    setDeleteLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.delete(`${BASE_URL}/api/oee-records/${selectedRecord._id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        handleDeleteSuccess();
-        setOpenDeleteDialog(false);
-        setSelectedRecord(null);
-      } else {
-        showNotification(response.data.message || 'Failed to delete record', 'error');
-      }
-    } catch (err) {
-      console.error('Error deleting record:', err);
-      showNotification('Failed to delete record', 'error');
-    } finally {
-      setDeleteLoading(false);
-    }
   };
 
   const showNotification = (message, severity) => {
@@ -518,67 +595,57 @@ const OeeMaster = () => {
     return { label: 'Poor', color: COLORS.error, icon: WarningIcon };
   };
 
-  const getStatusColor = (oee) => {
-    const status = getOEEStatus(oee);
-    return status.color;
-  };
-
   const getMachineName = (machineId) => {
-    const machine = machines.find(m => m._id === machineId);
+    // Handle both string ID and object with _id
+    const id = machineId?._id || machineId;
+    if (!id) return 'N/A';
+    const machine = machines.find(m => m._id === id);
     return machine ? `${machine.machine_name} (${machine.machine_code})` : 'N/A';
   };
 
-  const getSelectedMachineDetails = () => {
-    return machines.find(m => m._id === selectedMachine);
+  const getRecordInitials = (record) => {
+    const id = record.machine_id?._id || record.machine_id;
+    if (!id) return 'OE';
+    const machine = machines.find(m => m._id === id);
+    if (machine) {
+      return machine.machine_name.substring(0, 2).toUpperCase();
+    }
+    return 'OE';
   };
 
-  const exportToCSV = () => {
-    if (records.length === 0) return;
-
-    const headers = ['Date', 'Shift', 'OEE (%)', 'Availability (%)', 'Performance (%)', 'Quality (%)', 'Planned Time', 'Run Time', 'Total Qty', 'Good Qty', 'Downtime (min)', 'Notes'];
-    const csvData = records.map(record => [
-      formatDate(record.date),
-      record.shift,
-      record.oee || 0,
-      record.availability || 0,
-      record.performance || 0,
-      record.quality || 0,
-      record.planned_production_time || 0,
-      record.actual_run_time || 0,
-      record.total_qty || 0,
-      record.good_qty || 0,
-      record.total_downtime_min || 0,
-      record.notes || ''
-    ]);
-
-    const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `oee_records_${getSelectedMachineDetails()?.machine_code}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handlePrint = () => {
-    window.print();
+  const getAvatarColor = (record) => {
+    const colors = [COLORS.primary, '#074346', '#0D696C', '#128C7E', '#1A9E8F'];
+    const id = record.machine_id?._id || record.machine_id;
+    if (!id) return COLORS.primary;
+    const machine = machines.find(m => m._id === id);
+    if (machine) {
+      const charCode = machine.machine_name?.charCodeAt(0) || 0;
+      return colors[charCode % colors.length];
+    }
+    return COLORS.primary;
   };
 
   const handleClearFilters = () => {
     setSearchInput('');
     setSearchTerm('');
     setShiftFilter('All');
+    setMachineFilter('all');
     setDateRange({
-      from: new Date(new Date().setDate(new Date().getDate() - 30)),
-      to: new Date()
+      from: null,
+      to: null
     });
     setPage(0);
   };
 
-  const selectedMachineDetails = getSelectedMachineDetails();
-  const oeeStatus = getOEEStatus(summary.avgOEE);
-  const StatusIcon = oeeStatus.icon;
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -611,123 +678,126 @@ const OeeMaster = () => {
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: `1px solid ${COLORS.border}`
         }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', gap: 1 }}>
             {/* Filters Row */}
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
               <TextField
-                placeholder="Search by shift, notes..."
+                placeholder="Search..."
                 size="small"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                sx={{
-                  width: { xs: '100%', sm: 250 },
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5,
-                    fontSize: '0.75rem',
-                  }
-                }}
+                sx={{ width: 300 }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                      <SearchIcon sx={{ fontSize: '0.8rem', color: COLORS.text.tertiary }} />
                     </InputAdornment>
                   ),
-                  sx: {
-                    height: 36,
-                    bgcolor: COLORS.background.light,
-                  }
+                  sx: { height: 32, bgcolor: COLORS.background.light, fontSize: '0.7rem' }
                 }}
               />
+              <FormControl size="small" sx={{ minWidth: 130 }}>
 
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Shift</InputLabel>
+                <InputLabel sx={{ fontSize: '0.7rem' }}>Machine</InputLabel>
                 <Select
-                  value={shiftFilter}
-                  onChange={(e) => setShiftFilter(e.target.value)}
-                  label="Shift"
-                  sx={{ height: 36, fontSize: '0.75rem' }}
+                  value={machineFilter}
+                  onChange={(e) => setMachineFilter(e.target.value)}
+                  label="Machine"
+                  sx={{ height: 32, fontSize: '0.7rem' }}
                 >
-                  {SHIFT_OPTIONS.map(shift => (
-                    <MenuItem key={shift} value={shift}>{shift}</MenuItem>
+                  <MenuItem value="all" sx={{ fontSize: '0.7rem' }}>All Machines</MenuItem>
+                  {machines.map((machine) => (
+                    <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.7rem' }}>
+                      {machine.machine_name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              <DatePicker
-                label="From Date"
-                value={dateRange.from}
-                onChange={(date) => setDateRange(prev => ({ ...prev, from: date }))}
-                slotProps={{ textField: { size: 'small', sx: { width: 140, '& .MuiInputBase-root': { height: 36 } } } }}
+              <FormControl size="small" sx={{ minWidth: 85 }}>
+                <InputLabel sx={{ fontSize: '0.7rem' }}>Shift</InputLabel>
+                <Select
+                  value={shiftFilter}
+                  onChange={(e) => setShiftFilter(e.target.value)}
+                  label="Shift"
+                  sx={{ height: 32, fontSize: '0.7rem' }}
+                >
+                  {SHIFT_OPTIONS.map(shift => (
+                    <MenuItem key={shift} value={shift} sx={{ fontSize: '0.7rem' }}>{shift}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+
+
+              <TextField
+                type="date"
+                size="small"
+                value={dateRange.from ? dateRange.from.toISOString().split('T')[0] : ''}
+                onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : null }))}
+                sx={{
+                  width: 120,
+                  '& .MuiInputBase-root': { height: 32 },
+                  '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.5 }
+                }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start" sx={{ mr: 0.5 }}><CalendarIcon sx={{ fontSize: '0.8rem' }} /></InputAdornment>
+                }}
+                inputProps={{ placeholder: 'From Date' }}
               />
 
-              <DatePicker
-                label="To Date"
-                value={dateRange.to}
-                onChange={(date) => setDateRange(prev => ({ ...prev, to: date }))}
-                slotProps={{ textField: { size: 'small', sx: { width: 140, '& .MuiInputBase-root': { height: 36 } } } }}
+              <TextField
+                type="date"
+                size="small"
+                value={dateRange.to ? dateRange.to.toISOString().split('T')[0] : ''}
+                onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(e.target.value) : null }))}
+                sx={{
+                  width: 120,
+                  '& .MuiInputBase-root': { height: 32 },
+                  '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.5 }
+                }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start" sx={{ mr: 0.5 }}><CalendarIcon sx={{ fontSize: '0.8rem' }} /></InputAdornment>
+                }}
+                inputProps={{ placeholder: 'To Date' }}
               />
 
               <Button
                 size="small"
                 onClick={handleClearFilters}
-                sx={{ height: 36, textTransform: 'none', fontSize: '0.7rem' }}
+                sx={{ height: 32, textTransform: 'none', fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1.5, minWidth: 'auto' }}
               >
-                Clear Filters
+                Clear
               </Button>
             </Stack>
 
             {/* Action Buttons */}
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              {selected.length > 0 && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon sx={{ fontSize: '0.8rem' }} />}
+                onClick={fetchRecords}
+                sx={{ height: 32, borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1.5 }}
+                disabled={loading}
+              >
+                Refresh
+              </Button>
+
+              {canCreate && (
                 <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                  sx={{
-                    height: 36,
-                    borderRadius: 1.5,
-                    textTransform: 'none',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    borderColor: '#fee2e2',
-                    color: '#991b1b',
-                  }}
+                  variant="contained"
+                  startIcon={<AddIcon sx={{ fontSize: '0.8rem' }} />}
+                  onClick={handleAddRecord}
+                  sx={{ height: 32, borderRadius: 1.5, bgcolor: COLORS.primary, fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1.5 }}
                 >
-                  Delete ({selected.length})
+                  Add OEE
                 </Button>
               )}
-              <Tooltip title="Export to CSV">
-                <IconButton onClick={exportToCSV} size="small" disabled={records.length === 0} sx={{ height: 36, width: 36 }}>
-                  <DownloadIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Print">
-                <IconButton onClick={handlePrint} size="small" disabled={records.length === 0} sx={{ height: 36, width: 36 }}>
-                  <PrintIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                onClick={handleAddRecord}
-                sx={{
-                  height: 36,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                Add OEE Record
-              </Button>
             </Stack>
           </Stack>
         </Paper>
 
-        {/* Records Table */}
+        {/* Records Table - UPDATED STYLING */}
         <Paper sx={{
           width: '100%',
           borderRadius: 2,
@@ -737,6 +807,7 @@ const OeeMaster = () => {
         }}>
           <TableContainer>
             <Table size="small">
+
               <TableHead>
                 <TableRow sx={{
                   bgcolor: COLORS.background.tableHeader,
@@ -746,35 +817,43 @@ const OeeMaster = () => {
                     py: 1.5
                   }
                 }}>
-                  <TableCell padding="checkbox" sx={{ width: 40 }}>
-                    <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < records.length}
-                      checked={records.length > 0 && selected.length === records.length}
-                      onChange={handleSelectAll}
-                      sx={{
-                        color: COLORS.text.light,
-                        '&.Mui-checked': { color: COLORS.text.light },
-                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                      }}
-                      disabled={loading || records.length === 0}
-                    />
+                  {canDelete && (
+                    <TableCell padding="checkbox" sx={{ width: 40 }}>
+                      <Checkbox
+                        indeterminate={selected.length > 0 && selected.length < records.length}
+                        checked={records.length > 0 && selected.length === records.length}
+                        onChange={handleSelectAll}
+                        sx={{
+                          color: COLORS.text.light,
+                          '&.Mui-checked': { color: COLORS.text.light },
+                          '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                          '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                        }}
+                        disabled={loading || records.length === 0}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+                    OEE Record ID / Machine
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Date</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Shift</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>OEE (%)</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Availability</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Performance</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Quality</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Production</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>Downtime</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+                    OEE Metrics
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+                    Production
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+                    Status
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 80 }} align="center">
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                       <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                       <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                         Loading OEE records...
@@ -783,7 +862,7 @@ const OeeMaster = () => {
                   </TableRow>
                 ) : records.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                       <Box sx={{ textAlign: 'center' }}>
                         <AssessmentIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                         <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -792,14 +871,16 @@ const OeeMaster = () => {
                         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                           {searchTerm ? 'Try adjusting your search terms' : 'Add your first OEE record to get started'}
                         </Typography>
-                        <Button
-                          variant="contained"
-                          startIcon={<AddIcon />}
-                          onClick={handleAddRecord}
-                          sx={{ mt: 2 }}
-                        >
-                          Add OEE Record
-                        </Button>
+                        {canCreate && (
+                          <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={handleAddRecord}
+                            sx={{ mt: 2 }}
+                          >
+                            Add OEE Record
+                          </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -809,6 +890,8 @@ const OeeMaster = () => {
                     const isActionMenuOpen = Boolean(actionMenuAnchor) && selectedRecordForAction?._id === record._id;
                     const recordStatus = getOEEStatus(record.oee);
                     const RecordStatusIcon = recordStatus.icon;
+                    const avatarColor = getAvatarColor(record);
+                    const machineInitials = getRecordInitials(record);
 
                     return (
                       <TableRow
@@ -822,49 +905,75 @@ const OeeMaster = () => {
                           '& .MuiTableCell-root': { py: 1.5, fontSize: '0.75rem', borderColor: COLORS.border }
                         }}
                       >
-                        <TableCell padding="checkbox" sx={{ width: 40 }}>
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => handleSelect(record._id)}
-                            sx={{
-                              color: COLORS.primary,
-                              '&.Mui-checked': { color: COLORS.primary },
-                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{formatDate(record.date)}</TableCell>
+                        {canDelete && (
+                          <TableCell padding="checkbox" sx={{ width: 40 }}>
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => handleSelect(record._id)}
+                              sx={{
+                                color: COLORS.primary,
+                                '&.Mui-checked': { color: COLORS.primary },
+                                '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                              }}
+                            />
+                          </TableCell>
+                        )}
+                        {/* First Column - Avatar + Machine ID + Machine Name + Shift + Date */}
                         <TableCell>
-                          <Chip
-                            label={record.shift}
-                            size="small"
-                            sx={{ height: 24, fontSize: '0.7rem', bgcolor: COLORS.background.light }}
-                          />
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Avatar sx={{ width: 36, height: 36, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
+                              {machineInitials}
+                            </Avatar>
+                            <Box>
+
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                                {getMachineName(record.machine_id)}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                {record.shift} Shift • {formatDate(record.date)}
+                              </Typography>
+                            </Box>
+                          </Stack>
                         </TableCell>
+                        {/* OEE Metrics Column */}
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                             <Typography sx={{ fontWeight: 600, color: recordStatus.color }}>
                               {record.oee}%
                             </Typography>
                             <RecordStatusIcon sx={{ fontSize: '0.9rem', color: recordStatus.color }} />
                           </Box>
+                          <Stack direction="row" spacing={1}>
+                            <Chip label={`A:${record.availability}%`} size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                            <Chip label={`P:${record.performance}%`} size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                            <Chip label={`Q:${record.quality}%`} size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                          </Stack>
                         </TableCell>
-                        <TableCell>{record.availability}%</TableCell>
-                        <TableCell>{record.performance}%</TableCell>
-                        <TableCell>{record.quality}%</TableCell>
+                        {/* Production Column */}
                         <TableCell>
-                          <Tooltip title={`Good: ${record.good_qty} / Total: ${record.total_qty}`}>
-                            <Typography variant="body2">
-                              {record.good_qty}/{record.total_qty}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color={record.total_downtime_min > 0 ? COLORS.warning : COLORS.success}>
-                            {record.total_downtime_min} min
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Good: {record.good_qty}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            Total: {record.total_qty} • Downtime: {record.total_downtime_min}min
                           </Typography>
                         </TableCell>
-                        <TableCell align="center" sx={{ width: 60 }}>
+                        {/* Status Column */}
+                        <TableCell>
+                          <Chip
+                            label={recordStatus.label}
+                            size="small"
+                            sx={{
+                              fontSize: '0.65rem',
+                              height: 24,
+                              bgcolor: `${recordStatus.color}15`,
+                              color: recordStatus.color,
+                              border: `1px solid ${recordStatus.color}30`
+                            }}
+                          />
+                        </TableCell>
+                        {/* Actions Column */}
+                        <TableCell align="center" sx={{ width: 80 }}>
                           <ActionMenu
                             item={record}
                             anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
@@ -876,6 +985,8 @@ const OeeMaster = () => {
                             onLoadingAnalysis={openLoadingAnalysis}
                             onTrendAnalysis={openTrendAnalysis}
                             onAddDowntime={openDowntimeModalFunc}
+                            permissions={userPermissions}
+                            isSuperAdmin={isSuperAdmin}
                           />
                         </TableCell>
                       </TableRow>
@@ -908,218 +1019,200 @@ const OeeMaster = () => {
         </Paper>
 
         {/* Modal Components */}
-        <AddOee
-          open={openAddModal}
-          onClose={() => setOpenAddModal(false)}
-          onAdd={handleAddSuccess}
-        />
+        {canCreate && (
+          <AddOee
+            open={openAddModal}
+            onClose={() => setOpenAddModal(false)}
+            onAdd={handleAddSuccess}
+          />
+        )}
 
-        {selectedRecord && (
-          <>
-            {/* View Record Dialog */}
-            <Dialog
-              open={openViewModal}
-              onClose={() => setOpenViewModal(false)}
-              maxWidth="md"
-              fullWidth
-              PaperProps={{
-                sx: { borderRadius: 2, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }
-              }}
-            >
-              <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.light }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography sx={{ fontWeight: 600 }}>OEE Record Details</Typography>
-                  <IconButton onClick={() => setOpenViewModal(false)} size="small">
-                    <CloseIcon />
-                  </IconButton>
-                </Box>
-              </DialogTitle>
-              <DialogContent sx={{ p: 2 }}>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
-                        Basic Information
-                      </Typography>
-                      <Stack spacing={1}>
+        {/* View Record Dialog */}
+        {canViewPage && selectedRecord && (
+          <Dialog
+            open={openViewModal}
+            onClose={() => setOpenViewModal(false)}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+              sx: { borderRadius: 2, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }
+            }}
+          >
+            <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.light }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontWeight: 600 }}>OEE Record Details</Typography>
+                <IconButton onClick={() => setOpenViewModal(false)} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ p: 2 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
+                      Basic Information
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Machine</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{getMachineName(selectedRecord.machine_id)}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Date</Typography>
+                        <Typography variant="body2">{formatDate(selectedRecord.date)}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Shift</Typography>
+                        <Chip label={selectedRecord.shift} size="small" sx={{ mt: 0.5 }} />
+                      </Box>
+                      {selectedRecord.notes && (
                         <Box>
-                          <Typography variant="caption" color="text.secondary">Machine</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{getMachineName(selectedRecord.machine_id)}</Typography>
+                          <Typography variant="caption" color="text.secondary">Notes</Typography>
+                          <Typography variant="body2">{selectedRecord.notes}</Typography>
                         </Box>
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">Date</Typography>
-                          <Typography variant="body2">{formatDate(selectedRecord.date)}</Typography>
-                        </Box>
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">Shift</Typography>
-                          <Chip label={selectedRecord.shift} size="small" sx={{ mt: 0.5 }} />
-                        </Box>
-                        {selectedRecord.notes && (
-                          <Box>
-                            <Typography variant="caption" color="text.secondary">Notes</Typography>
-                            <Typography variant="body2">{selectedRecord.notes}</Typography>
-                          </Box>
-                        )}
-                      </Stack>
-                    </Paper>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
-                        Production Data
-                      </Typography>
-                      <Stack spacing={1}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">Planned Time:</Typography>
-                          <Typography variant="body2">{selectedRecord.planned_production_time} min</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">Actual Run Time:</Typography>
-                          <Typography variant="body2">{selectedRecord.actual_run_time} min</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">Theoretical Capacity:</Typography>
-                          <Typography variant="body2">{selectedRecord.theoretical_capacity} units</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">Total Quantity:</Typography>
-                          <Typography variant="body2">{selectedRecord.total_qty} units</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">Good Quantity:</Typography>
-                          <Typography variant="body2">{selectedRecord.good_qty} units</Typography>
-                        </Box>
-                      </Stack>
-                    </Paper>
-                  </Grid>
-
-                  <Grid size={{ xs: 12 }}>
-                    <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
-                        OEE Metrics
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Availability</Typography>
-                            <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.availability}%</Typography>
-                          </Box>
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Performance</Typography>
-                            <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.performance}%</Typography>
-                          </Box>
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Quality</Typography>
-                            <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.quality}%</Typography>
-                          </Box>
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Overall OEE</Typography>
-                            <Typography variant="h6" sx={{ color: getOEEStatus(selectedRecord.oee).color }}>
-                              {selectedRecord.oee}%
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Paper>
-                  </Grid>
+                      )}
+                    </Stack>
+                  </Paper>
                 </Grid>
-              </DialogContent>
-              <DialogActions sx={{ borderTop: `1px solid ${COLORS.border}`, p: 1.5 }}>
-                <Button onClick={() => setOpenViewModal(false)} size="small">Close</Button>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
+                      Production Data
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">Planned Time:</Typography>
+                        <Typography variant="body2">{selectedRecord.planned_production_time} min</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">Actual Run Time:</Typography>
+                        <Typography variant="body2">{selectedRecord.actual_run_time} min</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">Theoretical Capacity:</Typography>
+                        <Typography variant="body2">{selectedRecord.theoretical_capacity} units</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">Total Quantity:</Typography>
+                        <Typography variant="body2">{selectedRecord.total_qty} units</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">Good Quantity:</Typography>
+                        <Typography variant="body2">{selectedRecord.good_qty} units</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: COLORS.primary }}>
+                      OEE Metrics
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="caption" color="text.secondary">Availability</Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.availability}%</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="caption" color="text.secondary">Performance</Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.performance}%</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="caption" color="text.secondary">Quality</Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.primary }}>{selectedRecord.quality}%</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="caption" color="text.secondary">Overall OEE</Typography>
+                          <Typography variant="h6" sx={{ color: getOEEStatus(selectedRecord.oee).color }}>
+                            {selectedRecord.oee}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </DialogContent>
+            <DialogActions sx={{ borderTop: `1px solid ${COLORS.border}`, p: 1.5 }}>
+              <Button onClick={() => setOpenViewModal(false)} size="small">Close</Button>
+              {canUpdate && (
                 <Button variant="contained" onClick={() => {
                   setOpenViewModal(false);
                   openEditRecordModal(selectedRecord);
                 }} size="small">Edit Record</Button>
-              </DialogActions>
-            </Dialog>
-
-            {/* Edit OEE Dialog */}
-            <EditOee
-              open={openEditModal}
-              onClose={() => setOpenEditModal(false)}
-              onUpdate={handleEditSuccess}
-              recordData={selectedRecord}
-            />
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} PaperProps={{ sx: { borderRadius: 2 } }}>
-              <DialogTitle>Confirm Delete</DialogTitle>
-              <DialogContent>
-                <Typography>
-                  Are you sure you want to delete this OEE record? This action cannot be undone.
-                </Typography>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setOpenDeleteDialog(false)} disabled={deleteLoading}>Cancel</Button>
-                <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleteLoading}>
-                  {deleteLoading ? <CircularProgress size={24} /> : 'Delete'}
-                </Button>
-              </DialogActions>
-            </Dialog>
-
-            {/* Machine Loading Analysis Dialog */}
-            <Dialog
-              open={openLoadingDialog}
-              onClose={() => setOpenLoadingDialog(false)}
-              maxWidth="lg"
-              fullWidth
-              PaperProps={{ sx: { borderRadius: 2, height: '80vh' } }}
-            >
-              <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontWeight: 600 }}>Machine Loading Analysis</Typography>
-                <IconButton onClick={() => setOpenLoadingDialog(false)} size="small">
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent sx={{ p: 0 }}>
-                <MachineLoading machineId={selectedMachine} onClose={() => setOpenLoadingDialog(false)} />
-              </DialogContent>
-            </Dialog>
-
-            {/* OEE Trend Analysis Dialog */}
-            <Dialog
-              open={openTrendDialog}
-              onClose={() => setOpenTrendDialog(false)}
-              maxWidth="xl"
-              fullWidth
-              PaperProps={{ sx: { borderRadius: 2, height: '85vh' } }}
-            >
-              <DialogTitle sx={{ borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontWeight: 600 }}>OEE Trend Analysis</Typography>
-                <IconButton onClick={() => setOpenTrendDialog(false)} size="small">
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent sx={{ p: 0 }}>
-                <MachineOEETrend machineId={selectedMachine} onClose={() => setOpenTrendDialog(false)} />
-              </DialogContent>
-            </Dialog>
-
-           
-
-          </>
+              )}
+            </DialogActions>
+          </Dialog>
         )}
-         <AddDowntime
-              open={openDowntimeModal}
-              onClose={() => {
-                setOpenDowntimeModal(false);
-                setSelectedRecordForDowntime(null);
-              }}
-              onAdd={(data) => {
-                console.log('Downtime logged:', data);
-                fetchRecords(); // Refresh the records to show updated OEE
-              }}
-              oeeRecordId={selectedRecordForDowntime?._id}
-              machineName={getMachineName(selectedRecordForDowntime?.machine_id)}
-              recordDate={selectedRecordForDowntime?.date}
-            />
+
+        {/* Edit OEE Dialog */}
+        {canUpdate && selectedRecord && (
+          <EditOee
+            open={openEditModal}
+            onClose={() => setOpenEditModal(false)}
+            onUpdate={handleEditSuccess}
+            recordData={selectedRecord}
+          />
+        )}
+
+        {/* Delete OEE Dialog */}
+        {canDelete && selectedRecord && (
+          <DeleteOee
+            open={openDeleteDialog}
+            onClose={() => {
+              setOpenDeleteDialog(false);
+              setSelectedRecord(null);
+            }}
+            onDelete={handleDeleteSuccess}
+            recordData={selectedRecord}
+          />
+        )}
+
+        {/* Machine Loading Analysis Dialog */}
+        {canViewPage && (
+          <MachineLoading
+            open={openLoadingDialog}
+            onClose={() => setOpenLoadingDialog(false)}
+            machineId={selectedRecord?.machine_id}
+            machineName={getMachineName(selectedRecord?.machine_id)}
+          />
+        )}
+
+        {/* OEE Trend Analysis Dialog */}
+        {canViewPage && (
+          <MachineOEETrend
+            open={openTrendDialog}
+            onClose={() => setOpenTrendDialog(false)}
+            machineId={selectedRecord?.machine_id}
+          />
+        )}
+
+        {/* Add Downtime Dialog */}
+        {canCreate && (
+          <AddDowntime
+            open={openDowntimeModal}
+            onClose={() => {
+              setOpenDowntimeModal(false);
+              setSelectedRecordForDowntime(null);
+            }}
+            onAdd={(data) => {
+              fetchRecords();
+            }}
+            oeeRecordId={selectedRecordForDowntime?._id}
+            machineName={getMachineName(selectedRecordForDowntime?.machine_id)}
+            recordDate={selectedRecordForDowntime?.date}
+          />
+        )}
 
         {/* Snackbar Notification */}
         <Snackbar

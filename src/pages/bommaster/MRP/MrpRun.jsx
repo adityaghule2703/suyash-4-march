@@ -1,4 +1,5 @@
-// MrpRun.jsx
+// MrpRun.jsx - Fixed version
+
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -34,7 +35,8 @@ import {
     StepLabel,
     StepConnector,
     stepConnectorClasses,
-    styled
+    styled,
+    Checkbox
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -132,16 +134,37 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
         };
     }, [pollingInterval]);
 
+    // Reset state when dialog opens
+    useEffect(() => {
+        if (open) {
+            // Reset all state to initial values
+            setActiveStep(0);
+            setMrpRun(null);
+            setJobStatus(null);
+            setError('');
+            setFormData({
+                run_type: 'Full',
+                planning_horizon: 30,
+                so_ids: []
+            });
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                setPollingInterval(null);
+            }
+        }
+    }, [open]);
+
     const fetchSalesOrders = async () => {
         setLoadingOrders(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${BASE_URL}/api/sales-orders?status=Confirmed&page=1&limit=100`, {
+            const response = await axios.get(`${BASE_URL}/api/sales-orders/order-book`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.data.success) {
-                setSalesOrders(response.data.data || []);
+                const confirmedOrders = response.data.data.filter(order => order.status === 'Confirmed');
+                setSalesOrders(confirmedOrders || []);
             }
         } catch (err) {
             console.error('Error fetching sales orders:', err);
@@ -194,6 +217,8 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
 
         setLoading(true);
         setError('');
+        
+        // Move to step 1 (Run MRP)
         setActiveStep(1);
 
         try {
@@ -264,6 +289,7 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                         response.data.data.status === 'Cancelled') {
                         clearInterval(interval);
                         setPollingInterval(null);
+                        setLoading(false);
 
                         if (response.data.data.status === 'Completed') {
                             setActiveStep(2);
@@ -275,6 +301,7 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                 clearInterval(interval);
                 setPollingInterval(null);
                 setError('Failed to get MRP run status');
+                setLoading(false);
             }
         }, 2000);
 
@@ -309,18 +336,18 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
         onClose();
     };
 
-  const getRunTypeLabel = (type) => {
-  switch (type) {
-    case 'Full':
-      return 'Full MRP Run';
-    case 'Incremental':
-      return 'Incremental MRP Run';
-    case 'Item-Specific':
-      return 'Item-Specific MRP Run';
-    default:
-      return type;
-  }
-};
+    const getRunTypeLabel = (type) => {
+        switch (type) {
+            case 'Full':
+                return 'Full MRP Run';
+            case 'Incremental':
+                return 'Incremental MRP Run';
+            case 'Item-Specific':
+                return 'Item-Specific MRP Run';
+            default:
+                return type;
+        }
+    };
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -346,6 +373,11 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    const showNotification = (message, severity) => {
+        // Implement your notification logic here
+        console.log(message, severity);
     };
 
     const renderStepContent = (step) => {
@@ -450,7 +482,7 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                                                         return (
                                                             <Chip
                                                                 key={value}
-                                                                label={so?.so_id || value}
+                                                                label={so?.so_number || value}
                                                                 size="small"
                                                                 sx={{ fontSize: '0.65rem', height: 24 }}
                                                             />
@@ -471,7 +503,7 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                                                     <MenuItem key={so._id} value={so._id} sx={{ fontSize: '0.75rem' }}>
                                                         <Checkbox checked={formData.so_ids.indexOf(so._id) !== -1} />
                                                         <ListItemText
-                                                            primary={so.so_id}
+                                                            primary={so.so_number}
                                                             secondary={`${so.customer_name || 'N/A'} - ${so.total_amount || 0}`}
                                                             primaryTypographyProps={{ fontSize: '0.75rem' }}
                                                             secondaryTypographyProps={{ fontSize: '0.65rem' }}
@@ -877,7 +909,7 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                             '&:hover': { bgcolor: COLORS.primaryDark }
                         }}
                     >
-                        {loading ? 'Starting...' : 'Run MRP'}
+                        Run MRP
                     </Button>
                 )}
 
@@ -946,7 +978,6 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                                 '&:hover': { bgcolor: COLORS.primaryDark }
                             }}
                             onClick={() => {
-                                // Handle export functionality
                                 showNotification('Export functionality coming soon', 'info');
                             }}
                         >

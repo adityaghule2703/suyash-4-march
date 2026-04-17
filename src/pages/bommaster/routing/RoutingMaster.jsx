@@ -57,10 +57,11 @@ import ViewRouting from './ViewRouting';
 import EditRouting from './EditRouting';
 import ApproveRouting from './ApproveRouting';
 import DeleteRouting from './DeleteRouting';
+import { hasPermission, MODULES, PAGES, ACTIONS } from '../../../utils/modulePermissions';
 
 const COLORS = {
   primary: '#1976D2',
-  primaryDark: '#1565C0',
+  primaryDark: '#05292B',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
@@ -82,9 +83,16 @@ const ROUTING_TYPE_OPTIONS = ['All', 'Stamping', 'Busbar', 'Gasket', 'Assembly',
 const STATUS_OPTIONS = ['All', 'Active', 'Inactive'];
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onApprove, onDelete }) => {
-  const showApproved = true ;
-  
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onApprove, permissions, isSuperAdmin }) => {
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.DELETE);
+  const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.APPROVE);
+
+  const hasAnyActions = canView || canUpdate || canDelete || canApprove;
+
+  if (!hasAnyActions) return null;
+
   return (
     <>
       <Tooltip title="Actions">
@@ -116,29 +124,33 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onApprove
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        
-        <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
-        
-        {showApproved && (
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {canApprove && !item.is_active && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
               <VerifiedIcon fontSize="small" />
@@ -150,19 +162,21 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onApprove
             </ListItemText>
           </MenuItem>
         )}
-        
+
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
-        
-        <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -200,25 +214,25 @@ const DeleteRoutingDialog = ({ open, onClose, routing, onConfirm, loading }) => 
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 2.5 }}>
         <Alert severity="warning" sx={{ borderRadius: 1.5, fontSize: '0.75rem', mb: 2 }}>
           This action cannot be undone.
         </Alert>
-        
+
         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 1 }}>
           Are you sure you want to delete this routing?
         </Typography>
-        
+
         <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
           <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Routing Name</Typography>
           <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{routing?.routing_name}</Typography>
-          
+
           <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 1 }}>Routing ID</Typography>
-          <Typography sx={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{routing?.routing_id}</Typography>
+          <Typography sx={{ fontSize: '0.8rem' }}>{routing?.routing_id}</Typography>
         </Paper>
       </DialogContent>
-      
+
       <DialogActions sx={{
         px: 2.5,
         py: 1.5,
@@ -277,20 +291,24 @@ const RoutingMaster = () => {
   const [selectedRoutingForAction, setSelectedRoutingForAction] = useState(null);
   const [selectedRouting, setSelectedRouting] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  
+
   // Filter states
   const [routingTypeFilter, setRoutingTypeFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  
+
   // Modal states
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
-  
-  
+
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -301,29 +319,59 @@ const RoutingMaster = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
+
   // Fetch Routings from API
   const fetchRoutings = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       const params = new URLSearchParams({
         page: page + 1,
         limit: rowsPerPage
       });
-      
+
       if (searchTerm) {
         params.append('search', searchTerm);
       }
-      
+
       if (routingTypeFilter && routingTypeFilter !== 'All') {
         params.append('routing_type', routingTypeFilter);
       }
-      
+
       if (statusFilter && statusFilter !== 'All') {
         params.append('is_active', statusFilter === 'Active');
       }
-      
+
       const response = await axios.get(`${BASE_URL}/api/routings?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -353,52 +401,52 @@ const RoutingMaster = () => {
       setSelected([]);
     }
   };
-  
+
   const handleSelect = (id) => {
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
-    
+
     if (selectedIndex === -1) {
       newSelected = newSelected.concat(selected, id);
     } else {
       newSelected = selected.filter(item => item !== id);
     }
-    
+
     setSelected(newSelected);
   };
-  
+
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     setSelected([]);
   };
-  
+
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
     setSelected([]);
   };
-  
+
   const handleAddSuccess = () => {
     fetchRoutings();
     showNotification('Routing added successfully!', 'success');
   };
-  
+
   const handleEditSuccess = () => {
     fetchRoutings();
     showNotification('Routing updated successfully!', 'success');
   };
-  
+
   const handleDeleteSuccess = () => {
     fetchRoutings();
     setSelected([]);
     showNotification('Routing deleted successfully!', 'success');
   };
-  
+
   const handleApproveSuccess = () => {
     fetchRoutings();
     showNotification('Routing approved successfully!', 'success');
   };
-  
+
   const handleActionMenuOpen = (event, routing) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedRoutingForAction(routing);
@@ -414,25 +462,25 @@ const RoutingMaster = () => {
     setOpenViewModal(true);
     handleActionMenuClose();
   };
-  
+
   const openEditRoutingModal = (routing) => {
     setSelectedRouting(routing);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
-  
+
   const openApproveRoutingModal = (routing) => {
     setSelectedRouting(routing);
     setOpenApproveModal(true);
     handleActionMenuClose();
   };
-  
+
   const openDeleteRoutingDialog = (routing) => {
     setSelectedRouting(routing);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
-  
+
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
@@ -446,17 +494,36 @@ const RoutingMaster = () => {
         setOpenDeleteDialog(false);
         setSelectedRouting(null);
       } else {
-        showNotification(response.data.message || 'Failed to delete routing', 'error');
+        // Show error message from backend
+        let errorMessage = response.data.message || 'Failed to delete routing';
+
+        // Check if there's work order information in the error
+        if (response.data.work_order) {
+          errorMessage = `${response.data.message}\nWork Order: ${response.data.work_order.wo_number} (${response.data.work_order.status})`;
+        }
+
+        showNotification(errorMessage, 'error');
       }
     } catch (err) {
       console.error('Error deleting routing:', err);
-      showNotification('Failed to delete routing', 'error');
+
+      // Extract detailed error message from response
+      let errorMessage = 'Failed to delete routing';
+
+      if (err.response?.data) {
+        errorMessage = err.response.data.message || errorMessage;
+
+        // If there's work order details in the error, include them
+        if (err.response.data.work_order) {
+          errorMessage = `${err.response.data.message}\nWork Order: ${err.response.data.work_order.wo_number} (${err.response.data.work_order.status})`;
+        }
+      }
+
+      showNotification(errorMessage, 'error');
     } finally {
       setDeleteLoading(false);
     }
   };
-
-  
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -464,7 +531,7 @@ const RoutingMaster = () => {
       severity
     });
   };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -473,19 +540,18 @@ const RoutingMaster = () => {
       day: 'numeric'
     });
   };
-  
+
   const getRoutingInitials = (routing) => {
     if (!routing.routing_name) return 'RT';
     return routing.routing_name.substring(0, 2).toUpperCase();
   };
-  
+
   const getAvatarColor = (routing) => {
-    if (!routing.routing_name) return COLORS.primary;
-    const colors = [COLORS.primary, '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
-    const charCode = routing.routing_name.charCodeAt(0) || 0;
+    const colors = [COLORS.primary, COLORS.primaryDark, '#074346', '#0D696C', '#128C7E'];
+    const charCode = (routing.routing_id?.charCodeAt(0) || 0);
     return colors[charCode % colors.length];
   };
-  
+
   const getRoutingTypeColor = (type) => {
     const colors = {
       Stamping: { bg: '#FEF3C7', color: '#D97706' },
@@ -497,7 +563,7 @@ const RoutingMaster = () => {
     };
     return colors[type] || { bg: '#F1F5F9', color: '#475569' };
   };
-  
+
   const clearFilters = () => {
     setSearchInput('');
     setSearchTerm('');
@@ -510,10 +576,10 @@ const RoutingMaster = () => {
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
       <Box sx={{ mb: 2.5 }}>
-        <Typography 
-          variant="h5" 
-          component="h1" 
-          sx={{ 
+        <Typography
+          variant="h5"
+          component="h1"
+          sx={{
             fontSize: '1.25rem',
             fontWeight: 700,
             color: COLORS.text.primary,
@@ -528,9 +594,9 @@ const RoutingMaster = () => {
       </Box>
 
       {/* Action Bar */}
-      <Paper sx={{ 
-        p: 1.5, 
-        mb: 2.5, 
+      <Paper sx={{
+        p: 1.5,
+        mb: 2.5,
         borderRadius: 2,
         bgcolor: COLORS.background.white,
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
@@ -544,7 +610,7 @@ const RoutingMaster = () => {
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              sx={{ 
+              sx={{
                 width: { xs: '100%', sm: 250 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
@@ -557,13 +623,13 @@ const RoutingMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
-                sx: { 
+                sx: {
                   height: 36,
                   bgcolor: COLORS.background.light,
                 }
               }}
             />
-            
+
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel sx={{ fontSize: '0.75rem' }}>Routing Type</InputLabel>
               <Select
@@ -577,7 +643,7 @@ const RoutingMaster = () => {
                 ))}
               </Select>
             </FormControl>
-            
+
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
               <Select
@@ -591,7 +657,7 @@ const RoutingMaster = () => {
                 ))}
               </Select>
             </FormControl>
-            
+
             <Button
               size="small"
               onClick={clearFilters}
@@ -608,7 +674,7 @@ const RoutingMaster = () => {
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                sx={{ 
+                sx={{
                   height: 36,
                   borderRadius: 1.5,
                   textTransform: 'none',
@@ -628,7 +694,7 @@ const RoutingMaster = () => {
               sx={{
                 height: 36,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                bgcolor: COLORS.primaryDark,
                 fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',
@@ -643,9 +709,9 @@ const RoutingMaster = () => {
       </Paper>
 
       {/* Routings Table */}
-      <Paper sx={{ 
-        width: '100%', 
-        borderRadius: 2, 
+      <Paper sx={{
+        width: '100%',
+        borderRadius: 2,
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         border: `1px solid ${COLORS.border}`
@@ -653,7 +719,7 @@ const RoutingMaster = () => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ 
+              <TableRow sx={{
                 bgcolor: COLORS.background.tableHeader,
                 '& .MuiTableCell-root': {
                   borderBottom: 'none',
@@ -676,7 +742,7 @@ const RoutingMaster = () => {
                   />
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                  Routing Name / ID
+                  Routing ID / Name
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Type
@@ -740,13 +806,13 @@ const RoutingMaster = () => {
                   const avatarColor = getAvatarColor(routing);
                   const typeColors = getRoutingTypeColor(routing.routing_type);
                   const totalOps = routing.operations?.length || 0;
-                  
+
                   return (
                     <TableRow
                       key={routing._id}
                       hover
                       selected={isSelected}
-                      sx={{ 
+                      sx={{
                         bgcolor: COLORS.background.white,
                         '&:hover': { bgcolor: COLORS.background.hover },
                         '&.Mui-selected': { bgcolor: `${COLORS.primary}10` },
@@ -771,10 +837,10 @@ const RoutingMaster = () => {
                           </Avatar>
                           <Box>
                             <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
-                              {routing.routing_name}
+                              {routing.routing_id}
                             </Typography>
                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                              ID: {routing.routing_id}
+                              {routing.routing_name}
                             </Typography>
                           </Box>
                         </Stack>
@@ -783,7 +849,7 @@ const RoutingMaster = () => {
                         <Chip
                           label={routing.routing_type}
                           size="small"
-                          sx={{ 
+                          sx={{
                             fontSize: '0.65rem',
                             fontWeight: 500,
                             height: 24,
@@ -819,7 +885,7 @@ const RoutingMaster = () => {
                           icon={routing.is_active ? <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> : <PendingIcon sx={{ fontSize: '0.7rem' }} />}
                           label={routing.is_active ? 'Active' : 'Draft'}
                           size="small"
-                          sx={{ 
+                          sx={{
                             fontSize: '0.65rem',
                             fontWeight: 500,
                             height: 24,
@@ -834,7 +900,7 @@ const RoutingMaster = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
+                        <ActionMenu
                           item={routing}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onOpen={(e) => handleActionMenuOpen(e, routing)}
@@ -843,6 +909,8 @@ const RoutingMaster = () => {
                           onEdit={openEditRoutingModal}
                           onApprove={openApproveRoutingModal}
                           onDelete={openDeleteRoutingDialog}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -875,7 +943,7 @@ const RoutingMaster = () => {
       </Paper>
 
       {/* Modal Components */}
-      <AddRouting 
+      <AddRouting
         open={openAddModal}
         onClose={() => setOpenAddModal(false)}
         onAdd={handleAddSuccess}
@@ -883,7 +951,7 @@ const RoutingMaster = () => {
 
       {selectedRouting && (
         <>
-          <ViewRouting 
+          <ViewRouting
             open={openViewModal}
             onClose={() => {
               setOpenViewModal(false);
@@ -892,7 +960,7 @@ const RoutingMaster = () => {
             routing={selectedRouting}
           />
 
-          <EditRouting 
+          <EditRouting
             open={openEditModal}
             onClose={() => {
               setOpenEditModal(false);
@@ -902,7 +970,7 @@ const RoutingMaster = () => {
             onUpdate={handleEditSuccess}
           />
 
-          <ApproveRouting 
+          <ApproveRouting
             open={openApproveModal}
             onClose={() => {
               setOpenApproveModal(false);
@@ -912,15 +980,18 @@ const RoutingMaster = () => {
             onApprove={handleApproveSuccess}
           />
 
-          <DeleteRoutingDialog
+          <DeleteRouting
             open={openDeleteDialog}
             onClose={() => {
               setOpenDeleteDialog(false);
               setSelectedRouting(null);
             }}
             routing={selectedRouting}
-            onConfirm={handleDeleteConfirm}
-            loading={deleteLoading}
+            onDelete={(deletedRouting) => {
+              handleDeleteSuccess();
+              setOpenDeleteDialog(false);
+              setSelectedRouting(null);
+            }}
           />
         </>
       )}
@@ -929,14 +1000,14 @@ const RoutingMaster = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({...snackbar, open: false})} 
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: 1.5,
             fontSize: '0.75rem',

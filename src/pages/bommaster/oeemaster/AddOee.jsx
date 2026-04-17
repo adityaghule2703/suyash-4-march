@@ -25,7 +25,8 @@ import {
   stepConnectorClasses,
   styled,
   CircularProgress,
-  Chip
+  Chip,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddMachine from '../machinemaster/AddMachine';
 
 const steps = ['Select Machine', 'Production Data', 'OEE Calculation', 'Review & Submit'];
 
@@ -90,6 +92,7 @@ const AddOee = ({ open, onClose, onAdd }) => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [machines, setMachines] = useState([]);
   const [calculatedOEE, setCalculatedOEE] = useState(null);
+  const [addMachineOpen, setAddMachineOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     machine_id: '',
@@ -103,6 +106,24 @@ const AddOee = ({ open, onClose, onAdd }) => {
     notes: ''
   });
 
+  // Handle machine added from modal
+  const handleMachineAdded = (newMachine) => {
+    // Add the new machine to the machines list
+    setMachines(prev => [...prev, newMachine]);
+    // Automatically select the newly added machine
+    setFormData(prev => ({
+      ...prev,
+      machine_id: newMachine._id
+    }));
+    // Clear any machine-related error
+    if (fieldErrors.machine_id) {
+      setFieldErrors(prev => ({
+        ...prev,
+        machine_id: ''
+      }));
+    }
+  };
+
   // Fetch machines on component mount
   useEffect(() => {
     if (open) {
@@ -114,7 +135,7 @@ const AddOee = ({ open, onClose, onAdd }) => {
     setMachinesLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines`, {
+      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -289,7 +310,8 @@ const AddOee = ({ open, onClose, onAdd }) => {
       });
 
       if (response.data.success) {
-        onAdd(response.data.data);
+        // Call onAdd without parameters as expected by OeeMaster
+        onAdd();
         onClose();
         resetForm();
       } else {
@@ -347,30 +369,61 @@ const AddOee = ({ open, onClose, onAdd }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       SELECT MACHINE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <FormControl fullWidth size="small" error={!!fieldErrors.machine_id}>
-                      <Select
-                        name="machine_id"
-                        value={formData.machine_id}
-                        onChange={handleChange}
-                        disabled={machinesLoading}
-                        sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                        displayEmpty
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <FormControl fullWidth size="small" error={!!fieldErrors.machine_id}>
+                          <Select
+                            name="machine_id"
+                            value={formData.machine_id}
+                            onChange={handleChange}
+                            disabled={machinesLoading}
+                            sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+                            displayEmpty
+                          >
+                            <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
+                              {machinesLoading ? 'Loading machines...' : 'Select a machine'}
+                            </MenuItem>
+                            {machines.map(machine => (
+                              <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
+                                {machine.machine_name} ({machine.machine_code})
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          {fieldErrors.machine_id && (
+                            <Typography sx={{ fontSize: '0.7rem', color: '#EF4444', mt: 0.5 }}>
+                              {fieldErrors.machine_id}
+                            </Typography>
+                          )}
+                        </FormControl>
+                      </Box>
+                      
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setAddMachineOpen(true)}
+                        disabled={loading || machinesLoading}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 35,
+                          minWidth: 'auto',
+                          px: 1.5,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
+                          }
+                        }}
                       >
-                        <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
-                          {machinesLoading ? 'Loading machines...' : 'Select a machine'}
-                        </MenuItem>
-                        {machines.map(machine => (
-                          <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
-                            {machine.machine_name} ({machine.machine_code})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {fieldErrors.machine_id && (
-                        <Typography sx={{ fontSize: '0.7rem', color: '#EF4444', mt: 0.5 }}>
-                          {fieldErrors.machine_id}
-                        </Typography>
-                      )}
-                    </FormControl>
+                        Add New
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
 
@@ -988,6 +1041,13 @@ const AddOee = ({ open, onClose, onAdd }) => {
           )}
         </Box>
       </DialogActions>
+
+      {/* Add Machine Modal */}
+      <AddMachine
+        open={addMachineOpen}
+        onClose={() => setAddMachineOpen(false)}
+        onAdd={handleMachineAdded}
+      />
     </Dialog>
   );
 };

@@ -194,7 +194,7 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
                     {approvalData.routing_id}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                {/* <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
                     <PersonIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
                     Approved By
@@ -204,7 +204,7 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
                       ? approvalData.approved_by?.username || approvalData.approved_by?.id 
                       : approvalData.approved_by}
                   </Typography>
-                </Grid>
+                </Grid> */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
                     <DateIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />

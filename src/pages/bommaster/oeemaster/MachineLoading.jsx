@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Typography,
   Grid,
   Paper,
@@ -25,11 +27,15 @@ import {
   TableRow,
   Tooltip,
   Stack,
-  Tabs,
-  Tab,
-  useTheme
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from '@mui/material';
 import {
+  Close as CloseIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
@@ -37,11 +43,14 @@ import {
   TrendingDown as TrendingDownIcon,
   TrendingFlat as TrendingFlatIcon,
   Assessment as AssessmentIcon,
-  CalendarToday as CalendarIcon,
   Speed as SpeedIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
-  DateRange as DateRangeIcon
+  DateRange as DateRangeIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  Analytics as AnalyticsIcon,
+  BarChart as BarChartIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -55,9 +64,6 @@ import {
   Area,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -65,6 +71,27 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+
+const steps = ['Date Range & Filters', 'Performance Metrics', 'Chart & Data Analysis'];
+
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: '#1976D2',
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: '#1976D2',
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
 
 const COLORS = {
   primary: '#1976D2',
@@ -86,8 +113,8 @@ const COLORS = {
   chart: ['#1976D2', '#2E7D32', '#ED6C02', '#D32F2F', '#9C27B0', '#00ACC1']
 };
 
-const MachineLoading = ({ machineId, machineName, open, onClose }) => {
-  const theme = useTheme();
+const MachineLoading = ({ open, onClose, machineId, machineName }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState([]);
@@ -113,18 +140,23 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
   const [chartType, setChartType] = useState('line');
   const [selectedMetric, setSelectedMetric] = useState('oee');
   const [exportLoading, setExportLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    if (machineId) {
-      fetchMachineLoading();
-      fetchMachineDetails();
+    if (open && machineId) {
+      const actualMachineId = machineId?._id || machineId;
+      if (actualMachineId) {
+        fetchMachineLoading(actualMachineId);
+        fetchMachineDetails(actualMachineId);
+      }
+      setActiveStep(0);
     }
-  }, [machineId, dateRange]);
+  }, [machineId, dateRange, open]);
 
-  const fetchMachineDetails = async () => {
+  const fetchMachineDetails = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines/${machineId}`, {
+      const response = await axios.get(`${BASE_URL}/api/machines/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -138,7 +170,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
     }
   };
 
-  const fetchMachineLoading = async () => {
+  const fetchMachineLoading = async (id) => {
     setLoading(true);
     setError('');
     
@@ -147,7 +179,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
       const fromDate = dateRange.from.toISOString().split('T')[0];
       const toDate = dateRange.to.toISOString().split('T')[0];
       
-      const response = await axios.get(`${BASE_URL}/api/machines/${machineId}/loading`, {
+      const response = await axios.get(`${BASE_URL}/api/machines/${id}/loading`, {
         params: {
           from: fromDate,
           to: toDate
@@ -200,7 +232,6 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
     const worstDay = loadingData.reduce((worst, current) => 
       current.oee < worst.oee ? current : worst, loadingData[0]);
     
-    // Calculate trend (comparing first half vs second half)
     const midPoint = Math.floor(loadingData.length / 2);
     const firstHalfAvg = loadingData.slice(0, midPoint).reduce((sum, r) => sum + r.oee, 0) / midPoint;
     const secondHalfAvg = loadingData.slice(midPoint).reduce((sum, r) => sum + r.oee, 0) / (loadingData.length - midPoint);
@@ -227,10 +258,14 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
       ...prev,
       [field]: date
     }));
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   const handleRefresh = () => {
-    fetchMachineLoading();
+    const actualMachineId = machineId?._id || machineId;
+    if (actualMachineId) {
+      fetchMachineLoading(actualMachineId);
+    }
   };
 
   const handleExport = async () => {
@@ -239,8 +274,9 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
       const token = localStorage.getItem('token');
       const fromDate = dateRange.from.toISOString().split('T')[0];
       const toDate = dateRange.to.toISOString().split('T')[0];
+      const actualMachineId = machineId?._id || machineId;
       
-      const response = await axios.get(`${BASE_URL}/api/machines/${machineId}/loading/export`, {
+      const response = await axios.get(`${BASE_URL}/api/machines/${actualMachineId}/loading/export`, {
         params: {
           from: fromDate,
           to: toDate
@@ -254,7 +290,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `machine_loading_${machineId}_${fromDate}_to_${toDate}.csv`);
+      link.setAttribute('download', `machine_loading_${actualMachineId}_${fromDate}_to_${toDate}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -269,6 +305,51 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const validateStep = (step) => {
+    const errors = {};
+    let isValid = true;
+
+    switch (step) {
+      case 0:
+        if (!dateRange.from) {
+          errors.from = 'From date is required';
+          isValid = false;
+        }
+        if (!dateRange.to) {
+          errors.to = 'To date is required';
+          isValid = false;
+        }
+        if (dateRange.from && dateRange.to && dateRange.from > dateRange.to) {
+          errors.to = 'To date must be after from date';
+          isValid = false;
+        }
+        break;
+      default:
+        return true;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in this section');
+    }
+    return isValid;
+  };
+
+  const handleNext = () => {
+    if (validateStep(activeStep)) {
+      if (activeStep === 0) {
+        handleRefresh();
+      }
+      setError('');
+      setActiveStep((prevStep) => prevStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setError('');
+    setActiveStep((prevStep) => prevStep - 1);
   };
 
   const getTrendIcon = () => {
@@ -380,148 +461,18 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
     }
   };
 
-  const renderMetricsCards = () => {
-    const oeeStatus = getOEEStatus(summary.averageOEE);
-    const OEEStatusIcon = oeeStatus.icon;
-    
-    return (
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 1.5 }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
-              Overall OEE
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: oeeStatus.color }}>
-                {summary.averageOEE}%
-              </Typography>
-              {OEEStatusIcon && <OEEStatusIcon sx={{ color: oeeStatus.color, fontSize: '1.2rem' }} />}
-            </Box>
-            <Chip 
-              label={oeeStatus.label}
-              size="small"
-              sx={{ 
-                mt: 1,
-                bgcolor: oeeStatus.color,
-                color: 'white',
-                fontSize: '0.65rem'
-              }}
-            />
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 1.5 }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
-              Availability
-            </Typography>
-            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
-              {summary.averageAvailability}%
-            </Typography>
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 1.5 }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
-              Performance
-            </Typography>
-            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
-              {summary.averagePerformance}%
-            </Typography>
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 1.5 }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
-              Quality
-            </Typography>
-            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
-              {summary.averageQuality}%
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
-    );
-  };
-
-  const renderSummaryCards = () => {
-    return (
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, borderRadius: 1.5, bgcolor: COLORS.background.light }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-              Total Records
-            </Typography>
-            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, mt: 0.5 }}>
-              {summary.totalRecords}
-            </Typography>
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, borderRadius: 1.5, bgcolor: COLORS.background.light }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-              Total Downtime
-            </Typography>
-            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, mt: 0.5, color: COLORS.warning }}>
-              {summary.totalDowntime} min
-            </Typography>
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, borderRadius: 1.5, bgcolor: COLORS.background.light }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-              Best Day
-            </Typography>
-            {summary.bestDay && (
-              <>
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, mt: 0.5 }}>
-                  {new Date(summary.bestDay.date).toLocaleDateString()}
-                </Typography>
-                <Typography sx={{ fontSize: '0.7rem', color: COLORS.success }}>
-                  {summary.bestDay.oee}% OEE
-                </Typography>
-              </>
-            )}
-          </Paper>
-        </Grid>
-        
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper sx={{ p: 2, borderRadius: 1.5, bgcolor: COLORS.background.light }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-              Trend
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-              {getTrendIcon()}
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'capitalize' }}>
-                {summary.trend}
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    );
-  };
-
   const renderDataTable = () => {
     return (
-      <TableContainer component={Paper} sx={{ borderRadius: 1.5 }}>
-        <Table size="small">
-          <TableHead sx={{ bgcolor: COLORS.background.light }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Shift</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Planned Time</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Actual Time</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Total Qty</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Good Qty</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Availability</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Performance</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>Quality</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>OEE</TableCell>
+      <TableContainer component={Paper} sx={{ borderRadius: 1.5, maxHeight: 400 }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow sx={{ bgcolor: COLORS.background.light }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Date</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Shift</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Availability</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Performance</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Quality</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.7rem' }}>OEE</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -529,15 +480,13 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
               const oeeStatus = getOEEStatus(record.oee);
               return (
                 <TableRow key={index} hover>
-                  <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{record.shift}</TableCell>
-                  <TableCell align="right">{record.planned_production_time} min</TableCell>
-                  <TableCell align="right">{record.actual_run_time} min</TableCell>
-                  <TableCell align="right">{record.total_qty}</TableCell>
-                  <TableCell align="right">{record.good_qty}</TableCell>
-                  <TableCell align="right">{record.availability}%</TableCell>
-                  <TableCell align="right">{record.performance}%</TableCell>
-                  <TableCell align="right">{record.quality}%</TableCell>
+                  <TableCell sx={{ fontSize: '0.75rem' }}>{new Date(record.date).toLocaleDateString()}</TableCell>
+                  <TableCell sx={{ fontSize: '0.75rem' }}>
+                    <Chip label={record.shift} size="small" sx={{ fontSize: '0.65rem', height: 22 }} />
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{record.availability}%</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{record.performance}%</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{record.quality}%</TableCell>
                   <TableCell align="right">
                     <Chip 
                       label={`${record.oee}%`}
@@ -559,94 +508,239 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
     );
   };
 
-  if (!open) return null;
-
-  return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 3, bgcolor: COLORS.background.white, minHeight: '100vh' }}>
-        {/* Header */}
-        <Paper sx={{ p: 2, mb: 3, borderRadius: 1.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
-                Machine Loading Analysis
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <DateRangeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Select Date Range
               </Typography>
-              <Typography sx={{ color: COLORS.text.secondary, mt: 0.5 }}>
-                {machineDetails ? `${machineDetails.machine_name} (${machineDetails.machine_code})` : machineName}
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="From Date"
+                    value={dateRange.from}
+                    onChange={(date) => handleDateChange('from', date)}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small', 
+                        fullWidth: true,
+                        error: !!fieldErrors.from,
+                        helperText: fieldErrors.from
+                      } 
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="To Date"
+                    value={dateRange.to}
+                    onChange={(date) => handleDateChange('to', date)}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small', 
+                        fullWidth: true,
+                        error: !!fieldErrors.to,
+                        helperText: fieldErrors.to
+                      } 
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {machineDetails && (
+              <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.light }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <AssessmentIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Machine Information
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Name</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_name}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Code</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_code}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Type</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_type}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>OEE Target</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.oee_target_percent}%</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+          </Stack>
+        );
+
+      case 1:
+        if (data.length === 0) {
+          return (
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+              No data available for the selected date range. Please go back and select a different date range.
+            </Alert>
+          );
+        }
+
+        const oeeStatus = getOEEStatus(summary.averageOEE);
+        const OEEStatusIcon = oeeStatus.icon;
+
+        return (
+          <Stack spacing={2}>
+            {/* OEE Metrics Cards */}
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <SpeedIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Performance Metrics
               </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Refresh">
-                <IconButton onClick={handleRefresh} disabled={loading}>
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Export Data">
-                <IconButton onClick={handleExport} disabled={exportLoading}>
-                  {exportLoading ? <CircularProgress size={24} /> : <DownloadIcon />}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Print">
-                <IconButton onClick={handlePrint}>
-                  <PrintIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-        </Paper>
 
-        {/* Date Range Selector */}
-        <Paper sx={{ p: 2, mb: 3, borderRadius: 1.5 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 5 }}>
-              <DatePicker
-                label="From Date"
-                value={dateRange.from}
-                onChange={(date) => handleDateChange('from', date)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 5 }}>
-              <DatePicker
-                label="To Date"
-                value={dateRange.to}
-                onChange={(date) => handleDateChange('to', date)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 2 }}>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={handleRefresh}
-                disabled={loading}
-                startIcon={<DateRangeIcon />}
-              >
-                Apply
-              </Button>
-            </Grid>
-          </Grid>
-        </Paper>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                mb: 2,
+                flexWrap: 'wrap',
+                '& > *': { 
+                  flex: 1, 
+                  minWidth: '150px' 
+                } 
+              }}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Overall OEE
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: oeeStatus.color }}>
+                      {summary.averageOEE}%
+                    </Typography>
+                    {OEEStatusIcon && <OEEStatusIcon sx={{ color: oeeStatus.color, fontSize: '1.2rem' }} />}
+                  </Box>
+                  <Chip 
+                    label={oeeStatus.label}
+                    size="small"
+                    sx={{ 
+                      mt: 1,
+                      bgcolor: oeeStatus.color,
+                      color: 'white',
+                      fontSize: '0.65rem'
+                    }}
+                  />
+                </Paper>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: 1.5 }}>
-            {error}
-          </Alert>
-        )}
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Availability
+                  </Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
+                    {summary.averageAvailability}%
+                  </Typography>
+                </Paper>
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            {renderMetricsCards()}
-            {renderSummaryCards()}
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Performance
+                  </Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
+                    {summary.averagePerformance}%
+                  </Typography>
+                </Paper>
 
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Quality
+                  </Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.primary }}>
+                    {summary.averageQuality}%
+                  </Typography>
+                </Paper>
+              </Box>
+            </Paper>
+
+            {/* Summary Cards */}
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <AnalyticsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Summary Statistics
+              </Typography>
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                flexWrap: 'wrap',
+                '& > *': { 
+                  flex: 1, 
+                  minWidth: '150px' 
+                } 
+              }}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Records</Typography>
+                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, mt: 0.5 }}>
+                    {summary.totalRecords}
+                  </Typography>
+                </Paper>
+
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Downtime</Typography>
+                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, mt: 0.5, color: COLORS.warning }}>
+                    {summary.totalDowntime} min
+                  </Typography>
+                </Paper>
+
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Best Day</Typography>
+                  {summary.bestDay && (
+                    <>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, mt: 0.5 }}>
+                        {new Date(summary.bestDay.date).toLocaleDateString()}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.success }}>
+                        {summary.bestDay.oee}% OEE
+                      </Typography>
+                    </>
+                  )}
+                </Paper>
+
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Trend</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 0.5 }}>
+                    {getTrendIcon()}
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'capitalize' }}>
+                      {summary.trend}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            </Paper>
+          </Stack>
+        );
+
+      case 2:
+        if (data.length === 0) {
+          return (
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+              No data available for analysis. Please go back and select a different date range.
+            </Alert>
+          );
+        }
+
+        return (
+          <Stack spacing={2}>
             {/* Chart Controls */}
-            <Paper sx={{ p: 2, mb: 3, borderRadius: 1.5 }}>
-              <Grid container spacing={2} alignItems="center">
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <BarChartIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Chart Configuration
+              </Typography>
+
+              <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Chart Type</InputLabel>
@@ -654,6 +748,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
                       value={chartType}
                       onChange={(e) => setChartType(e.target.value)}
                       label="Chart Type"
+                      sx={{ borderRadius: 1.5 }}
                     >
                       <MenuItem value="line">Line Chart</MenuItem>
                       <MenuItem value="area">Area Chart</MenuItem>
@@ -668,6 +763,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
                       value={selectedMetric}
                       onChange={(e) => setSelectedMetric(e.target.value)}
                       label="Metric"
+                      sx={{ borderRadius: 1.5 }}
                     >
                       <MenuItem value="oee">OEE</MenuItem>
                       <MenuItem value="availability">Availability</MenuItem>
@@ -681,6 +777,7 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
                     fullWidth
                     variant="outlined"
                     onClick={() => setViewType(viewType === 'chart' ? 'table' : 'chart')}
+                    sx={{ height: 40, borderRadius: 1.5, textTransform: 'none' }}
                   >
                     Switch to {viewType === 'chart' ? 'Table View' : 'Chart View'}
                   </Button>
@@ -689,50 +786,226 @@ const MachineLoading = ({ machineId, machineName, open, onClose }) => {
             </Paper>
 
             {/* Chart or Table View */}
-            {viewType === 'chart' ? (
-              <Paper sx={{ p: 2, mb: 3, borderRadius: 1.5 }}>
-                <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, mb: 2 }}>
-                  {selectedMetric.toUpperCase()} Trend Over Time
-                </Typography>
-                {renderChart()}
-              </Paper>
-            ) : (
-              renderDataTable()
-            )}
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                {viewType === 'chart' ? `${selectedMetric.toUpperCase()} Trend Over Time` : 'Detailed Data Table'}
+              </Typography>
+              {viewType === 'chart' ? renderChart() : renderDataTable()}
+            </Paper>
+          </Stack>
+        );
 
-            {/* Machine Details Section */}
+      default:
+        return null;
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+            height: '85vh',
+            maxHeight: '85vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Box>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+              Machine Loading Analysis
+            </Typography>
             {machineDetails && (
-              <Paper sx={{ p: 2, borderRadius: 1.5, mt: 3 }}>
-                <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, mb: 2, color: COLORS.primary }}>
-                  Machine Specifications
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Type:</Typography>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_type}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Work Centre:</Typography>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.work_centre}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Capacity:</Typography>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                      {machineDetails.capacity_value} {machineDetails.capacity_unit}
-                    </Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>OEE Target:</Typography>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: COLORS.primary }}>
-                      {machineDetails.oee_target_percent}%
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
+              <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                {machineDetails.machine_name} ({machineDetails.machine_code}) | {machineDetails.machine_type}
+              </Typography>
             )}
-          </>
-        )}
-      </Box>
+          </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        {/* Stepper */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
+        <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white, overflow: 'auto' }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+              <Typography sx={{ ml: 2, fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                Loading machine data...
+              </Typography>
+            </Box>
+          ) : (
+            renderStepContent(activeStep)
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
+          <Button
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            size="small"
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none'
+            }}
+          >
+            Back
+          </Button>
+          <Box>
+            <Button
+              onClick={onClose}
+              disabled={loading}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                mr: 1,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none'
+              }}
+            >
+              Cancel
+            </Button>
+            {activeStep === steps.length - 1 ? (
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={handleExport}
+                  disabled={exportLoading || data.length === 0}
+                  startIcon={exportLoading ? <CircularProgress size={16} /> : <DownloadIcon sx={{ fontSize: '1rem' }} />}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    mr: 1,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text.secondary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none'
+                  }}
+                >
+                  Export
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handlePrint}
+                  disabled={data.length === 0}
+                  startIcon={<PrintIcon sx={{ fontSize: '1rem' }} />}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    mr: 1,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text.secondary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none'
+                  }}
+                >
+                  Print
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={onClose}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark }
+                  }}
+                >
+                  Close
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
     </LocalizationProvider>
   );
 };

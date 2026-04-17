@@ -299,7 +299,7 @@ const BomCosting = ({ permissions: propPermissions, onActionComplete, showNotifi
 
   const formatCurrency = (amount) => {
     if (!amount) return '0.00';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'INR' }).format(amount);
   };
 
   const getTotalCost = (bom) => {

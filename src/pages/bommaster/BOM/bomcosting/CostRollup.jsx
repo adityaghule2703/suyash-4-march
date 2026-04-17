@@ -190,7 +190,7 @@ const CostRollup = ({ open, onClose, bomId, onSuccess }) => {
     if (!amount) return '0.00';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);

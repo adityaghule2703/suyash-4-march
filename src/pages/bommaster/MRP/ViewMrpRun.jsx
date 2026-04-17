@@ -1,4 +1,4 @@
-// ViewMrpRun.jsx
+// ViewMrpRun.jsx - Restyled with Stepper UI
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -11,8 +11,6 @@ import {
   Stack,
   Chip,
   Grid,
-  Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -25,8 +23,12 @@ import {
   Divider,
   Tooltip,
   Button,
-  Tab,
-  Tabs,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled,
   LinearProgress
 } from '@mui/material';
 import {
@@ -41,74 +43,121 @@ import {
   Error as ErrorIcon,
   PlayArrow as PlayArrowIcon,
   Assessment as AssessmentIcon,
-  LocalShipping as ShippingIcon,
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  ProductionQuantityLimits as ProductionIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import {
-  COLORS,
-  MRP_STATUS_COLORS,
-  MRP_RUN_TYPE_COLORS,
-  formatDate,
-  formatDateTime,
-  formatNumber,
-  getMRPStatusMessage
-} from './constants';
 import BASE_URL from '../../../config/Config';
+
+const COLORS = {
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC'
+  },
+  border: '#E3E8EF',
+  success: '#059669',
+  warning: '#D97706',
+  error: '#DC2626',
+  info: '#3B82F6'
+};
+
+const steps = [
+  'Run Information',
+  'Configuration Details',
+  'MRP Results',
+  'Recommendations'
+];
+
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Helper function to safely get display value
+const getDisplayValue = (value) => {
+  if (!value) return '-';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    return value.name || value.username || value.userName || value._id || '-';
+  }
+  return String(value);
+};
 
 // Status Chip Component
 const StatusChip = ({ status }) => {
-  const statusConfig = MRP_STATUS_COLORS[status] || MRP_STATUS_COLORS['Queued'];
-  const getIcon = () => {
+  const getStatusConfig = () => {
     switch (status) {
       case 'Completed':
-        return <CheckCircleIcon sx={{ fontSize: '0.8rem' }} />;
+        return { bg: '#D1FAE5', color: '#059669', icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> };
       case 'Running':
-        return <PendingIcon sx={{ fontSize: '0.8rem' }} />;
+        return { bg: '#DBEAFE', color: '#2563EB', icon: <PendingIcon sx={{ fontSize: '0.7rem' }} /> };
       case 'Failed':
-        return <ErrorIcon sx={{ fontSize: '0.8rem' }} />;
+        return { bg: '#FEE2E2', color: '#DC2626', icon: <ErrorIcon sx={{ fontSize: '0.7rem' }} /> };
+      case 'Queued':
+        return { bg: '#FEF3C7', color: '#D97706', icon: <ScheduleIcon sx={{ fontSize: '0.7rem' }} /> };
       default:
-        return <ScheduleIcon sx={{ fontSize: '0.8rem' }} />;
+        return { bg: '#F1F5F9', color: '#475569', icon: <PendingIcon sx={{ fontSize: '0.7rem' }} /> };
     }
   };
 
+  const config = getStatusConfig();
   return (
     <Chip
-      icon={getIcon()}
+      icon={config.icon}
       label={status}
       size="small"
-      sx={{
-        fontSize: '0.7rem',
-        fontWeight: 500,
-        height: 28,
-        bgcolor: statusConfig.bg,
-        color: statusConfig.color,
-        border: `1px solid ${statusConfig.border}`,
-        '& .MuiChip-icon': {
-          color: statusConfig.color
-        }
-      }}
+      sx={{ fontSize: '0.7rem', fontWeight: 500, bgcolor: config.bg, color: config.color }}
     />
   );
 };
 
 // Run Type Chip Component
 const RunTypeChip = ({ runType }) => {
-  const typeConfig = MRP_RUN_TYPE_COLORS[runType] || MRP_RUN_TYPE_COLORS['Full'];
+  const getTypeConfig = () => {
+    switch (runType) {
+      case 'Full':
+        return { bg: '#E8F0F1', color: COLORS.primary };
+      case 'Incremental':
+        return { bg: '#FEF3C7', color: '#D97706' };
+      case 'Item-Specific':
+        return { bg: '#DBEAFE', color: '#2563EB' };
+      default:
+        return { bg: '#F1F5F9', color: '#475569' };
+    }
+  };
+
+  const config = getTypeConfig();
   return (
     <Chip
       label={runType}
       size="small"
-      sx={{
-        fontSize: '0.7rem',
-        fontWeight: 500,
-        height: 26,
-        bgcolor: typeConfig.bg,
-        color: typeConfig.color,
-        border: `1px solid ${typeConfig.border}`
-      }}
+      sx={{ fontSize: '0.7rem', fontWeight: 500, bgcolor: config.bg, color: config.color }}
     />
   );
 };
@@ -118,29 +167,22 @@ const ActionChip = ({ action }) => {
   const getActionColor = () => {
     switch (action) {
       case 'Create PO':
-        return { bg: '#DBEAFE', color: '#1E40AF', icon: <ShoppingCartIcon sx={{ fontSize: '0.7rem' }} /> };
+        return { bg: '#DBEAFE', color: '#1E40AF' };
       case 'Create WO':
-        return { bg: '#FEF3C7', color: '#D97706', icon: <FactoryIcon sx={{ fontSize: '0.7rem' }} /> };
+        return { bg: '#FEF3C7', color: '#D97706' };
       case 'Reschedule':
-        return { bg: '#E0E7FF', color: '#4F46E5', icon: <ScheduleIcon sx={{ fontSize: '0.7rem' }} /> };
+        return { bg: '#E0E7FF', color: '#4F46E5' };
       default:
-        return { bg: '#F1F5F9', color: '#475569', icon: null };
+        return { bg: '#F1F5F9', color: '#475569' };
     }
   };
 
   const colorConfig = getActionColor();
   return (
     <Chip
-      icon={colorConfig.icon}
       label={action}
       size="small"
-      sx={{
-        fontSize: '0.65rem',
-        height: 24,
-        bgcolor: colorConfig.bg,
-        color: colorConfig.color,
-        border: `1px solid ${colorConfig.bg}`
-      }}
+      sx={{ fontSize: '0.65rem', height: 24, bgcolor: colorConfig.bg, color: colorConfig.color }}
     />
   );
 };
@@ -165,109 +207,16 @@ const SourceChip = ({ source }) => {
     <Chip
       label={source}
       size="small"
-      sx={{
-        fontSize: '0.65rem',
-        height: 22,
-        bgcolor: colorConfig.bg,
-        color: colorConfig.color
-      }}
+      sx={{ fontSize: '0.65rem', height: 22, bgcolor: colorConfig.bg, color: colorConfig.color }}
     />
   );
 };
 
-// MRP Line Item Component
-const MRPLineItem = ({ line, index }) => {
-  const isShortfall = line.net_requirement > 0;
-
-  return (
-    <TableRow hover>
-      <TableCell sx={{ fontSize: '0.75rem' }}>{index + 1}</TableCell>
-      <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{line.part_no}</TableCell>
-      <TableCell sx={{ fontSize: '0.75rem' }}>{line.item_id?.substring(0, 8) || '-'}</TableCell>
-      <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{formatNumber(line.gross_requirement)}</TableCell>
-      <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{formatNumber(line.scheduled_receipt)}</TableCell>
-      <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{formatNumber(line.opening_stock)}</TableCell>
-      <TableCell align="right">
-        <Typography
-          sx={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            color: isShortfall ? '#DC2626' : '#059669'
-          }}
-        >
-          {formatNumber(line.net_requirement)}
-        </Typography>
-      </TableCell>
-      <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-        {formatNumber(line.planned_order_qty)}
-      </TableCell>
-      <TableCell sx={{ fontSize: '0.75rem' }}>
-        {line.planned_order_release_date ? formatDate(line.planned_order_release_date) : '-'}
-      </TableCell>
-      <TableCell sx={{ fontSize: '0.75rem' }}>
-        {formatDate(line.requirement_date)}
-      </TableCell>
-      <TableCell>
-        <ActionChip action={line.action} />
-      </TableCell>
-      <TableCell>
-        <SourceChip source={line.source} />
-      </TableCell>
-      <TableCell>
-        <Tooltip title={line.so_references?.join(', ') || 'No SO references'}>
-          <Chip
-            label={line.so_references?.length || 0}
-            size="small"
-            icon={<ShippingIcon sx={{ fontSize: '0.7rem' }} />}
-            sx={{ fontSize: '0.65rem', height: 22 }}
-          />
-        </Tooltip>
-      </TableCell>
-    </TableRow>
-  );
-};
-
-// Info Row Component
-const InfoRow = ({ label, value, icon }) => (
-  <Box sx={{ mb: 1.5 }}>
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-      {icon && <Box sx={{ color: COLORS.text.tertiary, display: 'flex', alignItems: 'center' }}>{icon}</Box>}
-      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        {label}
-      </Typography>
-    </Stack>
-    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary, ml: icon ? 3.5 : 0 }}>
-      {value || '-'}
-    </Typography>
-  </Box>
-);
-
-// Helper function to format MongoDB ID to readable format
-const formatMongoId = (id) => {
-  if (!id) return '-';
-  // If it's a MongoDB ObjectId, take last 6 characters
-  if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
-    return id.slice(-6);
-  }
-  // If it's already a formatted string or has name property
-  if (typeof id === 'object' && id.name) {
-    return id.name;
-  }
-  // If it's a string but not ObjectId, return as is or truncate
-  if (typeof id === 'string') {
-    return id.length > 12 ? `${id.slice(0, 8)}...` : id;
-  }
-  return String(id);
-};
-
-// Main Component
 const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mrpRun, setMrpRun] = useState(null);
-  const [activeTab, setActiveTab] = useState(0);
-  const [filterAction, setFilterAction] = useState('all');
-  const [filterSource, setFilterSource] = useState('all');
   const [triggeredByUser, setTriggeredByUser] = useState(null);
   const [jobDetails, setJobDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -275,6 +224,7 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
   useEffect(() => {
     if (open && mrpRunId) {
       fetchMrpRunDetails();
+      setActiveStep(0);
     }
   }, [open, mrpRunId]);
 
@@ -315,7 +265,6 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Fetch user details if triggered_by exists
       const triggeredById = mrpRun.triggered_by?._id || mrpRun.triggered_by;
       if (triggeredById && triggeredById !== 'system') {
         try {
@@ -331,7 +280,6 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
         }
       }
       
-      // Fetch job details if job_id exists
       if (mrpRun.job_id) {
         try {
           const jobResponse = await axios.get(
@@ -359,20 +307,37 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
     }
   };
 
-  const getFilteredMRPLines = () => {
-    if (!mrpRun?.mrp_lines) return [];
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
 
-    let filtered = [...mrpRun.mrp_lines];
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
 
-    if (filterAction !== 'all') {
-      filtered = filtered.filter(line => line.action === filterAction);
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
-    if (filterSource !== 'all') {
-      filtered = filtered.filter(line => line.source === filterSource);
-    }
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
-    return filtered;
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return '0';
+    return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   };
 
   const getSummaryStats = () => {
@@ -401,22 +366,333 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
     };
   };
 
-  const getUniqueActions = () => {
-    if (!mrpRun?.mrp_lines) return [];
-    const actions = new Set(mrpRun.mrp_lines.map(l => l.action));
-    return ['all', ...Array.from(actions)];
-  };
-
-  const getUniqueSources = () => {
-    if (!mrpRun?.mrp_lines) return [];
-    const sources = new Set(mrpRun.mrp_lines.map(l => l.source));
-    return ['all', ...Array.from(sources)];
-  };
-
   const stats = getSummaryStats();
-  const filteredLines = getFilteredMRPLines();
-  const uniqueActions = getUniqueActions();
-  const uniqueSources = getUniqueSources();
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Stack spacing={2}>
+            {/* Header Section */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                MRP Run Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>MRP Run ID</Typography>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                        {getDisplayValue(mrpRun?.mrp_run_id)}
+                      </Typography>
+                    </Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Run Type</Typography>
+                      <RunTypeChip runType={mrpRun?.run_type} />
+                    </Box>
+                  </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={1}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Status:</Typography>
+                    <StatusChip status={mrpRun?.status} />
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Run Details */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <ScheduleIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Run Details
+              </Typography>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Run Date</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{formatDateTime(mrpRun?.run_date)}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Completed At</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {mrpRun?.completed_at ? formatDateTime(mrpRun.completed_at) : 'In Progress'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Planning Horizon</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{mrpRun?.planning_horizon} days</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Last Run Reference</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{getDisplayValue(mrpRun?.last_run_reference) || 'N/A'}</Typography>
+                </Grid>
+                {mrpRun?.status === 'Running' && (
+                  <Grid size={{ xs: 12 }}>
+                    <LinearProgress sx={{ height: 4, borderRadius: 2, mt: 1 }} />
+                  </Grid>
+                )}
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <ProductionIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Configuration Details
+              </Typography>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Sales Orders</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {mrpRun?.so_ids?.length || 0} order(s) selected
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Created At</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{formatDateTime(mrpRun?.createdAt)}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Triggered By</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {loadingDetails ? (
+                      <CircularProgress size={12} />
+                    ) : triggeredByUser ? (
+                      getDisplayValue(triggeredByUser.name || triggeredByUser.username)
+                    ) : (
+                      getDisplayValue(mrpRun?.triggered_by?.name || mrpRun?.triggered_by?.username || 'System')
+                    )}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Job Reference</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {loadingDetails ? (
+                      <CircularProgress size={12} />
+                    ) : jobDetails ? (
+                      jobDetails.job_name || jobDetails.name || jobDetails.job_type || 'Unknown Job'
+                    ) : (
+                      getDisplayValue(mrpRun?.job_id)
+                    )}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Status Message</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.secondary }}>
+                    {mrpRun?.status === 'Completed' && 'MRP run completed successfully'}
+                    {mrpRun?.status === 'Running' && 'MRP run is currently in progress'}
+                    {mrpRun?.status === 'Queued' && 'MRP run is queued and waiting to start'}
+                    {mrpRun?.status === 'Failed' && 'MRP run failed. Please check logs for details'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Summary Cards */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <AssessmentIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Summary
+              </Typography>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.secondary }}>Total Items</Typography>
+                    <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.primary }}>{stats.totalItems}</Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.secondary }}>Shortages</Typography>
+                    <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.error }}>{stats.itemsWithShortfall}</Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.secondary }}>Purchase Orders</Typography>
+                    <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.info }}>{stats.totalPurchase}</Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.secondary }}>Work Orders</Typography>
+                    <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.warning }}>{stats.totalManufacture}</Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 2:
+        if (!mrpRun?.mrp_lines || mrpRun.mrp_lines.length === 0) {
+          return (
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+              No MRP calculation results available
+            </Alert>
+          );
+        }
+
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                MRP Results ({mrpRun.mrp_lines.length} items)
+              </Typography>
+              <TableContainer component={Paper} sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: COLORS.background.light }}>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part No</TableCell>
+                      <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Gross Req</TableCell>
+                      <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Net Req</TableCell>
+                      <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Planned Order</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Req Date</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Action</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Source</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {mrpRun.mrp_lines.slice(0, 50).map((line, idx) => (
+                      <TableRow key={idx} hover>
+                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{line.part_no}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{formatNumber(line.gross_requirement)}</TableCell>
+                        <TableCell align="right">
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: line.net_requirement > 0 ? COLORS.error : COLORS.success }}>
+                            {formatNumber(line.net_requirement)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.75rem' }}>{formatNumber(line.planned_order_qty)}</TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem' }}>{formatDate(line.requirement_date)}</TableCell>
+                        <TableCell><ActionChip action={line.action} /></TableCell>
+                        <TableCell><SourceChip source={line.source} /></TableCell>
+                      </TableRow>
+                    ))}
+                    {mrpRun.mrp_lines.length > 50 && (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 2 }}>
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                            + {mrpRun.mrp_lines.length - 50} more items
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Stack>
+        );
+
+      case 3:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Additional Information
+              </Typography>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>PR Count</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{mrpRun?.pr_count || 0}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>WO Count</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{mrpRun?.wo_count || 0}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Lines Count</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{mrpRun?.lines_count || 0}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Updated At</Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{formatDateTime(mrpRun?.updatedAt)}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Log</Typography>
+                  <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5, maxHeight: 150, overflow: 'auto' }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                      {mrpRun?.log || 'No logs available'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <Dialog
@@ -427,10 +703,11 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
       PaperProps={{
         sx: {
           borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
           border: `1px solid ${COLORS.border}`,
           overflow: 'hidden',
-          maxHeight: '90vh',
-          bgcolor: COLORS.background.light
+          height: '85vh',
+          maxHeight: '85vh'
         }
       }}
     >
@@ -443,378 +720,48 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <InventoryIcon sx={{ color: COLORS.primary, fontSize: '1.25rem' }} />
-          <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
-              MRP Run Details
-            </Typography>
-            {mrpRun && (
-              <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                {mrpRun.mrp_run_id}
-              </Typography>
-            )}
-          </Box>
-        </Stack>
-        <IconButton onClick={onClose} size="small" sx={{ color: COLORS.text.secondary }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          MRP Run Details
+        </Typography>
+        <IconButton onClick={onClose} size="small">
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0 }}>
+      {/* Stepper */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white, overflow: 'auto' }}>
         {loading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={48} sx={{ color: COLORS.primary, mb: 2 }} />
-            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+            <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+            <Typography sx={{ ml: 2, fontSize: '0.75rem', color: COLORS.text.secondary }}>
               Loading MRP run details...
             </Typography>
           </Box>
         ) : error ? (
-          <Box sx={{ p: 3 }}>
-            <Alert
-              severity="error"
-              sx={{
-                borderRadius: 1.5,
-                '& .MuiAlert-message': { fontSize: '0.75rem' }
-              }}
-            >
-              {error}
-            </Alert>
-          </Box>
-        ) : mrpRun ? (
-          <>
-            {/* Header Section with Status */}
-            <Box sx={{
-              p: 2.5,
-              bgcolor: COLORS.background.white,
-              borderBottom: `1px solid ${COLORS.border}`
-            }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={8}>
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                    <StatusChip status={mrpRun.status} />
-                    <RunTypeChip runType={mrpRun.run_type} />
-                    {mrpRun.status === 'Running' && (
-                      <LinearProgress sx={{ flex: 1, height: 4, borderRadius: 2 }} />
-                    )}
-                  </Stack>
-
-                  <Grid container spacing={2}>
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Run Date"
-                        value={formatDateTime(mrpRun.run_date)}
-                        icon={<CalendarIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Completed At"
-                        value={mrpRun.completed_at ? formatDateTime(mrpRun.completed_at) : 'In Progress'}
-                        icon={<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Planning Horizon"
-                        value={`${mrpRun.planning_horizon} days`}
-                        icon={<ScheduleIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <InfoRow
-                        label="Status Message"
-                        value={getMRPStatusMessage(mrpRun.status)}
-                        icon={<InfoIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Job ID"
-                        value={
-                          loadingDetails ? (
-                            <CircularProgress size={12} />
-                          ) : jobDetails ? (
-                            <Tooltip 
-                              title={
-                                <Stack spacing={0.5}>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>Job ID: {jobDetails.job_id || jobDetails._id}</Typography>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>Type: {jobDetails.job_type}</Typography>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>Status: {jobDetails.status}</Typography>
-                                  {jobDetails.description && (
-                                    <Typography sx={{ fontSize: '0.7rem' }}>Description: {jobDetails.description}</Typography>
-                                  )}
-                                </Stack>
-                              }
-                              arrow
-                              placement="top"
-                            >
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ cursor: 'pointer' }}>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.primary }}>
-                                  {jobDetails.job_name || jobDetails.name || jobDetails.job_type || 'Unknown Job'}
-                                </Typography>
-                                <Chip
-                                  label={jobDetails.job_id?.slice(-6) || jobDetails._id?.slice(-6)}
-                                  size="small"
-                                  sx={{
-                                    height: 18,
-                                    fontSize: '0.6rem',
-                                    bgcolor: COLORS.background.light,
-                                    color: COLORS.text.secondary
-                                  }}
-                                />
-                              </Stack>
-                            </Tooltip>
-                          ) : (
-                            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-                              {formatMongoId(mrpRun.job_id)}
-                            </Typography>
-                          )
-                        }
-                        icon={<AssessmentIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Triggered By"
-                        value={
-                          loadingDetails ? (
-                            <CircularProgress size={12} />
-                          ) : triggeredByUser ? (
-                            <Tooltip 
-                              title={
-                                <Stack spacing={0.5}>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>ID: {triggeredByUser.employee_id || triggeredByUser._id}</Typography>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>Email: {triggeredByUser.email}</Typography>
-                                  <Typography sx={{ fontSize: '0.7rem' }}>Role: {triggeredByUser.role}</Typography>
-                                </Stack>
-                              }
-                              arrow
-                              placement="top"
-                            >
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ cursor: 'pointer' }}>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.primary }}>
-                                  {triggeredByUser.name || triggeredByUser.username || 'Unknown User'}
-                                </Typography>
-                                {triggeredByUser.employee_id && (
-                                  <Chip
-                                    label={triggeredByUser.employee_id}
-                                    size="small"
-                                    sx={{
-                                      height: 18,
-                                      fontSize: '0.6rem',
-                                      bgcolor: COLORS.background.light,
-                                      color: COLORS.text.secondary
-                                    }}
-                                  />
-                                )}
-                              </Stack>
-                            </Tooltip>
-                          ) : (
-                            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-                              {mrpRun.triggered_by?.name || mrpRun.triggered_by?.username || formatMongoId(mrpRun.triggered_by?._id || mrpRun.triggered_by) || 'System'}
-                            </Typography>
-                          )
-                        }
-                        icon={<PersonIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Created At"
-                        value={formatDateTime(mrpRun.createdAt)}
-                        icon={<CalendarIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Updated At"
-                        value={formatDateTime(mrpRun.updatedAt)}
-                        icon={<CalendarIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="PR Count"
-                        value={mrpRun.pr_count}
-                        icon={<ShoppingCartIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="WO Count"
-                        value={mrpRun.wo_count}
-                        icon={<FactoryIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
-                      <InfoRow
-                        label="Lines Count"
-                        value={mrpRun.lines_count}
-                        icon={<InventoryIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <InfoRow
-                        label="Last Run Reference"
-                        value={mrpRun.last_run_reference || 'N/A'}
-                        icon={<InfoIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <InfoRow
-                        label="Log"
-                        value={mrpRun.log || 'No logs available'}
-                        icon={<InfoIcon sx={{ fontSize: '0.8rem' }} />}
-                      />
-                    </Grid>
-                  </Grid>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }} alignItems="center" sx={{ height: '100%' }}>
-                    {mrpRun.status !== 'Running' && mrpRun.status !== 'Queued' && (
-                      <Button
-                        variant="contained"
-                        startIcon={<PlayArrowIcon />}
-                        onClick={handleRerun}
-                        sx={{
-                          height: 36,
-                          px: 2,
-                          borderRadius: 1.5,
-                          bgcolor: COLORS.primary,
-                          fontSize: '0.7rem',
-                          fontWeight: 500,
-                          textTransform: 'none',
-                          '&:hover': { bgcolor: COLORS.primaryDark }
-                        }}
-                      >
-                        Rerun MRP
-                      </Button>
-                    )}
-                  </Stack>
-                </Grid>
-              </Grid>
-            </Box>
-
-            {/* MRP Lines Section */}
-            {mrpRun.mrp_lines && mrpRun.mrp_lines.length > 0 && (
-              <Box sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
-                    MRP Calculation Results
-                  </Typography>
-                  <Chip
-                    label={`${filteredLines.length} items`}
-                    size="small"
-                    sx={{ fontSize: '0.7rem', height: 24 }}
-                  />
-                </Stack>
-
-                {/* Filters */}
-                <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mb: 0.5 }}>
-                      Filter by Action
-                    </Typography>
-                    <Stack direction="row" spacing={0.5}>
-                      {uniqueActions.map(action => (
-                        <Chip
-                          key={action}
-                          label={action === 'all' ? 'All' : action}
-                          size="small"
-                          onClick={() => setFilterAction(action)}
-                          sx={{
-                            fontSize: '0.7rem',
-                            height: 28,
-                            bgcolor: filterAction === action ? COLORS.primary : 'transparent',
-                            color: filterAction === action ? 'white' : COLORS.text.secondary,
-                            border: `1px solid ${filterAction === action ? COLORS.primary : COLORS.border}`,
-                            '&:hover': {
-                              bgcolor: filterAction === action ? COLORS.primaryDark : COLORS.background.hover
-                            }
-                          }}
-                        />
-                      ))}
-                    </Stack>
-                  </Box>
-
-                  <Box>
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mb: 0.5 }}>
-                      Filter by Source
-                    </Typography>
-                    <Stack direction="row" spacing={0.5}>
-                      {uniqueSources.map(source => (
-                        <Chip
-                          key={source}
-                          label={source === 'all' ? 'All' : source}
-                          size="small"
-                          onClick={() => setFilterSource(source)}
-                          sx={{
-                            fontSize: '0.7rem',
-                            height: 28,
-                            bgcolor: filterSource === source ? COLORS.primary : 'transparent',
-                            color: filterSource === source ? 'white' : COLORS.text.secondary,
-                            border: `1px solid ${filterSource === source ? COLORS.primary : COLORS.border}`,
-                            '&:hover': {
-                              bgcolor: filterSource === source ? COLORS.primaryDark : COLORS.background.hover
-                            }
-                          }}
-                        />
-                      ))}
-                    </Stack>
-                  </Box>
-                </Stack>
-
-                {/* MRP Lines Table */}
-                <TableContainer component={Paper} sx={{ maxHeight: 400, borderRadius: 1.5 }}>
-                  <Table stickyHeader size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: COLORS.background.light }}>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>#</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part No.</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Item ID</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Gross Req</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Sched Receipt</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Opening Stock</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Net Req</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Planned Order</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Release Date</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Req Date</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Action</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Source</TableCell>
-                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>SO Ref</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredLines.length > 0 ? (
-                        filteredLines.map((line, idx) => (
-                          <MRPLineItem key={idx} line={line} index={idx} />
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
-                            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
-                              No MRP lines found
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            )}
-          </>
-        ) : null}
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>
+            {error}
+          </Alert>
+        ) : (
+          renderStepContent(activeStep)
+        )}
       </DialogContent>
 
       <DialogActions sx={{
@@ -822,10 +769,13 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
         py: 1.5,
         borderTop: `1px solid ${COLORS.border}`,
         bgcolor: COLORS.background.white,
-        gap: 1
+        justifyContent: 'space-between'
       }}>
         <Button
-          onClick={onClose}
+          onClick={handleBack}
+          disabled={activeStep === 0 || loading}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,
             px: 2,
@@ -833,30 +783,77 @@ const ViewMrpRun = ({ open, onClose, mrpRunId, onRerun }) => {
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text.secondary,
             fontSize: '0.7rem',
-            textTransform: 'none'
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
           }}
         >
-          Close
+          Back
         </Button>
-        {mrpRun?.status !== 'Running' && mrpRun?.status !== 'Queued' && (
+        <Box>
           <Button
-            variant="contained"
-            onClick={handleRerun}
-            startIcon={<PlayArrowIcon sx={{ fontSize: '0.8rem' }} />}
+            onClick={onClose}
+            size="small"
             sx={{
               height: 32,
               px: 2,
+              mr: 1,
               borderRadius: 1.5,
-              bgcolor: COLORS.primary,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
               fontSize: '0.7rem',
               fontWeight: 500,
               textTransform: 'none',
-              '&:hover': { bgcolor: COLORS.primaryDark }
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
             }}
           >
-            Rerun MRP
+            Close
           </Button>
-        )}
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
       </DialogActions>
     </Dialog>
   );

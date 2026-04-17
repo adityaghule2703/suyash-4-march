@@ -144,8 +144,8 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onViewDetails, onViewStat
   const isTerminal = isMRPRunCompleted(item?.status) || isMRPRunFailed(item?.status);
   
   // Check permissions for MRP module
-  const canView = isSuperAdmin || hasPermission(permissions, MODULES.MRP, PAGES.MRP, ACTIONS.VIEW);
-  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.MRP, PAGES.MRP, ACTIONS.CREATE);
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.MRP_MASTER, ACTIONS.VIEW);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.MRP_MASTER, ACTIONS.CREATE);
 
   // Count how many actions are available
   const hasAnyActions = canView;
@@ -292,8 +292,8 @@ const MrpMaster = () => {
     
     return hasPermission(
       userPermissions,
-      MODULES.MRP,
-      PAGES.MRP,
+      MODULES.BOM_MASTER,
+      PAGES.MRP_MASTER,
       action
     );
   };
@@ -793,7 +793,8 @@ const MrpMaster = () => {
         />
       )}
 
-      {selectedMRP && (
+       {/* View Details and Status Modals - Only show if user has VIEW permission */}
+      {canViewPage && selectedMRP && (
         <>
           <ViewMrpRun
             open={openViewDetailsModal}

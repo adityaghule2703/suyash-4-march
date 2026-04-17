@@ -161,68 +161,66 @@ const AddDowntime = ({ open, onClose, onAdd, oeeRecordId, machineName, recordDat
         return isValid;
     };
 
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            setError('Please fix the errors above');
-            return;
-        }
+   const handleSubmit = async () => {
+  if (!validateForm()) {
+    setError('Please fix the errors above');
+    return;
+  }
 
-        setLoading(true);
-        setError('');
+  // Safety check - ensure oeeRecordId is a string
+  let recordId = oeeRecordId;
+  if (typeof recordId === 'object' && recordId !== null) {
+    // If it's an object, try to get the _id property
+    recordId = recordId._id || recordId.id;
+    console.log('Extracted ID from object:', recordId);
+  }
+  
+  if (!recordId || typeof recordId !== 'string') {
+    setError('Invalid OEE record ID. Please try again.');
+    setLoading(false);
+    return;
+  }
 
-        try {
-            const token = localStorage.getItem('token');
+  setLoading(true);
+  setError('');
 
-            if (!token) {
-                setError('Authentication token not found. Please login again.');
-                setLoading(false);
-                return;
-            }
+  try {
+    const token = localStorage.getItem('token');
 
-            // Prepare type value - add description if "Other"
-            let typeValue = formData.type;
-            if (formData.type === 'Other' && formData.otherTypeDescription) {
-                typeValue = `Other: ${formData.otherTypeDescription}`;
-            }
+    if (!token) {
+      setError('Authentication token not found. Please login again.');
+      setLoading(false);
+      return;
+    }
 
-            const submitData = {
-                oee_record_id: oeeRecordId,
-                type: formData.type,
-                start_time: new Date(formData.start_time).toISOString(),
-                end_time: new Date(formData.end_time).toISOString(),
-                root_cause: formData.root_cause || '',
-                action_taken: formData.action_taken || ''
-            };
-
-            const response = await axios.post(`${BASE_URL}/api/downtime-logs`, submitData, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.data.success) {
-                setCalculatedData(response.data.data);
-
-                // Call onAdd with the response data
-                if (onAdd) {
-                    onAdd(response.data.data);
-                }
-
-                // Auto close after 3 seconds
-                setTimeout(() => {
-                    handleClose();
-                }, 3000);
-            } else {
-                setError(response.data.message || 'Failed to log downtime');
-            }
-        } catch (err) {
-            console.error('Error logging downtime:', err);
-            setError(err.response?.data?.message || 'Failed to log downtime. Please try again.');
-        } finally {
-            setLoading(false);
-        }
+    const submitData = {
+      oee_record_id: recordId,  // Use the validated ID
+      type: formData.type,
+      start_time: new Date(formData.start_time).toISOString(),
+      end_time: new Date(formData.end_time).toISOString(),
+      root_cause: formData.root_cause || '',
+      action_taken: formData.action_taken || ''
     };
+
+    console.log('Submitting downtime with data:', submitData);  // Debug log
+
+    const response = await axios.post(`${BASE_URL}/api/downtime-logs`, submitData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // ... rest of the code
+  } catch (err) {
+    console.error('Error logging downtime:', err);
+    setError(err.response?.data?.message || 'Failed to log downtime. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
     const handleClose = () => {
         resetForm();
@@ -267,7 +265,7 @@ const AddDowntime = ({ open, onClose, onAdd, oeeRecordId, machineName, recordDat
             <Dialog
                 open={open}
                 onClose={handleClose}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 PaperProps={{
                     sx: {
@@ -399,7 +397,7 @@ const AddDowntime = ({ open, onClose, onAdd, oeeRecordId, machineName, recordDat
                                         type="datetime-local"
                                         fullWidth
                                         size="small"
-                                        name="start_time"
+                                        name="end_time"
                                         value={formData.start_time ? new Date(formData.start_time).toISOString().slice(0, 16) : ''}
                                         onChange={(e) => handleDateTimeChange('start_time', e.target.value ? new Date(e.target.value) : null)}
                                         error={!!fieldErrors.start_time}

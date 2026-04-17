@@ -1,7 +1,11 @@
-// MachineOEETrend.jsx
+// MachineOEETrend.jsx - Converted to Dialog Modal
 import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Card,
   CardContent,
   Typography,
@@ -30,9 +34,16 @@ import {
   Pagination,
   Tabs,
   Tab,
-  LinearProgress
+  LinearProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from '@mui/material';
 import {
+  Close as CloseIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   ShowChart as ShowChartIcon,
@@ -46,7 +57,9 @@ import {
   PieChart as PieChartIcon,
   Speed as SpeedIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -64,13 +77,34 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
+  PieChart as RePieChart,
   Pie,
   Cell,
   ComposedChart
 } from 'recharts';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+
+const steps = ['Select Parameters', 'View Analysis', 'Summary'];
+
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: '#1976D2',
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: '#1976D2',
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
 
 const COLORS = {
   primary: '#1976D2',
@@ -97,7 +131,8 @@ const COLORS = {
 
 const CHART_COLORS = ['#1976D2', '#2E7D32', '#ED6C02', '#D32F2F', '#9C27B0', '#009688'];
 
-const MachineOEETrend = ({ machineId, onClose }) => {
+const MachineOEETrend = ({ open, onClose, machineId }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [machineDetails, setMachineDetails] = useState(null);
@@ -114,12 +149,12 @@ const MachineOEETrend = ({ machineId, onClose }) => {
     improvement_count: 0,
     decline_count: 0
   });
-  const [chartType, setChartType] = useState('line'); // line, area, bar, composed
-  const [timeGranularity, setTimeGranularity] = useState('day'); // day, week, month
+  const [chartType, setChartType] = useState('line');
+  const [timeGranularity, setTimeGranularity] = useState('day');
 
   // Date range state
   const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().setDate(new Date().getDate() - 90)), // Last 90 days
+    from: new Date(new Date().setDate(new Date().getDate() - 90)),
     to: new Date()
   });
 
@@ -136,26 +171,30 @@ const MachineOEETrend = ({ machineId, onClose }) => {
 
   // Tab state
   const [activeTab, setActiveTab] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Fetch machine details on component mount
   useEffect(() => {
-    if (machineId) {
-      fetchMachineDetails();
-      fetchTrendData();
+    if (open && machineId) {
+      const actualMachineId = machineId?._id || machineId;
+      fetchMachineDetails(actualMachineId);
+      fetchTrendData(actualMachineId);
+      setActiveStep(0);
     }
-  }, [machineId]);
+  }, [open, machineId]);
 
   // Fetch data when date range, pagination, or granularity changes
   useEffect(() => {
-    if (machineId) {
-      fetchTrendData();
+    if (open && machineId) {
+      const actualMachineId = machineId?._id || machineId;
+      fetchTrendData(actualMachineId);
     }
-  }, [dateRange, pagination.page, pagination.limit, sortBy, sortOrder, timeGranularity]);
+  }, [dateRange, pagination.page, pagination.limit, sortBy, sortOrder, timeGranularity, open, machineId]);
 
-  const fetchMachineDetails = async () => {
+  const fetchMachineDetails = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines/${machineId}`, {
+      const response = await axios.get(`${BASE_URL}/api/machines/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -169,18 +208,16 @@ const MachineOEETrend = ({ machineId, onClose }) => {
     }
   };
 
-  const fetchTrendData = async () => {
+  const fetchTrendData = async (id) => {
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
       
-      // Format dates for API
       const fromDate = dateRange.from ? dateRange.from.toISOString().split('T')[0] : '';
       const toDate = dateRange.to ? dateRange.to.toISOString().split('T')[0] : '';
 
-      // Build query parameters
       const params = new URLSearchParams();
       if (fromDate) params.append('from', fromDate);
       if (toDate) params.append('to', toDate);
@@ -190,7 +227,7 @@ const MachineOEETrend = ({ machineId, onClose }) => {
       params.append('page', pagination.page);
       params.append('limit', pagination.limit);
 
-      const response = await axios.get(`${BASE_URL}/api/machines/${machineId}/oee-trend?${params.toString()}`, {
+      const response = await axios.get(`${BASE_URL}/api/machines/${id}/oee-trend?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -203,7 +240,6 @@ const MachineOEETrend = ({ machineId, onClose }) => {
           total: response.data.total || response.data.data.length
         }));
         
-        // Calculate summary statistics
         calculateSummary(response.data.summary, response.data.data);
       } else {
         setError('Failed to fetch OEE trend data');
@@ -237,7 +273,6 @@ const MachineOEETrend = ({ machineId, onClose }) => {
     const max_oee = Math.max(...oeeValues);
     const min_oee = Math.min(...oeeValues);
     
-    // Calculate trend direction
     let trend_direction = 'stable';
     let trend_percentage = 0;
     let improvement_count = 0;
@@ -254,7 +289,6 @@ const MachineOEETrend = ({ machineId, onClose }) => {
       else if (trend_percentage < -5) trend_direction = 'declining';
       else trend_direction = 'stable';
       
-      // Count improvements and declines
       for (let i = 1; i < data.length; i++) {
         const current = data[i].oee || data[i].avg_oee || 0;
         const previous = data[i-1].oee || data[i-1].avg_oee || 0;
@@ -283,6 +317,7 @@ const MachineOEETrend = ({ machineId, onClose }) => {
       [field]: value
     }));
     setPagination(prev => ({ ...prev, page: 1 }));
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   const handleSortChange = (property) => {
@@ -296,7 +331,10 @@ const MachineOEETrend = ({ machineId, onClose }) => {
   };
 
   const handleRefresh = () => {
-    fetchTrendData();
+    const actualMachineId = machineId?._id || machineId;
+    if (actualMachineId) {
+      fetchTrendData(actualMachineId);
+    }
   };
 
   const handleClearDates = () => {
@@ -305,6 +343,51 @@ const MachineOEETrend = ({ machineId, onClose }) => {
       to: new Date()
     });
     setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const validateStep = (step) => {
+    const errors = {};
+    let isValid = true;
+
+    switch (step) {
+      case 0:
+        if (!dateRange.from) {
+          errors.from = 'From date is required';
+          isValid = false;
+        }
+        if (!dateRange.to) {
+          errors.to = 'To date is required';
+          isValid = false;
+        }
+        if (dateRange.from && dateRange.to && dateRange.from > dateRange.to) {
+          errors.to = 'To date must be after from date';
+          isValid = false;
+        }
+        break;
+      default:
+        return true;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in this section');
+    }
+    return isValid;
+  };
+
+  const handleNext = () => {
+    if (validateStep(activeStep)) {
+      if (activeStep === 0) {
+        handleRefresh();
+      }
+      setError('');
+      setActiveStep((prevStep) => prevStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setError('');
+    setActiveStep((prevStep) => prevStep - 1);
   };
 
   const getOEEStatus = (oee) => {
@@ -326,17 +409,13 @@ const MachineOEETrend = ({ machineId, onClose }) => {
   const exportToCSV = () => {
     if (trendData.length === 0) return;
     
-    const headers = ['Date', 'OEE (%)', 'Availability (%)', 'Performance (%)', 'Quality (%)', 'Planned Time', 'Run Time', 'Total Qty', 'Good Qty'];
+    const headers = ['Date', 'OEE (%)', 'Availability (%)', 'Performance (%)', 'Quality (%)'];
     const csvData = trendData.map(record => [
       formatDate(record.date),
       record.oee || record.avg_oee || 0,
       record.availability || 0,
       record.performance || 0,
-      record.quality || 0,
-      record.planned_production_time || 0,
-      record.actual_run_time || 0,
-      record.total_qty || 0,
-      record.good_qty || 0
+      record.quality || 0
     ]);
     
     const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
@@ -347,10 +426,6 @@ const MachineOEETrend = ({ machineId, onClose }) => {
     a.download = `oee_trend_${machineDetails?.machine_code}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const renderChart = () => {
@@ -402,24 +477,7 @@ const MachineOEETrend = ({ machineId, onClose }) => {
           </ResponsiveContainer>
         );
       
-      case 'composed':
-        return (
-          <ResponsiveContainer width="100%" height={400}>
-            <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" angle={-45} textAnchor="end" height={60} />
-              <YAxis domain={[0, 100]} />
-              <RechartsTooltip />
-              <Legend />
-              <Bar dataKey="availability" fill={COLORS.info} name="Availability %" barSize={20} />
-              <Bar dataKey="performance" fill={COLORS.success} name="Performance %" barSize={20} />
-              <Bar dataKey="quality" fill={COLORS.warning} name="Quality %" barSize={20} />
-              <Line type="monotone" dataKey="oee" stroke={COLORS.primary} strokeWidth={2} name="OEE %" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      
-      default: // line chart
+      default:
         return (
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={chartData}>
@@ -463,7 +521,7 @@ const MachineOEETrend = ({ machineId, onClose }) => {
 
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
+        <RePieChart>
           <Pie
             data={pieData}
             cx="50%"
@@ -480,16 +538,117 @@ const MachineOEETrend = ({ machineId, onClose }) => {
           </Pie>
           <RechartsTooltip />
           <Legend />
-        </PieChart>
+        </RePieChart>
       </ResponsiveContainer>
     );
   };
 
-  if (!machineId) {
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Stack spacing={2}>
+            {/* Machine Information */}
+            {machineDetails && (
+              <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.light }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  Machine Information
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Name</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_name}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Code</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_code}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Type</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.machine_type}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>OEE Target</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{machineDetails.oee_target_percent}%</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+
+            {/* Date Range Selection */}
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                Select Date Range
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 5 }}>
+                  <DatePicker
+                    label="From Date"
+                    value={dateRange.from}
+                    onChange={(date) => handleDateRangeChange('from', date)}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small', 
+                        fullWidth: true,
+                        error: !!fieldErrors.from,
+                        helperText: fieldErrors.from
+                      } 
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 5 }}>
+                  <DatePicker
+                    label="To Date"
+                    value={dateRange.to}
+                    onChange={(date) => handleDateRangeChange('to', date)}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small', 
+                        fullWidth: true,
+                        error: !!fieldErrors.to,
+                        helperText: fieldErrors.to
+                      } 
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearDates}
+                    size="small"
+                    fullWidth
+                    sx={{ height: 40 }}
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 2 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Time Granularity</InputLabel>
+                  <Select
+                    value={timeGranularity}
+                    onChange={(e) => setTimeGranularity(e.target.value)}
+                    label="Time Granularity"
+                  >
+                    <MenuItem value="day">Daily</MenuItem>
+                    <MenuItem value="week">Weekly</MenuItem>
+                    <MenuItem value="month">Monthly</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Paper>
+          </Stack>
+        );
+
+case 1:
+  if (trendData.length === 0) {
     return (
-      <Paper sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">No machine selected</Typography>
-      </Paper>
+      <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+        No data available for the selected date range. Please go back and select a different date range.
+      </Alert>
     );
   }
 
@@ -497,324 +656,393 @@ const MachineOEETrend = ({ machineId, onClose }) => {
   const StatusIcon = oeeStatus.icon;
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 2 }}>
-        {/* Header Section */}
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: COLORS.text.primary }}>
-                OEE Trend Analysis
+    <Stack spacing={2}>
+      {/* Summary Cards - All same size */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Period</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5, textAlign: 'center' }}>
+                {formatDate(summary.period_from)} - {formatDate(summary.period_to)}
               </Typography>
-              {machineDetails && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {machineDetails.machine_name} ({machineDetails.machine_code})
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {machineDetails.machine_type} | {machineDetails.work_centre} | Target: {machineDetails.oee_target_percent}%
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-            {/* <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Refresh Data">
-                <IconButton onClick={handleRefresh} size="small">
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Export to CSV">
-                <IconButton onClick={exportToCSV} size="small" disabled={trendData.length === 0}>
-                  <DownloadIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Print">
-                <IconButton onClick={handlePrint} size="small" disabled={trendData.length === 0}>
-                  <PrintIcon />
-                </IconButton>
-              </Tooltip>
-            </Box> */}
-          </Box>
-        </Paper>
-
-        {/* Date Range Filters */}
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 5 }}>
-              <DatePicker
-                label="From Date"
-                value={dateRange.from}
-                onChange={(date) => handleDateRangeChange('from', date)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 5 }}>
-              <DatePicker
-                label="To Date"
-                value={dateRange.to}
-                onChange={(date) => handleDateRangeChange('to', date)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={handleClearDates}
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block' }}>
+                {summary.record_count} records
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Average OEE</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 600, mt: 0.5, color: oeeStatus.color, textAlign: 'center' }}>
+                {summary.avg_oee}%
+              </Typography>
+              <Chip 
+                icon={<StatusIcon sx={{ fontSize: '0.8rem' }} />}
+                label={oeeStatus.label}
                 size="small"
-                fullWidth
-                sx={{ height: 40 }}
-              >
-                Clear Dates
-              </Button>
-            </Grid>
-          </Grid>
-        </Paper>
+                sx={{ mt: 0.5, height: 24, bgcolor: oeeStatus.color, color: 'white' }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Range</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: COLORS.success, textAlign: 'center' }}>
+                Max: {summary.max_oee}%
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: COLORS.error, textAlign: 'center' }}>
+                Min: {summary.min_oee}%
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Trend</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 0.5 }}>
+                {summary.trend_direction === 'improving' && <TrendingUpIcon sx={{ color: COLORS.success }} />}
+                {summary.trend_direction === 'declining' && <TrendingDownIcon sx={{ color: COLORS.error }} />}
+                {summary.trend_direction === 'stable' && <ShowChartIcon sx={{ color: COLORS.text.secondary }} />}
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {summary.trend_direction === 'improving' ? '+' : ''}
+                  {summary.trend_direction !== 'stable' ? summary.trend_percentage : ''}
+                  {summary.trend_direction !== 'stable' ? '%' : ''}
+                </Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block' }}>
+                Improvements: {summary.improvement_count} | Declines: {summary.decline_count}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-        {/* Summary Cards */}
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <CardContent>
-                <Typography variant="caption" color="text.secondary">Period</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5 }}>
-                  {formatDate(summary.period_from)} - {formatDate(summary.period_to)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {summary.record_count} records
-                </Typography>
-              </CardContent>
-            </Card>
+      {/* Chart Type Selection */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          Chart Configuration
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Chart Type</InputLabel>
+              <Select
+                value={chartType}
+                onChange={(e) => setChartType(e.target.value)}
+                label="Chart Type"
+              >
+                <MenuItem value="line">Line Chart</MenuItem>
+                <MenuItem value="area">Area Chart</MenuItem>
+                <MenuItem value="bar">Bar Chart</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <CardContent>
-                <Typography variant="caption" color="text.secondary">Average OEE</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 600, mt: 0.5, color: oeeStatus.color }}>
-                  {summary.avg_oee}%
-                </Typography>
-                <Chip 
-                  icon={<StatusIcon sx={{ fontSize: '0.8rem' }} />}
-                  label={oeeStatus.label}
-                  size="small"
-                  sx={{ mt: 0.5, height: 24, bgcolor: oeeStatus.color, color: 'white' }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <CardContent>
-                <Typography variant="caption" color="text.secondary">Range</Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: COLORS.success }}>
-                  Max: {summary.max_oee}%
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: COLORS.error }}>
-                  Min: {summary.min_oee}%
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-              <CardContent>
-                <Typography variant="caption" color="text.secondary">Trend</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                  {summary.trend_direction === 'improving' && <TrendingUpIcon sx={{ color: COLORS.success }} />}
-                  {summary.trend_direction === 'declining' && <TrendingDownIcon sx={{ color: COLORS.error }} />}
-                  {summary.trend_direction === 'stable' && <ShowChartIcon sx={{ color: COLORS.text.secondary }} />}
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {summary.trend_direction === 'improving' ? '+' : ''}
-                    {summary.trend_direction !== 'stable' ? summary.trend_percentage : ''}
-                    {summary.trend_direction !== 'stable' ? '%' : ''}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Improvements: {summary.improvement_count} | Declines: {summary.decline_count}
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Button
+              variant="outlined"
+              onClick={() => setActiveTab(activeTab === 0 ? 1 : 0)}
+              fullWidth
+              startIcon={activeTab === 0 ? <PieChartIcon /> : <ShowChartIcon />}
+              sx={{ height: 40 }}
+            >
+              Switch to {activeTab === 0 ? 'Distribution View' : 'Chart View'}
+            </Button>
           </Grid>
         </Grid>
+      </Paper>
 
-        {/* Chart Controls */}
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Chart Type</InputLabel>
-                <Select
-                  value={chartType}
-                  onChange={(e) => setChartType(e.target.value)}
-                  label="Chart Type"
-                >
-                  <MenuItem value="line">Line Chart</MenuItem>
-                  <MenuItem value="area">Area Chart</MenuItem>
-                  <MenuItem value="bar">Bar Chart</MenuItem>
-                  <MenuItem value="composed">Composed Chart</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Time Granularity</InputLabel>
-                <Select
-                  value={timeGranularity}
-                  onChange={(e) => setTimeGranularity(e.target.value)}
-                  label="Time Granularity"
-                >
-                  <MenuItem value="day">Daily</MenuItem>
-                  <MenuItem value="week">Weekly</MenuItem>
-                  <MenuItem value="month">Monthly</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <Button
-                variant="contained"
-                onClick={handleRefresh}
-                disabled={loading}
-                fullWidth
-                startIcon={<RefreshIcon />}
-              >
-                Refresh Chart
-              </Button>
-            </Grid>
-          </Grid>
-        </Paper>
+      {/* Chart or Distribution View */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          {activeTab === 0 ? 'OEE Trend Over Time' : 'OEE Distribution'}
+        </Typography>
+        {activeTab === 0 ? renderChart() : renderDistributionChart()}
+      </Paper>
+    </Stack>
+  );
 
-        {/* Tabs for different views */}
-        <Paper sx={{ mb: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
-          <Tabs
-            value={activeTab}
-            onChange={(e, v) => setActiveTab(v)}
-            sx={{ borderBottom: `1px solid ${COLORS.border}` }}
-          >
-            <Tab icon={<ShowChartIcon />} label="Trend Chart" />
-            <Tab icon={<PieChartIcon />} label="Distribution" />
-            <Tab icon={<AssessmentIcon />} label="Detailed Data" />
-          </Tabs>
+      case 2:
+        if (trendData.length === 0) {
+          return (
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+              No data available for export. Please go back and select a different date range.
+            </Alert>
+          );
+        }
 
-          <Box sx={{ p: 2 }}>
-            {activeTab === 0 && (
-              <>
-                {loading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : error ? (
-                  <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
-                ) : (
-                  renderChart()
-                )}
-              </>
-            )}
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                Detailed Data Table
+              </Typography>
+              
+              <TableContainer sx={{ maxHeight: 400 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'date'}
+                          direction={sortOrder}
+                          onClick={() => handleSortChange('date')}
+                        >
+                          Date
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'oee'}
+                          direction={sortOrder}
+                          onClick={() => handleSortChange('oee')}
+                        >
+                          OEE (%)
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>Availability (%)</TableCell>
+                      <TableCell>Performance (%)</TableCell>
+                      <TableCell>Quality (%)</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {trendData.map((record, index) => {
+                      const oee = record.oee || record.avg_oee || 0;
+                      const status = getOEEStatus(oee);
+                      return (
+                        <TableRow key={index} hover>
+                          <TableCell>{formatDate(record.date)}</TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography sx={{ fontWeight: 500, color: status.color }}>
+                                {oee}%
+                              </Typography>
+                              <Chip 
+                                label={status.label}
+                                size="small"
+                                sx={{ height: 20, fontSize: '0.65rem', bgcolor: status.color, color: 'white' }}
+                              />
+                            </Box>
+                          </TableCell>
+                          <TableCell>{record.availability || 0}%</TableCell>
+                          <TableCell>{record.performance || 0}%</TableCell>
+                          <TableCell>{record.quality || 0}%</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              {pagination.total > pagination.limit && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <Pagination
+                    count={Math.ceil(pagination.total / pagination.limit)}
+                    page={pagination.page}
+                    onChange={handlePageChange}
+                    color="primary"
+                    size="small"
+                  />
+                </Box>
+              )}
+            </Paper>
+          </Stack>
+        );
 
-            {activeTab === 1 && (
-              <>
-                {loading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : error ? (
-                  <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
-                ) : (
-                  renderDistributionChart()
-                )}
-              </>
-            )}
+      default:
+        return null;
+    }
+  };
 
-            {activeTab === 2 && (
-              <>
-                {loading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : error ? (
-                  <Alert severity="error" sx={{ borderRadius: 1.5 }}>{error}</Alert>
-                ) : (
-                  <>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>
-                              <TableSortLabel
-                                active={sortBy === 'date'}
-                                direction={sortOrder}
-                                onClick={() => handleSortChange('date')}
-                              >
-                                Date
-                              </TableSortLabel>
-                            </TableCell>
-                            <TableCell>
-                              <TableSortLabel
-                                active={sortBy === 'oee'}
-                                direction={sortOrder}
-                                onClick={() => handleSortChange('oee')}
-                              >
-                                OEE (%)
-                              </TableSortLabel>
-                            </TableCell>
-                            <TableCell>Availability (%)</TableCell>
-                            <TableCell>Performance (%)</TableCell>
-                            <TableCell>Quality (%)</TableCell>
-                            <TableCell>Planned Time</TableCell>
-                            <TableCell>Run Time</TableCell>
-                            <TableCell>Total Qty</TableCell>
-                            <TableCell>Good Qty</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {trendData.map((record, index) => {
-                            const oee = record.oee || record.avg_oee || 0;
-                            const status = getOEEStatus(oee);
-                            return (
-                              <TableRow key={index}>
-                                <TableCell>{formatDate(record.date)}</TableCell>
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography sx={{ fontWeight: 500, color: status.color }}>
-                                      {oee}%
-                                    </Typography>
-                                    <Chip 
-                                      label={status.label}
-                                      size="small"
-                                      sx={{ height: 20, fontSize: '0.65rem', bgcolor: status.color, color: 'white' }}
-                                    />
-                                  </Box>
-                                </TableCell>
-                                <TableCell>{record.availability || 0}%</TableCell>
-                                <TableCell>{record.performance || 0}%</TableCell>
-                                <TableCell>{record.quality || 0}%</TableCell>
-                                <TableCell>{record.planned_production_time || 0} min</TableCell>
-                                <TableCell>{record.actual_run_time || 0} min</TableCell>
-                                <TableCell>{record.total_qty || 0}</TableCell>
-                                <TableCell>{record.good_qty || 0}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                    
-                    {pagination.total > pagination.limit && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Pagination
-                          count={Math.ceil(pagination.total / pagination.limit)}
-                          page={pagination.page}
-                          onChange={handlePageChange}
-                          color="primary"
-                          size="small"
-                        />
-                      </Box>
-                    )}
-                  </>
-                )}
-              </>
+  return (
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+            height: '85vh',
+            maxHeight: '85vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Box>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+              OEE Trend Analysis
+            </Typography>
+            {machineDetails && (
+              <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                {machineDetails.machine_name} ({machineDetails.machine_code}) | Target: {machineDetails.oee_target_percent}%
+              </Typography>
             )}
           </Box>
-        </Paper>
-      </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        {/* Stepper */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
+        <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white, overflow: 'auto' }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+              <Typography sx={{ ml: 2, fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                Loading trend data...
+              </Typography>
+            </Box>
+          ) : (
+            renderStepContent(activeStep)
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
+          <Button
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            size="small"
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none'
+            }}
+          >
+            Back
+          </Button>
+          <Box>
+            <Button
+              onClick={onClose}
+              disabled={loading}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                mr: 1,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none'
+              }}
+            >
+              Cancel
+            </Button>
+            {activeStep === steps.length - 1 ? (
+              <>
+                {/* <Button
+                  variant="outlined"
+                  onClick={exportToCSV}
+                  disabled={trendData.length === 0}
+                  startIcon={<DownloadIcon sx={{ fontSize: '1rem' }} />}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    mr: 1,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text.secondary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none'
+                  }}
+                >
+                  Export CSV
+                </Button> */}
+                <Button
+                  variant="contained"
+                  onClick={onClose}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark }
+                  }}
+                >
+                  Close
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
     </LocalizationProvider>
   );
 };

@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import AddItem from '../../../master/itemmaster/AddItem';
 
 const COLORS = {
   primary: '#063C3F',
@@ -96,6 +97,9 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
   const [componentItems, setComponentItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
   
+  // State for Add Item Modal
+  const [openAddItemModal, setOpenAddItemModal] = useState(false);
+  
   const [formData, setFormData] = useState({
     parent_item_id: '',
     bom_version: '',
@@ -146,6 +150,16 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
     }
   }, []);
   
+  // Handle item added from modal
+  const handleItemAdded = (newItem) => {
+    // Add the new item to parentItems list
+    setParentItems(prev => [...prev, newItem]);
+    // Auto-select the newly added item
+    setFormData(prev => ({ ...prev, parent_item_id: newItem._id }));
+    // Clear any error for parent_item_id
+    setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
+  };
+  
   useEffect(() => {
     if (open && bom) {
       fetchParentItems();
@@ -155,7 +169,7 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
         parent_item_id: bom.parent_item_id?._id || bom.parent_item_id || '',
         bom_version: bom.bom_version || '',
         bom_type: bom.bom_type || 'Manufacturing',
-        status: bom.status ,
+        status: bom.status || 'Pending',
         batch_size: bom.batch_size || 1,
         yield_percent: bom.yield_percent || 100,
         setup_time_min: bom.setup_time_min || 30,
@@ -385,31 +399,65 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
                   </Box>
                 </Grid>
                 
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       PARENT ITEM <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      fullWidth
-                      options={parentItems}
-                      getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
-                      value={parentItems.find(item => item._id === formData.parent_item_id) || null}
-                      onChange={(event, newValue) => {
-                        setFormData(prev => ({ ...prev, parent_item_id: newValue?._id || '' }));
-                        setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
-                      }}
-                      loading={loadingItems}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          error={!!fieldErrors.parent_item_id}
-                          helperText={fieldErrors.parent_item_id}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          fullWidth
+                          options={parentItems}
+                          getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
+                          value={parentItems.find(item => item._id === formData.parent_item_id) || null}
+                          onChange={(event, newValue) => {
+                            setFormData(prev => ({ ...prev, parent_item_id: newValue?._id || '' }));
+                            setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
+                          }}
+                          loading={loadingItems}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              error={!!fieldErrors.parent_item_id}
+                              helperText={fieldErrors.parent_item_id}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem'
+                                }
+                              }}
+                            />
+                          )}
                         />
-                      )}
-                    />
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setOpenAddItemModal(true)}
+                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                        sx={{
+                          height: 35,
+                          minWidth: 'auto',
+                          px: 1.5,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`,
+                            color: COLORS.primary
+                          }
+                        }}
+                      >
+                        Add New
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
                 
@@ -521,52 +569,68 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Batch Size"
-                    type="number"
-                    size="small"
-                    name="batch_size"
-                    value={formData.batch_size}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      Batch Size
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      size="small"
+                      name="batch_size"
+                      value={formData.batch_size}
+                      onChange={handleChange}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Yield %"
-                    type="number"
-                    size="small"
-                    name="yield_percent"
-                    value={formData.yield_percent}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      Yield (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      size="small"
+                      name="yield_percent"
+                      value={formData.yield_percent}
+                      onChange={handleChange}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Setup Time (min)"
-                    type="number"
-                    size="small"
-                    name="setup_time_min"
-                    value={formData.setup_time_min}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      Setup Time (min)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      size="small"
+                      name="setup_time_min"
+                      value={formData.setup_time_min}
+                      onChange={handleChange}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Cycle Time (min)"
-                    type="number"
-                    size="small"
-                    name="cycle_time_min"
-                    value={formData.cycle_time_min}
-                    onChange={handleChange}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      Cycle Time (min)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      size="small"
+                      name="cycle_time_min"
+                      value={formData.cycle_time_min}
+                      onChange={handleChange}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
@@ -894,110 +958,88 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
   };
   
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Edit BOM
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-      
-      {/* Stepper */}
-      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Box>
-      
-      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-        {renderStepContent(activeStep)}
-        
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-      
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        justifyContent: 'space-between'
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          size="small"
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box>
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Edit BOM
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        
+        {/* Stepper */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+        
+        <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+          {renderStepContent(activeStep)}
+          
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
           <Button
-            onClick={onClose}
-            disabled={loading}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
             size="small"
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
-              mr: 1,
               borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text.secondary,
@@ -1010,52 +1052,83 @@ const EditBom = ({ open, onClose, bom, onUpdate }) => {
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
+              onClick={onClose}
               disabled={loading}
               size="small"
-              startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
+                mr: 1,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                '&:hover': { bgcolor: COLORS.primaryDark }
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
               }}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              Cancel
             </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={loading}
-              size="small"
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+                size="small"
+                startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Add Item Modal */}
+      <AddItem
+        open={openAddItemModal}
+        onClose={() => setOpenAddItemModal(false)}
+        onAdd={handleItemAdded}
+      />
+    </>
   );
 };
 

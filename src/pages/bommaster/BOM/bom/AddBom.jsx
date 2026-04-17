@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../../config/Config';
+import AddItem from '../../../master/itemmaster/AddItem';
 
 const COLORS = {
   primary: '#063C3F',
@@ -97,6 +98,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
   const [parentItems, setParentItems] = useState([]);
   const [componentItems, setComponentItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [openAddItemModal, setOpenAddItemModal] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -173,6 +175,15 @@ const AddBom = ({ open, onClose, onAdd }) => {
       fetchComponentItems();
     }
   }, [open, fetchParentItems, fetchComponentItems]);
+
+  const handleItemAdded = (newItem) => {
+  // Add the new item to parentItems list
+  setParentItems(prev => [...prev, newItem]);
+  // Auto-select the newly added item
+  setFormData(prev => ({ ...prev, parent_item_id: newItem._id }));
+  // Clear any error for parent_item_id
+  setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
+};
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -448,38 +459,67 @@ const handleSubmit = async () => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      PARENT ITEM <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Autocomplete
-                      fullWidth
-                      options={parentItems}
-                      getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
-                      value={parentItems.find(item => item._id === formData.parent_item_id) || null}
-                      onChange={(event, newValue) => {
-                        setFormData(prev => ({ ...prev, parent_item_id: newValue?._id || '' }));
-                        setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
-                      }}
-                      loading={loadingItems}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          error={!!fieldErrors.parent_item_id}
-                          helperText={fieldErrors.parent_item_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                      )}
-                    />
-                  </Box>
-                </Grid>
+              <Grid size={{ xs: 12 }}>
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+      PARENT ITEM <span style={{ color: '#EF4444' }}>*</span>
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+      <Box sx={{ flex: 1 }}>
+        <Autocomplete
+          fullWidth
+          options={parentItems}
+          getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
+          value={parentItems.find(item => item._id === formData.parent_item_id) || null}
+          onChange={(event, newValue) => {
+            setFormData(prev => ({ ...prev, parent_item_id: newValue?._id || '' }));
+            setFieldErrors(prev => ({ ...prev, parent_item_id: '' }));
+          }}
+          loading={loadingItems}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              error={!!fieldErrors.parent_item_id}
+              helperText={fieldErrors.parent_item_id}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                  fontSize: '0.75rem'
+                }
+              }}
+            />
+          )}
+        />
+      </Box>
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={() => setOpenAddItemModal(true)}
+        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+        sx={{
+          height: 35,
+          minWidth: 'auto',
+          px: 1.5,
+          borderRadius: 1.5,
+          border: `1px solid ${COLORS.border}`,
+          color: COLORS.text.secondary,
+          fontSize: '0.7rem',
+          fontWeight: 500,
+          textTransform: 'none',
+          whiteSpace: 'nowrap',
+          '&:hover': {
+            borderColor: COLORS.primary,
+            bgcolor: `${COLORS.primary}10`,
+            color: COLORS.primary
+          }
+        }}
+      >
+        Add New
+      </Button>
+    </Box>
+  </Box>
+</Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -522,7 +562,7 @@ const handleSubmit = async () => {
                   </Box>
                 </Grid>
                 
-                <Grid size={{ xs: 12, sm: 6 }}>
+                {/* <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       STATUS
@@ -542,7 +582,7 @@ const handleSubmit = async () => {
                       </Select>
                     </FormControl>
                   </Box>
-                </Grid>
+                </Grid> */}
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1166,6 +1206,12 @@ const handleSubmit = async () => {
           )}
         </Box>
       </DialogActions>
+      {/* Add Item Modal */}
+<AddItem
+  open={openAddItemModal}
+  onClose={() => setOpenAddItemModal(false)}
+  onAdd={handleItemAdded}
+/>
     </Dialog>
   );
 };

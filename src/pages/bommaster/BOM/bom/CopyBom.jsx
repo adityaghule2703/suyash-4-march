@@ -397,7 +397,7 @@ const CopyBom = ({ open, onClose, bomId, bomData, onCopyComplete }) => {
 
                 <Box>
                   <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                    Description <span style={{ color: COLORS.error }}>*</span>
+                    Description 
                   </Typography>
                   <TextField
                     fullWidth
