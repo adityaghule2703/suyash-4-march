@@ -72,6 +72,11 @@ import OeeMaster from './pages/bommaster/oeemaster/OeeMaster'
 import RoutingMaster from './pages/bommaster/routing/RoutingMaster'
 import MrpMaster from './pages/bommaster/MRP/MrpMaster'
 import WorkOrdersMaster from './pages/productionmaster/workordersmaster/WorkOrdersMaster'
+import WareHouseMaster from './pages/inventory management/warehousemaster/WareHouseMaster'
+import MIVMaster from './pages/inventory management/materialissues/MIVMaster'
+import MRVMaster from './pages/inventory management/materialreturnvoucher/MRVMaster'
+import StockLedgerMaster from './pages/inventory management/stockledger/StockLedgerMaster'
+import PSVMaster from './pages/inventory management/physicalstockverification/PSVMaster'
 
 
 const PrivateRoute = ({ children }) => {
@@ -167,6 +172,13 @@ const App = () => {
           <Route path='salesordermaster/sorevision' element={<SORevise/>} />
           <Route path='salesordermaster/sosummary' element={<SOSummary/>} />
           <Route path='salesordermaster/sopendingdelivery' element={<SOPendingDelivery/>} />
+
+
+          <Route path='inventorymanagement/warehousemaster' element={<WareHouseMaster />} />
+          <Route path="/inventorymanagement/stockledger" element={<StockLedgerMaster />} />
+          <Route path='inventorymanagement/mivmaster' element={<MIVMaster />} />
+          <Route path='inventorymanagement/mrvmaster' element={<MRVMaster />} />
+          <Route path='inventorymanagement/psvmaster' element={<PSVMaster />} />
 
           <Route path='productionmaster/workordersmaster' element={<WorkOrdersMaster/>} />
 
