@@ -171,7 +171,7 @@ const AddPurchaseOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingRfqs(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/rfqs?page=1&limit=100&sort_by=createdAt&sort_order=desc`, {
+      const response = await axios.get(`${BASE_URL}/api/rfqs`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {

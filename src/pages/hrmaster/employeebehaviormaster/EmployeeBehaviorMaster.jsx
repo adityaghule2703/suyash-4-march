@@ -1232,7 +1232,7 @@ const EmployeeBehaviorMaster = () => {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        `${BASE_URL}/api/employee-behavior/all?page=${page + 1}&limit=${rowsPerPage}`,
+        `${BASE_URL}/api/employee-behavior/all`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

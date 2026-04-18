@@ -177,7 +177,7 @@ const SubmitQuote = ({ open, onClose, rfq, onQuoteSubmitted }) => {
     try {
       setLoadingVendors(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/vendors?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/vendors?`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {

@@ -72,7 +72,7 @@
 //   const [error, setError] = useState('');
 //   const [items, setItems] = useState([]);
 //   const [loadingItems, setLoadingItems] = useState(false);
-  
+
 //   const [formData, setFormData] = useState({
 //     pr_type: 'Material',
 //     source: 'Manual',
@@ -141,7 +141,7 @@
 
 //     // Get the first item from items array
 //     const firstItem = pr.items?.[0] || {};
-    
+
 //     // Format the required date from the item (it's stored in the item, not at root level)
 //     let formattedRequiredDate = '';
 //     if (firstItem.required_date) {
@@ -261,7 +261,7 @@
 //     try {
 //       const token = localStorage.getItem('token');
 //       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
 //       const submissionData = {
 //         pr_type: formData.pr_type,
 //         source: formData.source,
@@ -337,7 +337,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Basic Information
 //               </Typography>
-              
+
 //               <Grid container spacing={1.5}>
 //                 <Grid size={{ xs: 12, md: 3 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -465,7 +465,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       case 1:
 //         return (
 //           <Stack spacing={2}>
@@ -473,7 +473,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Item Details
 //               </Typography>
-              
+
 //               <Grid container spacing={2}>
 //                 <Grid size={{ xs: 12 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -690,7 +690,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       default:
 //         return null;
 //     }
@@ -950,7 +950,7 @@
 //   const [error, setError] = useState('');
 //   const [items, setItems] = useState([]);
 //   const [loadingItems, setLoadingItems] = useState(false);
-  
+
 //   const [formData, setFormData] = useState({
 //     pr_type: 'Material',
 //     source: 'Manual',
@@ -1019,7 +1019,7 @@
 
 //     // Get the first item from items array
 //     const firstItem = pr.items?.[0] || {};
-    
+
 //     // Format the required_by date (changed from required_date to required_by)
 //     let formattedRequiredBy = '';
 //     if (firstItem.required_by) {
@@ -1142,7 +1142,7 @@
 //     try {
 //       const token = localStorage.getItem('token');
 //       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
 //       // Updated submission data structure to match API requirements
 //       const submissionData = {
 //         pr_type: formData.pr_type,
@@ -1220,7 +1220,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Basic Information
 //               </Typography>
-              
+
 //               <Grid container spacing={1.5}>
 //                 <Grid size={{ xs: 12, md: 3 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1348,7 +1348,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       case 1:
 //         return (
 //           <Stack spacing={2}>
@@ -1356,7 +1356,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Item Details
 //               </Typography>
-              
+
 //               <Grid container spacing={2}>
 //                 <Grid size={{ xs: 12 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1573,7 +1573,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       default:
 //         return null;
 //     }
@@ -1786,7 +1786,7 @@ import {
   Chip,
   styled
 } from '@mui/material';
-import { 
+import {
   Edit as EditIcon,
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
@@ -1849,7 +1849,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [addDepartmentOpen, setAddDepartmentOpen] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     pr_type: 'Material',
     source: 'Manual',
@@ -1891,7 +1891,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
     try {
       setLoadingItems(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/items`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -1957,7 +1957,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
 
     // Get the first item from items array
     const firstItem = pr.items?.[0] || {};
-    
+
     // Format the required_by date
     let formattedRequiredBy = '';
     if (firstItem.required_by) {
@@ -2089,7 +2089,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
     try {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
       const submissionData = {
         pr_type: formData.pr_type,
         source: formData.source,
@@ -2106,9 +2106,13 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
         updated_by: user._id
       };
 
-      const response = await axios.put(`${BASE_URL}/api/purchase-requisitions/${pr._id}`, submissionData, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-      });
+      const response = await axios.put(`${BASE_URL}/api/purchase-requisitions/${pr._id}`, submissionData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
       if (response.data.success) {
         onUpdate(response.data.data);
@@ -2151,8 +2155,8 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
 
   const selectedItem = items.find(i => i._id === formData.item.item_id);
   const selectedDepartment = departments.find(dept => dept._id === formData.department);
-  const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price 
-    ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price) 
+  const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price
+    ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price)
     : 0;
   const today = new Date().toISOString().split('T')[0];
 
@@ -2167,7 +2171,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Basic Information
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 {/* Row 1: PR Type, Source, Department */}
                 <Grid size={{ xs: 12, md: 4 }}>
@@ -2197,7 +2201,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                     </FormControl>
                   </Box>
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
@@ -2225,13 +2229,13 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                     </FormControl>
                   </Box>
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    
+
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                       <Box sx={{ flex: 1 }}>
                         <Autocomplete
@@ -2286,7 +2290,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                           noOptionsText="No departments found"
                         />
                       </Box>
-                      
+
                       <Button
                         variant="outlined"
                         size="small"
@@ -2322,12 +2326,12 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       REQUIRED DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      type="date" 
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
                       name="required_by"
-                      value={formData.required_by} 
+                      value={formData.required_by}
                       onChange={handleChange}
                       error={!!fieldErrors.required_by}
                       helperText={fieldErrors.required_by}
@@ -2352,12 +2356,12 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       MRP RUN ID
                     </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      name="mrp_run_id" 
-                      value={formData.mrp_run_id} 
-                      onChange={handleChange} 
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="mrp_run_id"
+                      value={formData.mrp_run_id}
+                      onChange={handleChange}
                       placeholder="e.g., MRP-20250315-001"
                       sx={{
                         '& .MuiOutlinedInput-root': {
@@ -2375,7 +2379,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
             </Paper>
           </Stack>
         );
-      
+
       case 1:
         return (
           <Stack spacing={2}>
@@ -2383,7 +2387,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Item Details
               </Typography>
-              
+
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -2406,11 +2410,11 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                       value={selectedItem || null}
                       onChange={(e, val) => handleItemChange('item_id', val?._id || '')}
                       renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          size="small" 
-                          placeholder="Search and select an item..." 
-                          error={!!fieldErrors.item_id} 
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Search and select an item..."
+                          error={!!fieldErrors.item_id}
                           helperText={fieldErrors.item_id}
                           sx={{
                             '& .MuiOutlinedInput-root': {
@@ -2451,9 +2455,9 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -2487,9 +2491,9 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -2523,9 +2527,9 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -2545,16 +2549,16 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           QUANTITY <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
-                          type="number" 
-                          placeholder="Enter quantity" 
-                          value={formData.item.required_qty} 
-                          onChange={(e) => handleItemChange('required_qty', e.target.value)} 
-                          error={!!fieldErrors.required_qty} 
-                          helperText={fieldErrors.required_qty} 
-                          inputProps={{ step: 1, min: 1 }} 
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          placeholder="Enter quantity"
+                          value={formData.item.required_qty}
+                          onChange={(e) => handleItemChange('required_qty', e.target.value)}
+                          error={!!fieldErrors.required_qty}
+                          helperText={fieldErrors.required_qty}
+                          inputProps={{ step: 1, min: 1 }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -2574,16 +2578,16 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           ESTIMATED PRICE <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
-                          type="number" 
-                          placeholder="Enter price" 
-                          value={formData.item.estimated_price} 
-                          onChange={(e) => handleItemChange('estimated_price', e.target.value)} 
-                          error={!!fieldErrors.estimated_price} 
-                          helperText={fieldErrors.estimated_price} 
-                          InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} 
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          placeholder="Enter price"
+                          value={formData.item.estimated_price}
+                          onChange={(e) => handleItemChange('estimated_price', e.target.value)}
+                          error={!!fieldErrors.estimated_price}
+                          helperText={fieldErrors.estimated_price}
+                          InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -2603,14 +2607,14 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           REMARKS
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
+                        <TextField
+                          fullWidth
+                          size="small"
                           multiline
                           rows={2}
-                          placeholder="Enter any remarks" 
-                          value={formData.item.remarks} 
-                          onChange={(e) => handleItemChange('remarks', e.target.value)} 
+                          placeholder="Enter any remarks"
+                          value={formData.item.remarks}
+                          onChange={(e) => handleItemChange('remarks', e.target.value)}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -2626,9 +2630,9 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
 
                     {formData.item.required_qty && formData.item.estimated_price && (
                       <Grid size={{ xs: 12 }}>
-                        <Box sx={{ 
-                          p: 2, 
-                          bgcolor: COLORS.background.light, 
+                        <Box sx={{
+                          p: 2,
+                          bgcolor: COLORS.background.light,
                           borderRadius: 1.5,
                           display: 'flex',
                           justifyContent: 'space-between',
@@ -2649,7 +2653,7 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
             </Paper>
           </Stack>
         );
-      
+
       default:
         return null;
     }
@@ -2684,15 +2688,15 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
           <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
             Edit Purchase Requisition
           </Typography>
-          <Chip 
-            label={`PR: ${pr.pr_number}`} 
-            size="small" 
-            sx={{ 
-              bgcolor: COLORS.primaryLight, 
-              color: COLORS.primary, 
+          <Chip
+            label={`PR: ${pr.pr_number}`}
+            size="small"
+            sx={{
+              bgcolor: COLORS.primaryLight,
+              color: COLORS.primary,
               fontSize: '0.7rem',
               borderRadius: 1.5
-            }} 
+            }}
           />
         </Box>
 
@@ -2718,10 +2722,10 @@ const EditPurchaseRequisition = ({ open, onClose, pr, onUpdate }) => {
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
+          <Alert
+            severity="error"
+            sx={{
+              mt: 2,
               borderRadius: 1.5,
               '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
               fontSize: '0.75rem',

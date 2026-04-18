@@ -87,7 +87,7 @@ const ConvertLeadPopup = ({ open, onClose, lead, onConvert }) => {
     try {
       setLoadingCustomers(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/customers?limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

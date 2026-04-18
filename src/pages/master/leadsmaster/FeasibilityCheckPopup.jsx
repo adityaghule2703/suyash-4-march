@@ -104,7 +104,7 @@ const FeasibilityCheckPopup = ({ open, onClose, lead }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {

@@ -135,7 +135,7 @@ const AddOee = ({ open, onClose, onAdd }) => {
     setMachinesLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
+      const response = await axios.get(`${BASE_URL}/api/machines`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

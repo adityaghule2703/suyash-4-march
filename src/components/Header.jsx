@@ -33,6 +33,7 @@ const Header = () => {
   const [filteredProcurementItems, setFilteredProcurementItems] = useState([]);
   const [filteredBOMItems, setFilteredBOMItems] = useState([]);
   const [filteredSalesOrderItems, setFilteredSalesOrderItems] = useState([]);
+  const [filteredProductionItems, setFilteredProductionItems] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -88,6 +89,12 @@ const Header = () => {
       name: 'Sales Order Master',
       type: 'salesorder',
       icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+      count: 0
+    },
+    {
+      name: 'Production Master',
+      type: 'production',
+      icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15',
       count: 0
     },
   ];
@@ -218,6 +225,17 @@ const Header = () => {
     },
   ];
 
+  // Production Master items
+  const productionMasterItems = [
+    { 
+      name: 'Work Orders Master', 
+      path: '/productionmaster/workordersmaster', 
+      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', 
+      moduleKey: MODULES.PRODUCTION_MASTER, 
+      page: PAGES.WORK_ORDERS_MASTER 
+    },
+  ];
+
   // Leave Management items
   const leaveManagementItems = [
     { name: 'Leave Approval', path: '/leave/approval', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', moduleKey: MODULES.LEAVE_APPROVAL, page: PAGES.LEAVE_APPROVAL }
@@ -267,12 +285,21 @@ const Header = () => {
       }
       return true;
     });
+
+    // Filter Production items based on permissions
+    const accessibleProductionItems = productionMasterItems.filter(item => {
+      if (item.moduleKey && item.page) {
+        return canAccessPage(item.moduleKey, item.page);
+      }
+      return true;
+    });
     
     setFilteredQuotationItems(accessibleQuotationItems);
     setFilteredProcurementItems(accessibleProcurementItems);
     setFilteredHRItems(accessibleHRItems);
     setFilteredBOMItems(accessibleBOMItems);
     setFilteredSalesOrderItems(accessibleSalesOrderItems);
+    setFilteredProductionItems(accessibleProductionItems);
     
     // Update category counts
     masterCategories[0].count = accessibleQuotationItems.length;
@@ -280,6 +307,7 @@ const Header = () => {
     masterCategories[2].count = accessibleHRItems.length;
     masterCategories[3].count = accessibleBOMItems.length;
     masterCategories[4].count = accessibleSalesOrderItems.length;
+    masterCategories[5].count = accessibleProductionItems.length;
   };
 
   // Filter function for master search
@@ -311,6 +339,11 @@ const Header = () => {
         item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
       );
       setFilteredSalesOrderItems(filtered);
+    } else if (activeSubmenu === 'production') {
+      const filtered = productionMasterItems.filter(item => 
+        item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
+      );
+      setFilteredProductionItems(filtered);
     }
   };
 
@@ -527,9 +560,10 @@ const Header = () => {
   const hrColumns = getColumns(filteredHRItems);
   const bomColumns = getColumns(filteredBOMItems);
   const salesOrderColumns = getColumns(filteredSalesOrderItems);
+  const productionColumns = getColumns(filteredProductionItems);
 
   const isMasterActive = (path) => {
-    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/') || path.startsWith('/salesordermaster/') || path.startsWith('/machinemaster/') || path.startsWith('/oeemaster/');
+    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/') || path.startsWith('/salesordermaster/') || path.startsWith('/machinemaster/') || path.startsWith('/oeemaster/') || path.startsWith('/productionmaster/');
   };
 
   const handleSearch = (e) => {
@@ -793,7 +827,7 @@ const Header = () => {
                 )}
 
                 {/* Master Dropdown */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0) && (
                   <div className="relative" ref={masterRef}>
                     <button
                       onClick={() => toggleDropdown('master')}
@@ -851,7 +885,7 @@ const Header = () => {
                               <input
                                 ref={masterSearchRef}
                                 type="text"
-                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : 'Sales Order'}...`}
+                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : 'Production'}...`}
                                 className="w-full pl-8 pr-7 py-2 text-xs border border-[#E3E8EF] rounded-md focus:outline-none focus:ring-1 focus:ring-[#0A5C60] focus:border-transparent bg-white text-[#4B5568] placeholder-[#94A3B8]"
                                 value={masterSearchTerm}
                                 onChange={handleMasterSearch}
@@ -871,14 +905,15 @@ const Header = () => {
 
                           <div className="mb-1 px-2 flex justify-between items-center">
                             <h3 className="text-[11px] font-semibold text-[#4B5568] uppercase tracking-wider">
-                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : 'Sales Order'}
+                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : 'Production'}
                             </h3>
                             <span className="text-[11px] text-[#94A3B8]">
                               {activeSubmenu === 'quotation' ? filteredQuotationItems.length : 
                                activeSubmenu === 'procurement' ? filteredProcurementItems.length : 
                                activeSubmenu === 'hr' ? filteredHRItems.length : 
                                activeSubmenu === 'bom' ? filteredBOMItems.length : 
-                               filteredSalesOrderItems.length}
+                               activeSubmenu === 'salesorder' ? filteredSalesOrderItems.length :
+                               filteredProductionItems.length}
                             </span>
                           </div>
 
@@ -1048,6 +1083,44 @@ const Header = () => {
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDropdownItemClick(item.path, 'salesorder');
+                                          }}
+                                          className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
+                                            currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
+                                          }`}
+                                        >
+                                          <svg className="w-3.5 h-3.5 mr-2 text-[#94A3B8] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                          </svg>
+                                          <span className="line-clamp-2 text-xs">
+                                            {highlightText(item.name, masterSearchTerm)}
+                                          </span>
+                                        </NavLink>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="w-full py-5 text-center text-[#94A3B8] text-xs">
+                                  No matches found
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Production Section */}
+                          {activeSubmenu === 'production' && (
+                            <div className="flex">
+                              {productionColumns.length > 0 ? (
+                                productionColumns.map((column, index) => (
+                                  <div key={`production-col-${index}`} className={`w-48 ${index < productionColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
+                                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                                      {column.map((item) => (
+                                        <NavLink
+                                          key={item.path}
+                                          to={item.path}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDropdownItemClick(item.path, 'production');
                                           }}
                                           className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
                                             currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
@@ -1362,7 +1435,7 @@ const Header = () => {
                 )}
 
                 {/* Mobile Master Section */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0) && (
                   <div className="border-t border-[#E3E8EF] my-2">
                     <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                       Master
@@ -1488,6 +1561,34 @@ const Header = () => {
                           Sales Order Master
                         </div>
                         {filteredSalesOrderItems.map((item) => (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={({ isActive }) =>
+                              `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                                isActive
+                                  ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                                  : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                              }`
+                            }
+                          >
+                            <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                            </svg>
+                            {item.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Production Master Items */}
+                    {filteredProductionItems.length > 0 && (
+                      <div className="mb-2">
+                        <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                          Production Master
+                        </div>
+                        {filteredProductionItems.map((item) => (
                           <NavLink
                             key={item.path}
                             to={item.path}

@@ -2348,7 +2348,7 @@ const JobOpeningMaster = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/jobs?page=1&limit=1000`, {
+      const response = await axios.get(`${BASE_URL}/api/jobs`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

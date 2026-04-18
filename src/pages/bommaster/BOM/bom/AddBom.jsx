@@ -137,7 +137,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
     try {
       setLoadingItems(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/items`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -156,7 +156,7 @@ const AddBom = ({ open, onClose, onAdd }) => {
   const fetchComponentItems = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/items`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

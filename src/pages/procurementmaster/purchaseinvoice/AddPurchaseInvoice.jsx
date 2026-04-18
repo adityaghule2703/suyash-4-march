@@ -156,7 +156,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
     try {
       setLoadingPos(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/purchase-orders?page=1&limit=100&sort_by=createdAt&sort_order=desc`, {
+      const response = await axios.get(`${BASE_URL}/api/purchase-orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -176,7 +176,7 @@ const AddPurchaseInvoice = ({ open, onClose, onAdd }) => {
     try {
       setLoadingGrns(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/grns?page=1&limit=100&sort_by=createdAt&sort_order=desc`, {
+      const response = await axios.get(`${BASE_URL}/api/grns`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {

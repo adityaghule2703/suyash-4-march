@@ -52,9 +52,10 @@ import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 import AddItem from '../../master/itemmaster/AddItem';
-import AddMachine from '../../machinemaster/machinemaster/AddMachine';
+
 import AddVendor from '../../master/vendormaster/AddVendor';
 import AddProcess from '../../master/processmaster/AddProcess';
+import AddMachine from '../machinemaster/AddMachine';
 
 const COLORS = {
     primary: '#1976D2',

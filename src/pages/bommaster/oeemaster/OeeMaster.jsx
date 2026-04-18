@@ -352,7 +352,7 @@ const OeeMaster = () => {
   const fetchMachines = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
+      const response = await axios.get(`${BASE_URL}/api/machines`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

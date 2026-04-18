@@ -1142,7 +1142,8 @@ const PurchaseRequisitionMaster = () => {
         params.append('search', searchTerm);
       }
       
-      const response = await axios.get(`${BASE_URL}/api/purchase-requisitions?${params.toString()}`, {
+      const response = await axios.get(`${BASE_URL}/api/purchase-requisitions?${params.toString()}`, 
+      {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

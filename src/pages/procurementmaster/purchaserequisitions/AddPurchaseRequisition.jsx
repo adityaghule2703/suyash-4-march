@@ -71,7 +71,7 @@
 //   const [error, setError] = useState('');
 //   const [items, setItems] = useState([]);
 //   const [loadingItems, setLoadingItems] = useState(false);
-  
+
 //   const [formData, setFormData] = useState({
 //     pr_type: 'Material',
 //     source: 'Manual',
@@ -232,7 +232,7 @@
 //     try {
 //       const token = localStorage.getItem('token');
 //       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
 //       const submissionData = {
 //         pr_type: formData.pr_type,
 //         source: formData.source,
@@ -308,7 +308,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Basic Information
 //               </Typography>
-              
+
 //               <Grid container spacing={1.5}>
 //                 <Grid size={{ xs: 12, md: 3 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -436,7 +436,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       case 1:
 //         return (
 //           <Stack spacing={2}>
@@ -444,7 +444,7 @@
 //               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
 //                 Item Details
 //               </Typography>
-              
+
 //               <Grid container spacing={2}>
 //                 <Grid size={{ xs: 12 }}>
 //                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -661,7 +661,7 @@
 //             </Paper>
 //           </Stack>
 //         );
-      
+
 //       default:
 //         return null;
 //     }
@@ -861,7 +861,7 @@ import {
   InputAdornment,
   styled
 } from '@mui/material';
-import { 
+import {
   Add as AddIcon,
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
@@ -923,7 +923,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [addDepartmentOpen, setAddDepartmentOpen] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     pr_type: 'Material',
     source: 'Manual',
@@ -965,7 +965,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
     try {
       setLoadingItems(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/items`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -1108,7 +1108,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
       const submissionData = {
         pr_type: formData.pr_type,
         source: formData.source,
@@ -1126,9 +1126,13 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
         status: 'Submitted'
       };
 
-      const response = await axios.post(`${BASE_URL}/api/purchase-requisitions`, submissionData, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-      });
+      const response = await axios.post(`${BASE_URL}/api/purchase-requisitions`, submissionData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
       if (response.data.success) {
         onAdd(response.data.data);
@@ -1171,8 +1175,8 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
 
   const selectedItem = items.find(i => i._id === formData.item.item_id);
   const selectedDepartment = departments.find(dept => dept._id === formData.department);
-  const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price 
-    ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price) 
+  const totalValue = selectedItem && formData.item.required_qty && formData.item.estimated_price
+    ? parseFloat(formData.item.required_qty) * parseFloat(formData.item.estimated_price)
     : 0;
   const today = new Date().toISOString().split('T')[0];
 
@@ -1185,7 +1189,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Basic Information
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 {/* Row 1: PR Type, Source, Department */}
                 <Grid size={{ xs: 12, md: 4 }}>
@@ -1215,7 +1219,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                     </FormControl>
                   </Box>
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
@@ -1243,13 +1247,13 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                     </FormControl>
                   </Box>
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    
+
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                       <Box sx={{ flex: 1 }}>
                         <Autocomplete
@@ -1304,7 +1308,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                           noOptionsText="No departments found"
                         />
                       </Box>
-                      
+
                       <Button
                         variant="outlined"
                         size="small"
@@ -1340,12 +1344,12 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       REQUIRED DATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      type="date" 
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
                       name="required_date"
-                      value={formData.required_date} 
+                      value={formData.required_date}
                       onChange={handleChange}
                       error={!!fieldErrors.required_date}
                       helperText={fieldErrors.required_date}
@@ -1370,12 +1374,12 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       MRP RUN ID
                     </Typography>
-                    <TextField 
-                      fullWidth 
-                      size="small" 
-                      name="mrp_run_id" 
-                      value={formData.mrp_run_id} 
-                      onChange={handleChange} 
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="mrp_run_id"
+                      value={formData.mrp_run_id}
+                      onChange={handleChange}
                       placeholder="e.g., MRP-20250315-001"
                       sx={{
                         '& .MuiOutlinedInput-root': {
@@ -1393,7 +1397,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
             </Paper>
           </Stack>
         );
-      
+
       case 1:
         return (
           <Stack spacing={2}>
@@ -1401,7 +1405,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Item Details
               </Typography>
-              
+
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1424,11 +1428,11 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                       value={selectedItem || null}
                       onChange={(e, val) => handleItemChange('item_id', val?._id || '')}
                       renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          size="small" 
-                          placeholder="Search and select an item..." 
-                          error={!!fieldErrors.item_id} 
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Search and select an item..."
+                          error={!!fieldErrors.item_id}
                           helperText={fieldErrors.item_id}
                           sx={{
                             '& .MuiOutlinedInput-root': {
@@ -1469,9 +1473,9 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -1505,9 +1509,9 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -1540,9 +1544,9 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                                 borderColor: COLORS.border,
                               },
                             },
-                            '& .MuiInputBase-input': { 
-                              py: 1, 
-                              px: 1.5, 
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
                               fontSize: '0.75rem',
                               color: COLORS.text.primary,
                               WebkitTextFillColor: COLORS.text.primary,
@@ -1562,16 +1566,16 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           QUANTITY <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
-                          type="number" 
-                          placeholder="Enter quantity" 
-                          value={formData.item.required_qty} 
-                          onChange={(e) => handleItemChange('required_qty', e.target.value)} 
-                          error={!!fieldErrors.required_qty} 
-                          helperText={fieldErrors.required_qty} 
-                          inputProps={{ step: 1, min: 1 }} 
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          placeholder="Enter quantity"
+                          value={formData.item.required_qty}
+                          onChange={(e) => handleItemChange('required_qty', e.target.value)}
+                          error={!!fieldErrors.required_qty}
+                          helperText={fieldErrors.required_qty}
+                          inputProps={{ step: 1, min: 1 }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -1591,16 +1595,16 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           ESTIMATED PRICE <span style={{ color: '#EF4444' }}>*</span>
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
-                          type="number" 
-                          placeholder="Enter price" 
-                          value={formData.item.estimated_price} 
-                          onChange={(e) => handleItemChange('estimated_price', e.target.value)} 
-                          error={!!fieldErrors.estimated_price} 
-                          helperText={fieldErrors.estimated_price} 
-                          InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} 
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          placeholder="Enter price"
+                          value={formData.item.estimated_price}
+                          onChange={(e) => handleItemChange('estimated_price', e.target.value)}
+                          error={!!fieldErrors.estimated_price}
+                          helperText={fieldErrors.estimated_price}
+                          InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -1620,14 +1624,14 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                           REMARKS
                         </Typography>
-                        <TextField 
-                          fullWidth 
-                          size="small" 
+                        <TextField
+                          fullWidth
+                          size="small"
                           multiline
                           rows={2}
-                          placeholder="Enter any remarks" 
-                          value={formData.item.remarks} 
-                          onChange={(e) => handleItemChange('remarks', e.target.value)} 
+                          placeholder="Enter any remarks"
+                          value={formData.item.remarks}
+                          onChange={(e) => handleItemChange('remarks', e.target.value)}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -1643,9 +1647,9 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
 
                     {formData.item.required_qty && formData.item.estimated_price && (
                       <Grid size={{ xs: 12 }}>
-                        <Box sx={{ 
-                          p: 2, 
-                          bgcolor: COLORS.background.light, 
+                        <Box sx={{
+                          p: 2,
+                          bgcolor: COLORS.background.light,
                           borderRadius: 1.5,
                           display: 'flex',
                           justifyContent: 'space-between',
@@ -1666,7 +1670,7 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
             </Paper>
           </Stack>
         );
-      
+
       default:
         return null;
     }
@@ -1723,10 +1727,10 @@ const AddPurchaseRequisition = ({ open, onClose, onAdd }) => {
         {renderStepContent(activeStep)}
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
+          <Alert
+            severity="error"
+            sx={{
+              mt: 2,
               borderRadius: 1.5,
               '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' },
               fontSize: '0.75rem',

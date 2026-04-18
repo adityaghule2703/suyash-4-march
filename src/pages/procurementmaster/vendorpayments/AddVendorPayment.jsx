@@ -177,7 +177,7 @@ const AddVendorPayment = ({ open, onClose, onAdd }) => {
   const fetchVendors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/vendors?page=1&limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/vendors`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {

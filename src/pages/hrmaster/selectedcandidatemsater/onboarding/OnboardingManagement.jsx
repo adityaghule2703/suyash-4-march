@@ -256,7 +256,7 @@ const OnboardingManagement = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/onboarding?page=${page + 1}&limit=${rowsPerPage}`, {
+      const response = await axios.get(`${BASE_URL}/api/onboarding`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
