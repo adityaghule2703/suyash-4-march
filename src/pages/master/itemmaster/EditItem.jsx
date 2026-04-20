@@ -22,15 +22,20 @@ import {
   MenuItem,
   styled,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import { 
   Edit as EditIcon,
+  Add as AddIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddTax from '../taxmaster/AddTax';
+
 
 const COLORS = {
   primary: '#063C3F',
@@ -169,6 +174,9 @@ const EditItem = ({ open, onClose, item, onUpdate }) => {
   const [hsnCodes, setHsnCodes] = useState([]);
   const [loadingHsn, setLoadingHsn] = useState(false);
   const [selectedHSN, setSelectedHSN] = useState(null);
+  
+  // State for Add Tax dialog
+  const [addTaxOpen, setAddTaxOpen] = useState(false);
 
   // ── Shared sx shortcuts ──────────────────────────────────────────────────
   const textFieldSx = {
@@ -261,6 +269,26 @@ const EditItem = ({ open, onClose, item, onUpdate }) => {
     } finally {
       setLoadingHsn(false);
     }
+  };
+
+  // Handle tax added from AddTax dialog
+  const handleTaxAdded = (newTax) => {
+    // Add the new tax to the hsnCodes list
+    const newHsnCode = {
+      _id: newTax._id,
+      HSNCode: newTax.HSNCode,
+      Description: newTax.Description,
+      GSTPercentage: newTax.GSTPercentage || 0
+    };
+    setHsnCodes(prev => [...prev, newHsnCode]);
+    
+    // Auto-select the newly added HSN code
+    setSelectedHSN(newHsnCode);
+    setFormData(prev => ({
+      ...prev,
+      hsn_code: newTax.HSNCode,
+      gst_percentage: newTax.GSTPercentage || ''
+    }));
   };
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -810,10 +838,25 @@ const EditItem = ({ open, onClose, item, onUpdate }) => {
               </Typography>
               <Grid container spacing={1.5}>
 
-                {/* HSN Code */}
+                {/* HSN Code with Add Button */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Label>HSN CODE</Label>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Label>HSN CODE</Label>
+                      <Tooltip title="Add New HSN Code">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddTaxOpen(true)}
+                          sx={{
+                            color: COLORS.primary,
+                            p: 0.25,
+                            '&:hover': { bgcolor: COLORS.primaryLight }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '0.8rem' }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Autocomplete
                       fullWidth options={hsnCodes} loading={loadingHsn} value={selectedHSN}
                       onChange={handleHSNChange} getOptionLabel={(o) => o.HSNCode || ''}
@@ -910,103 +953,112 @@ const EditItem = ({ open, onClose, item, onUpdate }) => {
 
   // ── Dialog ───────────────────────────────────────────────────────────────
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5, px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex', flexDirection: 'column', gap: 1
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Edit Item
-        </Typography>
-        <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />} sx={{ mb: 0.5, mt: 0.5 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>{label}</Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
+    <>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5, px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex', flexDirection: 'column', gap: 1
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Edit Item
+          </Typography>
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />} sx={{ mb: 0.5, mt: 0.5 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>{label}</Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-        {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' }, fontSize: '0.75rem', py: 0.5 }}>
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, '& .MuiAlert-icon': { fontSize: '1.25rem', alignItems: 'center' }, fontSize: '0.75rem', py: 0.5 }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
 
-      <DialogActions sx={{
-        px: 2.5, py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex', justifyContent: 'space-between', gap: 1
-      }}>
-        <Button onClick={handleBack} disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32, px: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
-            '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` },
-            '&:disabled': { borderColor: COLORS.border, color: COLORS.text.tertiary }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button onClick={handleClose} disabled={loading}
+        <DialogActions sx={{
+          px: 2.5, py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex', justifyContent: 'space-between', gap: 1
+        }}>
+          <Button onClick={handleBack} disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32, px: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`,
               color: COLORS.text.secondary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
-              '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+              '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` },
+              '&:disabled': { borderColor: COLORS.border, color: COLORS.text.tertiary }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
-            <Button variant="contained" onClick={handleSubmit} disabled={loading}
-              startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button onClick={handleClose} disabled={loading}
               sx={{
-                height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary,
-                fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark },
-                '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                height: 32, px: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary, fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
+                '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
               }}
             >
-              {loading ? 'Updating...' : 'Update Item'}
+              Cancel
             </Button>
-          ) : (
-            <Button variant="contained" onClick={handleNext} disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary,
-                fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': { bgcolor: COLORS.primaryDark },
-                '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
-              }}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button variant="contained" onClick={handleSubmit} disabled={loading}
+                startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary,
+                  fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark },
+                  '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                }}
+              >
+                {loading ? 'Updating...' : 'Update Item'}
+              </Button>
+            ) : (
+              <Button variant="contained" onClick={handleNext} disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32, px: 2, borderRadius: 1.5, bgcolor: COLORS.primary,
+                  fontSize: '0.7rem', fontWeight: 500, textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': { bgcolor: COLORS.primaryDark },
+                  '&:disabled': { bgcolor: COLORS.border, color: COLORS.text.tertiary }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Tax Dialog */}
+      <AddTax
+        open={addTaxOpen}
+        onClose={() => setAddTaxOpen(false)}
+        onAdd={handleTaxAdded}
+      />
+    </>
   );
 };
 

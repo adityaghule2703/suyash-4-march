@@ -16,11 +16,15 @@ import {
   MenuItem,
   Grid,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddItem from '../itemmaster/AddItem';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -68,6 +72,9 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
   const [fetchingItems, setFetchingItems] = useState(false);
   const [error, setError] = useState('');
   const [selectedPart, setSelectedPart] = useState(null);
+  
+  // State for Add Item dialog
+  const [addItemOpen, setAddItemOpen] = useState(false);
 
   // Fetch items for Part No dropdown
   useEffect(() => {
@@ -96,6 +103,20 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
 
     fetchItems();
   }, [open]);
+
+  // Handle item added from AddItem dialog
+  const handleItemAdded = (newItem) => {
+    // Add the new item to the items list
+    setItems(prev => [...prev, newItem]);
+    
+    // Auto-select the newly added item
+    setSelectedPart(newItem);
+    setFormData(prev => ({
+      ...prev,
+      PartNo: newItem.part_no,
+      Density: newItem.density ? newItem.density.toString() : ''
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -220,501 +241,492 @@ const AddDimensions = ({ open, onClose, onAdd }) => {
 
   const weight = calculateWeight();
 
+  // Label component for consistency
+  const Label = ({ children, required }) => (
+    <Typography sx={{ 
+      fontSize: '0.7rem', 
+      fontWeight: 600, 
+      color: COLORS.text.secondary, 
+      letterSpacing: '0.5px' 
+    }}>
+      {children} {required && <span style={{ color: '#EF4444' }}>*</span>}
+    </Typography>
+  );
+
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 2,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography
-          sx={{
-            fontSize: '1.2rem',
-            fontWeight: 700,
-            color: COLORS.text.primary
-          }}
-        >
-          Add Dimension Weight
-        </Typography>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5 }}>
-        <Stack spacing={2}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-            {/* Part No Field - Using Autocomplete */}
-            <Box sx={{ gridColumn: 'span 2' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  PART NO <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                
-                <Autocomplete
-                  fullWidth
-                  options={items}
-                  loading={fetchingItems}
-                  value={selectedPart}
-                  onChange={handlePartChange}
-                  getOptionLabel={(option) => option.part_no || ''}
-                  isOptionEqualToValue={(option, value) => option._id === value._id}
-                  disabled={loading}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      placeholder="Select a part number"
-                      required
-                      error={!!error && error.includes('Part No')}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {fetchingItems ? <CircularProgress color="inherit" size={16} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
-                          {option.part_no}
-                        </Typography>
-                        {option.part_description && (
-                          <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-                            {option.part_description}
-                          </Typography>
-                        )}
-                      </Box>
-                    </li>
-                  )}
-                  ListboxProps={{
-                    sx: {
-                      '& .MuiAutocomplete-option': {
-                        fontSize: '0.75rem',
-                        py: 1,
-                        px: 1.5
-                      }
-                    }
-                  }}
-                />
-
-                {fetchingItems && !selectedPart && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                    <CircularProgress size={12} sx={{ color: COLORS.primary }} />
-                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                      Loading parts...
-                    </Typography>
-                  </Box>
-                )}
-                {!fetchingItems && items.length === 0 && (
-                  <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
-                    No parts available. Please add items first.
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-
-            {/* Thickness Field */}
-            <Box sx={{ gridColumn: 'span 1' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  THICKNESS (mm) <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                <TextField
-                  fullWidth
-                  name="Thickness"
-                  type="number"
-                  value={formData.Thickness}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  placeholder="Enter thickness"
-                  size="small"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: (
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
-                        mm
-                      </Typography>
-                    ),
-                    inputProps: { min: 0, step: 0.01 }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      color: COLORS.text.primary,
-                      '&::placeholder': {
-                        color: COLORS.text.tertiary,
-                        fontSize: '0.75rem'
-                      }
-                    },
-                    '& input[type=number]': {
-                      MozAppearance: 'textfield'
-                    },
-                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                      WebkitAppearance: 'none', margin: 0
-                    }
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Width Field */}
-            <Box sx={{ gridColumn: 'span 1' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  WIDTH (mm) <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                <TextField
-                  fullWidth
-                  name="Width"
-                  type="number"
-                  value={formData.Width}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  placeholder="Enter width"
-                  size="small"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: (
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
-                        mm
-                      </Typography>
-                    ),
-                    inputProps: { min: 0, step: 0.01 }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      color: COLORS.text.primary,
-                      '&::placeholder': {
-                        color: COLORS.text.tertiary,
-                        fontSize: '0.75rem'
-                      }
-                    },
-                    '& input[type=number]': {
-                      MozAppearance: 'textfield'
-                    },
-                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                      WebkitAppearance: 'none', margin: 0
-                    }
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Length Field */}
-            <Box sx={{ gridColumn: 'span 1' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  LENGTH (mm) <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                <TextField
-                  fullWidth
-                  name="Length"
-                  type="number"
-                  value={formData.Length}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  placeholder="Enter length"
-                  size="small"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: (
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
-                        mm
-                      </Typography>
-                    ),
-                    inputProps: { min: 0, step: 0.01 }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      color: COLORS.text.primary,
-                      '&::placeholder': {
-                        color: COLORS.text.tertiary,
-                        fontSize: '0.75rem'
-                      }
-                    },
-                    '& input[type=number]': {
-                      MozAppearance: 'textfield'
-                    },
-                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                      WebkitAppearance: 'none', margin: 0
-                    }
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Density Field */}
-            <Box sx={{ gridColumn: 'span 1' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  DENSITY (g/cm³) <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                <TextField
-                  fullWidth
-                  name="Density"
-                  type="number"
-                  value={formData.Density}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  placeholder="Enter density"
-                  size="small"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: (
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
-                        g/cm³
-                      </Typography>
-                    ),
-                    inputProps: { min: 0, step: 0.01 }
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      color: COLORS.text.primary,
-                      '&::placeholder': {
-                        color: COLORS.text.tertiary,
-                        fontSize: '0.75rem'
-                      }
-                    },
-                    '& input[type=number]': {
-                      MozAppearance: 'textfield'
-                    },
-                    '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                      WebkitAppearance: 'none', margin: 0
-                    }
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Weight Preview */}
-            {weight > 0 && (
-              <Box sx={{ 
-                gridColumn: 'span 2',
-                p: 2, 
-                bgcolor: COLORS.primaryLight, 
-                borderRadius: 1.5,
-                border: `1px solid ${COLORS.primary}`,
-                mt: 1
-              }}>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: COLORS.primaryDark, 
-                    mb: 1.5,
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  Weight Calculation Preview
-                </Typography>
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Volume:</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
-                      {(parseFloat(formData.Thickness) * parseFloat(formData.Width) * parseFloat(formData.Length) / 1000000000).toFixed(6)} m³
-                    </Typography>
-                  </Stack>
-                  
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Calculated Weight:</Typography>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primaryDark }}>
-                      {weight} kg
-                    </Typography>
-                  </Stack>
-                </Stack>
-              </Box>
-            )}
-          </Box>
-          
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                borderRadius: 1.5,
-                mt: 1,
-                '& .MuiAlert-icon': {
-                  fontSize: '1.25rem',
-                  alignItems: 'center'
-                },
-                fontSize: '0.75rem',
-                py: 0.5
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleClose}
-          disabled={loading}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading || fetchingItems || !formData.PartNo || !formData.Thickness || !formData.Width || !formData.Length || !formData.Density}
-          startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            bgcolor: COLORS.primary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-            '&:hover': {
-              bgcolor: COLORS.primaryDark,
-            },
-            '&:disabled': {
-              bgcolor: COLORS.border,
-              color: COLORS.text.tertiary
-            }
-          }}
-        >
-          {loading ? 'Adding...' : 'Add Dimension'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          mb: 2,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography
+            sx={{
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              color: COLORS.text.primary
+            }}
+          >
+            Add Dimension Weight
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5 }}>
+          <Stack spacing={2}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+              {/* Part No Field with Add Button */}
+              <Box sx={{ gridColumn: 'span 2' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Label required>PART NO</Label>
+                    <Tooltip title="Add New Item">
+                      <IconButton
+                        size="small"
+                        onClick={() => setAddItemOpen(true)}
+                        sx={{
+                          color: COLORS.primary,
+                          p: 0.25,
+                          '&:hover': { bgcolor: COLORS.primaryLight }
+                        }}
+                      >
+                        <AddIcon sx={{ fontSize: '0.8rem' }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  
+                  <Autocomplete
+                    fullWidth
+                    options={items}
+                    loading={fetchingItems}
+                    value={selectedPart}
+                    onChange={handlePartChange}
+                    getOptionLabel={(option) => option.part_no || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    disabled={loading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Select a part number"
+                        required
+                        error={!!error && error.includes('Part No')}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary,
+                            '&::placeholder': {
+                              color: COLORS.text.tertiary,
+                              fontSize: '0.75rem'
+                            }
+                          }
+                        }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {fetchingItems ? <CircularProgress color="inherit" size={16} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                            {option.part_no}
+                          </Typography>
+                          {option.part_description && (
+                            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                              {option.part_description}
+                            </Typography>
+                          )}
+                        </Box>
+                      </li>
+                    )}
+                    ListboxProps={{
+                      sx: {
+                        '& .MuiAutocomplete-option': {
+                          fontSize: '0.75rem',
+                          py: 1,
+                          px: 1.5
+                        }
+                      }
+                    }}
+                  />
+
+                  {fetchingItems && !selectedPart && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <CircularProgress size={12} sx={{ color: COLORS.primary }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        Loading parts...
+                      </Typography>
+                    </Box>
+                  )}
+                  {!fetchingItems && items.length === 0 && (
+                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
+                      No parts available. Please click the + button to add an item first.
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Thickness Field */}
+              <Box sx={{ gridColumn: 'span 1' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Label required>THICKNESS (mm)</Label>
+                  <TextField
+                    fullWidth
+                    name="Thickness"
+                    type="number"
+                    value={formData.Thickness}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="Enter thickness"
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                          mm
+                        </Typography>
+                      ),
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary,
+                        '&::placeholder': {
+                          color: COLORS.text.tertiary,
+                          fontSize: '0.75rem'
+                        }
+                      },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none', margin: 0
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Width Field */}
+              <Box sx={{ gridColumn: 'span 1' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Label required>WIDTH (mm)</Label>
+                  <TextField
+                    fullWidth
+                    name="Width"
+                    type="number"
+                    value={formData.Width}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="Enter width"
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                          mm
+                        </Typography>
+                      ),
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary,
+                        '&::placeholder': {
+                          color: COLORS.text.tertiary,
+                          fontSize: '0.75rem'
+                        }
+                      },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none', margin: 0
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Length Field */}
+              <Box sx={{ gridColumn: 'span 1' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Label required>LENGTH (mm)</Label>
+                  <TextField
+                    fullWidth
+                    name="Length"
+                    type="number"
+                    value={formData.Length}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="Enter length"
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                          mm
+                        </Typography>
+                      ),
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary,
+                        '&::placeholder': {
+                          color: COLORS.text.tertiary,
+                          fontSize: '0.75rem'
+                        }
+                      },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none', margin: 0
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Density Field */}
+              <Box sx={{ gridColumn: 'span 1' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Label required>DENSITY (g/cm³)</Label>
+                  <TextField
+                    fullWidth
+                    name="Density"
+                    type="number"
+                    value={formData.Density}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    placeholder="Enter density"
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, ml: 0.5 }}>
+                          g/cm³
+                        </Typography>
+                      ),
+                      inputProps: { min: 0, step: 0.01 }
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem',
+                        color: COLORS.text.primary,
+                        '&::placeholder': {
+                          color: COLORS.text.tertiary,
+                          fontSize: '0.75rem'
+                        }
+                      },
+                      '& input[type=number]': {
+                        MozAppearance: 'textfield'
+                      },
+                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                        WebkitAppearance: 'none', margin: 0
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Weight Preview */}
+              {weight > 0 && (
+                <Box sx={{ 
+                  gridColumn: 'span 2',
+                  p: 2, 
+                  bgcolor: COLORS.primaryLight, 
+                  borderRadius: 1.5,
+                  border: `1px solid ${COLORS.primary}`,
+                  mt: 1
+                }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 600, 
+                      color: COLORS.primaryDark, 
+                      mb: 1.5,
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    Weight Calculation Preview
+                  </Typography>
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Volume:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                        {(parseFloat(formData.Thickness) * parseFloat(formData.Width) * parseFloat(formData.Length) / 1000000000).toFixed(6)} m³
+                      </Typography>
+                    </Stack>
+                    
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Calculated Weight:</Typography>
+                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primaryDark }}>
+                        {weight} kg
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
+            </Box>
+            
+            {error && (
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  borderRadius: 1.5,
+                  mt: 1,
+                  '& .MuiAlert-icon': {
+                    fontSize: '1.25rem',
+                    alignItems: 'center'
+                  },
+                  fontSize: '0.75rem',
+                  py: 0.5
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 1
+        }}>
+          <Button
+            onClick={handleClose}
+            disabled={loading}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading || fetchingItems || !formData.PartNo || !formData.Thickness || !formData.Width || !formData.Length || !formData.Density}
+            startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              bgcolor: COLORS.primary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+              '&:hover': {
+                bgcolor: COLORS.primaryDark,
+              },
+              '&:disabled': {
+                bgcolor: COLORS.border,
+                color: COLORS.text.tertiary
+              }
+            }}
+          >
+            {loading ? 'Adding...' : 'Add Dimension'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => setAddItemOpen(false)}
+        onAdd={handleItemAdded}
+      />
+    </>
   );
 };
 

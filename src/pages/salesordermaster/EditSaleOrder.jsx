@@ -30,7 +30,8 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -47,6 +48,9 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
+import AddItem from '../master/itemmaster/AddItem';
+import AddCustomer from '../master/customermaster/AddCustomer';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -105,6 +109,11 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   
+  // Dialog states for Add Customer and Add Item
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
+  
   const [formData, setFormData] = useState({
     customer_id: '',
     customer_po_number: '',
@@ -157,43 +166,69 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     }
   }, []);
   
-  useEffect(() => {
-    if (open && so) {
-      fetchCustomers();
-      fetchItems();
-      
-      setFormData({
-        customer_id: so.customer_id?._id || so.customer_id || '',
-        customer_po_number: so.customer_po_number || '',
-        customer_po_date: so.customer_po_date ? new Date(so.customer_po_date).toISOString().split('T')[0] : '',
-        payment_terms: so.payment_terms || '',
-        delivery_terms: so.delivery_terms || '',
-        delivery_mode: so.delivery_mode || '',
-        expected_delivery_date: so.expected_delivery_date ? new Date(so.expected_delivery_date).toISOString().split('T')[0] : '',
-        internal_remarks: so.internal_remarks || '',
-        currency: so.currency || 'INR'
-      });
-      
-      setSoItems(so.items?.map(item => ({
-        item_id: item.item_id?._id || item.item_id || '',
-        part_no: item.part_no || '',
-        part_name: item.part_name || '',
-        hsn_code: item.hsn_code || '',
-        unit: item.unit || 'Nos',
-        ordered_qty: item.ordered_qty || 1,
-        unit_price: item.unit_price || 0,
-        discount_percent: item.discount_percent || 0,
-        required_date: item.required_date ? new Date(item.required_date).toISOString().split('T')[0] : '',
-        committed_date: item.committed_date ? new Date(item.committed_date).toISOString().split('T')[0] : '',
-        remarks: item.remarks || ''
-      })) || []);
-      
-      calculateTotals(so.items);
-      setActiveStep(0);
-      setError('');
-      setFieldErrors({});
+  // Handle customer added from AddCustomer dialog
+  const handleCustomerAdded = (newCustomer) => {
+    setCustomers(prev => [...prev, newCustomer]);
+    // Auto-select the newly added customer
+    setFormData(prev => ({ ...prev, customer_id: newCustomer._id }));
+  };
+  
+  // Handle item added from AddItem dialog
+  const handleItemAdded = (newItem) => {
+    setItems(prev => [...prev, newItem]);
+    
+    // If we were adding from a specific item row, auto-select it
+    if (currentItemIndex !== null) {
+      handleItemChange(currentItemIndex, 'item_id', newItem._id);
     }
-  }, [open, so, fetchCustomers, fetchItems]);
+    setCurrentItemIndex(null);
+  };
+  
+ useEffect(() => {
+  if (open && so) {
+    fetchCustomers();
+    fetchItems();
+    
+    setFormData({
+      customer_id: so.customer_id || '',
+      customer_po_number: so.customer_po_number || '',
+      customer_po_date: so.customer_po_date ? new Date(so.customer_po_date).toISOString().split('T')[0] : '',
+      payment_terms: so.payment_terms || '',
+      delivery_terms: so.delivery_terms || '',
+      delivery_mode: so.delivery_mode || '',
+      expected_delivery_date: so.expected_delivery_date ? new Date(so.expected_delivery_date).toISOString().split('T')[0] : '',
+      internal_remarks: so.internal_remarks || '',
+      currency: so.currency || 'INR'
+    });
+    
+    // Map items from API response - the item details are already in the response
+    // No need to fetch separately since the API returns complete item data
+    const mappedItems = so.items?.map(item => ({
+      item_id: item.item_id?._id || item.item_id || '',
+      part_no: item.part_no || '',
+      part_name: item.part_name || '',
+      hsn_code: item.hsn_code || '',
+      unit: item.unit || 'Nos',
+      ordered_qty: item.ordered_qty || 1,
+      unit_price: item.unit_price || 0,
+      discount_percent: item.discount_percent || 0,
+      required_date: item.required_date ? new Date(item.required_date).toISOString().split('T')[0] : '',
+      committed_date: item.committed_date ? new Date(item.committed_date).toISOString().split('T')[0] : '',
+      remarks: item.remarks || ''
+    })) || [];
+    
+    setSoItems(mappedItems);
+    
+    // Calculate totals using the mapped items
+    if (mappedItems.length > 0) {
+      calculateTotals(mappedItems);
+    }
+    
+    setActiveStep(0);
+    setError('');
+    setFieldErrors({});
+  }
+}, [open, so, fetchCustomers, fetchItems]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -220,34 +255,35 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     calculateTotals(updatedItems);
   };
   
-  const calculateTotals = (items) => {
-    let sub_total = 0;
-    let discount_total = 0;
+ const calculateTotals = (items) => {
+  let sub_total = 0;
+  let discount_total = 0;
+  
+  items.forEach(item => {
+    // Handle both API response format and local state format
+    const qty = Number(item.ordered_qty) || 0;
+    const price = Number(item.unit_price) || 0;
+    const discount = Number(item.discount_percent) || 0;
     
-    items.forEach(item => {
-      const qty = Number(item.ordered_qty) || 0;
-      const price = Number(item.unit_price) || 0;
-      const discount = Number(item.discount_percent) || 0;
-      
-      const item_total = qty * price;
-      const item_discount = (item_total * discount) / 100;
-      
-      sub_total += item_total;
-      discount_total += item_discount;
-    });
+    const item_total = qty * price;
+    const item_discount = (item_total * discount) / 100;
     
-    const taxable_total = sub_total - discount_total;
-    const gst_total = (taxable_total * 18) / 100;
-    const grand_total = taxable_total + gst_total;
-    
-    setCalculatedTotals({
-      sub_total,
-      discount_total,
-      taxable_total,
-      gst_total,
-      grand_total
-    });
-  };
+    sub_total += item_total;
+    discount_total += item_discount;
+  });
+  
+  const taxable_total = sub_total - discount_total;
+  const gst_total = (taxable_total * 18) / 100; // Assuming 18% GST
+  const grand_total = taxable_total + gst_total;
+  
+  setCalculatedTotals({
+    sub_total: sub_total,
+    discount_total: discount_total,
+    taxable_total: taxable_total,
+    gst_total: gst_total,
+    grand_total: grand_total
+  });
+};
   
   const addItem = () => {
     setSoItems([
@@ -274,6 +310,11 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       setSoItems(updatedItems);
       calculateTotals(updatedItems);
     }
+  };
+  
+  const openAddItemDialog = (index) => {
+    setCurrentItemIndex(index);
+    setAddItemOpen(true);
   };
   
   const validateStep = (step) => {
@@ -368,50 +409,54 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     setActiveStep((prevStep) => prevStep - 1);
   };
   
-  const handleSubmit = async () => {
-    if (!validateAllFields()) {
-      return;
-    }
+ const handleSubmit = async () => {
+  if (!validateAllFields()) {
+    return;
+  }
+  
+  setLoading(true);
+  setError('');
+  
+  try {
+    const token = localStorage.getItem('token');
     
-    setLoading(true);
-    setError('');
+    const submitData = {
+      ...formData,
+      items: soItems.map(item => ({
+        item_id: item.item_id,
+        part_no: item.part_no,        // Add this
+        part_name: item.part_name,    // Add this
+        hsn_code: item.hsn_code,      // Add this
+        unit: item.unit,              // Add this
+        ordered_qty: Number(item.ordered_qty),
+        unit_price: Number(item.unit_price),
+        discount_percent: Number(item.discount_percent),
+        required_date: item.required_date,
+        committed_date: item.committed_date,
+        remarks: item.remarks
+      }))
+    };
     
-    try {
-      const token = localStorage.getItem('token');
-      
-      const submitData = {
-        ...formData,
-        items: soItems.map(item => ({
-          item_id: item.item_id,
-          ordered_qty: Number(item.ordered_qty),
-          unit_price: Number(item.unit_price),
-          discount_percent: Number(item.discount_percent),
-          required_date: item.required_date,
-          committed_date: item.committed_date,
-          remarks: item.remarks
-        }))
-      };
-      
-      const response = await axios.put(`${BASE_URL}/api/sales-orders/${so._id}`, submitData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.data.success) {
-        onUpdate();
-        onClose();
-      } else {
-        setError(response.data.message || 'Failed to update Sales Order');
+    const response = await axios.put(`${BASE_URL}/api/sales-orders/${so._id}`, submitData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (err) {
-      console.error('Error updating Sales Order:', err);
-      setError(err.response?.data?.message || 'Failed to update Sales Order. Please try again.');
-    } finally {
-      setLoading(false);
+    });
+    
+    if (response.data.success) {
+      onUpdate();
+      onClose();
+    } else {
+      setError(response.data.message || 'Failed to update Sales Order');
     }
-  };
+  } catch (err) {
+    console.error('Error updating Sales Order:', err);
+    setError(err.response?.data?.message || 'Failed to update Sales Order. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return '-';
@@ -421,6 +466,18 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       minimumFractionDigits: 2
     }).format(amount);
   };
+  
+  // Label component for consistency
+  const Label = ({ children, required }) => (
+    <Typography sx={{ 
+      fontSize: '0.7rem', 
+      fontWeight: 600, 
+      color: COLORS.text.secondary, 
+      letterSpacing: '0.5px' 
+    }}>
+      {children} {required && <span style={{ color: '#EF4444' }}>*</span>}
+    </Typography>
+  );
   
   const renderStepContent = (step) => {
     switch (step) {
@@ -448,9 +505,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      SO NUMBER
-                    </Typography>
+                    <Label>SO NUMBER</Label>
                     <Typography sx={{ 
                       fontSize: '0.8rem', 
                       fontWeight: 500, 
@@ -468,9 +523,22 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Label required>CUSTOMER</Label>
+                      <Tooltip title="Add New Customer">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddCustomerOpen(true)}
+                          sx={{
+                            color: COLORS.primary,
+                            p: 0.25,
+                            '&:hover': { bgcolor: COLORS.primaryLight }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '0.8rem' }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Autocomplete
                       fullWidth
                       options={customers}
@@ -510,9 +578,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER PO NUMBER
-                    </Typography>
+                    <Label>CUSTOMER PO NUMBER</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -544,9 +610,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER PO DATE
-                    </Typography>
+                    <Label>CUSTOMER PO DATE</Label>
                     <TextField
                       fullWidth
                       type="date"
@@ -575,9 +639,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CURRENCY
-                    </Typography>
+                    <Label>CURRENCY</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="currency"
@@ -604,9 +666,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      PAYMENT TERMS
-                    </Typography>
+                    <Label>PAYMENT TERMS</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -664,9 +724,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DELIVERY TERMS
-                    </Typography>
+                    <Label>DELIVERY TERMS</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="delivery_terms"
@@ -693,9 +751,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DELIVERY MODE
-                    </Typography>
+                    <Label>DELIVERY MODE</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="delivery_mode"
@@ -722,9 +778,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      EXPECTED DELIVERY DATE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>EXPECTED DELIVERY DATE</Label>
                     <TextField
                       fullWidth
                       type="date"
@@ -775,9 +829,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                  INTERNAL REMARKS
-                </Typography>
+                <Label>INTERNAL REMARKS</Label>
                 <TextField
                   fullWidth
                   multiline
@@ -861,9 +913,22 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                   <Grid container spacing={1.5}>
                     <Grid size={{ xs: 12 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          ITEM <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Label required>ITEM</Label>
+                          <Tooltip title="Add New Item">
+                            <IconButton
+                              size="small"
+                              onClick={() => openAddItemDialog(index)}
+                              sx={{
+                                color: COLORS.primary,
+                                p: 0.25,
+                                '&:hover': { bgcolor: COLORS.primaryLight }
+                              }}
+                            >
+                              <AddIcon sx={{ fontSize: '0.8rem' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                         <Autocomplete
                           fullWidth
                           options={items}
@@ -900,9 +965,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 6, sm: 3 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          PART NO
-                        </Typography>
+                        <Label>PART NO</Label>
                         <TextField
                           fullWidth
                           size="small"
@@ -927,9 +990,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          UNIT
-                        </Typography>
+                        <Label>UNIT</Label>
                         <FormControl fullWidth size="small">
                           <Select
                             value={item.unit}
@@ -955,9 +1016,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          QUANTITY <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Label required>QUANTITY</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -987,9 +1046,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          UNIT PRICE <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Label required>UNIT PRICE</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -1019,9 +1076,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          DISCOUNT %
-                        </Typography>
+                        <Label>DISCOUNT %</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -1048,9 +1103,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          REQUIRED DATE
-                        </Typography>
+                        <Label>REQUIRED DATE</Label>
                         <TextField
                           fullWidth
                           type="date"
@@ -1078,9 +1131,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          COMMITTED DATE
-                        </Typography>
+                        <Label>COMMITTED DATE</Label>
                         <TextField
                           fullWidth
                           type="date"
@@ -1108,9 +1159,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     
                     <Grid size={{ xs: 12 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          REMARKS
-                        </Typography>
+                        <Label>REMARKS</Label>
                         <TextField
                           fullWidth
                           size="small"
@@ -1302,113 +1351,91 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   };
   
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Edit Sales Order
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-      
-      {/* Modern Stepper with Primary Color */}
-      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Box>
-      
-      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-        {renderStepContent(activeStep)}
-        
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              fontSize: '0.75rem',
-              py: 0.5,
-              '& .MuiAlert-icon': { fontSize: '1.25rem' }
-            }}
-          >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-      
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        justifyContent: 'space-between'
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          size="small"
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
             border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box>
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Edit Sales Order
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        
+        {/* Modern Stepper with Primary Color */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+        
+        <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+          {renderStepContent(activeStep)}
+          
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                fontSize: '0.75rem',
+                py: 0.5,
+                '& .MuiAlert-icon': { fontSize: '1.25rem' }
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
           <Button
-            onClick={onClose}
-            disabled={loading}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
             size="small"
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
-              mr: 1,
               borderRadius: 1.5,
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text.secondary,
@@ -1421,58 +1448,99 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
+              onClick={onClose}
               disabled={loading}
               size="small"
-              startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
+                mr: 1,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  bgcolor: COLORS.primaryDark,
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
                 }
               }}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              Cancel
             </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={loading}
-              size="small"
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-            >
-              Next
-            </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+                size="small"
+                startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Add Customer Dialog */}
+      <AddCustomer
+        open={addCustomerOpen}
+        onClose={() => setAddCustomerOpen(false)}
+        onAdd={handleCustomerAdded}
+      />
+      
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => {
+          setAddItemOpen(false);
+          setCurrentItemIndex(null);
+        }}
+        onAdd={handleItemAdded}
+      />
+    </>
   );
 };
 

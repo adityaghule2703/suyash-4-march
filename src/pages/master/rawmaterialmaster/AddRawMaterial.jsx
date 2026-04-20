@@ -19,7 +19,9 @@ import {
   Autocomplete,
   CircularProgress,
   InputAdornment,
-  styled
+  styled,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -28,6 +30,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddMaterial from '../materialmaster/AddMaterial';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -168,6 +172,9 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
   const [materials, setMaterials] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
+  
+  // State for Add Material dialog
+  const [addMaterialOpen, setAddMaterialOpen] = useState(false);
 
   // Fetch materials for dropdown
   useEffect(() => {
@@ -194,6 +201,20 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     } finally {
       setLoadingMaterials(false);
     }
+  };
+
+  // Handle material added from AddMaterial dialog
+  const handleMaterialAdded = (newMaterial) => {
+    // Add the new material to the materials list
+    setMaterials(prev => [...prev, newMaterial]);
+    
+    // Auto-select the newly added material
+    setSelectedMaterial(newMaterial);
+    setFormData(prev => ({
+      ...prev,
+      MaterialName: newMaterial.MaterialName,
+      Grade: newMaterial.Grade || ''
+    }));
   };
 
   // Calculate derived rates when base values change
@@ -514,6 +535,18 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     return baseRate + scrap + transport + profileRate;
   };
 
+  // Label component for consistency
+  const Label = ({ children, required }) => (
+    <Typography sx={{ 
+      fontSize: '0.7rem', 
+      fontWeight: 600, 
+      color: COLORS.text.secondary, 
+      letterSpacing: '0.5px' 
+    }}>
+      {children} {required && <span style={{ color: '#EF4444' }}>*</span>}
+    </Typography>
+  );
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Basic Information
@@ -527,9 +560,22 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      SELECT MATERIAL <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Label required>SELECT MATERIAL</Label>
+                      <Tooltip title="Add New Material">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddMaterialOpen(true)}
+                          sx={{
+                            color: COLORS.primary,
+                            p: 0.25,
+                            '&:hover': { bgcolor: COLORS.primaryLight }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '0.8rem' }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Autocomplete
                       fullWidth
                       options={materials}
@@ -600,14 +646,17 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                         }
                       }}
                     />
+                    {!loadingMaterials && materials.length === 0 && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
+                        No materials available. Please click the + button to add a material first.
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      MATERIAL NAME <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>MATERIAL NAME</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -647,9 +696,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      GRADE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>GRADE</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -712,9 +759,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      RATE PER KG <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>RATE PER KG</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -770,9 +815,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      PROFILE CONVERSION RATE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>PROFILE CONVERSION RATE</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -837,9 +880,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      SCRAP PERCENTAGE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>SCRAP PERCENTAGE</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -896,9 +937,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      TRANSPORT LOSS % <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>TRANSPORT LOSS %</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -1043,9 +1082,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DATE EFFECTIVE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>DATE EFFECTIVE</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -1155,120 +1192,96 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 1,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Typography
-          sx={{
-            fontSize: '1.2rem',
-            fontWeight: 700,
-            color: COLORS.text.primary
-          }}
-        >
-          Add Raw Material
-        </Typography>
-
-        {/* 🔥 Modern Stepper with Gradient Connector */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 0.5, mt: 0.5 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              '& .MuiAlert-icon': {
-                fontSize: '1.25rem',
-                alignItems: 'center'
-              },
-              fontSize: '0.75rem',
-              py: 0.5
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          mb: 1,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}>
+          <Typography
+            sx={{
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              color: COLORS.text.primary
             }}
           >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
+            Add Raw Material
+          </Typography>
 
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            },
-            '&:disabled': {
-              borderColor: COLORS.border,
-              color: COLORS.text.tertiary
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+          {/* 🔥 Modern Stepper with Gradient Connector */}
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 0.5, mt: 0.5 }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.25rem',
+                  alignItems: 'center'
+                },
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
           <Button
-            onClick={handleClose}
-            disabled={loading}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -1281,67 +1294,100 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               '&:hover': {
                 borderColor: COLORS.primary,
                 bgcolor: `${COLORS.primary}10`
+              },
+              '&:disabled': {
+                borderColor: COLORS.border,
+                color: COLORS.text.tertiary
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
-              startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                },
-                '&:disabled': {
-                  bgcolor: COLORS.border,
-                  color: COLORS.text.tertiary
-                }
-              }}
-            >
-              {loading ? 'Adding...' : 'Add Material'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
+              onClick={handleClose}
               disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                },
-                '&:disabled': {
-                  bgcolor: COLORS.border,
-                  color: COLORS.text.tertiary
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
                 }
               }}
             >
-              Next
+              Cancel
             </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
+                startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  },
+                  '&:disabled': {
+                    bgcolor: COLORS.border,
+                    color: COLORS.text.tertiary
+                  }
+                }}
+              >
+                {loading ? 'Adding...' : 'Add Material'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  },
+                  '&:disabled': {
+                    bgcolor: COLORS.border,
+                    color: COLORS.text.tertiary
+                  }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Material Dialog */}
+      <AddMaterial
+        open={addMaterialOpen}
+        onClose={() => setAddMaterialOpen(false)}
+        onAdd={handleMaterialAdded}
+      />
+    </>
   );
 };
 

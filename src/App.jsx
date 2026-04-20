@@ -77,6 +77,10 @@ import MIVMaster from './pages/inventory management/materialissues/MIVMaster'
 import MRVMaster from './pages/inventory management/materialreturnvoucher/MRVMaster'
 import StockLedgerMaster from './pages/inventory management/stockledger/StockLedgerMaster'
 import PSVMaster from './pages/inventory management/physicalstockverification/PSVMaster'
+import DeliveryChallanMaster from './pages/dispatchmaster/deliverychallanmaster/DeliveryChallanMaster'
+import AssemblyLineMaster from './pages/productionmaster/assemblylines/AssemblyLineMaster'
+import ProductionScheduleMaster from './pages/productionmaster/productionschedule/ProductionScheduleMaster'
+import ProductionConflict from './pages/productionmaster/productionconflict/ProductionConflict'
 
 
 const PrivateRoute = ({ children }) => {
@@ -158,7 +162,7 @@ const App = () => {
           <Route path='procurementmaster/purchaserequisitionmaster' element={<PurchaseRequisitionMaster/>} />
           <Route path='procurementmaster/rfqmaster' element={<RFQMaster/>} />
           <Route path='procurementmaster/purchaseinvoicemaster' element={<PurchaseInvoiceMaster/>} />
-           <Route path='procurementmaster/vendor-payments' element={<VendorPayments/>} />
+          <Route path='procurementmaster/vendor-payments' element={<VendorPayments/>} />
 
 
           <Route path='bommaster/bommaster' element={<BomMaster/>} />
@@ -175,12 +179,17 @@ const App = () => {
 
 
           <Route path='inventorymanagement/warehousemaster' element={<WareHouseMaster />} />
-          <Route path="/inventorymanagement/stockledger" element={<StockLedgerMaster />} />
+          <Route path="inventorymanagement/stockledger" element={<StockLedgerMaster />} />
           <Route path='inventorymanagement/mivmaster' element={<MIVMaster />} />
           <Route path='inventorymanagement/mrvmaster' element={<MRVMaster />} />
           <Route path='inventorymanagement/psvmaster' element={<PSVMaster />} />
 
           <Route path='productionmaster/workordersmaster' element={<WorkOrdersMaster/>} />
+           <Route path='productionmaster/assemblylines' element={<AssemblyLineMaster/>} />
+             <Route path='productionmaster/productionschedule' element={<ProductionScheduleMaster/>} />
+          <Route path='productionmaster/productionconflict' element={<ProductionConflict/>} />
+
+          <Route path="/delivery-challan" element={<DeliveryChallanMaster />} />
 
         </Route>
 

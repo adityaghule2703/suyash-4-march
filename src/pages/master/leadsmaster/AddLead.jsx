@@ -25,7 +25,8 @@ import {
   MenuItem,
   Autocomplete,
   styled,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,6 +40,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddItem from '../itemmaster/AddItem';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -113,6 +116,11 @@ const AddLead = ({ open, onClose, onAdd }) => {
   const [items, setItems] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+
+  // Dialog states for Add Item
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
+  const [currentFieldType, setCurrentFieldType] = useState(null); // 'material_grade' or 'part_no'
 
   // Exhibition lead form data
   const [formData, setFormData] = useState({
@@ -204,6 +212,42 @@ const AddLead = ({ open, onClose, onAdd }) => {
       fetchItems();
     }
   }, [open, fetchMaterials, fetchItems]);
+
+  // Handle item added from AddItem dialog
+  const handleItemAdded = (newItem) => {
+    // Add the new item to items list
+    setItems(prev => [...prev, newItem]);
+    
+    // If we were adding from a specific field, auto-select it
+    if (currentItemIndex !== null && currentFieldType) {
+      if (currentFieldType === 'part_no') {
+        handleEnquiredItemChange(currentItemIndex, 'part_no', newItem.part_no);
+        // Auto-fill description if available
+        if (newItem.part_description && !enquiredItems[currentItemIndex].description) {
+          handleEnquiredItemChange(currentItemIndex, 'description', newItem.part_description);
+        }
+      } else if (currentFieldType === 'material_grade' && newItem.material) {
+        handleEnquiredItemChange(currentItemIndex, 'material_grade', newItem.material);
+      }
+    }
+    
+    // Reset tracking
+    setCurrentItemIndex(null);
+    setCurrentFieldType(null);
+  };
+
+  // Handle material added (if you have a separate AddMaterial component)
+  const handleMaterialAdded = (newMaterial) => {
+    setMaterials(prev => [...prev, newMaterial]);
+    
+    // Auto-select the new material for the current item
+    if (currentItemIndex !== null && currentFieldType === 'material_grade') {
+      handleEnquiredItemChange(currentItemIndex, 'material_grade', newMaterial.Grade);
+    }
+    
+    setCurrentItemIndex(null);
+    setCurrentFieldType(null);
+  };
 
   const handleLeadTypeChange = (type) => {
     setLeadType(type);
@@ -590,11 +634,20 @@ const AddLead = ({ open, onClose, onAdd }) => {
     setSelectedIndustry('');
     setFieldErrors({});
     setError('');
+    setCurrentItemIndex(null);
+    setCurrentFieldType(null);
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  // Open Add Item dialog
+  const openAddItemDialog = (index, fieldType) => {
+    setCurrentItemIndex(index);
+    setCurrentFieldType(fieldType);
+    setAddItemOpen(true);
   };
 
   const renderStepContent = (step) => {
@@ -1209,11 +1262,27 @@ const AddLead = ({ open, onClose, onAdd }) => {
                       </Box>
                     </Grid>
                     
+                    {/* MATERIAL GRADE Field with Add Button */}
                     <Grid size={{ xs: 6, sm: 3 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          MATERIAL GRADE
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                            MATERIAL GRADE
+                          </Typography>
+                          <Tooltip title="Add New Material">
+                            <IconButton
+                              size="small"
+                              onClick={() => openAddItemDialog(index, 'material_grade')}
+                              sx={{
+                                color: COLORS.primary,
+                                p: 0.25,
+                                '&:hover': { bgcolor: COLORS.primaryLight }
+                              }}
+                            >
+                              <AddIcon sx={{ fontSize: '0.8rem' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                         <Autocomplete
                           fullWidth
                           options={materials.map(m => m.Grade).filter(g => g)}
@@ -1254,11 +1323,27 @@ const AddLead = ({ open, onClose, onAdd }) => {
                       </Box>
                     </Grid>
                     
+                    {/* PART NO Field with Add Button */}
                     <Grid size={{ xs: 6, sm: 3 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          PART NO
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                            PART NO
+                          </Typography>
+                          <Tooltip title="Add New Item">
+                            <IconButton
+                              size="small"
+                              onClick={() => openAddItemDialog(index, 'part_no')}
+                              sx={{
+                                color: COLORS.primary,
+                                p: 0.25,
+                                '&:hover': { bgcolor: COLORS.primaryLight }
+                              }}
+                            >
+                              <AddIcon sx={{ fontSize: '0.8rem' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                         <Autocomplete
                           fullWidth
                           options={items.map(i => i.part_no).filter(p => p)}
@@ -1748,156 +1833,255 @@ const AddLead = ({ open, onClose, onAdd }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Add New Lead
-        </Typography>
-      </DialogTitle>
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Add New Lead
+          </Typography>
+        </DialogTitle>
 
-      {/* Lead Type Selection */}
-      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
-          <Button
-            variant={leadType === 'exhibition' ? 'contained' : 'outlined'}
-            onClick={() => handleLeadTypeChange('exhibition')}
-            sx={{
-              flex: 1,
-              borderRadius: 1.5,
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              bgcolor: leadType === 'exhibition' ? COLORS.primary : 'transparent',
-              borderColor: COLORS.border,
-              color: leadType === 'exhibition' ? COLORS.text.light : COLORS.text.secondary,
-              '&:hover': {
-                bgcolor: leadType === 'exhibition' ? COLORS.primaryDark : COLORS.primaryLight
-              }
-            }}
-          >
-            Exhibition Lead (With Enquired Items)
-          </Button>
-          <Button
-            variant={leadType === 'minimal' ? 'contained' : 'outlined'}
-            onClick={() => handleLeadTypeChange('minimal')}
-            sx={{
-              flex: 1,
-              borderRadius: 1.5,
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              bgcolor: leadType === 'minimal' ? COLORS.primary : 'transparent',
-              borderColor: COLORS.border,
-              color: leadType === 'minimal' ? COLORS.text.light : COLORS.text.secondary,
-              '&:hover': {
-                bgcolor: leadType === 'minimal' ? COLORS.primaryDark : COLORS.primaryLight
-              }
-            }}
-          >
-            Minimal Lead (Required Fields Only)
-          </Button>
-        </Box>
-      </Box>
-
-      {leadType === 'exhibition' ? (
-        <>
-          {/* Modern Stepper with Primary Color */}
-          <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-            <Stepper
-              activeStep={activeStep}
-              alternativeLabel
-              connector={<ColorConnector />}
-            >
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
-                      {label}
-                    </Typography>
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-          </Box>
-
-          <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-            {renderStepContent(activeStep)}
-
-            {error && (
-              <Alert 
-                severity="error" 
-                sx={{ 
-                  mt: 2, 
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                  py: 0.5,
-                  '& .MuiAlert-icon': { fontSize: '1.25rem' }
-                }}
-              >
-                {error}
-              </Alert>
-            )}
-          </DialogContent>
-
-          <DialogActions sx={{
-            px: 2.5,
-            py: 1.5,
-            borderTop: `1px solid ${COLORS.border}`,
-            bgcolor: COLORS.background.white,
-            justifyContent: 'space-between'
-          }}>
+        {/* Lead Type Selection */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Button
-              onClick={handleBack}
-              disabled={activeStep === 0 || loading}
-              size="small"
-              startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+              variant={leadType === 'exhibition' ? 'contained' : 'outlined'}
+              onClick={() => handleLeadTypeChange('exhibition')}
               sx={{
-                height: 32,
-                px: 2,
+                flex: 1,
                 borderRadius: 1.5,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text.secondary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
                 textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                bgcolor: leadType === 'exhibition' ? COLORS.primary : 'transparent',
+                borderColor: COLORS.border,
+                color: leadType === 'exhibition' ? COLORS.text.light : COLORS.text.secondary,
                 '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: `${COLORS.primary}10`
+                  bgcolor: leadType === 'exhibition' ? COLORS.primaryDark : COLORS.primaryLight
                 }
               }}
             >
-              Back
+              Exhibition Lead (With Enquired Items)
             </Button>
-            <Box>
+            <Button
+              variant={leadType === 'minimal' ? 'contained' : 'outlined'}
+              onClick={() => handleLeadTypeChange('minimal')}
+              sx={{
+                flex: 1,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                bgcolor: leadType === 'minimal' ? COLORS.primary : 'transparent',
+                borderColor: COLORS.border,
+                color: leadType === 'minimal' ? COLORS.text.light : COLORS.text.secondary,
+                '&:hover': {
+                  bgcolor: leadType === 'minimal' ? COLORS.primaryDark : COLORS.primaryLight
+                }
+              }}
+            >
+              Minimal Lead (Required Fields Only)
+            </Button>
+          </Box>
+        </Box>
+
+        {leadType === 'exhibition' ? (
+          <>
+            {/* Modern Stepper with Primary Color */}
+            <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+              <Stepper
+                activeStep={activeStep}
+                alternativeLabel
+                connector={<ColorConnector />}
+              >
+                {steps.map((label) => (
+                  <Step key={label}>
+                    <StepLabel>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                        {label}
+                      </Typography>
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </Box>
+
+            <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+              {renderStepContent(activeStep)}
+
+              {error && (
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mt: 2, 
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    py: 0.5,
+                    '& .MuiAlert-icon': { fontSize: '1.25rem' }
+                  }}
+                >
+                  {error}
+                </Alert>
+              )}
+            </DialogContent>
+
+            <DialogActions sx={{
+              px: 2.5,
+              py: 1.5,
+              borderTop: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white,
+              justifyContent: 'space-between'
+            }}>
               <Button
-                onClick={handleClose}
-                disabled={loading}
+                onClick={handleBack}
+                disabled={activeStep === 0 || loading}
                 size="small"
+                startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
                 sx={{
                   height: 32,
                   px: 2,
-                  mr: 1,
+                  borderRadius: 1.5,
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.text.secondary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                Back
+              </Button>
+              <Box>
+                <Button
+                  onClick={handleClose}
+                  disabled={loading}
+                  size="small"
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    mr: 1,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text.secondary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: COLORS.primary,
+                      bgcolor: `${COLORS.primary}10`
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                {activeStep === steps.length - 1 ? (
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    size="small"
+                    startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                    sx={{
+                      height: 32,
+                      px: 2,
+                      borderRadius: 1.5,
+                      bgcolor: COLORS.primary,
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                      '&:hover': {
+                        bgcolor: COLORS.primaryDark,
+                      }
+                    }}
+                  >
+                    {loading ? 'Adding...' : 'Add Lead'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={handleNext}
+                    disabled={loading}
+                    size="small"
+                    endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                    sx={{
+                      height: 32,
+                      px: 2,
+                      borderRadius: 1.5,
+                      bgcolor: COLORS.primary,
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                      '&:hover': {
+                        bgcolor: COLORS.primaryDark,
+                      }
+                    }}
+                  >
+                    Next
+                  </Button>
+                )}
+              </Box>
+            </DialogActions>
+          </>
+        ) : (
+          <>
+            <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+              {renderMinimalForm()}
+              {error && (
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mt: 2, 
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    py: 0.5
+                  }}
+                >
+                  {error}
+                </Alert>
+              )}
+            </DialogContent>
+
+            <DialogActions sx={{
+              px: 2.5,
+              py: 1.5,
+              borderTop: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 1
+            }}>
+              <Button
+                onClick={handleClose}
+                disabled={loading}
+                sx={{
+                  height: 32,
+                  px: 2,
                   borderRadius: 1.5,
                   border: `1px solid ${COLORS.border}`,
                   color: COLORS.text.secondary,
@@ -1912,128 +2096,42 @@ const AddLead = ({ open, onClose, onAdd }) => {
               >
                 Cancel
               </Button>
-              {activeStep === steps.length - 1 ? (
-                <Button
-                  variant="contained"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  size="small"
-                  startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                  sx={{
-                    height: 32,
-                    px: 2,
-                    borderRadius: 1.5,
-                    bgcolor: COLORS.primary,
-                    fontSize: '0.7rem',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                    '&:hover': {
-                      bgcolor: COLORS.primaryDark,
-                    }
-                  }}
-                >
-                  {loading ? 'Adding...' : 'Add Lead'}
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  onClick={handleNext}
-                  disabled={loading}
-                  size="small"
-                  endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-                  sx={{
-                    height: 32,
-                    px: 2,
-                    borderRadius: 1.5,
-                    bgcolor: COLORS.primary,
-                    fontSize: '0.7rem',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                    '&:hover': {
-                      bgcolor: COLORS.primaryDark,
-                    }
-                  }}
-                >
-                  Next
-                </Button>
-              )}
-            </Box>
-          </DialogActions>
-        </>
-      ) : (
-        <>
-          <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-            {renderMinimalForm()}
-            {error && (
-              <Alert 
-                severity="error" 
-                sx={{ 
-                  mt: 2, 
+              <Button
+                variant="contained"
+                onClick={handleMinimalSubmit}
+                disabled={loading || !minimalFormData.subject || !minimalFormData.company_name || !minimalFormData.contact_name}
+                startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
                   borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                  py: 0.5
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
                 }}
               >
-                {error}
-              </Alert>
-            )}
-          </DialogContent>
+                {loading ? 'Adding...' : 'Add Lead'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
 
-          <DialogActions sx={{
-            px: 2.5,
-            py: 1.5,
-            borderTop: `1px solid ${COLORS.border}`,
-            bgcolor: COLORS.background.white,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 1
-          }}>
-            <Button
-              onClick={handleClose}
-              disabled={loading}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text.secondary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: `${COLORS.primary}10`
-                }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleMinimalSubmit}
-              disabled={loading || !minimalFormData.subject || !minimalFormData.company_name || !minimalFormData.contact_name}
-              startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-            >
-              {loading ? 'Adding...' : 'Add Lead'}
-            </Button>
-          </DialogActions>
-        </>
-      )}
-    </Dialog>
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => {
+          setAddItemOpen(false);
+          setCurrentItemIndex(null);
+          setCurrentFieldType(null);
+        }}
+        onAdd={handleItemAdded}
+      />
+    </>
   );
 };
 

@@ -22,15 +22,20 @@ import {
   Autocomplete,
   CircularProgress,
   InputAdornment,
-  styled
+  styled,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import { 
   Edit as EditIcon,
+  Add as AddIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddMaterial from '../materialmaster/AddMaterial';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -171,6 +176,9 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   const [materials, setMaterials] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
+  
+  // State for Add Material dialog
+  const [addMaterialOpen, setAddMaterialOpen] = useState(false);
 
   // Fetch materials for dropdown
   useEffect(() => {
@@ -223,6 +231,20 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
     } finally {
       setLoadingMaterials(false);
     }
+  };
+
+  // Handle material added from AddMaterial dialog
+  const handleMaterialAdded = (newMaterial) => {
+    // Add the new material to the materials list
+    setMaterials(prev => [...prev, newMaterial]);
+    
+    // Auto-select the newly added material
+    setSelectedMaterial(newMaterial);
+    setFormData(prev => ({
+      ...prev,
+      MaterialName: newMaterial.MaterialName,
+      Grade: newMaterial.Grade || ''
+    }));
   };
 
   // Calculate derived rates when base values change
@@ -550,217 +572,223 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
     return baseRate + scrap + transport + profileRate;
   };
 
+  // Label component for consistency
+  const Label = ({ children, required }) => (
+    <Typography sx={{ 
+      fontSize: '0.7rem', 
+      fontWeight: 600, 
+      color: COLORS.text.secondary, 
+      letterSpacing: '0.5px' 
+    }}>
+      {children} {required && <span style={{ color: '#EF4444' }}>*</span>}
+    </Typography>
+  );
+
   const renderStepContent = (step) => {
     switch (step) {
-     case 0: // Basic Information
-  return (
-    <Stack spacing={2}>
-      {/* Material Selection - Without Paper */}
-      <Box>
-        <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-          Material Selection
-        </Typography>
-        
-        <Grid container spacing={1.5}>
-          <Grid size={{ xs: 12 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                SELECT MATERIAL <span style={{ color: '#EF4444' }}>*</span>
+      case 0: // Basic Information
+        return (
+          <Stack spacing={2}>
+            {/* Material Selection */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
+                Material Selection
               </Typography>
-              <Autocomplete
-                fullWidth
-                options={materials}
-                loading={loadingMaterials}
-                value={selectedMaterial}
-                onChange={handleMaterialChange}
-                getOptionLabel={(option) => 
-                  `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
-                }
-                isOptionEqualToValue={(option, value) => option._id === value._id}
-                disabled={loading}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    placeholder="Select material"
-                    required
-                    error={!!fieldErrors.MaterialName}
-                    helperText={fieldErrors.MaterialName}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem',
-                        color: COLORS.text.primary,
-                        '&::placeholder': {
-                          color: COLORS.text.tertiary,
-                          fontSize: '0.75rem'
-                        }
-                      },
-                      '& .MuiFormHelperText-root': {
-                        fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                      }
-                    }}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingMaterials ? <CircularProgress color="inherit" size={16} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
-                        {option.MaterialName}
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-                        {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
-                      </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Label required>SELECT MATERIAL</Label>
+                      <Tooltip title="Add New Material">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddMaterialOpen(true)}
+                          sx={{
+                            color: COLORS.primary,
+                            p: 0.25,
+                            '&:hover': { bgcolor: COLORS.primaryLight }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '0.8rem' }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
-                  </li>
-                )}
-                ListboxProps={{
-                  sx: {
-                    '& .MuiAutocomplete-option': {
-                      fontSize: '0.75rem', py: 1, px: 1.5
-                    }
-                  }
-                }}
-              />
+                    <Autocomplete
+                      fullWidth
+                      options={materials}
+                      loading={loadingMaterials}
+                      value={selectedMaterial}
+                      onChange={handleMaterialChange}
+                      getOptionLabel={(option) => 
+                        `${option.MaterialName}${option.Grade ? ` - ${option.Grade}` : ''}${option.MaterialCode ? ` (${option.MaterialCode})` : ''}`
+                      }
+                      isOptionEqualToValue={(option, value) => option._id === value._id}
+                      disabled={loading}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          placeholder="Select material"
+                          required
+                          error={!!fieldErrors.MaterialName}
+                          helperText={fieldErrors.MaterialName}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem',
+                              color: COLORS.text.primary,
+                              '&::placeholder': {
+                                color: COLORS.text.tertiary,
+                                fontSize: '0.75rem'
+                              }
+                            },
+                            '& .MuiFormHelperText-root': {
+                              fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                            }
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingMaterials ? <CircularProgress color="inherit" size={16} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Box>
+                            <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+                              {option.MaterialName}
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
+                              {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
+                            </Typography>
+                          </Box>
+                        </li>
+                      )}
+                      ListboxProps={{
+                        sx: {
+                          '& .MuiAutocomplete-option': {
+                            fontSize: '0.75rem', py: 1, px: 1.5
+                          }
+                        }
+                      }}
+                    />
+                    {!loadingMaterials && materials.length === 0 && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
+                        No materials available. Please click the + button to add a material first.
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label required>MATERIAL NAME</Label>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="MaterialName"
+                      value={formData.MaterialName}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="e.g., Copper"
+                      error={!!fieldErrors.MaterialName}
+                      helperText={fieldErrors.MaterialName}
+                      InputProps={{
+                        readOnly: true,
+                        sx: { 
+                          bgcolor: COLORS.background.light,
+                          borderRadius: 1.5
+                        }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label required>GRADE</Label>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="Grade"
+                      value={formData.Grade}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      placeholder="e.g., C101"
+                      error={!!fieldErrors.Grade}
+                      helperText={fieldErrors.Grade}
+                      InputProps={{
+                        readOnly: true,
+                        sx: { 
+                          bgcolor: COLORS.background.light,
+                          borderRadius: 1.5
+                        }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        },
+                        '& .MuiFormHelperText-root': {
+                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
             </Box>
-          </Grid>
-          
-          <Grid size={{ xs: 12 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                MATERIAL NAME <span style={{ color: '#EF4444' }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                name="MaterialName"
-                value={formData.MaterialName}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                placeholder="e.g., Copper"
-                error={!!fieldErrors.MaterialName}
-                helperText={fieldErrors.MaterialName}
-                InputProps={{
-                  readOnly: true,
-                  sx: { 
-                    bgcolor: COLORS.background.light,
-                    borderRadius: 1.5
-                  }
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5,
-                    fontSize: '0.75rem',
-                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                  },
-                  '& .MuiInputBase-input': {
-                    py: 1,
-                    px: 1.5,
-                    fontSize: '0.75rem',
-                    color: COLORS.text.primary
-                  },
-                  '& .MuiFormHelperText-root': {
-                    fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                  }
-                }}
-              />
-            </Box>
-          </Grid>
-          
-          <Grid size={{ xs: 12 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                GRADE <span style={{ color: '#EF4444' }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                name="Grade"
-                value={formData.Grade}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                placeholder="e.g., C101"
-                error={!!fieldErrors.Grade}
-                helperText={fieldErrors.Grade}
-                InputProps={{
-                  readOnly: true,
-                  sx: { 
-                    bgcolor: COLORS.background.light,
-                    borderRadius: 1.5
-                  }
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5,
-                    fontSize: '0.75rem',
-                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                  },
-                  '& .MuiInputBase-input': {
-                    py: 1,
-                    px: 1.5,
-                    fontSize: '0.75rem',
-                    color: COLORS.text.primary
-                  },
-                  '& .MuiFormHelperText-root': {
-                    fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                  }
-                }}
-              />
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
 
-      {/* Material Info Summary - Keep as is or also remove Paper if desired */}
-      {selectedMaterial && (
-        <Box sx={{ mt: 1 }}>
-          <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-            Code: {selectedMaterial.MaterialCode}
-            {selectedMaterial.Density && ` | Density: ${selectedMaterial.Density} ${selectedMaterial.Unit || ''}`}
-          </Typography>
-        </Box>
-      )}
-    </Stack>
-  );
+            {/* Material Info Summary */}
+            {selectedMaterial && (
+              <Box sx={{ mt: 1 }}>
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                  Code: {selectedMaterial.MaterialCode}
+                  {selectedMaterial.Density && ` | Density: ${selectedMaterial.Density} ${selectedMaterial.Unit || ''}`}
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        );
+      
       case 1: // Rate & Cost Details
         return (
           <Stack spacing={2}>
@@ -768,16 +796,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Rate per KG */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    RATE PER KG <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
+                  <Label required>RATE PER KG</Label>
                   <TextField
                     fullWidth
                     size="small"
@@ -835,16 +854,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Profile Conversion Rate */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    PROFILE CONVERSION RATE <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
+                  <Label required>PROFILE CONVERSION RATE</Label>
                   <TextField
                     fullWidth
                     size="small"
@@ -902,16 +912,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Scrap Percentage */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    SCRAP PERCENTAGE <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
+                  <Label required>SCRAP PERCENTAGE</Label>
                   <TextField
                     fullWidth
                     size="small"
@@ -970,16 +971,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Transport Loss Percentage */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    TRANSPORT LOSS % <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
+                  <Label required>TRANSPORT LOSS %</Label>
                   <TextField
                     fullWidth
                     size="small"
@@ -1038,16 +1030,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Date Effective */}
               <Box sx={{ gridColumn: 'span 2' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    DATE EFFECTIVE <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
+                  <Label required>DATE EFFECTIVE</Label>
                   <TextField
                     fullWidth
                     size="small"
@@ -1083,17 +1066,44 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
                 </Box>
               </Box>
 
+              {/* Status Switch */}
+              <Box sx={{ gridColumn: 'span 2' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    Active Status
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.IsActive}
+                        onChange={handleSwitchChange}
+                        disabled={loading}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: COLORS.primary,
+                            '&:hover': {
+                              bgcolor: `${COLORS.primary}20`
+                            }
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            bgcolor: COLORS.primary
+                          }
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        {formData.IsActive ? 'Active' : 'Inactive'}
+                      </Typography>
+                    }
+                  />
+                </Box>
+              </Box>
+
               {/* Scrap Rate (Read Only) */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                     SCRAP RATE PER KG
                   </Typography>
                   <TextField
@@ -1130,14 +1140,7 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               {/* Transport Rate (Read Only) */}
               <Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                     TRANSPORT RATE PER KG
                   </Typography>
                   <TextField
@@ -1244,120 +1247,96 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden',
-          maxHeight: '95vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 1,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Typography
-          sx={{
-            fontSize: '1.2rem',
-            fontWeight: 700,
-            color: COLORS.text.primary
-          }}
-        >
-          Edit Raw Material
-        </Typography>
-
-        {/* 🔥 Modern Stepper with Gradient Connector */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ mb: 0.5, mt: 0.5 }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>
-                <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
-        {renderStepContent(activeStep)}
-
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mt: 2, 
-              borderRadius: 1.5,
-              '& .MuiAlert-icon': {
-                fontSize: '1.25rem',
-                alignItems: 'center'
-              },
-              fontSize: '0.75rem',
-              py: 0.5
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+            maxHeight: '95vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          mb: 1,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}>
+          <Typography
+            sx={{
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              color: COLORS.text.primary
             }}
           >
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
+            Edit Raw Material
+          </Typography>
 
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleBack}
-          disabled={activeStep === 0 || loading}
-          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            },
-            '&:disabled': {
-              borderColor: COLORS.border,
-              color: COLORS.text.tertiary
-            }
-          }}
-        >
-          Back
-        </Button>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+          {/* 🔥 Modern Stepper with Gradient Connector */}
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<ColorConnector />}
+            sx={{ mb: 0.5, mt: 0.5 }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography fontWeight={500} fontSize="0.8rem" color={COLORS.text.secondary}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, overflow: 'auto' }}>
+          {renderStepContent(activeStep)}
+
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2, 
+                borderRadius: 1.5,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.25rem',
+                  alignItems: 'center'
+                },
+                fontSize: '0.75rem',
+                py: 0.5
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
           <Button
-            onClick={handleClose}
-            disabled={loading}
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -1370,67 +1349,100 @@ const EditRawMaterial = ({ open, onClose, material, onUpdate }) => {
               '&:hover': {
                 borderColor: COLORS.primary,
                 bgcolor: `${COLORS.primary}10`
+              },
+              '&:disabled': {
+                borderColor: COLORS.border,
+                color: COLORS.text.tertiary
               }
             }}
           >
-            Cancel
+            Back
           </Button>
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
-              startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                },
-                '&:disabled': {
-                  bgcolor: COLORS.border,
-                  color: COLORS.text.tertiary
-                }
-              }}
-            >
-              {loading ? 'Updating...' : 'Update Material'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
+              onClick={handleClose}
               disabled={loading}
-              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,
                 px: 2,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
                 fontSize: '0.7rem',
                 fontWeight: 500,
                 textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                },
-                '&:disabled': {
-                  bgcolor: COLORS.border,
-                  color: COLORS.text.tertiary
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
                 }
               }}
             >
-              Next
+              Cancel
             </Button>
-          )}
-        </Box>
-      </DialogActions>
-    </Dialog>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
+                startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  },
+                  '&:disabled': {
+                    bgcolor: COLORS.border,
+                    color: COLORS.text.tertiary
+                  }
+                }}
+              >
+                {loading ? 'Updating...' : 'Update Material'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  },
+                  '&:disabled': {
+                    bgcolor: COLORS.border,
+                    color: COLORS.text.tertiary
+                  }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Material Dialog */}
+      <AddMaterial
+        open={addMaterialOpen}
+        onClose={() => setAddMaterialOpen(false)}
+        onAdd={handleMaterialAdded}
+      />
+    </>
   );
 };
 

@@ -30,7 +30,8 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,6 +47,9 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
+import AddItem from '../master/itemmaster/AddItem';
+import AddCustomer from '../master/customermaster/AddCustomer';
+
 
 // Color constants matching other components
 const COLORS = {
@@ -109,6 +113,11 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
   const [quotations, setQuotations] = useState([]);
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
+  
+  // Dialog states for Add Customer and Add Item
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -207,6 +216,24 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
       fetchItems();
     }
   }, [open, fetchCustomers, fetchQuotations, fetchItems]);
+  
+  // Handle customer added from AddCustomer dialog
+  const handleCustomerAdded = (newCustomer) => {
+    setCustomers(prev => [...prev, newCustomer]);
+    // Auto-select the newly added customer
+    setFormData(prev => ({ ...prev, customer_id: newCustomer._id }));
+  };
+  
+  // Handle item added from AddItem dialog
+  const handleItemAdded = (newItem) => {
+    setItems(prev => [...prev, newItem]);
+    
+    // If we were adding from a specific item row, auto-select it
+    if (currentItemIndex !== null) {
+      handleItemChange(currentItemIndex, 'item_id', newItem._id);
+    }
+    setCurrentItemIndex(null);
+  };
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -345,6 +372,11 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
     }
   };
   
+  const openAddItemDialog = (index) => {
+    setCurrentItemIndex(index);
+    setAddItemOpen(true);
+  };
+  
   const validateStep = (step) => {
     const errors = {};
     let isValid = true;
@@ -437,51 +469,55 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
     setActiveStep((prevStep) => prevStep - 1);
   };
   
-  const handleSubmit = async () => {
-    if (!validateAllFields()) {
-      return;
-    }
+ const handleSubmit = async () => {
+  if (!validateAllFields()) {
+    return;
+  }
+  
+  setLoading(true);
+  setError('');
+  
+  try {
+    const token = localStorage.getItem('token');
     
-    setLoading(true);
-    setError('');
+    const submitData = {
+      ...formData,
+      items: soItems.map(item => ({
+        item_id: item.item_id,
+        part_no: item.part_no,        // Add this
+        part_name: item.part_name,    // Add this (optional)
+        hsn_code: item.hsn_code,      // Add this
+        unit: item.unit,              // Add this
+        ordered_qty: Number(item.ordered_qty),
+        unit_price: Number(item.unit_price),
+        discount_percent: Number(item.discount_percent),
+        required_date: item.required_date,
+        committed_date: item.committed_date,
+        remarks: item.remarks
+      }))
+    };
     
-    try {
-      const token = localStorage.getItem('token');
-      
-      const submitData = {
-        ...formData,
-        items: soItems.map(item => ({
-          item_id: item.item_id,
-          ordered_qty: Number(item.ordered_qty),
-          unit_price: Number(item.unit_price),
-          discount_percent: Number(item.discount_percent),
-          required_date: item.required_date,
-          committed_date: item.committed_date,
-          remarks: item.remarks
-        }))
-      };
-      
-      const response = await axios.post(`${BASE_URL}/api/sales-orders`, submitData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.data.success) {
-        onAdd(response.data.data);
-        resetForm();
-        onClose();
-      } else {
-        setError(response.data.message || 'Failed to add Sales Order');
+    const response = await axios.post(`${BASE_URL}/api/sales-orders`, submitData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (err) {
-      console.error('Error adding Sales Order:', err);
-      setError(err.response?.data?.message || 'Failed to add Sales Order. Please try again.');
-    } finally {
-      setLoading(false);
+    });
+    
+    if (response.data.success) {
+      onAdd(response.data.data);
+      resetForm();
+      onClose();
+    } else {
+      setError(response.data.message || 'Failed to add Sales Order');
     }
-  };
+  } catch (err) {
+    console.error('Error adding Sales Order:', err);
+    setError(err.response?.data?.message || 'Failed to add Sales Order. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   
   const resetForm = () => {
     setActiveStep(0);
@@ -524,6 +560,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
     setError('');
     setQuotationConflict(false);
     setPendingQuotation(null);
+    setCurrentItemIndex(null);
   };
   
   const handleClose = () => {
@@ -539,6 +576,18 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
       minimumFractionDigits: 2
     }).format(amount);
   };
+  
+  // Label component for consistency
+  const Label = ({ children, required }) => (
+    <Typography sx={{ 
+      fontSize: '0.7rem', 
+      fontWeight: 600, 
+      color: COLORS.text.secondary, 
+      letterSpacing: '0.5px' 
+    }}>
+      {children} {required && <span style={{ color: '#EF4444' }}>*</span>}
+    </Typography>
+  );
   
   const renderStepContent = (step) => {
     switch (step) {
@@ -566,9 +615,22 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Label required>CUSTOMER</Label>
+                      <Tooltip title="Add New Customer">
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddCustomerOpen(true)}
+                          sx={{
+                            color: COLORS.primary,
+                            p: 0.25,
+                            '&:hover': { bgcolor: COLORS.primaryLight }
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: '0.8rem' }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Autocomplete
                       fullWidth
                       options={customers}
@@ -608,9 +670,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      REFERENCE QUOTATION
-                    </Typography>
+                    <Label>REFERENCE QUOTATION</Label>
                     <Autocomplete
                       fullWidth
                       options={quotations}
@@ -645,9 +705,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER PO NUMBER
-                    </Typography>
+                    <Label>CUSTOMER PO NUMBER</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -679,9 +737,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CUSTOMER PO DATE
-                    </Typography>
+                    <Label>CUSTOMER PO DATE</Label>
                     <TextField
                       fullWidth
                       type="date"
@@ -729,9 +785,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                  INTERNAL REMARKS
-                </Typography>
+                <Label>INTERNAL REMARKS</Label>
                 <TextField
                   fullWidth
                   multiline
@@ -789,9 +843,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      EXPECTED DELIVERY DATE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
+                    <Label required>EXPECTED DELIVERY DATE</Label>
                     <TextField
                       fullWidth
                       type="date"
@@ -823,9 +875,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      PAYMENT TERMS
-                    </Typography>
+                    <Label>PAYMENT TERMS</Label>
                     <TextField
                       fullWidth
                       size="small"
@@ -857,9 +907,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DELIVERY TERMS
-                    </Typography>
+                    <Label>DELIVERY TERMS</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="delivery_terms"
@@ -886,9 +934,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DELIVERY MODE
-                    </Typography>
+                    <Label>DELIVERY MODE</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="delivery_mode"
@@ -936,9 +982,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      CURRENCY
-                    </Typography>
+                    <Label>CURRENCY</Label>
                     <FormControl fullWidth size="small">
                       <Select
                         name="currency"
@@ -1017,9 +1061,22 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                   <Grid container spacing={1.5}>
                     <Grid size={{ xs: 12 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          ITEM <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Label required>ITEM</Label>
+                          <Tooltip title="Add New Item">
+                            <IconButton
+                              size="small"
+                              onClick={() => openAddItemDialog(index)}
+                              sx={{
+                                color: COLORS.primary,
+                                p: 0.25,
+                                '&:hover': { bgcolor: COLORS.primaryLight }
+                              }}
+                            >
+                              <AddIcon sx={{ fontSize: '0.8rem' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                         <Autocomplete
                           fullWidth
                           options={items}
@@ -1056,9 +1113,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 3 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          PART NO
-                        </Typography>
+                        <Label>PART NO</Label>
                         <TextField
                           fullWidth
                           size="small"
@@ -1083,9 +1138,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 3 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          HSN CODE
-                        </Typography>
+                        <Label>HSN CODE</Label>
                         <TextField
                           fullWidth
                           size="small"
@@ -1110,9 +1163,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          UNIT
-                        </Typography>
+                        <Label>UNIT</Label>
                         <FormControl fullWidth size="small">
                           <Select
                             value={item.unit}
@@ -1138,9 +1189,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          QUANTITY <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Label required>QUANTITY</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -1170,9 +1219,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          UNIT PRICE <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
+                        <Label required>UNIT PRICE</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -1202,9 +1249,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 6, sm: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          DISCOUNT %
-                        </Typography>
+                        <Label>DISCOUNT %</Label>
                         <TextField
                           fullWidth
                           type="number"
@@ -1231,9 +1276,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          REQUIRED DATE
-                        </Typography>
+                        <Label>REQUIRED DATE</Label>
                         <TextField
                           fullWidth
                           type="date"
@@ -1261,9 +1304,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          COMMITTED DATE
-                        </Typography>
+                        <Label>COMMITTED DATE</Label>
                         <TextField
                           fullWidth
                           type="date"
@@ -1291,9 +1332,7 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
                     
                     <Grid size={{ xs: 12 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                          REMARKS
-                        </Typography>
+                        <Label>REMARKS</Label>
                         <TextField
                           fullWidth
                           size="small"
@@ -1737,6 +1776,23 @@ const AddSaleOrder = ({ open, onClose, onAdd }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Add Customer Dialog */}
+      <AddCustomer
+        open={addCustomerOpen}
+        onClose={() => setAddCustomerOpen(false)}
+        onAdd={handleCustomerAdded}
+      />
+      
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => {
+          setAddItemOpen(false);
+          setCurrentItemIndex(null);
+        }}
+        onAdd={handleItemAdded}
+      />
     </>
   );
 };

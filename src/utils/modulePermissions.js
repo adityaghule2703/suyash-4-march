@@ -36,6 +36,7 @@ export const MODULES = {
   PURCHASE_REQUISITION_MASTER: 'PURCHASE_REQUISITION_MASTER',
   RFQ_MASTER: 'RFQ_MASTER',
   PURCHASE_INVOICE_MASTER: 'PURCHASE_INVOICE_MASTER',
+  VENDOR_PAYMENTS: 'VENDOR_PAYMENTS', // NEW
   
   // HR Master
   DEPARTMENT_MASTER: 'DEPARTMENT_MASTER',
@@ -70,6 +71,12 @@ export const MODULES = {
   SO_REVISION: 'SO_REVISION',
   SO_SUMMARY: 'SO_SUMMARY',
   SO_PENDING_DELIVERY: 'SO_PENDING_DELIVERY',
+  
+  // Production Master
+  WORK_ORDERS: 'WORK_ORDERS', // NEW
+  
+  // Inventory Management
+  INVENTORY_MANAGEMENT: 'INVENTORY_MANAGEMENT', // NEW
   
   // Reports
   REPORTS: 'REPORTS'
@@ -107,6 +114,14 @@ export const PAGES = {
   PURCHASE_REQUISITION_MASTER: 'Purchase Requisition Master',
   RFQ_MASTER: 'RFQ Master',
   PURCHASE_INVOICE_MASTER: 'Purchase Invoice Master',
+  VENDOR_PAYMENTS: 'Vendor Payments', // NEW
+  
+  // BOM Master Pages
+  BOM_MASTER: 'BOM Master',
+  MRP_MASTER: 'MRP Master', // NEW
+  ROUTING_MASTER: 'Routing Master', // NEW
+  MACHINE_MASTER: 'Machine Master', // NEW
+  OEE_MASTER: 'OEE Master', // NEW
   
   // HR Master Pages
   DEPARTMENT_MASTER: 'Department Master',
@@ -132,15 +147,22 @@ export const PAGES = {
   LEAVE_APPROVAL: 'Leave Approval',
   TRAINING_RECORD_MASTER: 'Training Record Master',
   
-  // BOM Master Pages
-  BOM_MASTER: 'BOM Master',
-  
   // Sales Order Master Pages
   SALES_ORDER_MASTER: 'Sales Order Master',
   ORDER_BOOK: 'Order Book',
   SO_REVISION: 'SO Revision',
   SO_SUMMARY: 'SO Summary',
   SO_PENDING_DELIVERY: 'SO Pending Delivery',
+  
+  // Production Master Pages
+  WORK_ORDERS_MASTER: 'Work Orders Master', // NEW
+  
+  // Inventory Management Pages
+  WAREHOUSE_MASTER: 'Warehouse Master', // NEW
+  STOCK_LEDGER: 'Stock Ledger', // NEW
+  MIV_MASTER: 'MIV Master (Material Issue Voucher)', // NEW
+  MRV_MASTER: 'MRV Master (Material Receipt Voucher)', // NEW
+  PSV_MASTER: 'PSV Master (Physical Stock Verification)', // NEW
   
   // Reports Pages
   RECRUITMENT_REPORT: 'Recruitment Report',
@@ -340,6 +362,13 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
+  {
+    moduleKey: MODULES.VENDOR_PAYMENTS,
+    page: PAGES.VENDOR_PAYMENTS,
+    category: 'Procurement Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // HR MASTER
@@ -503,6 +532,34 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT]
   },
+  {
+    moduleKey: MODULES.BOM_MASTER,
+    page: PAGES.MRP_MASTER,
+    category: 'BOM Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.BOM_MASTER,
+    page: PAGES.ROUTING_MASTER,
+    category: 'BOM Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.BOM_MASTER,
+    page: PAGES.MACHINE_MASTER,
+    category: 'BOM Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.BOM_MASTER,
+    page: PAGES.OEE_MASTER,
+    category: 'BOM Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // SALES ORDER MASTER
@@ -539,6 +596,55 @@ export const MODULE_PERMISSIONS_CONFIG = [
     page: PAGES.SO_PENDING_DELIVERY,
     category: 'Sales Order Master',
     actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.UPDATE]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRODUCTION MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.WORK_ORDERS,
+    page: PAGES.WORK_ORDERS_MASTER,
+    category: 'Production Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INVENTORY MANAGEMENT
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.INVENTORY_MANAGEMENT,
+    page: PAGES.WAREHOUSE_MASTER,
+    category: 'Inventory Management',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.IMPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.INVENTORY_MANAGEMENT,
+    page: PAGES.STOCK_LEDGER,
+    category: 'Inventory Management',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.INVENTORY_MANAGEMENT,
+    page: PAGES.MIV_MASTER,
+    category: 'Inventory Management',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.INVENTORY_MANAGEMENT,
+    page: PAGES.MRV_MASTER,
+    category: 'Inventory Management',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.INVENTORY_MANAGEMENT,
+    page: PAGES.PSV_MASTER,
+    category: 'Inventory Management',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
   },
 
   // ─────────────────────────────────────────────────────────────────────────

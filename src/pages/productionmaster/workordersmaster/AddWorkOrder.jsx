@@ -1,4 +1,3 @@
-// AddWorkOrder.jsx (Updated)
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -44,11 +43,14 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
   const [routings, setRoutings] = useState([]);
   const [mrpRuns, setMrpRuns] = useState([]);
   const [items, setItems] = useState([]);
+  const [assemblyLines, setAssemblyLines] = useState([]); // ✅ New state for assembly lines
+  
   const [loadingSO, setLoadingSO] = useState(false);
   const [loadingBOM, setLoadingBOM] = useState(false);
   const [loadingRouting, setLoadingRouting] = useState(false);
   const [loadingMRP, setLoadingMRP] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [loadingAssemblyLines, setLoadingAssemblyLines] = useState(false); // ✅ Loading state for assembly lines
 
   // Form data
   const [formData, setFormData] = useState({
@@ -158,6 +160,37 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     }
   }, []);
 
+  // ✅ Fetch Assembly Lines for dropdown (active only)
+  const fetchAssemblyLines = useCallback(async () => {
+    try {
+      setLoadingAssemblyLines(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/assembly-lines/dropdown`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setAssemblyLines(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching assembly lines:', err);
+      // Fallback to regular assembly-lines endpoint if dropdown endpoint doesn't exist
+      try {
+        const fallbackResponse = await axios.get(`${BASE_URL}/api/assembly-lines?limit=100`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (fallbackResponse.data.success) {
+          // Filter only active assembly lines
+          const activeLines = (fallbackResponse.data.data || []).filter(line => line.is_active === true);
+          setAssemblyLines(activeLines);
+        }
+      } catch (fallbackErr) {
+        console.error('Error fetching assembly lines (fallback):', fallbackErr);
+      }
+    } finally {
+      setLoadingAssemblyLines(false);
+    }
+  }, []);
+
   // Fetch data when dialog opens
   useEffect(() => {
     if (open) {
@@ -166,8 +199,9 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       fetchRoutings();
       fetchMrpRuns();
       fetchItems();
+      fetchAssemblyLines(); // ✅ Fetch assembly lines
     }
-  }, [open, fetchSalesOrders, fetchBOMs, fetchRoutings, fetchMrpRuns, fetchItems]);
+  }, [open, fetchSalesOrders, fetchBOMs, fetchRoutings, fetchMrpRuns, fetchItems, fetchAssemblyLines]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -202,6 +236,14 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       item_id: newValue?._id || ''
     }));
     setFieldErrors(prev => ({ ...prev, item_id: '' }));
+  };
+
+  // ✅ Handle assembly line change
+  const handleAssemblyLineChange = (event, newValue) => {
+    setFormData(prev => ({
+      ...prev,
+      assembly_line: newValue?._id || ''
+    }));
   };
 
   const validateForm = () => {
@@ -328,6 +370,16 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
   // Get available items for selected SO
   const availableSOItems = selectedSO?.items || [];
   const hasMultipleSOItems = availableSOItems.length > 1;
+
+  // ✅ Get selected assembly line display
+  const getSelectedAssemblyLine = () => {
+    return assemblyLines.find(al => al._id === formData.assembly_line) || null;
+  };
+
+  // ✅ Get assembly line display label
+  const getAssemblyLineLabel = (option) => {
+    return `${option.line_code} - ${option.line_name} (${option.line_type})`;
+  };
 
   return (
     <Dialog
@@ -783,27 +835,40 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
                 </Box>
               </Grid>
 
+              {/* ✅ Updated Assembly Line Dropdown with API data */}
               <Grid size={{ xs: 12, sm: 6 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                     ASSEMBLY LINE
                   </Typography>
-                  <TextField
+                  <Autocomplete
                     fullWidth
-                    size="small"
-                    name="assembly_line"
-                    value={formData.assembly_line}
-                    onChange={handleChange}
-                    placeholder="e.g., Line A"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary }
-                      },
-                      '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                    }}
+                    options={assemblyLines}
+                    getOptionLabel={getAssemblyLineLabel}
+                    value={getSelectedAssemblyLine()}
+                    onChange={handleAssemblyLineChange}
+                    loading={loadingAssemblyLines}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder={loadingAssemblyLines ? "Loading assembly lines..." : "Select assembly line (optional)"}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary }
+                          },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    )}
+                    noOptionsText="No assembly lines found"
+                    loadingText="Loading assembly lines..."
                   />
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                    Select the assembly line where this work order will be processed
+                  </Typography>
                 </Box>
               </Grid>
 

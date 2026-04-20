@@ -59,7 +59,7 @@ const COLORS = {
 // All available actions from your permission catalog
 const ALL_ACTIONS = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'PRINT', 'APPROVE', 'REJECT'];
 
-// All pages/modules from your permission catalog - Updated with all Sales Order pages
+// All pages/modules from your permission catalog - Complete with all modules
 const ALL_PAGES = [
   // Dashboard
   { module: 'DASHBOARD', page: 'Dashboard', category: 'Dashboard' },
@@ -72,26 +72,27 @@ const ALL_PAGES = [
   { module: 'COMPANY_MASTER', page: 'Organization / Company', category: 'Quotation Master' },
   { module: 'CUSTOMER_MASTER', page: 'Customer Master', category: 'Quotation Master' },
   { module: 'LEAD_MASTER', page: 'Lead Master', category: 'Quotation Master' },
+  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Quotation Master' },
   { module: 'TAX_MASTER', page: 'Tax Configuration / Tax Rule', category: 'Quotation Master' },
   { module: 'TERMS_CONDITIONS_MASTER', page: 'Terms And Conditions', category: 'Quotation Master' },
   { module: 'ITEM_MASTER', page: 'Product / Item Catalog', category: 'Quotation Master' },
   { module: 'PROCESS_MASTER', page: 'Manufacturing Process', category: 'Quotation Master' },
-  { module: 'PROCESS_DETAILS_MASTER', page: 'Process Details Master', category: 'Quotation Master' },
   { module: 'DIMENSION_MASTER', page: 'Product Specifications', category: 'Quotation Master' },
   { module: 'MATERIAL_MASTER', page: 'Material Catalog', category: 'Quotation Master' },
   { module: 'RAW_MATERIAL_MASTER', page: 'Raw Material', category: 'Quotation Master' },
+  { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   { module: 'COSTING_MASTER', page: 'Costing Master', category: 'Quotation Master' },
   { module: 'OPERATION_MASTER', page: 'Operation Master', category: 'Quotation Master' },
+  { module: 'PROCESS_DETAILS_MASTER', page: 'Process Details Master', category: 'Quotation Master' },
   { module: 'COMPANY_FINANCIAL_MASTER', page: 'Company Financial Master', category: 'Quotation Master' },
-  { module: 'QUOTATION_MASTER', page: 'Quotation', category: 'Quotation Master' },
   
   // Procurement Master
-  { module: 'SUPPLIER_MASTER', page: 'Supplier', category: 'Procurement Master' },
+  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
+  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
   { module: 'PURCHASE_REQUISITION_MASTER', page: 'Purchase Requisition Master', category: 'Procurement Master' },
   { module: 'RFQ_MASTER', page: 'RFQ Master', category: 'Procurement Master' },
-  { module: 'PURCHASE_ORDER_MASTER', page: 'Purchase Order Master', category: 'Procurement Master' },
-  { module: 'GRN_MASTER', page: 'GRN Master', category: 'Procurement Master' },
   { module: 'PURCHASE_INVOICE_MASTER', page: 'Purchase Invoice Master', category: 'Procurement Master' },
+  { module: 'VENDOR_PAYMENTS', page: 'Vendor Payments', category: 'Procurement Master' },
   
   // HR Master
   { module: 'DEPARTMENT_MASTER', page: 'Department Master', category: 'HR Master' },
@@ -117,8 +118,12 @@ const ALL_PAGES = [
   { module: 'TRAINING_RECORD_MASTER', page: 'Training Record Master', category: 'HR Master' },
   { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' },
   
-  // BOM Master
+  // BOM Master - All BOM pages
   { module: 'BOM_MASTER', page: 'BOM Master', category: 'BOM Master' },
+  { module: 'BOM_MASTER', page: 'MRP Master', category: 'BOM Master' },
+  { module: 'BOM_MASTER', page: 'Routing Master', category: 'BOM Master' },
+  { module: 'BOM_MASTER', page: 'Machine Master', category: 'BOM Master' },
+  { module: 'BOM_MASTER', page: 'OEE Master', category: 'BOM Master' },
   
   // Sales Order Master - All Sales Order Pages
   { module: 'SALES_ORDER_MASTER', page: 'Sales Order Master', category: 'Sales Order Master' },
@@ -126,6 +131,16 @@ const ALL_PAGES = [
   { module: 'SO_REVISION', page: 'SO Revision', category: 'Sales Order Master' },
   { module: 'SO_SUMMARY', page: 'SO Summary', category: 'Sales Order Master' },
   { module: 'SO_PENDING_DELIVERY', page: 'SO Pending Delivery', category: 'Sales Order Master' },
+  
+  // Production Master
+  { module: 'WORK_ORDERS', page: 'Work Orders Master', category: 'Production Master' },
+  
+  // Inventory Management - All Inventory pages
+  { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'Stock Ledger', category: 'Inventory Management' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
   
   // Reports
   { module: 'REPORTS', page: 'Recruitment Report', category: 'Reports' },
@@ -177,14 +192,17 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
       // Fill in existing permissions from pageAccess
       if (role.pageAccess) {
         Object.keys(role.pageAccess).forEach(module => {
-          const pageData = role.pageAccess[module];
-          const pageName = Object.keys(pageData)[0];
-          const actions = pageData[pageName] || [];
-          
-          actions.forEach(action => {
-            const key = `${module}_${action}`;
-            initialPermissions[key] = true;
-          });
+          const modulePages = role.pageAccess[module];
+          // Handle both old format (single page per module) and new format (multiple pages per module)
+          if (modulePages && typeof modulePages === 'object') {
+            Object.keys(modulePages).forEach(pageName => {
+              const actions = modulePages[pageName] || [];
+              actions.forEach(action => {
+                const key = `${module}_${action}`;
+                initialPermissions[key] = true;
+              });
+            });
+          }
         });
       }
 
@@ -245,7 +263,7 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
     const moduleAccess = {};
     const pageAccess = {};
 
-    // Group permissions by module
+    // Group permissions by module and page
     ALL_PAGES.forEach(page => {
       const selectedActions = [];
       
@@ -257,13 +275,16 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
       });
 
       // Set moduleAccess (true if any permission exists for this module)
-      moduleAccess[page.module] = selectedActions.length > 0;
+      if (moduleAccess[page.module] !== false) {
+        moduleAccess[page.module] = selectedActions.length > 0;
+      }
       
       // Set pageAccess (only if there are selected actions)
       if (selectedActions.length > 0) {
-        pageAccess[page.module] = {
-          [page.page]: selectedActions
-        };
+        if (!pageAccess[page.module]) {
+          pageAccess[page.module] = {};
+        }
+        pageAccess[page.module][page.page] = selectedActions;
       }
     });
 
@@ -589,7 +610,7 @@ const EditRoles = ({ open, onClose, role, onUpdate }) => {
                           const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
                           
                           return (
-                            <TableRow key={page.module} hover>
+                            <TableRow key={`${page.module}_${page.page}`} hover>
                               <TableCell 
                                 sx={{ 
                                   fontSize: '0.75rem', 

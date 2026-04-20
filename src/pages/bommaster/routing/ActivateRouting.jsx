@@ -22,9 +22,8 @@ import {
   Warning as WarningIcon,
   ThumbUp as ThumbUpIcon,
   Route as RouteIcon,
-  Person as PersonIcon,
-  DateRange as DateIcon,
-  Verified as VerifiedIcon
+  Verified as VerifiedIcon,
+  PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -47,11 +46,11 @@ const COLORS = {
   }
 };
 
-const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
+const ActivateRouting = ({ open, onClose, routing, onActivate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [approvalData, setApprovalData] = useState(null);
+  const [activationData, setActivationData] = useState(null);
 
   if (!routing) return null;
 
@@ -75,7 +74,7 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
     });
   };
 
-  const handleApprove = async () => {
+  const handleActivate = async () => {
     setLoading(true);
     setError('');
     setSuccess(false);
@@ -89,32 +88,36 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
         return;
       }
 
-      const response = await axios.post(`${BASE_URL}/api/routings/${routing._id}/approve`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        `${BASE_URL}/api/routings/${routing._id}/activate`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
       if (response.data.success) {
         setSuccess(true);
-        setApprovalData(response.data.data);
-
-        // Call onApprove callback if provided
-        if (onApprove) {
-          onApprove(response.data.data);
+        setActivationData(response.data.data);
+        
+        // Call onActivate callback if provided
+        if (onActivate) {
+          onActivate(response.data.data);
         }
-
+        
         // Auto close after 2 seconds on success
         setTimeout(() => {
           handleClose();
         }, 2000);
       } else {
-        setError(response.data.message || 'Failed to approve routing');
+        setError(response.data.message || 'Failed to activate routing');
       }
     } catch (err) {
-      console.error('Error approving routing:', err);
-      setError(err.response?.data?.message || 'Failed to approve routing. Please try again.');
+      console.error('Error activating routing:', err);
+      setError(err.response?.data?.message || 'Failed to activate routing. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -123,7 +126,7 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
   const handleClose = () => {
     setError('');
     setSuccess(false);
-    setApprovalData(null);
+    setActivationData(null);
     onClose();
   };
 
@@ -156,9 +159,9 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
         alignItems: 'center'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <VerifiedIcon sx={{ fontSize: '1rem', color: COLORS.success }} />
+          <PlayArrowIcon sx={{ fontSize: '1.2rem', color: COLORS.success }} />
           <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-            Approve Routing
+            Activate Routing
           </Typography>
         </Box>
         <IconButton onClick={handleClose} size="small" disabled={loading}>
@@ -167,59 +170,51 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
       </DialogTitle>
 
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-        {success && approvalData ? (
+        {success && activationData ? (
           // Success State
           <Stack spacing={2}>
-            <Alert
-              severity="success"
+            <Alert 
+              severity="success" 
               sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
               icon={<CheckCircleIcon />}
             >
               <Typography sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
-                Routing approved successfully!
+                Routing Activated Successfully!
+              </Typography>
+              <Typography sx={{ fontSize: '0.7rem', mt: 0.5 }}>
+                The routing is now Active and ready for approval review.
               </Typography>
             </Alert>
 
             <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.success, mb: 1.5 }}>
-                Approval Details
+                Activation Details
               </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                    <VerifiedIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
+                    <RouteIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
                     Routing ID
                   </Typography>
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, fontFamily: 'monospace' }}>
-                    {approvalData.routing_id}
+                    {activationData.routing_id}
                   </Typography>
                 </Grid>
-                {/* <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                    <PersonIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
-                    Approved By
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                    {typeof approvalData.approved_by === 'object' 
-                      ? approvalData.approved_by?.username || approvalData.approved_by?.id 
-                      : approvalData.approved_by}
-                  </Typography>
-                </Grid> */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                    <DateIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
-                    Approved At
+                    Routing Name
                   </Typography>
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                    {formatDateTime(approvalData.approved_at)}
+                    {activationData.routing_name}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 12 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                    Status Update
+                    <VerifiedIcon sx={{ fontSize: '0.7rem', mr: 0.5, verticalAlign: 'middle' }} />
+                    Status
                   </Typography>
                   <Chip
-                    label="Approved"
+                    label={activationData.status}
                     size="small"
                     sx={{
                       fontSize: '0.7rem',
@@ -236,16 +231,16 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
         ) : (
           // Confirmation State
           <Stack spacing={2.5}>
-            <Alert
-              severity="warning"
+            <Alert 
+              severity="info" 
               sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
               icon={<WarningIcon />}
             >
               <Typography sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
-                Are you sure you want to approve this routing?
+                Are you sure you want to activate this routing?
               </Typography>
               <Typography sx={{ fontSize: '0.7rem', mt: 0.5 }}>
-                Once approved, this routing can be used in production.
+                Once activated, the routing will be available for approval review.
               </Typography>
             </Alert>
 
@@ -288,13 +283,13 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Current Status</Typography>
                   <Chip
-                    label={routing.approved ? 'Approved' : (routing.is_active ? 'Active' : 'Draft')}
+                    label={routing.status || (routing.is_active ? 'Active' : 'Draft')}
                     size="small"
-                    sx={{
-                      fontSize: '0.7rem',
+                    sx={{ 
+                      fontSize: '0.7rem', 
                       mt: 0.5,
-                      bgcolor: routing.approved ? '#D1FAE5' : (routing.is_active ? '#DBEAFE' : '#FEF3C7'),
-                      color: routing.approved ? '#059669' : (routing.is_active ? '#2563EB' : '#D97706')
+                      bgcolor: routing.status === 'Approved' ? '#D1FAE5' : (routing.is_active ? '#DBEAFE' : '#FEF3C7'),
+                      color: routing.status === 'Approved' ? '#059669' : (routing.is_active ? '#2563EB' : '#D97706')
                     }}
                   />
                 </Grid>
@@ -344,8 +339,8 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
                         key={index}
                         label={`${op.op_sequence}. ${typeof op.operation_id === 'object' ? op.operation_id.process_name : op.operation_name}`}
                         size="small"
-                        sx={{
-                          fontSize: '0.65rem',
+                        sx={{ 
+                          fontSize: '0.65rem', 
                           bgcolor: COLORS.background.white,
                           border: `1px solid ${COLORS.border}`
                         }}
@@ -392,9 +387,9 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
         {!success && (
           <Button
             variant="contained"
-            onClick={handleApprove}
+            onClick={handleActivate}
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} /> : <ThumbUpIcon sx={{ fontSize: '1rem' }} />}
+            startIcon={loading ? <CircularProgress size={16} /> : <PlayArrowIcon sx={{ fontSize: '1rem' }} />}
             sx={{
               height: 32,
               px: 2,
@@ -406,7 +401,7 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
               '&:hover': { bgcolor: '#1E5A2A' }
             }}
           >
-            {loading ? 'Approving...' : 'Approve Routing'}
+            {loading ? 'Activating...' : 'Activate Routing'}
           </Button>
         )}
       </DialogActions>
@@ -414,4 +409,4 @@ const ApproveRouting = ({ open, onClose, routing, onApprove }) => {
   );
 };
 
-export default ApproveRouting;
+export default ActivateRouting;

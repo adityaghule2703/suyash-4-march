@@ -48,7 +48,8 @@ import {
   Pending as PendingIcon,
   Cancel as CancelIcon,
   Verified as VerifiedIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -58,6 +59,8 @@ import EditRouting from './EditRouting';
 import ApproveRouting from './ApproveRouting';
 import DeleteRouting from './DeleteRouting';
 import { hasPermission, MODULES, PAGES, ACTIONS } from '../../../utils/modulePermissions';
+import RejectRouting from './RejectRouting';
+import ActivateRouting from './ActivateRouting';
 
 const COLORS = {
   primary: '#1976D2',
@@ -80,16 +83,21 @@ const COLORS = {
 };
 
 const ROUTING_TYPE_OPTIONS = ['All', 'Stamping', 'Busbar', 'Gasket', 'Assembly', 'Toolroom', 'General'];
-const STATUS_OPTIONS = ['All', 'Active', 'Inactive'];
+const STATUS_OPTIONS = ['All', 'Planned', 'In Progress', 'Completed', 'Postponed', 'Cancelled' ];
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onApprove, permissions, isSuperAdmin }) => {
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onApprove, onActivate, onReject, permissions, isSuperAdmin }) => {
   const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.VIEW);
   const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.UPDATE);
   const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.DELETE);
   const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.APPROVE);
+  
+  // Show Activate only for Draft status (not approved, not active)
+  const canActivate = item?.status === 'Draft'|| item.status === 'Rejected'
+  // Show Reject only for Active/Approved status that needs rejection
+  const canReject = item?.status === 'Active' || item?.status === 'Approved';
 
-  const hasAnyActions = canView || canUpdate || canDelete || canApprove;
+  const hasAnyActions = canView || canUpdate || canDelete || canApprove || canActivate || canReject;
 
   if (!hasAnyActions) return null;
 
@@ -137,7 +145,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {canUpdate && (
+        {canUpdate && !item.approved && (
           <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
               <EditIcon fontSize="small" />
@@ -150,7 +158,22 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {canApprove && !item.is_active && (
+        {/* Activate - Only for Draft status */}
+        {canActivate && (
+          <MenuItem onClick={() => { onActivate(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <PlayArrowIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                Activate
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Approve - Only for Active and not approved */}
+        {canApprove && item.is_active && !item.approved && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
               <VerifiedIcon fontSize="small" />
@@ -158,6 +181,20 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
             <ListItemText>
               <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
                 Approve
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Reject - For Active or Approved status */}
+        {canReject && (
+          <MenuItem onClick={() => { onReject(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <CancelIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
+                Reject
               </Typography>
             </ListItemText>
           </MenuItem>
@@ -303,6 +340,9 @@ const RoutingMaster = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
 
+const [openActivateModal, setOpenActivateModal] = useState(false);
+const [openRejectModal, setOpenRejectModal] = useState(false);
+
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // User permissions state
@@ -369,7 +409,7 @@ const RoutingMaster = () => {
       }
 
       if (statusFilter && statusFilter !== 'All') {
-        params.append('is_active', statusFilter === 'Active');
+        params.append('status', statusFilter);
       }
 
       const response = await axios.get(`${BASE_URL}/api/routings?${params.toString()}`, {
@@ -481,6 +521,29 @@ const RoutingMaster = () => {
     handleActionMenuClose();
   };
 
+  // Add these with other handler functions (around line 280)
+const openActivateRoutingModal = (routing) => {
+  setSelectedRouting(routing);
+  setOpenActivateModal(true);
+  handleActionMenuClose();
+};
+
+const openRejectRoutingModal = (routing) => {
+  setSelectedRouting(routing);
+  setOpenRejectModal(true);
+  handleActionMenuClose();
+};
+
+const handleActivateSuccess = () => {
+  fetchRoutings();
+  showNotification('Routing activated successfully!', 'success');
+};
+
+const handleRejectSuccess = () => {
+  fetchRoutings();
+  showNotification('Routing rejected successfully!', 'success');
+};
+
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
@@ -563,6 +626,17 @@ const RoutingMaster = () => {
     };
     return colors[type] || { bg: '#F1F5F9', color: '#475569' };
   };
+
+  const getStatusColor = (status) => {
+  switch (status) {
+    case 'Approved':
+      return { bg: '#D1FAE5', color: '#059669' };
+    case 'Draft':
+      return { bg: '#FEF3C7', color: '#D97706' };
+    default:
+      return { bg: '#F1F5F9', color: '#475569' };
+  }
+};
 
   const clearFilters = () => {
     setSearchInput('');
@@ -882,17 +956,17 @@ const RoutingMaster = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          icon={routing.is_active ? <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> : <PendingIcon sx={{ fontSize: '0.7rem' }} />}
-                          label={routing.is_active ? 'Active' : 'Draft'}
-                          size="small"
-                          sx={{
-                            fontSize: '0.65rem',
-                            fontWeight: 500,
-                            height: 24,
-                            bgcolor: routing.is_active ? '#D1FAE5' : '#FEF3C7',
-                            color: routing.is_active ? '#059669' : '#D97706'
-                          }}
-                        />
+  icon={routing.status === 'Approved' ? <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> : <PendingIcon sx={{ fontSize: '0.7rem' }} />}
+  label={routing.status || 'Draft'}
+  size="small"
+  sx={{
+    fontSize: '0.65rem',
+    fontWeight: 500,
+    height: 24,
+    bgcolor: routing.status === 'Approved' ? '#D1FAE5' : '#FEF3C7',
+    color: routing.status === 'Approved' ? '#059669' : '#D97706'
+  }}
+/>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontSize: '0.7rem' }}>
@@ -900,18 +974,20 @@ const RoutingMaster = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu
-                          item={routing}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onOpen={(e) => handleActionMenuOpen(e, routing)}
-                          onClose={handleActionMenuClose}
-                          onView={openViewRoutingModal}
-                          onEdit={openEditRoutingModal}
-                          onApprove={openApproveRoutingModal}
-                          onDelete={openDeleteRoutingDialog}
-                          permissions={userPermissions}
-                          isSuperAdmin={isSuperAdmin}
-                        />
+                       <ActionMenu
+  item={routing}
+  anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+  onOpen={(e) => handleActionMenuOpen(e, routing)}
+  onClose={handleActionMenuClose}
+  onView={openViewRoutingModal}
+  onEdit={openEditRoutingModal}
+  onApprove={openApproveRoutingModal}
+  onActivate={openActivateRoutingModal}
+  onReject={openRejectRoutingModal}
+  onDelete={openDeleteRoutingDialog}
+  permissions={userPermissions}
+  isSuperAdmin={isSuperAdmin}
+/>
                       </TableCell>
                     </TableRow>
                   );
@@ -979,6 +1055,27 @@ const RoutingMaster = () => {
             routing={selectedRouting}
             onApprove={handleApproveSuccess}
           />
+
+              <ActivateRouting
+      open={openActivateModal}
+      onClose={() => {
+        setOpenActivateModal(false);
+        setSelectedRouting(null);
+      }}
+      routing={selectedRouting}
+      onActivate={handleActivateSuccess}
+    />
+
+    {/* New Reject Modal */}
+    <RejectRouting
+      open={openRejectModal}
+      onClose={() => {
+        setOpenRejectModal(false);
+        setSelectedRouting(null);
+      }}
+      routing={selectedRouting}
+      onReject={handleRejectSuccess}
+    />
 
           <DeleteRouting
             open={openDeleteDialog}
