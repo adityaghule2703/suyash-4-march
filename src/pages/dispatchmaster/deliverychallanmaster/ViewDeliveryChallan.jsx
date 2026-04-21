@@ -110,6 +110,7 @@ const ViewDeliveryChallan = ({ open, onClose, deliveryChallan }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 2,
         px: 3,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
@@ -119,14 +120,14 @@ const ViewDeliveryChallan = ({ open, onClose, deliveryChallan }) => {
           Delivery Challan Details
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button
+          {/* <Button
             size="small"
             startIcon={<PrintIcon />}
             onClick={handlePrint}
             sx={{ textTransform: 'none', fontSize: '0.7rem' }}
           >
             Print
-          </Button>
+          </Button> */}
          
         </Stack>
       </DialogTitle>

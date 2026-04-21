@@ -26,18 +26,31 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  Autocomplete
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  Visibility as ViewIcon,
+  Visibility as VisibilityIcon,
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
   LocalShipping as LocalShippingIcon,
-  PictureAsPdf as PdfIcon
+  PictureAsPdf as PdfIcon,
+  PendingActions as PendingActionsIcon,
+  QrCode as QrCodeIcon,
+  AssignmentTurnedIn as AssignmentTurnedInIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -48,7 +61,7 @@ import AddDeliveryChallan from './AddDeliveryChallan';
 import ViewDeliveryChallan from './ViewDeliveryChallan';
 import DeleteDeliveryChallan from './DeleteDeliveryChallan';
 
-// Color constants - Single color #063C3F throughout (matching Users/CompanyMaster component)
+// Color constants
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -94,16 +107,1139 @@ const AccessDenied = () => (
   </Box>
 );
 
+// Pending Dispatch Dialog Component
+const PendingDispatchDialog = ({ open, onClose, pendingDCs }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 2,
+        px: 3,
+        bgcolor: COLORS.background.white
+      }}>
+        <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Pending Dispatch Delivery Challans
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+          Delivery challans pending for dispatch ({pendingDCs?.length || 0} items)
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Paper sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${COLORS.border}` }}>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>DC Number</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>DC Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>SO Number</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>Customer</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>DC Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>Items</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pendingDCs?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                      <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary }}>
+                        No pending dispatch delivery challans
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pendingDCs?.map((dc) => (
+                    <TableRow key={dc._id} hover>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+                          {dc.dc_number}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+                          {formatDate(dc.dc_date)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          {dc.so_number}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.75rem' }}>
+                          {dc.customer_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={dc.dc_type}
+                          size="small"
+                          sx={{
+                            fontSize: '0.65rem',
+                            fontWeight: 500,
+                            height: 24,
+                            bgcolor: COLORS.primaryLight,
+                            color: COLORS.primary
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.75rem' }}>
+                          {dc.items?.length || 0} item(s)
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.75rem'
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Generate EWB Dialog Component
+const GenerateEWBDialog = ({ open, onClose, deliveryChallan, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    transporter_name: '',
+    vehicle_no: ''
+  });
+
+  useEffect(() => {
+    if (deliveryChallan && open) {
+      setFormData({
+        transporter_name: deliveryChallan.transport?.transporter_name || '',
+        vehicle_no: deliveryChallan.transport?.vehicle_no || ''
+      });
+    }
+  }, [deliveryChallan, open]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.transporter_name) {
+      setError('Transporter name is required');
+      return;
+    }
+    if (!formData.vehicle_no) {
+      setError('Vehicle number is required');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const transporter_id = deliveryChallan.transport?._id || '';
+      
+      const payload = {
+        transporter_id: transporter_id,
+        transporter_name: formData.transporter_name,
+        vehicle_no: formData.vehicle_no
+      };
+      
+      const response = await axios.post(
+        `${BASE_URL}/api/delivery-challans/${deliveryChallan._id}/generate-ewb`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(response.data.message || 'Failed to generate EWB');
+      }
+    } catch (err) {
+      console.error('Error generating EWB:', err);
+      setError(err.response?.data?.message || 'Failed to generate EWB. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 2,
+        px: 3,
+        bgcolor: COLORS.background.white
+      }}>
+        <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Generate E-Way Bill
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+          For DC: {deliveryChallan?.dc_number}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 2 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Transporter Name <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="transporter_name"
+                    value={formData.transporter_name}
+                    onChange={handleChange}
+                    placeholder="e.g., VRL Logistics"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Vehicle Number <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="vehicle_no"
+                    value={formData.vehicle_no}
+                    onChange={handleChange}
+                    placeholder="e.g., MH 12 AB 1234"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {error && (
+            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        gap: 1
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.75rem'
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            textTransform: 'none',
+            fontSize: '0.75rem',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {loading ? 'Generating...' : 'Generate EWB'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// POD Dialog Component
+const PODDialog = ({ open, onClose, deliveryChallan, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [formData, setFormData] = useState({
+    actual_delivery_date: '',
+    pod_signed_by: '',
+    delivery_remarks: '',
+    pod_document: null
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    setError('');
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({ ...prev, pod_document: file }));
+      setFieldErrors(prev => ({ ...prev, pod_document: '' }));
+      setError('');
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!formData.actual_delivery_date) {
+      errors.actual_delivery_date = 'Actual delivery date is required';
+      isValid = false;
+    }
+    if (!formData.pod_signed_by.trim()) {
+      errors.pod_signed_by = 'Signed by is required';
+      isValid = false;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in the form');
+    }
+    return isValid;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const submitData = new FormData();
+      submitData.append('actual_delivery_date', formData.actual_delivery_date);
+      submitData.append('pod_signed_by', formData.pod_signed_by);
+      submitData.append('delivery_remarks', formData.delivery_remarks || '');
+      if (formData.pod_document) {
+        submitData.append('pod_document', formData.pod_document);
+      }
+
+      const response = await axios.put(
+        `${BASE_URL}/api/delivery-challans/${deliveryChallan._id}/pod`,
+        submitData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(response.data.message || 'Failed to update POD');
+      }
+    } catch (err) {
+      console.error('Error updating POD:', err);
+      setError(err.response?.data?.message || 'Failed to update POD. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 2,
+        px: 3,
+        bgcolor: COLORS.background.white
+      }}>
+        <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Proof of Delivery (POD)
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+          For DC: {deliveryChallan?.dc_number}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 2 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Actual Delivery Date <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="actual_delivery_date"
+                    type="date"
+                    value={formData.actual_delivery_date}
+                    onChange={handleChange}
+                    error={!!fieldErrors.actual_delivery_date}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                  {fieldErrors.actual_delivery_date && (
+                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                      {fieldErrors.actual_delivery_date}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Signed By <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="pod_signed_by"
+                    value={formData.pod_signed_by}
+                    onChange={handleChange}
+                    error={!!fieldErrors.pod_signed_by}
+                    placeholder="e.g., Mr. Suresh Kumar - Stores Incharge"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                  {fieldErrors.pod_signed_by && (
+                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                      {fieldErrors.pod_signed_by}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Delivery Remarks
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="delivery_remarks"
+                    multiline
+                    rows={3}
+                    value={formData.delivery_remarks}
+                    onChange={handleChange}
+                    placeholder="e.g., All 4 boxes received in good condition"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    POD Document (PDF/Image)
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    sx={{
+                      height: 36,
+                      borderRadius: 1.5,
+                      textTransform: 'none',
+                      fontSize: '0.75rem',
+                      borderColor: COLORS.border,
+                      justifyContent: 'flex-start',
+                      px: 2,
+                      '&:hover': {
+                        borderColor: COLORS.primary,
+                        bgcolor: `${COLORS.primary}10`
+                      }
+                    }}
+                  >
+                    {formData.pod_document ? formData.pod_document.name : 'Choose File'}
+                    <input
+                      type="file"
+                      hidden
+                      accept=".pdf,image/*"
+                      onChange={handleFileChange}
+                    />
+                  </Button>
+                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                    Upload POD scan (PDF or Image format)
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {error && (
+            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        gap: 1
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.75rem'
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            textTransform: 'none',
+            fontSize: '0.75rem',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {loading ? 'Submitting...' : 'Submit POD'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Reject Delivery Dialog Component with proper styling
+const RejectDeliveryDialog = ({ open, onClose, deliveryChallan, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [formData, setFormData] = useState({
+    rejection_reason: '',
+    rejection_details: '',
+    items_returned: []
+  });
+  
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [returnQty, setReturnQty] = useState('');
+  const [condition, setCondition] = useState('Good');
+
+  const itemsList = deliveryChallan?.items || [];
+
+  const handleAddItem = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!selectedItem) {
+      errors.selectItem = 'Please select an item';
+      isValid = false;
+    }
+    if (!returnQty || parseFloat(returnQty) <= 0) {
+      errors.returnQty = 'Please enter valid return quantity';
+      isValid = false;
+    }
+    if (selectedItem && returnQty && parseFloat(returnQty) > selectedItem.dispatch_qty) {
+      errors.returnQty = `Return quantity cannot exceed dispatched quantity (${selectedItem.dispatch_qty})`;
+      isValid = false;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) return;
+
+    const newItem = {
+      so_item_id: selectedItem.so_item_id,
+      part_no: selectedItem.part_no,
+      return_qty: parseFloat(returnQty),
+      unit_price: selectedItem.unit_price,
+      condition: condition
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      items_returned: [...prev.items_returned, newItem]
+    }));
+
+    setSelectedItem(null);
+    setReturnQty('');
+    setCondition('Good');
+    setFieldErrors({});
+  };
+
+  const handleRemoveItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      items_returned: prev.items_returned.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    setError('');
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!formData.rejection_reason.trim()) {
+      errors.rejection_reason = 'Rejection reason is required';
+      isValid = false;
+    }
+    if (formData.items_returned.length === 0) {
+      errors.items_returned = 'Please add at least one returned item';
+      isValid = false;
+    }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in the form');
+    }
+    return isValid;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `${BASE_URL}/api/delivery-challans/${deliveryChallan._id}/customer-rejection`,
+        {
+          rejection_reason: formData.rejection_reason,
+          rejection_details: formData.rejection_details,
+          items_returned: formData.items_returned
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(response.data.message || 'Failed to submit rejection');
+      }
+    } catch (err) {
+      console.error('Error submitting rejection:', err);
+      setError(err.response?.data?.message || 'Failed to submit rejection. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 2,
+        px: 3,
+        bgcolor: COLORS.background.white
+      }}>
+        <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Customer Rejection
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+          For DC: {deliveryChallan?.dc_number}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Rejection Reason <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="rejection_reason"
+                    value={formData.rejection_reason}
+                    onChange={handleChange}
+                    error={!!fieldErrors.rejection_reason}
+                    placeholder="e.g., Quality Rejection, Quantity Mismatch, etc."
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                  {fieldErrors.rejection_reason && (
+                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                      {fieldErrors.rejection_reason}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Rejection Details
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="rejection_details"
+                    multiline
+                    rows={2}
+                    value={formData.rejection_details}
+                    onChange={handleChange}
+                    placeholder="e.g., Surface scratches on 15 pieces exceeding acceptable limit"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Divider sx={{ my: 1 }} />
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary, mb: 2 }}>
+                  Return Items <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                
+                {/* Add Item Section */}
+                <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, mb: 2 }}>
+                  <Grid container spacing={2} alignItems="flex-end">
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          Select Item
+                        </Typography>
+                        <FormControl fullWidth size="small" error={!!fieldErrors.selectItem}>
+                          <Select
+                            value={selectedItem?.so_item_id || ''}
+                            onChange={(e) => {
+                              const item = itemsList.find(i => i.so_item_id === e.target.value);
+                              setSelectedItem(item);
+                              setFieldErrors(prev => ({ ...prev, selectItem: '' }));
+                            }}
+                            displayEmpty
+                            sx={{
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              bgcolor: COLORS.background.white,
+                              '& .MuiSelect-select': { py: 1, px: 1.5 }
+                            }}
+                          >
+                            <MenuItem value="" disabled>Select an item</MenuItem>
+                            {itemsList.map((item) => (
+                              <MenuItem key={item.so_item_id} value={item.so_item_id} sx={{ fontSize: '0.75rem' }}>
+                                {item.part_no} - {item.part_name} (Qty: {item.dispatch_qty})
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          {fieldErrors.selectItem && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors.selectItem}
+                            </Typography>
+                          )}
+                        </FormControl>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 12, sm: 2 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          Return Qty
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          size="small"
+                          value={returnQty}
+                          onChange={(e) => {
+                            setReturnQty(e.target.value);
+                            setFieldErrors(prev => ({ ...prev, returnQty: '' }));
+                          }}
+                          error={!!fieldErrors.returnQty}
+                          placeholder="0"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              bgcolor: COLORS.background.white,
+                              '&:hover fieldset': { borderColor: COLORS.primary },
+                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                            },
+                            '& .MuiInputBase-input': {
+                              py: 1,
+                              px: 1.5,
+                              fontSize: '0.75rem'
+                            }
+                          }}
+                        />
+                        {fieldErrors.returnQty && (
+                          <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                            {fieldErrors.returnQty}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          Condition
+                        </Typography>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={condition}
+                            onChange={(e) => setCondition(e.target.value)}
+                            sx={{
+                              borderRadius: 1.5,
+                              fontSize: '0.75rem',
+                              bgcolor: COLORS.background.white,
+                              '& .MuiSelect-select': { py: 1, px: 1.5 }
+                            }}
+                          >
+                            <MenuItem value="Good" sx={{ fontSize: '0.75rem' }}>Good</MenuItem>
+                            <MenuItem value="Damaged" sx={{ fontSize: '0.75rem' }}>Damaged</MenuItem>
+                            <MenuItem value="Defective" sx={{ fontSize: '0.75rem' }}>Defective</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={handleAddItem}
+                        startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                        sx={{
+                          height: 40,
+                          borderRadius: 1.5,
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          borderColor: COLORS.primary,
+                          color: COLORS.primary,
+                          '&:hover': {
+                            bgcolor: `${COLORS.primary}10`,
+                            borderColor: COLORS.primaryDark
+                          }
+                        }}
+                      >
+                        Add Item
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                {/* Items List Table */}
+                {formData.items_returned.length > 0 && (
+                  <Paper sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Part No</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Return Qty</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Unit Price</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Condition</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light, width: 50 }}>Action</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {formData.items_returned.map((item, idx) => (
+                            <TableRow key={idx} hover>
+                              <TableCell sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>{item.part_no}</TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>{item.return_qty}</TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>₹{item.unit_price.toLocaleString()}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={item.condition}
+                                  size="small"
+                                  sx={{
+                                    fontSize: '0.65rem',
+                                    fontWeight: 500,
+                                    height: 24,
+                                    bgcolor: item.condition === 'Good' ? '#D1FAE5' : item.condition === 'Damaged' ? '#FEF3C7' : '#FEE2E2',
+                                    color: item.condition === 'Good' ? '#065F46' : item.condition === 'Damaged' ? '#B45309' : '#991B1B'
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleRemoveItem(idx)}
+                                  sx={{ color: '#EF4444' }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Paper>
+                )}
+                {fieldErrors.items_returned && (
+                  <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 1 }}>
+                    {fieldErrors.items_returned}
+                  </Typography>
+                )}
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {error && (
+            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+              {error}
+            </Alert>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        gap: 1
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.75rem'
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading}
+          sx={{
+            height: 36,
+            px: 3,
+            borderRadius: 1.5,
+            bgcolor: '#EF4444',
+            textTransform: 'none',
+            fontSize: '0.75rem',
+            '&:hover': { bgcolor: '#DC2626' }
+          }}
+        >
+          {loading ? 'Submitting...' : 'Submit Rejection'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 // Action Menu Component with permission checks
-const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, anchorEl, onClose, onOpen, permissions }) => {
+const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB, onPOD, onRejectDelivery, anchorEl, onClose, onOpen, permissions }) => {
   const canView = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.VIEW);
   const canDelete = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.DELETE);
   const canPrint = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.PRINT);
+  const canUpdate = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.UPDATE);
 
-  // If no actions available, don't render the menu
-  if (!canView && !canDelete && !canPrint) {
-    return null;
-  }
+  const showGenerateEWB = deliveryChallan.eway_bill?.eway_bill_required && 
+                          deliveryChallan.eway_bill?.eway_bill_status !== 'Generated';
 
   return (
     <>
@@ -145,7 +1281,7 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, anchorEl, onCl
             sx={{ py: 1.5 }}
           >
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-              
+              <VisibilityIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>
               <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
@@ -164,7 +1300,7 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, anchorEl, onCl
             sx={{ py: 1.5 }}
           >
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-             
+              <PdfIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>
               <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
@@ -173,8 +1309,61 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, anchorEl, onCl
             </ListItemText>
           </MenuItem>
         )}
+
+        <MenuItem 
+          onClick={() => {
+            onPOD(deliveryChallan);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+            <AssignmentTurnedInIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+              POD
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+
+        <MenuItem 
+          onClick={() => {
+            onRejectDelivery(deliveryChallan);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+            <CancelIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: '#EF4444', fontSize: '0.75rem' }}>
+              Reject Delivery
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+
+        {showGenerateEWB && canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onGenerateEWB(deliveryChallan);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <QrCodeIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                Generate EWB
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {(canView || canPrint) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        {(canView || canPrint || showGenerateEWB) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
         {canDelete && (
           <MenuItem 
@@ -203,6 +1392,7 @@ const DeliveryChallanMaster = () => {
   // State for data
   const [deliveryChallans, setDeliveryChallans] = useState([]);
   const [filteredChallans, setFilteredChallans] = useState([]);
+  const [pendingDispatchDCs, setPendingDispatchDCs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -224,6 +1414,10 @@ const DeliveryChallanMaster = () => {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openPendingDispatchDialog, setOpenPendingDispatchDialog] = useState(false);
+  const [openGenerateEWBDialog, setOpenGenerateEWBDialog] = useState(false);
+  const [openPODDialog, setOpenPODDialog] = useState(false);
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
   
   // Selected delivery challan
   const [selectedDC, setSelectedDC] = useState(null);
@@ -329,6 +1523,28 @@ const DeliveryChallanMaster = () => {
     }
   };
   
+  // Fetch pending dispatch delivery challans
+  const fetchPendingDispatchDCs = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/delivery-challans/pending-dispatch`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setPendingDispatchDCs(response.data.data || []);
+        setOpenPendingDispatchDialog(true);
+      } else {
+        showNotification('Failed to load pending dispatch DCs', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching pending dispatch DCs:', err);
+      showNotification('Failed to load pending dispatch DCs', 'error');
+    }
+  };
+  
   // Handle refresh
   const handleRefresh = () => {
     fetchDeliveryChallans();
@@ -339,7 +1555,6 @@ const DeliveryChallanMaster = () => {
   const handleSearchAndFilter = () => {
     let filtered = [...deliveryChallans];
     
-    // Apply search
     if (searchTerm) {
       const value = searchTerm.toLowerCase();
       filtered = filtered.filter(dc =>
@@ -350,12 +1565,10 @@ const DeliveryChallanMaster = () => {
       );
     }
     
-    // Apply status filter
     if (statusFilter !== 'All') {
       filtered = filtered.filter(dc => dc.status === statusFilter);
     }
     
-    // Apply type filter
     if (typeFilter !== 'All') {
       filtered = filtered.filter(dc => dc.dc_type === typeFilter);
     }
@@ -363,12 +1576,10 @@ const DeliveryChallanMaster = () => {
     setFilteredChallans(filtered);
   };
 
-  // Apply filters when dependencies change
   useEffect(() => {
     handleSearchAndFilter();
   }, [searchTerm, statusFilter, typeFilter, deliveryChallans]);
   
-  // Handle select all
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
@@ -379,7 +1590,6 @@ const DeliveryChallanMaster = () => {
     }
   };
   
-  // Handle single selection
   const handleSelect = (id) => {
     if (!canDelete) return;
     
@@ -395,20 +1605,17 @@ const DeliveryChallanMaster = () => {
     setSelected(newSelected);
   };
   
-  // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     setSelected([]);
   };
   
-  // Handle rows per page change
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
     setSelected([]);
   };
   
-  // Action menu handlers
   const handleActionMenuOpen = (event, dc) => {
     setActionMenuAnchor(event.currentTarget);
     setSelectedDCForAction(dc);
@@ -419,14 +1626,12 @@ const DeliveryChallanMaster = () => {
     setSelectedDCForAction(null);
   };
   
-  // Open view modal
   const openViewModalHandler = (dc) => {
     setSelectedDC(dc);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
-  // Open delete confirmation
   const openDeleteDialogHandler = (dc) => {
     if (!canDelete) return;
     setSelectedDC(dc);
@@ -434,19 +1639,38 @@ const DeliveryChallanMaster = () => {
     handleActionMenuClose();
   };
   
-  // Handle print
+  const handlePendingDispatch = () => {
+    fetchPendingDispatchDCs();
+  };
+  
+  const handleGenerateEWB = (dc) => {
+    setSelectedDC(dc);
+    setOpenGenerateEWBDialog(true);
+    handleActionMenuClose();
+  };
+  
+  const handlePOD = (dc) => {
+    setSelectedDC(dc);
+    setOpenPODDialog(true);
+    handleActionMenuClose();
+  };
+
+  const handleRejectDelivery = (dc) => {
+    setSelectedDC(dc);
+    setOpenRejectDialog(true);
+    handleActionMenuClose();
+  };
+  
   const handlePrint = (dc) => {
     window.open(`${BASE_URL}/api/delivery-challans/${dc._id}/print`, '_blank');
   };
   
-  // Handle add success
   const handleAddSuccess = () => {
     setOpenAddModal(false);
     fetchDeliveryChallans();
     showNotification('Delivery Challan created successfully!', 'success');
   };
   
-  // Handle delete success
   const handleDeleteSuccess = () => {
     setOpenDeleteDialog(false);
     setSelectedDC(null);
@@ -454,7 +1678,11 @@ const DeliveryChallanMaster = () => {
     showNotification('Delivery Challan deleted successfully!', 'success');
   };
   
-  // Handle bulk delete
+  const handleEWBSuccess = () => {
+    fetchDeliveryChallans();
+    showNotification('Operation completed successfully!', 'success');
+  };
+  
   const handleBulkDelete = async () => {
     if (!canDelete || selected.length === 0) return;
     
@@ -473,7 +1701,6 @@ const DeliveryChallanMaster = () => {
     }
   };
   
-  // Show notification
   const showNotification = (message, severity) => {
     setSnackbar({
       open: true,
@@ -482,7 +1709,6 @@ const DeliveryChallanMaster = () => {
     });
   };
   
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -492,7 +1718,6 @@ const DeliveryChallanMaster = () => {
     });
   };
   
-  // Get status chip
   const getStatusChip = (status) => {
     const colors = COLORS.status[status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
     return (
@@ -511,7 +1736,6 @@ const DeliveryChallanMaster = () => {
     );
   };
   
-  // Get company initials for avatar
   const getCompanyInitials = (companyName) => {
     if (!companyName) return 'C';
     const words = companyName.split(' ');
@@ -521,7 +1745,6 @@ const DeliveryChallanMaster = () => {
     return companyName.substring(0, 2).toUpperCase();
   };
   
-  // Get avatar color based on company name
   const getAvatarColor = (companyName) => {
     if (!companyName) return COLORS.primary;
     const colors = [COLORS.primary, COLORS.primaryDark, '#074346', '#0D696C', '#128C7E'];
@@ -529,18 +1752,15 @@ const DeliveryChallanMaster = () => {
     return colors[charCode % colors.length];
   };
   
-  // Paginated delivery challans
   const paginatedChallans = filteredChallans.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
-  // Show loading state while permissions are being fetched
   if (!permissionsLoaded) {
     return <LoadingState />;
   }
 
-  // If user doesn't have view permission, show access denied
   if (!canViewPage && !isSuperAdmin) {
     return <AccessDenied />;
   }
@@ -576,7 +1796,6 @@ const DeliveryChallanMaster = () => {
         border: `1px solid ${COLORS.border}`
       }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
-          {/* Search and Filters */}
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
             <TextField
               placeholder="Search by DC number, SO number, customer..."
@@ -667,7 +1886,6 @@ const DeliveryChallanMaster = () => {
             </TextField>
           </Stack>
 
-          {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Tooltip title="Refresh">
               <IconButton
@@ -685,7 +1903,28 @@ const DeliveryChallanMaster = () => {
               </IconButton>
             </Tooltip>
             
-            {/* Bulk Delete Button */}
+            <Button
+              variant="outlined"
+              startIcon={<PendingActionsIcon sx={{ fontSize: '1rem' }} />}
+              onClick={handlePendingDispatch}
+              sx={{ 
+                height: 36,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                borderColor: COLORS.border,
+                color: '#F59E0B',
+                '&:hover': {
+                  borderColor: '#F59E0B',
+                  bgcolor: '#FEF3C7'
+                }
+              }}
+              disabled={loading}
+            >
+              Pending Dispatch
+            </Button>
+            
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -711,7 +1950,6 @@ const DeliveryChallanMaster = () => {
               </Button>
             )}
             
-            {/* Add DC Button */}
             {canCreate && (
               <Button
                 variant="contained"
@@ -757,7 +1995,6 @@ const DeliveryChallanMaster = () => {
                   py: 1.5
                 }
               }}>
-                {/* Checkbox Column */}
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
@@ -901,7 +2138,6 @@ const DeliveryChallanMaster = () => {
                         }
                       }}
                     >
-                      {/* Checkbox Column */}
                       {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
                           <Checkbox
@@ -992,6 +2228,9 @@ const DeliveryChallanMaster = () => {
                           onView={openViewModalHandler}
                           onDelete={openDeleteDialogHandler}
                           onPrint={handlePrint}
+                          onGenerateEWB={handleGenerateEWB}
+                          onPOD={handlePOD}
+                          onRejectDelivery={handleRejectDelivery}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, dc)}
@@ -1006,7 +2245,6 @@ const DeliveryChallanMaster = () => {
           </Table>
         </TableContainer>
 
-        {/* Pagination */}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
@@ -1063,7 +2301,42 @@ const DeliveryChallanMaster = () => {
         />
       )}
 
-      {/* Snackbar Notification */}
+      <PendingDispatchDialog
+        open={openPendingDispatchDialog}
+        onClose={() => setOpenPendingDispatchDialog(false)}
+        pendingDCs={pendingDispatchDCs}
+      />
+
+      <GenerateEWBDialog
+        open={openGenerateEWBDialog}
+        onClose={() => {
+          setOpenGenerateEWBDialog(false);
+          setSelectedDC(null);
+        }}
+        deliveryChallan={selectedDC}
+        onSuccess={handleEWBSuccess}
+      />
+
+      <PODDialog
+        open={openPODDialog}
+        onClose={() => {
+          setOpenPODDialog(false);
+          setSelectedDC(null);
+        }}
+        deliveryChallan={selectedDC}
+        onSuccess={handleEWBSuccess}
+      />
+
+      <RejectDeliveryDialog
+        open={openRejectDialog}
+        onClose={() => {
+          setOpenRejectDialog(false);
+          setSelectedDC(null);
+        }}
+        deliveryChallan={selectedDC}
+        onSuccess={handleEWBSuccess}
+      />
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

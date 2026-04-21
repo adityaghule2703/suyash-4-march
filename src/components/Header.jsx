@@ -232,7 +232,7 @@ const Header = () => {
     },
   ];
 
-  // Production Master items
+  // Production Master items - Updated with new pages
   const productionMasterItems = [
     { 
       name: 'Work Orders Master', 
@@ -242,25 +242,25 @@ const Header = () => {
       page: PAGES.WORK_ORDERS_MASTER 
     },
     { 
-      name: 'Assembly Line Master', 
-      path: '/productionmaster/sssemblylines', 
-      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', 
+      name: 'Assembly Lines', 
+      path: '/productionmaster/assemblylines', 
+      icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10', 
       moduleKey: MODULES.PRODUCTION_MASTER, 
-      page: PAGES.WORK_ORDERS_MASTER 
+      page: PAGES.ASSEMBLY_LINES 
     },
     { 
-      name: 'Production Schedule Master', 
+      name: 'Production Schedule', 
       path: '/productionmaster/productionschedule', 
-      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', 
+      icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', 
       moduleKey: MODULES.PRODUCTION_MASTER, 
-      page: PAGES.WORK_ORDERS_MASTER 
+      page: PAGES.PRODUCTION_SCHEDULE 
     },
     { 
-      name: 'Production Conflict Master', 
+      name: 'Production Conflict', 
       path: '/productionmaster/productionconflict', 
-      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', 
+      icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 
       moduleKey: MODULES.PRODUCTION_MASTER, 
-      page: PAGES.WORK_ORDERS_MASTER 
+      page: PAGES.PRODUCTION_CONFLICT 
     },
   ];
 
@@ -1196,7 +1196,7 @@ const Header = () => {
                             </div>
                           )}
 
-                          {/* Production Section */}
+                          {/* Production Section - Updated with new items */}
                           {activeSubmenu === 'production' && (
                             <div className="flex">
                               {productionColumns.length > 0 ? (
@@ -1709,7 +1709,7 @@ const Header = () => {
                       </div>
                     )}
 
-                    {/* Production Master Items */}
+                    {/* Production Master Items - Updated with new items */}
                     {filteredProductionItems.length > 0 && (
                       <div className="mb-2">
                         <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">

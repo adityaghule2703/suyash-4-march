@@ -3029,10 +3029,10 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onRelease
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         {isPlanned && menuItem(() => onRelease(item), <RocketLaunchIcon fontSize="small" />, 'Release Work Order', '#059669')}
         {isPlanned && menuItem(() => onCancel(item), <BlockIcon fontSize="small" />, 'Cancel Work Order', '#DC2626')}
-        
+        {isPlanned && menuItem(() => onOperations(item), <SettingsIcon fontSize="small" />, 'Operations', COLORS.primary)} 
         {/* For Released status - Show Start and Operations buttons */}
         {isReleased && menuItem(() => onStart(item), <StartIcon fontSize="small" />, 'Start', '#059669')}
-        {isReleased && menuItem(() => onOperations(item), <SettingsIcon fontSize="small" />, 'Operations', COLORS.primary)}
+        {/* {isReleased && menuItem(() => onOperations(item), <SettingsIcon fontSize="small" />, 'Operations', COLORS.primary)} */}
         
         {isOnHold && menuItem(() => onResume(item), <ResumeIcon fontSize="small" />, 'Resume Work Order', '#059669')}
         {isInProgress && menuItem(() => onHold(item), <HoldIcon fontSize="small" />, 'Hold Work Order', '#D97706')}
