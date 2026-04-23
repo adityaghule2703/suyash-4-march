@@ -775,7 +775,7 @@ const BomExplosion = ({ open, onClose, bomId, bomData }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {

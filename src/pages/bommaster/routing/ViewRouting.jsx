@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Dialog,
@@ -39,25 +39,30 @@ import {
   List as ListIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Science as ScienceIcon,
+  Bolt as BoltIcon,
+  Pending as PendingIcon,
+  Cancel as CancelIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 const COLORS = {
-  primary: '#1976D2',
-  primaryDark: '#1565C0',
+  primary: '#063C3F',
+  primaryDark: '#05292B',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
-  border: '#E5E7EB',
+  border: '#E3E8EF',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF'
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
   },
   background: {
-    light: '#F9FAFB',
+    light: '#F8FFFC',
     white: '#FFFFFF'
   }
 };
@@ -91,6 +96,28 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 
 const ViewRouting = ({ open, onClose, routing }) => {
   const [activeStep, setActiveStep] = useState(0);
+  const [vendors, setVendors] = useState([]);
+
+  // Fetch vendors to get names
+  useEffect(() => {
+    if (open && routing) {
+      fetchVendors();
+    }
+  }, [open, routing]);
+
+  const fetchVendors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/vendors?limit=1000`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setVendors(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+    }
+  };
 
   if (!routing) return null;
 
@@ -114,8 +141,95 @@ const ViewRouting = ({ open, onClose, routing }) => {
     });
   };
 
+  const getVendorName = (vendorId) => {
+    if (!vendorId) return 'Yes';
+    if (typeof vendorId === 'object') {
+      return vendorId.vendor_name || vendorId.name || 'Yes';
+    }
+    const vendor = vendors.find(v => v._id === vendorId);
+    return vendor?.vendor_name || vendor?.name || vendorId;
+  };
+
+  // Function to get status display configuration
+  const getStatusConfig = (status) => {
+    const statusLower = status?.toLowerCase() || '';
+    
+    switch (statusLower) {
+      case 'approved':
+        return {
+          label: 'Approved',
+          icon: <CheckCircleIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#D1FAE5',
+          color: '#059669'
+        };
+      case 'active':
+        return {
+          label: 'Active',
+          icon: <CheckCircleIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#DBEAFE',
+          color: '#2563EB'
+        };
+      case 'rejected':
+        return {
+          label: 'Rejected',
+          icon: <CancelIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#FEE2E2',
+          color: '#DC2626'
+        };
+      case 'draft':
+        return {
+          label: 'Draft',
+          icon: <PendingIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#FEF3C7',
+          color: '#D97706'
+        };
+      case 'inactive':
+        return {
+          label: 'Inactive',
+          icon: <WarningIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#F3F4F6',
+          color: '#6B7280'
+        };
+      default:
+        return {
+          label: status || 'Draft',
+          icon: <PendingIcon sx={{ fontSize: '0.8rem' }} />,
+          bgColor: '#FEF3C7',
+          color: '#D97706'
+        };
+    }
+  };
+
+  // Determine the actual status (priority: status field, then approved field, then is_active)
+  const getActualStatus = () => {
+    // If status field exists, use it
+    if (routing.status) {
+      return routing.status;
+    }
+    // If approved flag exists, use it
+    if (routing.approved === true) {
+      return 'Approved';
+    }
+    if (routing.approved === false) {
+      return 'Rejected';
+    }
+    // Fallback to is_active
+    if (routing.is_active === true) {
+      return 'Active';
+    }
+    if (routing.is_active === false) {
+      return 'Inactive';
+    }
+    return 'Draft';
+  };
+
+  const actualStatus = getActualStatus();
+  const statusConfig = getStatusConfig(actualStatus);
+
   const totalSetupTime = routing.operations?.reduce((sum, op) => sum + (op.planned_setup_min || 0), 0) || 0;
   const totalRunTime = routing.operations?.reduce((sum, op) => sum + (op.planned_run_min || 0), 0) || 0;
+  const torqueOpsCount = routing.operations?.filter(op => op.requires_torque_recording).length || 0;
+  const testOpsCount = routing.operations?.filter(op => op.requires_functional_test).length || 0;
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -169,17 +283,17 @@ const ViewRouting = ({ open, onClose, routing }) => {
                     <Box>
                       <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Status</Typography>
                       <Chip
-                        icon={<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />}
-                        label={routing.is_active ? 'Active' : 'Inactive'}
+                        icon={statusConfig.icon}
+                        label={statusConfig.label}
                         size="small"
                         sx={{ 
                           fontSize: '0.7rem',
-                          fontWeight: 500,
-                          bgcolor: routing.is_active ? '#D1FAE5' : '#FEE2E2',
-                          color: routing.is_active ? '#059669' : '#DC2626',
+                          fontWeight: 600,
+                          bgcolor: statusConfig.bgColor,
+                          color: statusConfig.color,
                           '& .MuiChip-icon': {
                             fontSize: '0.8rem',
-                            color: routing.is_active ? '#059669' : '#DC2626'
+                            color: statusConfig.color
                           }
                         }}
                       />
@@ -209,15 +323,39 @@ const ViewRouting = ({ open, onClose, routing }) => {
                 Basic Information
               </Typography>
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Routing Type</Typography>
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>{routing.routing_type || '-'}</Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Cycle Time</Typography>
                   <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>
                     {routing.total_cycle_time_min || totalRunTime} min
                   </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Quality Requirements</Typography>
+                  <Stack direction="row" spacing={1}>
+                    {torqueOpsCount > 0 && (
+                      <Chip
+                        icon={<BoltIcon sx={{ fontSize: '0.7rem' }} />}
+                        label={`${torqueOpsCount} Torque`}
+                        size="small"
+                        sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.primary, color: '#fff' }}
+                      />
+                    )}
+                    {testOpsCount > 0 && (
+                      <Chip
+                        icon={<ScienceIcon sx={{ fontSize: '0.7rem' }} />}
+                        label={`${testOpsCount} Test`}
+                        size="small"
+                        sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.success, color: '#fff' }}
+                      />
+                    )}
+                    {torqueOpsCount === 0 && testOpsCount === 0 && (
+                      <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>None</Typography>
+                    )}
+                  </Stack>
                 </Grid>
               </Grid>
             </Paper>
@@ -229,22 +367,82 @@ const ViewRouting = ({ open, onClose, routing }) => {
                 Operations Summary
               </Typography>
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Operations</Typography>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primary }}>
                     {routing.operations?.length || 0}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Setup Time</Typography>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>{totalSetupTime} min</Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Run Time</Typography>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 600 }}>{totalRunTime} min/unit</Typography>
                 </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Torque Recording Ops</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: COLORS.primary }}>{torqueOpsCount}</Typography>
+                </Grid>
               </Grid>
             </Paper>
+
+            {/* Approval/Rejection Information (if applicable) */}
+            {(routing.approved_by || routing.rejected_by) && (
+              <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Approval Information
+                </Typography>
+                <Grid container spacing={1.5}>
+                  {routing.approved_by && (
+                    <>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Approved By</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                          {typeof routing.approved_by === 'object' 
+                            ? routing.approved_by?.username || routing.approved_by?.name || '-'
+                            : routing.approved_by}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Approved At</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                          {formatDateTime(routing.approved_at) || '-'}
+                        </Typography>
+                      </Grid>
+                    </>
+                  )}
+                  {routing.rejected_by && (
+                    <>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Rejected By</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                          {typeof routing.rejected_by === 'object'
+                            ? routing.rejected_by?.username || routing.rejected_by?.name || '-'
+                            : routing.rejected_by}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Rejected At</Typography>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                          {formatDateTime(routing.rejected_at) || '-'}
+                        </Typography>
+                      </Grid>
+                      {routing.rejection_reason && (
+                        <Grid size={{ xs: 12 }}>
+                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Rejection Reason</Typography>
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: COLORS.error }}>
+                            {routing.rejection_reason}
+                          </Typography>
+                        </Grid>
+                      )}
+                    </>
+                  )}
+                </Grid>
+              </Paper>
+            )}
           </Stack>
         );
 
@@ -311,6 +509,8 @@ const ViewRouting = ({ open, onClose, routing }) => {
                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Setup (min)</TableCell>
                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Run (min)</TableCell>
                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Scrap %</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Torque</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Test</TableCell>
                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Subcontract</TableCell>
                       </TableRow>
                     </TableHead>
@@ -328,9 +528,43 @@ const ViewRouting = ({ open, onClose, routing }) => {
                           <TableCell sx={{ fontSize: '0.75rem' }}>{op.planned_run_min}</TableCell>
                           <TableCell sx={{ fontSize: '0.75rem' }}>{op.scrap_pct || 0}%</TableCell>
                           <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {op.requires_torque_recording ? (
+                              <Tooltip title={op.expected_joints?.join(', ') || 'No joints specified'}>
+                                <Chip
+                                  icon={<BoltIcon sx={{ fontSize: '0.65rem' }} />}
+                                  label={`${op.expected_joints?.length || 0} joints`}
+                                  size="small"
+                                  sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.primary, color: '#fff' }}
+                                />
+                              </Tooltip>
+                            ) : (
+                              <Chip
+                                label="No"
+                                size="small"
+                                sx={{ fontSize: '0.6rem', height: 20, bgcolor: COLORS.background.light }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {op.requires_functional_test ? (
+                              <Chip
+                                icon={<ScienceIcon sx={{ fontSize: '0.65rem' }} />}
+                                label="Yes"
+                                size="small"
+                                sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.success, color: '#fff' }}
+                              />
+                            ) : (
+                              <Chip
+                                label="No"
+                                size="small"
+                                sx={{ fontSize: '0.6rem', height: 20, bgcolor: COLORS.background.light }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
                             {op.is_subcontract ? (
                               <Chip
-                                label={op.subcontract_vendor?.vendor_name || op.subcontract_vendor || 'Yes'}
+                                label={getVendorName(op.subcontract_vendor)}
                                 size="small"
                                 sx={{ fontSize: '0.6rem', height: 20, bgcolor: '#FEF3C7', color: '#D97706' }}
                               />
@@ -353,6 +587,49 @@ const ViewRouting = ({ open, onClose, routing }) => {
                 </Typography>
               )}
             </Paper>
+
+            {/* Expected Joints Summary for Torque Recording Operations */}
+            {routing.operations?.some(op => op.requires_torque_recording && op.expected_joints?.length > 0) && (
+              <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <BoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Torque Recording Joints Details
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: COLORS.background.light }}>
+                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Operation</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Expected Joints</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {routing.operations
+                        .filter(op => op.requires_torque_recording && op.expected_joints?.length > 0)
+                        .map((op, index) => (
+                          <TableRow key={index}>
+                            <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                              Op {op.op_sequence}: {typeof op.operation_id === 'object' ? op.operation_id?.process_name : op.operation_name}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                {op.expected_joints.map((joint, idx) => (
+                                  <Chip
+                                    key={idx}
+                                    label={joint}
+                                    size="small"
+                                    sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.white }}
+                                  />
+                                ))}
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            )}
           </Stack>
         );
 
@@ -403,6 +680,47 @@ const ViewRouting = ({ open, onClose, routing }) => {
                 </Grid>
               </Grid>
             </Paper>
+
+            {/* Quality Requirements Summary Card */}
+            {(torqueOpsCount > 0 || testOpsCount > 0) && (
+              <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <ScienceIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Quality Requirements Summary
+                </Typography>
+                <Grid container spacing={2}>
+                  {torqueOpsCount > 0 && (
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <BoltIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+                          Torque Recording Operations
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        Total operations requiring torque recording: {torqueOpsCount}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        Total joints to be recorded: {routing.operations?.reduce((sum, op) => sum + (op.expected_joints?.length || 0), 0) || 0}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {testOpsCount > 0 && (
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <ScienceIcon sx={{ fontSize: '1rem', color: COLORS.success }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.success }}>
+                          Functional Test Operations
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        Total operations requiring functional test: {testOpsCount}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            )}
           </Stack>
         );
 

@@ -12,7 +12,8 @@ import {
   Chip,
   Paper,
   Stack,
-  Divider
+  Divider,
+  Tooltip
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -20,7 +21,11 @@ import {
   Delete as DeleteIcon,
   Route as RouteIcon,
   Work as WorkIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Build as BuildIcon,
+  Science as ScienceIcon,
+  Bolt as BoltIcon,
+  Inventory as InventoryIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -28,21 +33,22 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
 
 const COLORS = {
-  primary: '#1976D2',
-  primaryDark: '#1565C0',
+  primary: '#063C3F',
+  primaryDark: '#05292B',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF'
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
   },
   background: {
     white: '#FFFFFF',
-    light: '#F9FAFB'
+    light: '#F8FFFC'
   },
-  border: '#E5E7EB',
+  border: '#E3E8EF',
   error: '#DC2626',
   warning: '#D97706',
-  info: '#3B82F6'
+  info: '#3B82F6',
+  success: '#2E7D32'
 };
 
 const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
@@ -75,7 +81,6 @@ const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
         onClose();
       } else {
         setError(response.data.message || 'Failed to delete routing');
-        // Store additional error details if available
         if (response.data.work_order) {
           setErrorDetails(response.data);
         }
@@ -85,7 +90,6 @@ const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
       const errorMessage = err.response?.data?.message || 'Failed to delete routing. Please try again.';
       setError(errorMessage);
       
-      // Store additional error details from response
       if (err.response?.data?.work_order) {
         setErrorDetails(err.response.data);
       }
@@ -100,8 +104,10 @@ const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
 
   const totalOperations = routing?.operations?.length || 0;
   const statusColors = getStatusColor(routing?.is_active);
+  const torqueOpsCount = routing?.operations?.filter(op => op.requires_torque_recording).length || 0;
+  const testOpsCount = routing?.operations?.filter(op => op.requires_functional_test).length || 0;
+  const totalJoints = routing?.operations?.reduce((sum, op) => sum + (op.expected_joints?.length || 0), 0) || 0;
   
-  // Check if error is about routing being used in work orders
   const isUsedInWorkOrder = error && (error.includes('used in open Work Order') || errorDetails?.work_order);
 
   return (
@@ -206,7 +212,8 @@ const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
                 bgcolor: COLORS.primary,
                 fontSize: '0.75rem',
                 fontWeight: 500,
-                textTransform: 'none'
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
               }}
             >
               Close
@@ -295,6 +302,144 @@ const DeleteRouting = ({ open, onClose, routing, onDelete }) => {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {/* Quality Requirements Summary */}
+                  {(torqueOpsCount > 0 || testOpsCount > 0) && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <ScienceIcon sx={{ fontSize: '0.8rem' }} />
+                          Quality Requirements
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          {torqueOpsCount > 0 && (
+                            <Tooltip title={`${torqueOpsCount} operation(s) require torque recording. Total joints: ${totalJoints}`}>
+                              <Chip
+                                icon={<BoltIcon sx={{ fontSize: '0.7rem' }} />}
+                                label={`Torque: ${torqueOpsCount} ops`}
+                                size="small"
+                                sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.primary, color: '#fff' }}
+                              />
+                            </Tooltip>
+                          )}
+                          {testOpsCount > 0 && (
+                            <Tooltip title={`${testOpsCount} operation(s) require functional test`}>
+                              <Chip
+                                icon={<ScienceIcon sx={{ fontSize: '0.7rem' }} />}
+                                label={`Test: ${testOpsCount} ops`}
+                                size="small"
+                                sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.success, color: '#fff' }}
+                              />
+                            </Tooltip>
+                          )}
+                        </Box>
+                      </Box>
+                    </>
+                  )}
+
+                  {/* Operations Preview */}
+                  {routing?.operations && routing.operations.length > 0 && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <BuildIcon sx={{ fontSize: '0.8rem' }} />
+                          Operations ({totalOperations})
+                        </Typography>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ gap: 0.5 }}>
+                          {routing.operations
+                            .sort((a, b) => a.op_sequence - b.op_sequence)
+                            .slice(0, 5)
+                            .map((op, index) => {
+                              const hasTorque = op.requires_torque_recording;
+                              const hasTest = op.requires_functional_test;
+                              return (
+                                <Tooltip
+                                  key={index}
+                                  title={
+                                    <Box>
+                                      <Typography variant="caption" display="block">
+                                        {op.operation_name}
+                                      </Typography>
+                                      <Typography variant="caption" display="block">
+                                        Setup: {op.planned_setup_min} min | Run: {op.planned_run_min} min
+                                      </Typography>
+                                      {hasTorque && (
+                                        <Typography variant="caption" display="block" sx={{ color: '#FFD700' }}>
+                                          🔩 Torque Required
+                                        </Typography>
+                                      )}
+                                      {hasTest && (
+                                        <Typography variant="caption" display="block" sx={{ color: '#90EE90' }}>
+                                          🧪 Test Required
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  }
+                                  arrow
+                                  placement="top"
+                                >
+                                  <Chip
+                                    label={`${op.op_sequence}. ${op.operation_name?.substring(0, 20)}${op.operation_name?.length > 20 ? '...' : ''}`}
+                                    size="small"
+                                    sx={{ 
+                                      fontSize: '0.6rem', 
+                                      height: 22,
+                                      bgcolor: COLORS.background.white,
+                                      border: `1px solid ${COLORS.border}`,
+                                      ...(hasTorque && {
+                                        borderLeft: `3px solid ${COLORS.primary}`,
+                                      }),
+                                      ...(hasTest && {
+                                        borderRight: `3px solid ${COLORS.success}`,
+                                      })
+                                    }}
+                                  />
+                                </Tooltip>
+                              );
+                            })}
+                          {routing.operations.length > 5 && (
+                            <Chip
+                              label={`+${routing.operations.length - 5} more`}
+                              size="small"
+                              sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.light }}
+                            />
+                          )}
+                        </Stack>
+                      </Box>
+                    </>
+                  )}
+
+                  {/* Applicable Items Preview */}
+                  {routing?.applicable_items && routing.applicable_items.length > 0 && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <InventoryIcon sx={{ fontSize: '0.8rem' }} />
+                          Applicable Items ({routing.applicable_items.length})
+                        </Typography>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ gap: 0.5 }}>
+                          {routing.applicable_items.slice(0, 5).map((item, index) => (
+                            <Chip
+                              key={index}
+                              label={item.part_no || item.item_id || 'Item'}
+                              size="small"
+                              sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.white }}
+                            />
+                          ))}
+                          {routing.applicable_items.length > 5 && (
+                            <Chip
+                              label={`+${routing.applicable_items.length - 5} more`}
+                              size="small"
+                              sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.light }}
+                            />
+                          )}
+                        </Stack>
+                      </Box>
+                    </>
+                  )}
                 </Stack>
               </Paper>
               

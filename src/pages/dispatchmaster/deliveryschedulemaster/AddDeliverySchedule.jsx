@@ -83,12 +83,14 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Vehicle Type Options (from enums)
+// Vehicle Type Options (from backend enums)
 const VEHICLE_TYPE_OPTIONS = [
-  'Regular',
-  'Over Dimensional Cargo (ODC)',
-  'Water Vessel',
-  'Air Cargo'
+  'Mini Truck',
+  'Tempo',
+  'Truck',
+  'Container',
+  'Courier',
+  'Hand Delivery'
 ];
 
 const TRANSPORTER_OPTIONS = [
@@ -119,8 +121,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [shippingAddresses, setShippingAddresses] = useState([]);
-  const [selectedShippingAddress, setSelectedShippingAddress] = useState(null);
+  const [shippingAddress, setShippingAddress] = useState(null);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -134,6 +135,20 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     special_instructions: '',
     items: []
   });
+
+  // Helper function to format shipping address for display
+  const formatShippingAddress = (address) => {
+    if (!address) return '';
+    const parts = [];
+    if (address.line1) parts.push(address.line1);
+    if (address.line2) parts.push(address.line2);
+    if (address.city) parts.push(address.city);
+    if (address.district) parts.push(address.district);
+    if (address.state) parts.push(address.state);
+    if (address.pincode) parts.push(address.pincode);
+    if (address.country) parts.push(address.country);
+    return parts.join(', ');
+  };
 
   // Fetch Sales Orders
   const fetchSalesOrders = useCallback(async () => {
@@ -211,20 +226,16 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
       const so = salesOrders.find(s => s._id === initialData.so_id);
       if (so) {
         setSelectedSO(so);
+        // Set shipping address from the sales order
+        if (so.shipping_address) {
+          setShippingAddress(so.shipping_address);
+        }
       }
 
       // Find and set selected customer
       const customer = customers.find(c => c._id === initialData.customer_id);
       if (customer) {
         setSelectedCustomer(customer);
-        // Set shipping addresses
-        if (customer.shipping_addresses && customer.shipping_addresses.length > 0) {
-          setShippingAddresses(customer.shipping_addresses);
-          const shippingAddr = customer.shipping_addresses.find(addr => addr._id === initialData.shipping_address_id);
-          if (shippingAddr) {
-            setSelectedShippingAddress(shippingAddr);
-          }
-        }
       }
     }
   }, [isEditMode, initialData, open, salesOrders, customers]);
@@ -233,11 +244,16 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
   const handleSOChange = (event, newValue) => {
     setSelectedSO(newValue);
     if (newValue) {
+      // Set shipping address from the sales order
+      const shippingAddr = newValue.shipping_address;
+      setShippingAddress(shippingAddr);
+      
       setFormData(prev => ({
         ...prev,
         so_id: newValue._id,
         so_number: newValue.so_number,
         customer_id: newValue.customer_id,
+        shipping_address_id: shippingAddr ? JSON.stringify(shippingAddr) : '',
         items: (newValue.items || []).map(item => ({
           so_item_id: item._id,
           part_no: item.part_no,
@@ -252,17 +268,6 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
       const customer = customers.find(c => c._id === newValue.customer_id);
       if (customer) {
         setSelectedCustomer(customer);
-        if (customer.shipping_addresses && customer.shipping_addresses.length > 0) {
-          setShippingAddresses(customer.shipping_addresses);
-          const defaultAddress = customer.shipping_addresses.find(addr => addr.is_default);
-          if (defaultAddress) {
-            setSelectedShippingAddress(defaultAddress);
-            setFormData(prev => ({
-              ...prev,
-              shipping_address_id: defaultAddress._id
-            }));
-          }
-        }
       }
     } else {
       setFormData(prev => ({
@@ -270,11 +275,11 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
         so_id: '',
         so_number: '',
         customer_id: '',
+        shipping_address_id: '',
         items: []
       }));
       setSelectedCustomer(null);
-      setShippingAddresses([]);
-      setSelectedShippingAddress(null);
+      setShippingAddress(null);
     }
     setFieldErrors({});
     setError('');
@@ -286,41 +291,14 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     if (newValue) {
       setFormData(prev => ({
         ...prev,
-        customer_id: newValue._id,
-        shipping_address_id: ''
+        customer_id: newValue._id
       }));
-      if (newValue.shipping_addresses && newValue.shipping_addresses.length > 0) {
-        setShippingAddresses(newValue.shipping_addresses);
-        const defaultAddress = newValue.shipping_addresses.find(addr => addr.is_default);
-        if (defaultAddress) {
-          setSelectedShippingAddress(defaultAddress);
-          setFormData(prev => ({
-            ...prev,
-            shipping_address_id: defaultAddress._id
-          }));
-        }
-      } else {
-        setShippingAddresses([]);
-        setSelectedShippingAddress(null);
-      }
     } else {
       setFormData(prev => ({
         ...prev,
-        customer_id: '',
-        shipping_address_id: ''
+        customer_id: ''
       }));
-      setShippingAddresses([]);
-      setSelectedShippingAddress(null);
     }
-  };
-
-  // Handle Shipping Address selection
-  const handleShippingAddressChange = (event, newValue) => {
-    setSelectedShippingAddress(newValue);
-    setFormData(prev => ({
-      ...prev,
-      shipping_address_id: newValue?._id || ''
-    }));
   };
 
   const handleChange = (e) => {
@@ -517,8 +495,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     setActiveStep(0);
     setSelectedSO(null);
     setSelectedCustomer(null);
-    setShippingAddresses([]);
-    setSelectedShippingAddress(null);
+    setShippingAddress(null);
     setFormData({
       so_id: '',
       so_number: '',
@@ -561,7 +538,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                       <Autocomplete
                         fullWidth
                         options={salesOrders}
-                        getOptionLabel={(option) => `${option.so_number} - ${option.customer_name || option.customer_id}`}
+                        getOptionLabel={(option) => `${option.so_number} - ${option.customer_name}`}
                         loading={loadingSO}
                         value={selectedSO}
                         onChange={handleSOChange}
@@ -631,51 +608,21 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Select Customer <span style={{ color: '#EF4444' }}>*</span>
+                      Customer <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
+                    <TextField
                       fullWidth
-                      options={customers}
-                      getOptionLabel={(option) => `${option.customer_name} (${option.customer_code || option._id})`}
-                      loading={loadingCustomers}
-                      value={selectedCustomer}
-                      onChange={handleCustomerChange}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder="Search and select customer"
-                          error={!!fieldErrors.customer_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                          InputProps={{
-                            ...params.InputProps,
-                            endAdornment: (
-                              <>
-                                {loadingCustomers && <CircularProgress size={16} />}
-                                {params.InputProps.endAdornment}
-                              </>
-                            ),
-                          }}
-                        />
-                      )}
+                      size="small"
+                      value={selectedCustomer ? selectedCustomer.customer_name : (selectedSO?.customer_name || '')}
+                      InputProps={{ readOnly: true }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          bgcolor: '#F5F5F5'
+                        }
+                      }}
                     />
-                    {fieldErrors.customer_id && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                        {fieldErrors.customer_id}
-                      </Typography>
-                    )}
                   </Box>
                 </Grid>
 
@@ -684,35 +631,46 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       Shipping Address <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      fullWidth
-                      options={shippingAddresses}
-                      getOptionLabel={(option) => `${option.label || 'Address'} - ${option.line1}, ${option.city} - ${option.pincode}`}
-                      value={selectedShippingAddress}
-                      onChange={handleShippingAddressChange}
-                      disabled={shippingAddresses.length === 0}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder={shippingAddresses.length === 0 ? "No shipping addresses available for this customer" : "Select shipping address"}
-                          error={!!fieldErrors.shipping_address_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                      )}
-                    />
+                    {shippingAddress ? (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          border: fieldErrors.shipping_address_id ? '1px solid #EF4444' : `1px solid ${COLORS.border}`,
+                          bgcolor: COLORS.background.light
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary, lineHeight: 1.5 }}>
+                          {shippingAddress.line1 && <span>{shippingAddress.line1}<br /></span>}
+                          {shippingAddress.line2 && <span>{shippingAddress.line2}<br /></span>}
+                          {shippingAddress.city && shippingAddress.district && 
+                            <span>{shippingAddress.city}, {shippingAddress.district}<br /></span>
+                          }
+                          {shippingAddress.city && !shippingAddress.district && 
+                            <span>{shippingAddress.city}<br /></span>
+                          }
+                          {shippingAddress.state && shippingAddress.pincode && 
+                            <span>{shippingAddress.state} - {shippingAddress.pincode}<br /></span>
+                          }
+                          {shippingAddress.country && <span>{shippingAddress.country}</span>}
+                        </Typography>
+                      </Paper>
+                    ) : (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Select a sales order to view shipping address"
+                        disabled
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            bgcolor: '#F5F5F5'
+                          }
+                        }}
+                      />
+                    )}
                     {fieldErrors.shipping_address_id && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
                         {fieldErrors.shipping_address_id}
@@ -824,13 +782,16 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                         value={formData.vehicle_type}
                         onChange={handleChange}
                         name="vehicle_type"
+                        displayEmpty
                         sx={{
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
                           '& .MuiSelect-select': { py: 1, px: 1.5 }
                         }}
                       >
-                        <MenuItem value="" disabled>Select vehicle type</MenuItem>
+                        <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
+                          Select vehicle type
+                        </MenuItem>
                         {VEHICLE_TYPE_OPTIONS.map(option => (
                           <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
                             {option}

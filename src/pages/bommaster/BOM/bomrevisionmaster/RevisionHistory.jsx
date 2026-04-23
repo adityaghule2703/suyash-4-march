@@ -388,7 +388,7 @@ const RevisionHistory = ({
                       </Grid>
 
                       {/* Created By - Now shows Employee Name */}
-                      <Grid size={{ xs: 12, sm: 6 }}>
+                      {/* <Grid size={{ xs: 12, sm: 6 }}>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <PersonIcon sx={{ fontSize: '0.9rem', color: COLORS.text.secondary }} />
                           <Box>
@@ -398,7 +398,7 @@ const RevisionHistory = ({
                             </Typography>
                           </Box>
                         </Box>
-                      </Grid>
+                      </Grid> */}
                       
                       {/* Created At */}
                       <Grid size={{ xs: 12, sm: 6 }}>

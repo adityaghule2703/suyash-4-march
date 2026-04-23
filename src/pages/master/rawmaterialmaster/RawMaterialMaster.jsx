@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -26,7 +26,12 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  LinearProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -39,7 +44,10 @@ import {
   AttachMoney as MoneyIcon,
   Percent as PercentIcon,
   DateRange as DateIcon,
-  Category as CategoryIcon
+  Category as CategoryIcon,
+  FileDownload as ExportIcon,
+  FileUpload as ImportIcon,
+  CloudUpload as UploadIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -227,6 +235,13 @@ const RawMaterialMaster = () => {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  
+  // Import/Export state
+  const [openImportDialog, setOpenImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const fileInputRef = useRef(null);
   
   // Selected material
   const [selectedMaterial, setSelectedMaterial] = useState(null);
@@ -416,6 +431,171 @@ const RawMaterialMaster = () => {
   const handleBulkDelete = () => {
     if (!canDelete) return;
     showNotification('Bulk delete requires API implementation', 'warning');
+  };
+  
+  // Handle export data
+  const handleExport = async () => {
+    if (!canExport) return;
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.get(`${BASE_URL}/api/raw-materials/export`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        responseType: 'blob' // Important for file download
+      });
+      
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'raw-materials-export.csv';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      showNotification('Data exported successfully!', 'success');
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      showNotification('Failed to export data. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle download import template
+  const handleDownloadTemplate = async () => {
+    if (!canImport) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.get(`${BASE_URL}/api/raw-materials/import-template`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        responseType: 'blob' // Important for file download
+      });
+      
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'raw-materials-template.csv';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      showNotification('Template downloaded successfully!', 'success');
+    } catch (err) {
+      console.error('Error downloading template:', err);
+      showNotification('Failed to download template. Please try again.', 'error');
+    }
+  };
+  
+  // Handle file selection for import
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['text/csv', 'application/vnd.ms-excel', '.csv'];
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      
+      if (fileExtension !== 'csv') {
+        showNotification('Please upload a valid CSV file', 'error');
+        event.target.value = '';
+        return;
+      }
+      
+      setImportFile(file);
+    }
+  };
+  
+  // Handle import submission
+  const handleImport = async () => {
+    if (!importFile) {
+      showNotification('Please select a file to import', 'warning');
+      return;
+    }
+    
+    setImportLoading(true);
+    setImportProgress(0);
+    
+    const formData = new FormData();
+    formData.append('file', importFile);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setImportProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+      
+      const response = await axios.post(`${BASE_URL}/api/raw-materials/import`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      clearInterval(progressInterval);
+      setImportProgress(100);
+      
+      if (response.data.success) {
+        showNotification(response.data.message || 'Data imported successfully!', 'success');
+        // Refresh the materials list
+        fetchMaterials();
+        // Close dialog and reset states
+        setOpenImportDialog(false);
+        setImportFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        showNotification(response.data.message || 'Failed to import data', 'error');
+      }
+    } catch (err) {
+      console.error('Error importing data:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to import data. Please check your file format.';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setImportLoading(false);
+      setImportProgress(0);
+    }
   };
   
   // Handle add material
@@ -670,6 +850,56 @@ const RawMaterialMaster = () => {
                 disabled={loading}
               >
                 Delete ({selected.length})
+              </Button>
+            )}
+            
+            {/* Export Button - Only show if user has export permission */}
+            {canExport && (
+              <Button
+                variant="outlined"
+                startIcon={<ExportIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleExport}
+                sx={{ 
+                  height: 36,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: COLORS.border,
+                  color: COLORS.primary,
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+                disabled={loading}
+              >
+                Export
+              </Button>
+            )}
+            
+            {/* Import Button - Only show if user has import permission */}
+            {canImport && (
+              <Button
+                variant="outlined"
+                startIcon={<ImportIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenImportDialog(true)}
+                sx={{ 
+                  height: 36,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: COLORS.border,
+                  color: COLORS.primary,
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+                disabled={loading}
+              >
+                Import
               </Button>
             )}
             
@@ -1000,6 +1230,208 @@ const RawMaterialMaster = () => {
           }}
         />
       </Paper>
+
+      {/* Import Dialog */}
+      <Dialog 
+        open={openImportDialog} 
+        onClose={() => !importLoading && setOpenImportDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            border: `1px solid ${COLORS.border}`
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: `1px solid ${COLORS.border}`,
+          pb: 2,
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: COLORS.text.primary
+        }}>
+          Import Raw Materials
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Stack spacing={2}>
+            {/* Template Download Section */}
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 2,
+              border: `1px solid ${COLORS.border}`
+            }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, fontSize: '0.75rem' }}>
+                Step 1: Download Template
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5, fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                Download the CSV template and fill it with your data. Make sure to follow the format exactly.
+              </Typography>
+              <Button
+                variant="outlined"
+              
+                onClick={handleDownloadTemplate}
+                size="small"
+                sx={{
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.7rem',
+                  borderColor: COLORS.primary,
+                  color: COLORS.primary,
+                  '&:hover': {
+                    borderColor: COLORS.primaryDark,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                Download CSV Template
+              </Button>
+            </Box>
+
+            {/* File Upload Section */}
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 2,
+              border: `1px solid ${COLORS.border}`
+            }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, fontSize: '0.75rem' }}>
+                Step 2: Upload CSV File
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5, fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                Upload your completed CSV file. Only CSV format is supported.
+              </Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadIcon sx={{ fontSize: '1rem' }} />}
+                size="small"
+                sx={{
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.7rem',
+                  borderColor: COLORS.border,
+                  color: COLORS.primary,
+                  '&:hover': {
+                    borderColor: COLORS.primary,
+                    bgcolor: `${COLORS.primary}10`
+                  }
+                }}
+              >
+                Choose File
+                <input
+                  type="file"
+                  hidden
+                  accept=".csv"
+                  onChange={handleFileSelect}
+                  ref={fileInputRef}
+                  disabled={importLoading}
+                />
+              </Button>
+              {importFile && (
+                <Box sx={{ mt: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
+                    Selected file: <strong>{importFile.name}</strong> ({(importFile.size / 1024).toFixed(2)} KB)
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Import Progress */}
+            {importLoading && (
+              <Box sx={{ width: '100%' }}>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={importProgress} 
+                  sx={{ 
+                    height: 6, 
+                    borderRadius: 3,
+                    bgcolor: COLORS.border,
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: COLORS.primary,
+                      borderRadius: 3
+                    }
+                  }}
+                />
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: '0.65rem', color: COLORS.text.secondary, display: 'block' }}>
+                  Importing... {importProgress}%
+                </Typography>
+              </Box>
+            )}
+
+            {/* Important Notes */}
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: '#FFF3E0', 
+              borderRadius: 2,
+              border: '1px solid #FFE0B2'
+            }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, fontSize: '0.7rem', color: '#E65100' }}>
+                Important Notes:
+              </Typography>
+              <ul style={{ margin: 0, paddingLeft: '1rem' }}>
+                <li style={{ fontSize: '0.65rem', color: '#BF360C', marginBottom: '4px' }}>
+                  File must be in CSV format (.csv)
+                </li>
+                <li style={{ fontSize: '0.65rem', color: '#BF360C', marginBottom: '4px' }}>
+                  Do not modify the column headers in the template
+                </li>
+                <li style={{ fontSize: '0.65rem', color: '#BF360C', marginBottom: '4px' }}>
+                  All fields marked with * are required
+                </li>
+                <li style={{ fontSize: '0.65rem', color: '#BF360C' }}>
+                  Maximum file size: 10MB
+                </li>
+              </ul>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ 
+          borderTop: `1px solid ${COLORS.border}`,
+          p: 2,
+          gap: 1
+        }}>
+          <Button 
+            onClick={() => {
+              setOpenImportDialog(false);
+              setImportFile(null);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
+            }}
+            disabled={importLoading}
+            sx={{
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontSize: '0.7rem',
+              color: COLORS.text.secondary
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleImport}
+            variant="contained"
+            disabled={!importFile || importLoading}
+            sx={{
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontSize: '0.7rem',
+              bgcolor: COLORS.primary,
+              '&:hover': {
+                bgcolor: COLORS.primaryDark,
+              },
+              '&.Mui-disabled': {
+                bgcolor: COLORS.border,
+                color: COLORS.text.tertiary
+              }
+            }}
+          >
+            {importLoading ? 'Importing...' : 'Import Data'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal Components - Only render modals if user has appropriate permissions */}
       {canCreate && (

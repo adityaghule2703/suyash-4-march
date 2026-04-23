@@ -1645,7 +1645,6 @@
 //   );
 // };
 
-// export default LeadsMaster;
 'use strict';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -1698,6 +1697,23 @@ const AccessDenied = () => (
     </Typography>
   </Box>
 );
+
+// Helper function to get feasibility status color
+const getFeasibilityStatusColor = (status) => {
+  if (!status || status === '') return { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' };
+  switch(status.toLowerCase()) {
+    case 'feasible':
+      return { bg: '#DCFCE7', color: '#166534', border: '#86EFAC' };
+    case 'not feasible':
+      return { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA' };
+    case 'partial':
+      return { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A' };
+    case 'under review':
+      return { bg: '#DBEAFE', color: '#1E40AF', border: '#BFDBFE' };
+    default:
+      return { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' };
+  }
+};
 
 // ─── Action Menu with permission checks ─────────────────────────────────────
 const ActionMenu = ({
@@ -2154,7 +2170,17 @@ const LeadsMaster = () => {
                     />
                   </TableCell>
                 )}
-                {['Lead ID / Company', 'Subject', 'Contact', 'Status', 'Priority', 'Est. Value', 'Created', 'Actions'].map(h => (
+                {[
+                  'Lead ID / Company', 
+                  'Subject', 
+                  'Contact', 
+                  'Status', 
+                  'Priority', 
+                  'Feasibility Status', 
+                  'Est. Value', 
+                  'Created', 
+                  'Actions'
+                ].map(h => (
                   <TableCell key={h} align={h === 'Actions' ? 'center' : 'left'} sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: h === 'Actions' ? 60 : 'auto' }}>
                     {h}
                   </TableCell>
@@ -2165,14 +2191,14 @@ const LeadsMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>Loading leads...</Typography>
                   </TableCell>
                 </TableRow>
               ) : leads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
                     <BusinessIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                     <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                       {searchTerm ? 'No leads found' : 'No leads available'}
@@ -2188,6 +2214,10 @@ const LeadsMaster = () => {
                 const statusColors = STATUS_COLORS[lead.status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
                 const priorityColors = PRIORITY_COLORS[lead.priority] || { bg: '#F1F5F9', color: '#475569' };
                 const isTerminal = TERMINAL_STATUSES.includes(lead.status);
+                const feasibilityStatus = lead.feasibility_status && lead.feasibility_status !== '' 
+                  ? lead.feasibility_status 
+                  : 'N/A';
+                const feasibilityColors = getFeasibilityStatusColor(lead.feasibility_status);
 
                 return (
                   <TableRow
@@ -2262,6 +2292,28 @@ const LeadsMaster = () => {
                         size="small"
                         sx={{ fontSize: '0.65rem', fontWeight: 500, height: 24, bgcolor: priorityColors.bg, color: priorityColors.color }}
                       />
+                    </TableCell>
+
+                    {/* New Feasibility Status Column */}
+                    <TableCell>
+                      {feasibilityStatus === 'N/A' ? (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, fontStyle: 'italic' }}>
+                          N/A
+                        </Typography>
+                      ) : (
+                        <Chip
+                          label={feasibilityStatus}
+                          size="small"
+                          sx={{ 
+                            fontSize: '0.65rem', 
+                            fontWeight: 500, 
+                            height: 24, 
+                            bgcolor: feasibilityColors.bg, 
+                            color: feasibilityColors.color, 
+                            border: `1px solid ${feasibilityColors.border}` 
+                          }}
+                        />
+                      )}
                     </TableCell>
 
                     <TableCell>

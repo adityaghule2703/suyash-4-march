@@ -454,7 +454,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                         </Stack>
                       </Grid>
                       
-                      <Grid size={{ xs: 12, sm: 6 }}>
+                      {/* <Grid size={{ xs: 12, sm: 6 }}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <PersonIcon sx={{ fontSize: '0.8rem', color: COLORS.text.tertiary }} />
                           <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
@@ -464,7 +464,7 @@ const DownloadPdf = ({ open, onClose, bomId, bomData }) => {
                             {getCreatedByName(selectedRevision.created_by)}
                           </Typography>
                         </Stack>
-                      </Grid>
+                      </Grid> */}
                       
                       <Grid size={{ xs: 12 }}>
                         <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>

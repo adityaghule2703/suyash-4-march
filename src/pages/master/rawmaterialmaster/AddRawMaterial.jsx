@@ -32,7 +32,6 @@ import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import AddMaterial from '../materialmaster/AddMaterial';
 
-
 // Color constants matching other components
 const COLORS = {
   primary: '#063C3F',
@@ -89,26 +88,19 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 const steps = ['Basic Information', 'Rate & Cost Details'];
 
 // Validation helper functions
-const validateMaterialName = (value) => {
-  if (!value?.trim()) {
-    return 'Material name is required';
-  }
-  return '';
-};
-
-const validateGrade = (value) => {
-  if (!value?.trim()) {
-    return 'Grade is required';
+const validateMaterialID = (value) => {
+  if (!value) {
+    return 'Material is required';
   }
   return '';
 };
 
 const validateRatePerKG = (value) => {
-  if (!value || value <= 0) {
-    return 'Rate per KG must be greater than 0';
+  if (!value && value !== 0) {
+    return 'Rate per KG is required';
   }
-  if (isNaN(value)) {
-    return 'Rate per KG must be a valid number';
+  if (isNaN(value) || value <= 0) {
+    return 'Rate per KG must be greater than 0';
   }
   return '';
 };
@@ -153,16 +145,13 @@ const validateDateEffective = (value) => {
 const AddRawMaterial = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    MaterialName: '',
-    Grade: '',
+    MaterialID: '',
     RatePerKG: '',
-    ScrapPercentage: '',
-    scrap_rate_per_kg: '',
-    TransportLossPercentage: '',
-    transport_rate_per_kg: '',
     profile_conversion_rate: '',
+    ScrapPercentage: '',
+    TransportLossPercentage: '',
     DateEffective: new Date().toISOString().split('T')[0],
-    IsActive: true
+    Description: ''
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -176,7 +165,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
   // State for Add Material dialog
   const [addMaterialOpen, setAddMaterialOpen] = useState(false);
 
-  // Fetch materials for dropdown
+  // Fetch materials for dropdown using new API endpoint
   useEffect(() => {
     if (open) {
       fetchMaterials();
@@ -187,7 +176,8 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     try {
       setLoadingMaterials(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/materials`, {
+      // Updated API endpoint for materials dropdown
+      const response = await axios.get(`https://codiantsolutions.com/api/suyashtest/api/materials/dropdown`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -206,34 +196,23 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
   // Handle material added from AddMaterial dialog
   const handleMaterialAdded = (newMaterial) => {
     // Add the new material to the materials list
-    setMaterials(prev => [...prev, newMaterial]);
+    const formattedMaterial = {
+      _id: newMaterial._id,
+      material_id: newMaterial.material_id,
+      MaterialCode: newMaterial.MaterialCode,
+      MaterialName: newMaterial.MaterialName,
+      Density: newMaterial.Density,
+      Unit: newMaterial.Unit,
+      Grade: newMaterial.Grade,
+      EffectiveRate: newMaterial.EffectiveRate
+    };
+    setMaterials(prev => [...prev, formattedMaterial]);
     
     // Auto-select the newly added material
-    setSelectedMaterial(newMaterial);
+    setSelectedMaterial(formattedMaterial);
     setFormData(prev => ({
       ...prev,
-      MaterialName: newMaterial.MaterialName,
-      Grade: newMaterial.Grade || ''
-    }));
-  };
-
-  // Calculate derived rates when base values change
-  useEffect(() => {
-    calculateDerivedRates();
-  }, [formData.RatePerKG, formData.ScrapPercentage, formData.TransportLossPercentage]);
-
-  const calculateDerivedRates = () => {
-    const ratePerKG = parseFloat(formData.RatePerKG) || 0;
-    const scrapPercentage = parseFloat(formData.ScrapPercentage) || 0;
-    const transportPercentage = parseFloat(formData.TransportLossPercentage) || 0;
-
-    const scrapRate = (ratePerKG * scrapPercentage) / 100;
-    const transportRate = (ratePerKG * transportPercentage) / 100;
-
-    setFormData(prev => ({
-      ...prev,
-      scrap_rate_per_kg: scrapRate.toFixed(2),
-      transport_rate_per_kg: transportRate.toFixed(2)
+      MaterialID: formattedMaterial._id
     }));
   };
 
@@ -269,31 +248,26 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     setSelectedMaterial(newValue);
     setFieldErrors(prev => ({
       ...prev,
-      MaterialName: '',
-      Grade: ''
+      MaterialID: ''
     }));
     
     if (newValue) {
       setFormData(prev => ({
         ...prev,
-        MaterialName: newValue.MaterialName,
-        Grade: newValue.Grade || ''
+        MaterialID: newValue._id
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        MaterialName: '',
-        Grade: ''
+        MaterialID: ''
       }));
     }
   };
 
   const validateField = (name, value) => {
     switch (name) {
-      case 'MaterialName':
-        return validateMaterialName(value);
-      case 'Grade':
-        return validateGrade(value);
+      case 'MaterialID':
+        return validateMaterialID(value);
       case 'RatePerKG':
         return validateRatePerKG(value);
       case 'ScrapPercentage':
@@ -315,17 +289,10 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
 
     switch (step) {
       case 0: // Basic Information
-        // Material Name
-        const materialNameError = validateField('MaterialName', formData.MaterialName);
-        if (materialNameError) {
-          errors.MaterialName = materialNameError;
-          isValid = false;
-        }
-
-        // Grade
-        const gradeError = validateField('Grade', formData.Grade);
-        if (gradeError) {
-          errors.Grade = gradeError;
+        // Material ID
+        const materialIdError = validateField('MaterialID', formData.MaterialID);
+        if (materialIdError) {
+          errors.MaterialID = materialIdError;
           isValid = false;
         }
         break;
@@ -384,8 +351,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
 
     // Required fields
     const requiredFields = [
-      { name: 'MaterialName', label: 'Material name' },
-      { name: 'Grade', label: 'Grade' },
+      { name: 'MaterialID', label: 'Material' },
       { name: 'RatePerKG', label: 'Rate per KG' },
       { name: 'ScrapPercentage', label: 'Scrap percentage' },
       { name: 'TransportLossPercentage', label: 'Transport loss percentage' },
@@ -401,14 +367,9 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     });
 
     // Validate each field with custom validations
-    if (formData.MaterialName) {
-      const error = validateField('MaterialName', formData.MaterialName);
-      if (error) errors.MaterialName = error;
-    }
-
-    if (formData.Grade) {
-      const error = validateField('Grade', formData.Grade);
-      if (error) errors.Grade = error;
+    if (formData.MaterialID) {
+      const error = validateField('MaterialID', formData.MaterialID);
+      if (error) errors.MaterialID = error;
     }
 
     if (formData.RatePerKG) {
@@ -466,19 +427,21 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Prepare the request body according to API specification
+      // 🔥 Updated body with new structure
       const requestBody = {
-        MaterialName: formData.MaterialName,
-        Grade: formData.Grade,
+        MaterialID: formData.MaterialID,
         RatePerKG: parseFloat(formData.RatePerKG),
-        ScrapPercentage: parseFloat(formData.ScrapPercentage),
-        scrap_rate_per_kg: parseFloat(formData.scrap_rate_per_kg),
-        TransportLossPercentage: parseFloat(formData.TransportLossPercentage),
-        transport_rate_per_kg: parseFloat(formData.transport_rate_per_kg),
         profile_conversion_rate: parseFloat(formData.profile_conversion_rate),
+        ScrapPercentage: parseFloat(formData.ScrapPercentage),
+        TransportLossPercentage: parseFloat(formData.TransportLossPercentage),
         DateEffective: formData.DateEffective,
-        IsActive: formData.IsActive
+        Description: formData.Description || ''
       };
+
+      // Remove empty Description if not provided
+      if (!requestBody.Description) {
+        delete requestBody.Description;
+      }
 
       const response = await axios.post(`${BASE_URL}/api/raw-materials`, requestBody, {
         headers: {
@@ -504,16 +467,13 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
 
   const resetForm = () => {
     setFormData({
-      MaterialName: '',
-      Grade: '',
+      MaterialID: '',
       RatePerKG: '',
-      ScrapPercentage: '',
-      scrap_rate_per_kg: '',
-      TransportLossPercentage: '',
-      transport_rate_per_kg: '',
       profile_conversion_rate: '',
+      ScrapPercentage: '',
+      TransportLossPercentage: '',
       DateEffective: new Date().toISOString().split('T')[0],
-      IsActive: true
+      Description: ''
     });
     setFieldErrors({});
     setSelectedMaterial(null);
@@ -524,15 +484,6 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
   const handleClose = () => {
     resetForm();
     onClose();
-  };
-
-  const calculateEffectiveRate = () => {
-    const baseRate = parseFloat(formData.RatePerKG) || 0;
-    const scrap = parseFloat(formData.scrap_rate_per_kg) || 0;
-    const transport = parseFloat(formData.transport_rate_per_kg) || 0;
-    const profileRate = parseFloat(formData.profile_conversion_rate) || 0;
-    
-    return baseRate + scrap + transport + profileRate;
   };
 
   // Label component for consistency
@@ -592,8 +543,8 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                           size="small"
                           placeholder="Select material"
                           required
-                          error={!!fieldErrors.MaterialName}
-                          helperText={fieldErrors.MaterialName}
+                          error={!!fieldErrors.MaterialID}
+                          helperText={fieldErrors.MaterialID}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 1.5,
@@ -634,6 +585,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                             </Typography>
                             <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
                               {option.MaterialCode} {option.Grade && `| Grade: ${option.Grade}`}
+                              {option.Density && ` | Density: ${option.Density} ${option.Unit || ''}`}
                             </Typography>
                           </Box>
                         </li>
@@ -656,81 +608,39 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                 
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Label required>MATERIAL NAME</Label>
+                    <Label>DESCRIPTION</Label>
                     <TextField
                       fullWidth
                       size="small"
-                      name="MaterialName"
-                      value={formData.MaterialName}
+                      name="Description"
+                      value={formData.Description}
                       onChange={handleChange}
-                      required
+                      multiline
+                      rows={2}
                       disabled={loading}
-                      error={!!fieldErrors.MaterialName}
-                      helperText={fieldErrors.MaterialName}
-                      InputProps={{
-                        readOnly: true,
-                        sx: { 
-                          bgcolor: COLORS.background.light,
-                          borderRadius: 1.5
-                        }
-                      }}
+                      placeholder="e.g., Q2 2025 rate"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
                           '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
                         },
                         '& .MuiInputBase-input': {
                           py: 1,
                           px: 1.5,
                           fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        },
-                        '& .MuiFormHelperText-root': {
-                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
+                          color: COLORS.text.primary,
+                          '&::placeholder': {
+                            color: COLORS.text.tertiary,
+                            fontSize: '0.75rem'
+                          }
                         }
                       }}
                     />
-                  </Box>
-                </Grid>
-                
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Label required>GRADE</Label>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="Grade"
-                      value={formData.Grade}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      error={!!fieldErrors.Grade}
-                      helperText={fieldErrors.Grade}
-                      InputProps={{
-                        readOnly: true,
-                        sx: { 
-                          bgcolor: COLORS.background.light,
-                          borderRadius: 1.5
-                        }
-                      }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        },
-                        '& .MuiFormHelperText-root': {
-                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                        }
-                      }}
-                    />
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Optional - Add any notes about this rate
+                    </Typography>
                   </Box>
                 </Grid>
               </Grid>
@@ -738,11 +648,40 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
 
             {/* Material Info Summary */}
             {selectedMaterial && (
-              <Box sx={{ mt: 1 }}>
-                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                  Code: {selectedMaterial.MaterialCode}
-                  {selectedMaterial.Density && ` | Density: ${selectedMaterial.Density} ${selectedMaterial.Unit || ''}`}
+              <Box sx={{ mt: 1, p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 0.5 }}>
+                  Selected Material Details
                 </Typography>
+                <Grid container spacing={1}>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Material Code:</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {selectedMaterial.MaterialCode || '-'}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Grade:</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {selectedMaterial.Grade || '-'}
+                    </Typography>
+                  </Grid>
+                  {selectedMaterial.Density && (
+                    <>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Density:</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, color: COLORS.text.primary }}>
+                          {selectedMaterial.Density} {selectedMaterial.Unit || ''}
+                        </Typography>
+                      </Grid>
+                    </>
+                  )}
+                </Grid>
               </Box>
             )}
           </Stack>
@@ -997,85 +936,6 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
 
             <Box>
               <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                Calculated Rates (Read Only)
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      SCRAP RATE PER KG
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="scrap_rate_per_kg"
-                      value={formData.scrap_rate_per_kg}
-                      disabled
-                      InputProps={{
-                        readOnly: true,
-                        startAdornment: (
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
-                            ₹
-                          </Typography>
-                        ),
-                        sx: { bgcolor: COLORS.background.light, borderRadius: 1.5 }
-                      }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      TRANSPORT RATE PER KG
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="transport_rate_per_kg"
-                      value={formData.transport_rate_per_kg}
-                      disabled
-                      InputProps={{
-                        readOnly: true,
-                        startAdornment: (
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mr: 0.5 }}>
-                            ₹
-                          </Typography>
-                        ),
-                        sx: { bgcolor: COLORS.background.light, borderRadius: 1.5 }
-                      }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-            </Box>
-
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: COLORS.primary, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
                 Validity & Status
               </Typography>
               
@@ -1119,70 +979,6 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
                 </Grid>
               </Grid>
             </Box>
-
-            {/* Calculation Preview */}
-            {formData.RatePerKG && formData.ScrapPercentage && formData.TransportLossPercentage && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" sx={{ color: COLORS.primaryDark, mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
-                  Rate Calculation Preview
-                </Typography>
-                
-                <Grid container spacing={1}>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Base Rate:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary, textAlign: 'right' }}>
-                      ₹{parseFloat(formData.RatePerKG).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Scrap Rate:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
-                      + ₹{parseFloat(formData.scrap_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Transport Rate:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
-                      + ₹{parseFloat(formData.transport_rate_per_kg || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </Grid>
-
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Profile Conversion Rate:</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primaryDark, textAlign: 'right' }}>
-                      + ₹{parseFloat(formData.profile_conversion_rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid size={{ xs: 12 }}>
-                    <Box sx={{ borderTop: `1px dashed ${COLORS.border}`, pt: 1, mt: 1 }}>
-                      <Grid container>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
-                            Effective Rate:
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primaryDark, textAlign: 'right' }}>
-                            ₹{calculateEffectiveRate().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
           </Stack>
         );
       
@@ -1328,7 +1124,7 @@ const AddRawMaterial = ({ open, onClose, onAdd }) => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={loading || !formData.MaterialName || !formData.Grade || !formData.RatePerKG}
+                disabled={loading || !formData.MaterialID || !formData.RatePerKG}
                 startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
                 sx={{
                   height: 32,

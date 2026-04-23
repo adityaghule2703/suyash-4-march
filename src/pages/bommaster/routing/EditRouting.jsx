@@ -33,7 +33,9 @@ import {
   TableRow,
   Tooltip,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Autocomplete,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,25 +48,28 @@ import {
   NavigateBefore as NavigateBeforeIcon,
   Delete as DeleteIcon,
   Save as SaveIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Search as SearchIcon,
+  Science as ScienceIcon,
+  Bolt as BoltIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 const COLORS = {
-  primary: '#1976D2',
-  primaryDark: '#1565C0',
+  primary: '#063C3F',
+  primaryDark: '#05292B',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
-  border: '#E5E7EB',
+  border: '#E3E8EF',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF'
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
   },
   background: {
-    light: '#F9FAFB',
+    light: '#F8FFFC',
     white: '#FFFFFF'
   }
 };
@@ -99,6 +104,16 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
+const CustomPaper = styled(Paper)({
+  maxHeight: 200,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    display: 'none'
+  },
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
+});
+
 const EditRouting = ({ open, onClose, routing, onUpdate }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -106,14 +121,19 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [processes, setProcesses] = useState([]);
   const [machines, setMachines] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [items, setItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
-  const [originalOperations, setOriginalOperations] = useState([]);
+  const [currentJoint, setCurrentJoint] = useState('');
+  const [jointError, setJointError] = useState('');
 
   const [formData, setFormData] = useState({
     routing_name: '',
     routing_type: '',
     is_active: true,
-    version: '1.0',
+    version: '',
+    applicable_items: [],
     operations: []
   });
 
@@ -128,7 +148,10 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
     planned_setup_min: '',
     planned_run_min: '',
     scrap_pct: '',
-    description: ''
+    description: '',
+    requires_torque_recording: false,
+    requires_functional_test: false,
+    expected_joints: []
   });
 
   const [editingOperationIndex, setEditingOperationIndex] = useState(null);
@@ -137,6 +160,8 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
     if (open) {
       fetchProcesses();
       fetchMachines();
+      fetchVendors();
+      fetchItems();
       if (routing) {
         initializeFormData(routing);
       }
@@ -144,28 +169,70 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
   }, [open, routing]);
 
   const initializeFormData = (data) => {
-    // Extract operations with proper ID handling
-    const operations = (data.operations || []).map(op => ({
-      op_sequence: op.op_sequence,
-      operation_id: typeof op.operation_id === 'object' ? op.operation_id._id : op.operation_id,
-      operation_name: typeof op.operation_id === 'object' ? op.operation_id.process_name : op.operation_name,
-      work_centre: op.work_centre || '',
-      machine_id: op.machine_id || '',
-      is_subcontract: op.is_subcontract || false,
-      subcontract_vendor: op.subcontract_vendor || '',
-      planned_setup_min: op.planned_setup_min || 0,
-      planned_run_min: op.planned_run_min || 0,
-      scrap_pct: op.scrap_pct || 0,
-      description: op.description || ''
-    }));
+    const processMap = new Map();
+    processes.forEach(p => {
+      processMap.set(p._id, p.process_name);
+    });
 
-    setOriginalOperations(operations);
+    const operations = (data.operations || []).map(op => {
+      let operationId = '';
+      let operationName = '';
+      let workCentre = '';
+
+      if (op.operation_id && typeof op.operation_id === 'object') {
+        operationId = op.operation_id._id;
+        operationName = op.operation_id.process_name || op.operation_name;
+        workCentre = op.operation_id.work_centre || op.work_centre || '';
+      } else {
+        operationId = op.operation_id || '';
+        operationName = op.operation_name || '';
+        workCentre = op.work_centre || '';
+      }
+
+      if (!operationName && operationId && processMap.has(operationId)) {
+        operationName = processMap.get(operationId);
+      }
+
+      return {
+        op_sequence: op.op_sequence,
+        operation_id: operationId,
+        operation_name: operationName,
+        work_centre: workCentre,
+        machine_id: typeof op.machine_id === 'object' ? op.machine_id?._id : (op.machine_id || ''),
+        is_subcontract: op.is_subcontract || false,
+        subcontract_vendor: typeof op.subcontract_vendor === 'object' ? op.subcontract_vendor?._id : (op.subcontract_vendor || ''),
+        planned_setup_min: op.planned_setup_min || 0,
+        planned_run_min: op.planned_run_min || 0,
+        scrap_pct: op.scrap_pct || 0,
+        description: op.description || '',
+        requires_torque_recording: op.requires_torque_recording || false,
+        requires_functional_test: op.requires_functional_test || false,
+        expected_joints: op.expected_joints || []
+      };
+    });
+
+    const applicableItems = (data.applicable_items || []).map(item => {
+      if (typeof item === 'object') {
+        return item._id;
+      }
+      return item;
+    });
+
+    const itemsList = (data.applicable_items || []).map(item => {
+      if (typeof item === 'object') {
+        return item;
+      }
+      return items.find(i => i._id === item);
+    }).filter(Boolean);
+
+    setSelectedItems(itemsList);
     setFormData({
       routing_name: data.routing_name || '',
       routing_type: data.routing_type || '',
       is_active: data.is_active !== undefined ? data.is_active : true,
       version: data.version || '1.0',
-      operations: operations
+      applicable_items: applicableItems,
+      operations: operations.sort((a, b) => a.op_sequence - b.op_sequence)
     });
   };
 
@@ -190,7 +257,7 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
   const fetchMachines = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/machines`, {
+      const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -199,6 +266,35 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       }
     } catch (err) {
       console.error('Error fetching machines:', err);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/vendors?limit=1000`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setVendors(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+    }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/items/dropdown`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setItems(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching items:', err);
     }
   };
 
@@ -230,7 +326,73 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
         operation_name: selectedProcess.process_name,
         work_centre: selectedProcess.work_centre || ''
       }));
+    } else {
+      setCurrentOperation(prev => ({
+        ...prev,
+        operation_id: '',
+        operation_name: '',
+        work_centre: ''
+      }));
     }
+  };
+
+  const handleMachineSelect = (machineId) => {
+    const selectedMachine = machines.find(m => m._id === machineId);
+    if (selectedMachine) {
+      setCurrentOperation(prev => ({
+        ...prev,
+        machine_id: selectedMachine._id,
+        work_centre: selectedMachine.work_centre || prev.work_centre
+      }));
+    } else {
+      setCurrentOperation(prev => ({
+        ...prev,
+        machine_id: '',
+        work_centre: prev.work_centre
+      }));
+    }
+  };
+
+  const addJoint = () => {
+    if (!currentJoint.trim()) {
+      setJointError('Joint name is required');
+      return;
+    }
+    if (currentOperation.expected_joints.includes(currentJoint.trim())) {
+      setJointError('Joint name already exists');
+      return;
+    }
+    setCurrentOperation(prev => ({
+      ...prev,
+      expected_joints: [...prev.expected_joints, currentJoint.trim()]
+    }));
+    setCurrentJoint('');
+    setJointError('');
+  };
+
+  const removeJoint = (jointToRemove) => {
+    setCurrentOperation(prev => ({
+      ...prev,
+      expected_joints: prev.expected_joints.filter(joint => joint !== jointToRemove)
+    }));
+  };
+
+  const addApplicableItem = (item) => {
+    if (item && !formData.applicable_items.includes(item._id)) {
+      setFormData(prev => ({
+        ...prev,
+        applicable_items: [...prev.applicable_items, item._id]
+      }));
+      setSelectedItems(prev => [...prev, item]);
+    }
+  };
+
+  const removeApplicableItem = (itemId) => {
+    setFormData(prev => ({
+      ...prev,
+      applicable_items: prev.applicable_items.filter(id => id !== itemId)
+    }));
+    setSelectedItems(prev => prev.filter(item => item._id !== itemId));
   };
 
   const addOrUpdateOperation = () => {
@@ -242,30 +404,55 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       setError('Operation sequence is required');
       return;
     }
-    if (!currentOperation.planned_setup_min) {
+    if (currentOperation.op_sequence <= 0) {
+      setError('Operation sequence must be greater than 0');
+      return;
+    }
+    if (!currentOperation.work_centre) {
+      setError('Work centre is required');
+      return;
+    }
+    if (!currentOperation.planned_setup_min && currentOperation.planned_setup_min !== 0) {
       setError('Planned setup time is required');
       return;
     }
-    if (!currentOperation.planned_run_min) {
+    if (!currentOperation.planned_run_min && currentOperation.planned_run_min !== 0) {
       setError('Planned run time is required');
+      return;
+    }
+    if (currentOperation.requires_torque_recording && currentOperation.expected_joints.length === 0) {
+      setError('Please add at least one expected joint for torque recording');
+      return;
+    }
+
+    const selectedProcess = processes.find(p => p._id === currentOperation.operation_id);
+    const selectedMachine = machines.find(m => m._id === currentOperation.machine_id);
+    
+    const operationName = selectedProcess?.process_name || currentOperation.operation_name;
+    const workCentre = selectedMachine?.work_centre || selectedProcess?.work_centre || currentOperation.work_centre || '';
+
+    if (!operationName) {
+      setError('Operation name could not be determined. Please reselect the process.');
       return;
     }
 
     const newOperation = {
       op_sequence: Number(currentOperation.op_sequence),
       operation_id: currentOperation.operation_id,
-      operation_name: currentOperation.operation_name,
-      work_centre: currentOperation.work_centre || '',
+      operation_name: operationName,
+      work_centre: workCentre,
       machine_id: currentOperation.machine_id || '',
       is_subcontract: currentOperation.is_subcontract || false,
       subcontract_vendor: currentOperation.subcontract_vendor || '',
       planned_setup_min: Number(currentOperation.planned_setup_min),
       planned_run_min: Number(currentOperation.planned_run_min),
       scrap_pct: Number(currentOperation.scrap_pct) || 0,
-      description: currentOperation.description || ''
+      description: currentOperation.description || '',
+      requires_torque_recording: currentOperation.requires_torque_recording,
+      requires_functional_test: currentOperation.requires_functional_test,
+      expected_joints: currentOperation.expected_joints
     };
 
-    // Check for duplicate sequence (excluding current editing index)
     const duplicateIndex = formData.operations.findIndex((op, idx) => 
       op.op_sequence === newOperation.op_sequence && idx !== editingOperationIndex
     );
@@ -277,20 +464,27 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
 
     let updatedOperations;
     if (editingOperationIndex !== null) {
-      // Update existing operation
       updatedOperations = [...formData.operations];
       updatedOperations[editingOperationIndex] = newOperation;
     } else {
-      // Add new operation
       updatedOperations = [...formData.operations, newOperation];
     }
 
+    updatedOperations.sort((a, b) => a.op_sequence - b.op_sequence);
+
     setFormData(prev => ({
       ...prev,
-      operations: updatedOperations.sort((a, b) => a.op_sequence - b.op_sequence)
+      operations: updatedOperations
     }));
 
-    // Reset current operation
+    resetCurrentOperation();
+    setEditingOperationIndex(null);
+    setError('');
+    setCurrentJoint('');
+    setJointError('');
+  };
+
+  const resetCurrentOperation = () => {
     setCurrentOperation({
       op_sequence: '',
       operation_id: '',
@@ -302,28 +496,41 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       planned_setup_min: '',
       planned_run_min: '',
       scrap_pct: '',
-      description: ''
+      description: '',
+      requires_torque_recording: false,
+      requires_functional_test: false,
+      expected_joints: []
     });
-    setEditingOperationIndex(null);
-    setError('');
   };
 
   const editOperation = (index) => {
     const op = formData.operations[index];
+    
+    const selectedProcess = processes.find(p => p._id === op.operation_id);
+    const selectedMachine = machines.find(m => m._id === op.machine_id);
+    
+    const operationName = selectedProcess?.process_name || op.operation_name;
+    const workCentre = selectedMachine?.work_centre || selectedProcess?.work_centre || op.work_centre || '';
+    
     setCurrentOperation({
       op_sequence: op.op_sequence,
       operation_id: op.operation_id,
-      operation_name: op.operation_name,
-      work_centre: op.work_centre || '',
+      operation_name: operationName,
+      work_centre: workCentre,
       machine_id: op.machine_id || '',
       is_subcontract: op.is_subcontract || false,
       subcontract_vendor: op.subcontract_vendor || '',
       planned_setup_min: op.planned_setup_min,
       planned_run_min: op.planned_run_min,
-      scrap_pct: op.scrap_pct,
-      description: op.description || ''
+      scrap_pct: op.scrap_pct || '',
+      description: op.description || '',
+      requires_torque_recording: op.requires_torque_recording || false,
+      requires_functional_test: op.requires_functional_test || false,
+      expected_joints: op.expected_joints || []
     });
+    
     setEditingOperationIndex(index);
+    setError('');
   };
 
   const removeOperation = (index) => {
@@ -331,38 +538,18 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       ...prev,
       operations: prev.operations.filter((_, i) => i !== index)
     }));
+    
     if (editingOperationIndex === index) {
-      setCurrentOperation({
-        op_sequence: '',
-        operation_id: '',
-        operation_name: '',
-        work_centre: '',
-        machine_id: '',
-        is_subcontract: false,
-        subcontract_vendor: '',
-        planned_setup_min: '',
-        planned_run_min: '',
-        scrap_pct: '',
-        description: ''
-      });
+      resetCurrentOperation();
       setEditingOperationIndex(null);
+    } else if (editingOperationIndex !== null && editingOperationIndex > index) {
+      setEditingOperationIndex(editingOperationIndex - 1);
     }
+    setError('');
   };
 
   const cancelEdit = () => {
-    setCurrentOperation({
-      op_sequence: '',
-      operation_id: '',
-      operation_name: '',
-      work_centre: '',
-      machine_id: '',
-      is_subcontract: false,
-      subcontract_vendor: '',
-      planned_setup_min: '',
-      planned_run_min: '',
-      scrap_pct: '',
-      description: ''
-    });
+    resetCurrentOperation();
     setEditingOperationIndex(null);
     setError('');
   };
@@ -386,6 +573,21 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       case 1:
         if (formData.operations.length === 0) {
           errors.operations = 'At least one operation is required';
+          isValid = false;
+        }
+        const invalidOps = formData.operations.filter(op => !op.operation_name);
+        if (invalidOps.length > 0) {
+          errors.operations = `Operations ${invalidOps.map(op => op.op_sequence).join(', ')} missing operation name`;
+          isValid = false;
+        }
+        const invalidWorkCentreOps = formData.operations.filter(op => !op.work_centre);
+        if (invalidWorkCentreOps.length > 0) {
+          errors.operations = `Operations ${invalidWorkCentreOps.map(op => op.op_sequence).join(', ')} missing work centre`;
+          isValid = false;
+        }
+        const invalidTorqueOps = formData.operations.filter(op => op.requires_torque_recording && (!op.expected_joints || op.expected_joints.length === 0));
+        if (invalidTorqueOps.length > 0) {
+          errors.operations = `Operations ${invalidTorqueOps.map(op => op.op_sequence).join(', ')} require torque recording but have no expected joints`;
           isValid = false;
         }
         break;
@@ -415,6 +617,7 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
 
   const handleSubmit = async () => {
     if (!validateStep(1)) {
+      setActiveStep(1);
       return;
     }
 
@@ -430,11 +633,33 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
         return;
       }
 
+      const operationsData = formData.operations.map(op => ({
+        op_sequence: op.op_sequence,
+        operation_id: op.operation_id,
+        operation_name: op.operation_name,
+        work_centre: op.work_centre,
+        machine_id: op.machine_id || null,
+        is_subcontract: op.is_subcontract,
+        subcontract_vendor: op.subcontract_vendor || null,
+        planned_setup_min: op.planned_setup_min,
+        planned_run_min: op.planned_run_min,
+        scrap_pct: op.scrap_pct,
+        description: op.description || null,
+        requires_torque_recording: op.requires_torque_recording,
+        requires_functional_test: op.requires_functional_test,
+        expected_joints: op.expected_joints || []
+      }));
+
       const submitData = {
         routing_name: formData.routing_name,
         routing_type: formData.routing_type,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        applicable_items: formData.applicable_items,
+        operations: operationsData,
+        version: formData.version
       };
+
+      console.log('Submitting data:', submitData);
 
       const response = await axios.put(`${BASE_URL}/api/routings/${routing._id}`, submitData, {
         headers: {
@@ -466,30 +691,44 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
       routing_type: '',
       is_active: true,
       version: '1.0',
+      applicable_items: [],
       operations: []
     });
-    setCurrentOperation({
-      op_sequence: '',
-      operation_id: '',
-      operation_name: '',
-      work_centre: '',
-      machine_id: '',
-      is_subcontract: false,
-      subcontract_vendor: '',
-      planned_setup_min: '',
-      planned_run_min: '',
-      scrap_pct: '',
-      description: ''
-    });
+    setSelectedItems([]);
+    resetCurrentOperation();
     setEditingOperationIndex(null);
-    setOriginalOperations([]);
     setFieldErrors({});
     setError('');
+    setCurrentJoint('');
+    setJointError('');
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': {
+      py: 1,
+      px: 1.5,
+      fontSize: '0.75rem',
+      color: COLORS.text.primary
+    }
+  };
+
+  const labelStyle = {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
   };
 
   const renderStepContent = (step) => {
@@ -506,7 +745,7 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       ROUTING NAME <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -518,14 +757,14 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       placeholder="e.g., Copper Busbar Standard Route"
                       error={!!fieldErrors.routing_name}
                       helperText={fieldErrors.routing_name}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       ROUTING TYPE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small" error={!!fieldErrors.routing_type}>
@@ -533,6 +772,7 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                         name="routing_type"
                         value={formData.routing_type}
                         onChange={handleChange}
+                        displayEmpty
                         sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
                       >
                         <MenuItem value="" disabled>Select routing type</MenuItem>
@@ -548,9 +788,7 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      VERSION
-                    </Typography>
+                    <Typography sx={labelStyle}>VERSION</Typography>
                     <TextField
                       fullWidth
                       size="small"
@@ -558,16 +796,14 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={formData.version}
                       onChange={handleChange}
                       disabled
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      STATUS
-                    </Typography>
+                    <Typography sx={labelStyle}>STATUS</Typography>
                     <FormControlLabel
                       control={
                         <Switch
@@ -593,14 +829,71 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                     />
                   </Box>
                 </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={labelStyle}>APPLICABLE ITEMS</Typography>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Autocomplete
+                          options={items}
+                          getOptionLabel={(option) => {
+                            const partNo = option.part_no || '';
+                            const partName = option.part_name || option.part_description || '';
+                            return `${partNo} - ${partName}`.trim();
+                          }}
+                          onChange={(event, newValue) => {
+                            if (newValue) {
+                              addApplicableItem(newValue);
+                            }
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              size="small"
+                              placeholder="Search and select items..."
+                              sx={inputStyle}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ fontSize: '0.9rem', color: COLORS.text.tertiary }} />
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          )}
+                          PaperComponent={CustomPaper}
+                          isOptionEqualToValue={(option, value) => option._id === value?._id}
+                        />
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                      {selectedItems.map((item) => (
+                        <Chip
+                          key={item._id}
+                          label={`${item.part_no || item.item_id} - ${item.part_name || item.part_description}`}
+                          onDelete={() => removeApplicableItem(item._id)}
+                          size="small"
+                          sx={{ bgcolor: COLORS.background.light, fontSize: '0.65rem', height: 28 }}
+                        />
+                      ))}
+                      {selectedItems.length === 0 && (
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary, fontStyle: 'italic', mt: 1 }}>
+                          No items selected
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
               </Grid>
             </Paper>
           </Stack>
         );
 
       case 1:
-        const totalSetupTime = formData.operations.reduce((sum, op) => sum + (op.planned_setup_min || 0), 0);
-        const totalRunTime = formData.operations.reduce((sum, op) => sum + (op.planned_run_min || 0), 0);
+        const totalSetupTime = formData.operations.reduce((sum, op) => sum + (Number(op.planned_setup_min) || 0), 0);
+        const totalRunTime = formData.operations.reduce((sum, op) => sum + (Number(op.planned_run_min) || 0), 0);
 
         return (
           <Stack spacing={2}>
@@ -610,11 +903,10 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                 Operations
               </Typography>
 
-              {/* Add/Edit Operation Form */}
               <Grid container spacing={1.5} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       SEQUENCE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -625,19 +917,20 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={currentOperation.op_sequence}
                       onChange={handleOperationChange}
                       placeholder="10, 20, 30..."
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      inputProps={{ min: 1 }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       PROCESS <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small">
                       <Select
-                        value={currentOperation.operation_id}
+                        value={currentOperation.operation_id || ''}
                         onChange={(e) => handleProcessSelect(e.target.value)}
                         displayEmpty
                         sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
@@ -655,8 +948,8 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
 
                 <Grid size={{ xs: 12, sm: 5 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      WORK CENTRE
+                    <Typography sx={labelStyle}>
+                      WORK CENTRE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
                       fullWidth
@@ -664,27 +957,34 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       name="work_centre"
                       value={currentOperation.work_centre}
                       onChange={handleOperationChange}
-                      placeholder="Auto-filled from process"
+                      placeholder="Auto-filled from process or machine"
                       disabled
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                      sx={{
+                        ...inputStyle,
+                        '& .MuiOutlinedInput-root': {
+                          ...inputStyle['& .MuiOutlinedInput-root'],
+                          bgcolor: COLORS.background.light
+                        }
+                      }}
                     />
                   </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      MACHINE
-                    </Typography>
+                    <Typography sx={labelStyle}>MACHINE</Typography>
                     <FormControl fullWidth size="small">
                       <Select
-                        value={currentOperation.machine_id}
-                        onChange={handleOperationChange}
+                        value={currentOperation.machine_id || ''}
+                        onChange={(e) => handleMachineSelect(e.target.value)}
                         name="machine_id"
                         displayEmpty
                         sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
                       >
-                        <MenuItem value="" disabled>Select machine (optional)</MenuItem>
+                        <MenuItem value="">None</MenuItem>
                         {machines.map((machine) => (
                           <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
                             {machine.machine_name} ({machine.machine_code})
@@ -695,9 +995,9 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                   </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       SETUP TIME (min) <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -708,14 +1008,15 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={currentOperation.planned_setup_min}
                       onChange={handleOperationChange}
                       placeholder="e.g., 15"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      inputProps={{ min: 0, step: 0.5 }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    <Typography sx={labelStyle}>
                       RUN TIME (min/unit) <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <TextField
@@ -726,16 +1027,15 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={currentOperation.planned_run_min}
                       onChange={handleOperationChange}
                       placeholder="e.g., 2.5"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      inputProps={{ min: 0, step: 0.1 }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      SCRAP %
-                    </Typography>
+                    <Typography sx={labelStyle}>SCRAP %</Typography>
                     <TextField
                       fullWidth
                       type="number"
@@ -744,16 +1044,15 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={currentOperation.scrap_pct}
                       onChange={handleOperationChange}
                       placeholder="0"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      inputProps={{ min: 0, max: 100, step: 0.1 }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 9 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      DESCRIPTION
-                    </Typography>
+                    <Typography sx={labelStyle}>DESCRIPTION</Typography>
                     <TextField
                       fullWidth
                       size="small"
@@ -761,15 +1060,127 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                       value={currentOperation.description}
                       onChange={handleOperationChange}
                       placeholder="Operation description"
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                      sx={inputStyle}
                     />
                   </Box>
                 </Grid>
 
+                {/* Quality Requirements Section */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <Stack spacing={1.5}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={currentOperation.requires_torque_recording}
+                            onChange={handleOperationChange}
+                            name="requires_torque_recording"
+                            size="small"
+                            sx={{
+                              '& .MuiSwitch-switchBase.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                backgroundColor: COLORS.primary,
+                              },
+                            }}
+                          />
+                        }
+                        label={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <BoltIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                              Requires Torque Recording
+                            </Typography>
+                          </Box>
+                        }
+                      />
+
+                      {currentOperation.requires_torque_recording && (
+                        <Box>
+                          <Typography sx={{ ...labelStyle, mb: 1 }}>
+                            EXPECTED JOINTS <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                            <TextField
+                              size="small"
+                              value={currentJoint}
+                              onChange={(e) => {
+                                setCurrentJoint(e.target.value);
+                                setJointError('');
+                              }}
+                              placeholder="e.g., Phase A, Phase B, Earth"
+                              error={!!jointError}
+                              helperText={jointError}
+                              sx={{ flex: 1, ...inputStyle }}
+                            />
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={addJoint}
+                              startIcon={<AddIcon sx={{ fontSize: '0.8rem' }} />}
+                              sx={{ height: 35, px: 1.5, borderRadius: 1.5, fontSize: '0.7rem', textTransform: 'none' }}
+                            >
+                              Add
+                            </Button>
+                          </Box>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {currentOperation.expected_joints.map((joint, idx) => (
+                              <Chip
+                                key={idx}
+                                label={joint}
+                                onDelete={() => removeJoint(joint)}
+                                size="small"
+                                sx={{ bgcolor: COLORS.background.white, fontSize: '0.65rem', height: 26 }}
+                              />
+                            ))}
+                            {currentOperation.expected_joints.length === 0 && (
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, fontStyle: 'italic' }}>
+                                No joints added. Add at least one joint for torque recording.
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={currentOperation.requires_functional_test}
+                          onChange={handleOperationChange}
+                          name="requires_functional_test"
+                          size="small"
+                          sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': {
+                              color: COLORS.primary,
+                            },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                              backgroundColor: COLORS.primary,
+                            },
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <ScienceIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                            Requires Functional Test
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+                </Grid>
+
                 <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <FormControl size="small">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <FormControlLabel
+                      control={
                         <input
                           type="checkbox"
                           name="is_subcontract"
@@ -777,18 +1188,26 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                           onChange={handleOperationChange}
                           style={{ margin: 0 }}
                         />
-                        <Typography sx={{ fontSize: '0.7rem' }}>Is Subcontract</Typography>
-                      </Box>
-                    </FormControl>
+                      }
+                      label={<Typography sx={{ fontSize: '0.7rem' }}>Is Subcontract</Typography>}
+                    />
                     {currentOperation.is_subcontract && (
-                      <TextField
-                        size="small"
-                        name="subcontract_vendor"
-                        value={currentOperation.subcontract_vendor}
-                        onChange={handleOperationChange}
-                        placeholder="Vendor Name"
-                        sx={{ width: 200, '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-                      />
+                      <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <Select
+                          value={currentOperation.subcontract_vendor || ''}
+                          onChange={(e) => handleOperationChange({ target: { name: 'subcontract_vendor', value: e.target.value } })}
+                          name="subcontract_vendor"
+                          displayEmpty
+                          sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+                        >
+                          <MenuItem value="" disabled>Select vendor</MenuItem>
+                          {vendors.map((vendor) => (
+                            <MenuItem key={vendor._id} value={vendor._id} sx={{ fontSize: '0.75rem' }}>
+                              {vendor.vendor_name} ({vendor.vendor_code})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
                     )}
                     <Button
                       variant="contained"
@@ -811,7 +1230,6 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                 </Grid>
               </Grid>
 
-              {/* Operations Table */}
               {formData.operations.length > 0 && (
                 <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
                   <Table size="small">
@@ -821,9 +1239,10 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                         <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Operation</TableCell>
                         <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Work Centre</TableCell>
                         <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Machine</TableCell>
-                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Setup (min)</TableCell>
-                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Run (min)</TableCell>
-                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Scrap %</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Setup</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Run</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Torque</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Test</TableCell>
                         <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', width: 80 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
@@ -838,7 +1257,28 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                           </TableCell>
                           <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_setup_min}</TableCell>
                           <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_run_min}</TableCell>
-                          <TableCell sx={{ fontSize: '0.7rem' }}>{op.scrap_pct}%</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem' }}>
+                            {op.requires_torque_recording ? (
+                              <Tooltip title={op.expected_joints?.join(', ') || 'No joints specified'}>
+                                <Chip 
+                                  icon={<BoltIcon sx={{ fontSize: '0.65rem' }} />}
+                                  label={`${op.expected_joints?.length || 0} joints`}
+                                  size="small" 
+                                  sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.primary, color: '#fff' }} 
+                                />
+                              </Tooltip>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem' }}>
+                            {op.requires_functional_test ? (
+                              <Chip 
+                                icon={<ScienceIcon sx={{ fontSize: '0.65rem' }} />}
+                                label="Yes" 
+                                size="small" 
+                                sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.success, color: '#fff' }} 
+                              />
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>
                             <Tooltip title="Edit">
                               <IconButton size="small" onClick={() => editOperation(index)} sx={{ color: COLORS.primary }}>
@@ -886,8 +1326,10 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
         );
 
       case 2:
-        const totalSetup = formData.operations.reduce((sum, op) => sum + (op.planned_setup_min || 0), 0);
-        const totalRun = formData.operations.reduce((sum, op) => sum + (op.planned_run_min || 0), 0);
+        const totalSetup = formData.operations.reduce((sum, op) => sum + (Number(op.planned_setup_min) || 0), 0);
+        const totalRun = formData.operations.reduce((sum, op) => sum + (Number(op.planned_run_min) || 0), 0);
+        const torqueOps = formData.operations.filter(op => op.requires_torque_recording).length;
+        const testOps = formData.operations.filter(op => op.requires_functional_test).length;
 
         return (
           <Stack spacing={2}>
@@ -936,6 +1378,14 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                         }}
                       />
                     </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Applicable Items:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                        {selectedItems.map(item => item.part_no || item.item_id).join(', ') || '-'}
+                      </Typography>
+                    </Grid>
                   </Grid>
                 </Paper>
 
@@ -964,6 +1414,18 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                     <Grid size={{ xs: 6 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{totalRun} min/unit</Typography>
                     </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Torque Recording Ops:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{torqueOps}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Functional Test Ops:</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{testOps}</Typography>
+                    </Grid>
                   </Grid>
                 </Paper>
 
@@ -980,6 +1442,8 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                             <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Operation</TableCell>
                             <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Setup</TableCell>
                             <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Run</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Torque</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Test</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -989,11 +1453,55 @@ const EditRouting = ({ open, onClose, routing, onUpdate }) => {
                               <TableCell sx={{ fontSize: '0.7rem' }}>{op.operation_name}</TableCell>
                               <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_setup_min} min</TableCell>
                               <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_run_min} min</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{op.requires_torque_recording ? 'Yes' : '-'}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{op.requires_functional_test ? 'Yes' : '-'}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </TableContainer>
+
+                    {/* Expected Joints Summary */}
+                    {formData.operations.some(op => op.requires_torque_recording && op.expected_joints?.length > 0) && (
+                      <>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mt: 2, mb: 1 }}>
+                          Torque Recording Joints Details
+                        </Typography>
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Operation</TableCell>
+                                <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Expected Joints</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {formData.operations
+                                .filter(op => op.requires_torque_recording && op.expected_joints?.length > 0)
+                                .map((op, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                      Op {op.op_sequence}: {op.operation_name}
+                                    </TableCell>
+                                    <TableCell sx={{ fontSize: '0.75rem' }}>
+                                      <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                        {op.expected_joints.map((joint, jIdx) => (
+                                          <Chip
+                                            key={jIdx}
+                                            label={joint}
+                                            size="small"
+                                            sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.white }}
+                                          />
+                                        ))}
+                                      </Stack>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </>
+                    )}
                   </Paper>
                 )}
               </Stack>

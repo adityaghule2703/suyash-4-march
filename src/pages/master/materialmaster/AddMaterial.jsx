@@ -89,15 +89,6 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 const steps = ['Basic Information', 'Physical Properties & Details'];
 
 // Validation helper functions
-const validateMaterialId = (value) => {
-  if (!value?.trim()) {
-    return 'Material ID is required';
-  } else if (value.length > 50) {
-    return 'Material ID should not exceed 50 characters';
-  }
-  return '';
-};
-
 const validateMaterialCode = (value) => {
   if (!value?.trim()) {
     return 'Material code is required';
@@ -112,13 +103,6 @@ const validateMaterialName = (value) => {
     return 'Material name is required';
   } else if (value.length > 100) {
     return 'Material name should not exceed 100 characters';
-  }
-  return '';
-};
-
-const validateDescription = (value) => {
-  if (value && value.length > 500) {
-    return 'Description should not exceed 500 characters';
   }
   return '';
 };
@@ -140,17 +124,12 @@ const validateEffectiveRate = (value) => {
 const AddMaterial = ({ open, onClose, onAdd }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    material_id: '',
     MaterialCode: '',
     MaterialName: '',
-    Description: '',
     Density: '',
     Unit: 'Kg',
-    Standard: '',
     Grade: '',
-    Color: '',
-    EffectiveRate: '',
-    IsActive: true
+    EffectiveRate: ''
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -202,14 +181,10 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
 
   const validateField = (name, value) => {
     switch (name) {
-      case 'material_id':
-        return validateMaterialId(value);
       case 'MaterialCode':
         return validateMaterialCode(value);
       case 'MaterialName':
         return validateMaterialName(value);
-      case 'Description':
-        return validateDescription(value);
       case 'Density':
         return validateDensity(value);
       case 'EffectiveRate':
@@ -225,13 +200,6 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
 
     switch (step) {
       case 0: // Basic Information
-        // Material ID
-        const materialIdError = validateField('material_id', formData.material_id);
-        if (materialIdError) {
-          errors.material_id = materialIdError;
-          isValid = false;
-        }
-
         // Material Code
         const materialCodeError = validateField('MaterialCode', formData.MaterialCode);
         if (materialCodeError) {
@@ -244,15 +212,6 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
         if (materialNameError) {
           errors.MaterialName = materialNameError;
           isValid = false;
-        }
-
-        // Description (optional)
-        if (formData.Description) {
-          const descriptionError = validateField('Description', formData.Description);
-          if (descriptionError) {
-            errors.Description = descriptionError;
-            isValid = false;
-          }
         }
         break;
       
@@ -293,7 +252,6 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
 
     // Required fields
     const requiredFields = [
-      { name: 'material_id', label: 'Material ID' },
       { name: 'MaterialCode', label: 'Material code' },
       { name: 'MaterialName', label: 'Material name' }
     ];
@@ -306,11 +264,6 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
     });
 
     // Validate each field with custom validations
-    if (formData.material_id) {
-      const error = validateField('material_id', formData.material_id);
-      if (error) errors.material_id = error;
-    }
-
     if (formData.MaterialCode) {
       const error = validateField('MaterialCode', formData.MaterialCode);
       if (error) errors.MaterialCode = error;
@@ -319,11 +272,6 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
     if (formData.MaterialName) {
       const error = validateField('MaterialName', formData.MaterialName);
       if (error) errors.MaterialName = error;
-    }
-
-    if (formData.Description) {
-      const error = validateField('Description', formData.Description);
-      if (error) errors.Description = error;
     }
 
     if (formData.Density) {
@@ -365,19 +313,25 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${BASE_URL}/api/materials`, {
-        material_id: formData.material_id,
+      
+      // 🔥 Updated body with only required fields
+      const requestBody = {
         MaterialCode: formData.MaterialCode,
         MaterialName: formData.MaterialName,
-        Description: formData.Description,
         Density: formData.Density ? parseFloat(formData.Density) : null,
         Unit: formData.Unit,
-        Standard: formData.Standard,
         Grade: formData.Grade,
-        Color: formData.Color,
-        EffectiveRate: formData.EffectiveRate ? parseFloat(formData.EffectiveRate) : null,
-        IsActive: true
-      }, {
+        EffectiveRate: formData.EffectiveRate ? parseFloat(formData.EffectiveRate) : null
+      };
+
+      // Remove null/empty values if you don't want to send them
+      Object.keys(requestBody).forEach(key => {
+        if (requestBody[key] === null || requestBody[key] === '' || requestBody[key] === undefined) {
+          delete requestBody[key];
+        }
+      });
+
+      const response = await axios.post(`${BASE_URL}/api/materials`, requestBody, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -401,17 +355,12 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
 
   const resetForm = () => {
     setFormData({
-      material_id: '',
       MaterialCode: '',
       MaterialName: '',
-      Description: '',
       Density: '',
       Unit: 'Kg',
-      Standard: '',
       Grade: '',
-      Color: '',
-      EffectiveRate: '',
-      IsActive: true
+      EffectiveRate: ''
     });
     setSelectedUnit('Kg');
     setFieldErrors({});
@@ -435,48 +384,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      MATERIAL ID <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="material_id"
-                      value={formData.material_id}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      placeholder="e.g., MAT-CU-001"
-                      error={!!fieldErrors.material_id}
-                      helperText={fieldErrors.material_id}
-                      inputProps={{ maxLength: 50 }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        },
-                        '& .MuiFormHelperText-root': {
-                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       MATERIAL CODE <span style={{ color: '#EF4444' }}>*</span>
@@ -489,7 +397,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      placeholder="e.g., CU-C101"
+                      placeholder="e.g., AL-001"
                       error={!!fieldErrors.MaterialCode}
                       helperText={fieldErrors.MaterialCode}
                       inputProps={{ maxLength: 50 }}
@@ -517,7 +425,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                     />
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       UNIT
@@ -579,52 +487,10 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      placeholder="e.g., Copper"
+                      placeholder="e.g., Aluminium"
                       error={!!fieldErrors.MaterialName}
                       helperText={fieldErrors.MaterialName}
                       inputProps={{ maxLength: 100 }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        },
-                        '& .MuiFormHelperText-root': {
-                          fontSize: '0.65rem', marginLeft: 0, marginTop: 0.25
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      DESCRIPTION
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="Description"
-                      value={formData.Description}
-                      onChange={handleChange}
-                      multiline
-                      rows={2}
-                      disabled={loading}
-                      placeholder="e.g., Electrolytic Copper - High Conductivity"
-                      error={!!fieldErrors.Description}
-                      helperText={fieldErrors.Description}
-                      inputProps={{ maxLength: 500 }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -664,7 +530,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       DENSITY
@@ -676,7 +542,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                       value={formData.Density}
                       onChange={handleChange}
                       disabled={loading}
-                      placeholder="e.g., 8.96"
+                      placeholder="e.g., 2.7"
                       error={!!fieldErrors.Density}
                       helperText={fieldErrors.Density}
                       InputProps={{
@@ -724,41 +590,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      STANDARD
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="Standard"
-                      value={formData.Standard}
-                      onChange={handleChange}
-                      disabled={loading}
-                      placeholder="e.g., ASTM B152"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       GRADE
@@ -770,7 +602,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                       value={formData.Grade}
                       onChange={handleChange}
                       disabled={loading}
-                      placeholder="e.g., C101"
+                      placeholder="e.g., AA6063 T5"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -802,41 +634,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      COLOR
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="Color"
-                      value={formData.Color}
-                      onChange={handleChange}
-                      disabled={loading}
-                      placeholder="e.g., Reddish Brown"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       EFFECTIVE RATE
@@ -848,7 +646,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
                       value={formData.EffectiveRate}
                       onChange={handleChange}
                       disabled={loading}
-                      placeholder="e.g., 850.00"
+                      placeholder="e.g., 210.00"
                       error={!!fieldErrors.EffectiveRate}
                       helperText={fieldErrors.EffectiveRate}
                       InputProps={{
@@ -1042,7 +840,7 @@ const AddMaterial = ({ open, onClose, onAdd }) => {
             <Button
               variant="contained"
               onClick={handleSubmit}
-              disabled={loading || !formData.material_id || !formData.MaterialCode || !formData.MaterialName}
+              disabled={loading || !formData.MaterialCode || !formData.MaterialName}
               startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 height: 32,

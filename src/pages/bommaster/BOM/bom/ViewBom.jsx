@@ -387,12 +387,7 @@ const ViewBom = ({ open, onClose, bom }) => {
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Current Revision</Typography>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{getDisplayValue(bom.current_revision) || '1'}</Typography>
                 </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Created By</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                    {getDisplayValue(bom.created_by_name) || getDisplayValue(bom.created_by) || '-'}
-                  </Typography>
-                </Grid>
+               
                 {bom.remarks && (
                   <Grid size={{ xs: 12 }}>
                     <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Remarks</Typography>

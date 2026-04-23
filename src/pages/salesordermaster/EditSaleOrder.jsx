@@ -1,4 +1,4 @@
-// EditSaleOrder.jsx
+// EditSaleOrder.jsx - Only updatable fields editable
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -22,7 +22,6 @@ import {
   FormControl,
   Select,
   MenuItem,
-  Autocomplete,
   styled,
   Divider,
   Table,
@@ -34,25 +33,19 @@ import {
   Tooltip
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
   Business as BusinessIcon,
   Inventory as InventoryIcon,
-  LocalShipping as ShippingIcon,
-  AttachMoney as MoneyIcon,
+  LocalShipping as LocalShippingIcon,
   Info as InfoIcon,
   Close as CloseIcon,
   Save as SaveIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
-import AddItem from '../master/itemmaster/AddItem';
 import AddCustomer from '../master/customermaster/AddCustomer';
 
-
-// Color constants matching other components
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -71,7 +64,6 @@ const COLORS = {
   border: '#E3E8EF'
 };
 
-// Modern Stepper Connector with Primary Color
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
@@ -91,11 +83,8 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Options
-const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
 const DELIVERY_TERMS_OPTIONS = ['Ex-Works', 'FOR Destination', 'CIF', 'FOB', ''];
 const DELIVERY_MODE_OPTIONS = ['Road', 'Rail', 'Air', 'Sea', 'Hand Delivery', ''];
-const UNIT_OPTIONS = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
 
 const steps = ['Basic Information', 'Delivery Details', 'Items', 'Review & Submit'];
 
@@ -106,26 +95,54 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
   const [fieldErrors, setFieldErrors] = useState({});
   
   const [customers, setCustomers] = useState([]);
-  const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   
-  // Dialog states for Add Customer and Add Item
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
-  const [addItemOpen, setAddItemOpen] = useState(false);
-  const [currentItemIndex, setCurrentItemIndex] = useState(null);
   
-  const [formData, setFormData] = useState({
+  // Read-only data from the order (cannot be edited)
+  const [readOnlyData, setReadOnlyData] = useState({
+    so_number: '',
+    customer_name: '',
     customer_id: '',
+    currency: 'INR',
+    so_date: '',
+    status: ''
+  });
+  
+  // Editable fields only
+  const [formData, setFormData] = useState({
     customer_po_number: '',
     customer_po_date: '',
     payment_terms: '',
     delivery_terms: '',
     delivery_mode: '',
+    transporter: '',
     expected_delivery_date: '',
     internal_remarks: '',
-    currency: 'INR'
+    shipping_address: {
+      line1: '',
+      line2: '',
+      city: '',
+      district: '',
+      state: '',
+      state_code: 0,
+      pincode: '',
+      country: 'India'
+    },
+    billing_address: {
+      line1: '',
+      line2: '',
+      city: '',
+      district: '',
+      state: '',
+      state_code: 0,
+      pincode: '',
+      country: 'India'
+    },
+    terms_conditions: []
   });
   
+  // Items are read-only - display only
   const [soItems, setSoItems] = useState([]);
   const [calculatedTotals, setCalculatedTotals] = useState({
     sub_total: 0,
@@ -139,7 +156,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     try {
       setLoadingData(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/customers?limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -152,74 +169,96 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     }
   }, []);
   
-  const fetchItems = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?limit=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.data.success) {
-        setItems(response.data.data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching items:', err);
-    }
-  }, []);
-  
-  // Handle customer added from AddCustomer dialog
   const handleCustomerAdded = (newCustomer) => {
     setCustomers(prev => [...prev, newCustomer]);
-    // Auto-select the newly added customer
-    setFormData(prev => ({ ...prev, customer_id: newCustomer._id }));
   };
   
-  // Handle item added from AddItem dialog
-  const handleItemAdded = (newItem) => {
-    setItems(prev => [...prev, newItem]);
-    
-    // If we were adding from a specific item row, auto-select it
-    if (currentItemIndex !== null) {
-      handleItemChange(currentItemIndex, 'item_id', newItem._id);
+  useEffect(() => {
+    if (open && so) {
+      const loadData = async () => {
+        await fetchCustomers();
+        initializeFormData();
+      };
+      loadData();
     }
-    setCurrentItemIndex(null);
-  };
+  }, [open, so]);
   
- useEffect(() => {
-  if (open && so) {
-    fetchCustomers();
-    fetchItems();
+  const initializeFormData = () => {
+    if (!so) return;
+    
+    const customerName = so.customer_id?.customer_name || 
+                         customers.find(c => c._id === so.customer_id)?.customer_name || 
+                         so.customer_name || '-';
+    
+    setReadOnlyData({
+      so_number: so.so_number || '-',
+      customer_name: customerName,
+      customer_id: so.customer_id?._id || so.customer_id || '',
+      currency: so.currency || 'INR',
+      so_date: so.so_date ? new Date(so.so_date).toISOString().split('T')[0] : '',
+      status: so.status || 'Draft'
+    });
     
     setFormData({
-      customer_id: so.customer_id || '',
       customer_po_number: so.customer_po_number || '',
       customer_po_date: so.customer_po_date ? new Date(so.customer_po_date).toISOString().split('T')[0] : '',
       payment_terms: so.payment_terms || '',
       delivery_terms: so.delivery_terms || '',
       delivery_mode: so.delivery_mode || '',
+      transporter: so.transporter || '',
       expected_delivery_date: so.expected_delivery_date ? new Date(so.expected_delivery_date).toISOString().split('T')[0] : '',
       internal_remarks: so.internal_remarks || '',
-      currency: so.currency || 'INR'
+      shipping_address: so.shipping_address || {
+        line1: '',
+        line2: '',
+        city: '',
+        district: '',
+        state: '',
+        state_code: 0,
+        pincode: '',
+        country: 'India'
+      },
+      billing_address: so.billing_address || {
+        line1: '',
+        line2: '',
+        city: '',
+        district: '',
+        state: '',
+        state_code: 0,
+        pincode: '',
+        country: 'India'
+      },
+      terms_conditions: so.terms_conditions || []
     });
     
-    // Map items from API response - the item details are already in the response
-    // No need to fetch separately since the API returns complete item data
-    const mappedItems = so.items?.map(item => ({
-      item_id: item.item_id?._id || item.item_id || '',
-      part_no: item.part_no || '',
-      part_name: item.part_name || '',
-      hsn_code: item.hsn_code || '',
-      unit: item.unit || 'Nos',
-      ordered_qty: item.ordered_qty || 1,
-      unit_price: item.unit_price || 0,
-      discount_percent: item.discount_percent || 0,
-      required_date: item.required_date ? new Date(item.required_date).toISOString().split('T')[0] : '',
-      committed_date: item.committed_date ? new Date(item.committed_date).toISOString().split('T')[0] : '',
-      remarks: item.remarks || ''
-    })) || [];
+    // Items are read-only - just for display
+    const mappedItems = (so.items || []).map(item => {
+      let fullItem = null;
+      
+      if (item.item_id && typeof item.item_id === 'object') {
+        fullItem = item.item_id;
+      }
+      
+      const partNo = fullItem?.part_no || item.part_no || '';
+      const partName = fullItem?.part_description || fullItem?.part_name || item.part_name || '';
+      const unit = fullItem?.unit || item.unit || 'Nos';
+      
+      return {
+        item_id: item.item_id?._id || item.item_id || '',
+        part_no: partNo,
+        part_name: partName,
+        unit: unit,
+        ordered_qty: item.ordered_qty || 1,
+        unit_price: item.unit_price || 0,
+        discount_percent: item.discount_percent || 0,
+        required_date: item.required_date ? new Date(item.required_date).toISOString().split('T')[0] : '',
+        committed_date: item.committed_date ? new Date(item.committed_date).toISOString().split('T')[0] : '',
+        remarks: item.remarks || ''
+      };
+    });
     
     setSoItems(mappedItems);
     
-    // Calculate totals using the mapped items
     if (mappedItems.length > 0) {
       calculateTotals(mappedItems);
     }
@@ -227,8 +266,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     setActiveStep(0);
     setError('');
     setFieldErrors({});
-  }
-}, [open, so, fetchCustomers, fetchItems]);
+  };
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -236,85 +274,43 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
   };
   
-  const handleItemChange = (index, field, value) => {
-    const updatedItems = [...soItems];
-    updatedItems[index][field] = value;
-    
-    if (field === 'item_id' && value) {
-      const selectedItem = items.find(item => item._id === value);
-      if (selectedItem) {
-        updatedItems[index].part_no = selectedItem.part_no || '';
-        updatedItems[index].part_name = selectedItem.part_description || '';
-        updatedItems[index].hsn_code = selectedItem.hsn_code || '';
-        updatedItems[index].unit = selectedItem.unit || 'Nos';
+  const handleAddressChange = (type, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: value
       }
-    }
-    
-    setSoItems(updatedItems);
-    setFieldErrors(prev => ({ ...prev, [`item_${index}_${field}`]: '' }));
-    calculateTotals(updatedItems);
+    }));
   };
   
- const calculateTotals = (items) => {
-  let sub_total = 0;
-  let discount_total = 0;
-  
-  items.forEach(item => {
-    // Handle both API response format and local state format
-    const qty = Number(item.ordered_qty) || 0;
-    const price = Number(item.unit_price) || 0;
-    const discount = Number(item.discount_percent) || 0;
+  const calculateTotals = (items) => {
+    let sub_total = 0;
+    let discount_total = 0;
     
-    const item_total = qty * price;
-    const item_discount = (item_total * discount) / 100;
+    items.forEach(item => {
+      const qty = Number(item.ordered_qty) || 0;
+      const price = Number(item.unit_price) || 0;
+      const discount = Number(item.discount_percent) || 0;
+      
+      const item_total = qty * price;
+      const item_discount = (item_total * discount) / 100;
+      
+      sub_total += item_total;
+      discount_total += item_discount;
+    });
     
-    sub_total += item_total;
-    discount_total += item_discount;
-  });
-  
-  const taxable_total = sub_total - discount_total;
-  const gst_total = (taxable_total * 18) / 100; // Assuming 18% GST
-  const grand_total = taxable_total + gst_total;
-  
-  setCalculatedTotals({
-    sub_total: sub_total,
-    discount_total: discount_total,
-    taxable_total: taxable_total,
-    gst_total: gst_total,
-    grand_total: grand_total
-  });
-};
-  
-  const addItem = () => {
-    setSoItems([
-      ...soItems,
-      {
-        item_id: '',
-        part_no: '',
-        part_name: '',
-        hsn_code: '',
-        unit: 'Nos',
-        ordered_qty: 1,
-        unit_price: 0,
-        discount_percent: 0,
-        required_date: formData.expected_delivery_date || new Date().toISOString().split('T')[0],
-        committed_date: formData.expected_delivery_date || new Date().toISOString().split('T')[0],
-        remarks: ''
-      }
-    ]);
-  };
-  
-  const removeItem = (index) => {
-    if (soItems.length > 1) {
-      const updatedItems = soItems.filter((_, i) => i !== index);
-      setSoItems(updatedItems);
-      calculateTotals(updatedItems);
-    }
-  };
-  
-  const openAddItemDialog = (index) => {
-    setCurrentItemIndex(index);
-    setAddItemOpen(true);
+    const taxable_total = sub_total - discount_total;
+    const gst_total = (taxable_total * 18) / 100;
+    const grand_total = taxable_total + gst_total;
+    
+    setCalculatedTotals({
+      sub_total: sub_total,
+      discount_total: discount_total,
+      taxable_total: taxable_total,
+      gst_total: gst_total,
+      grand_total: grand_total
+    });
   };
   
   const validateStep = (step) => {
@@ -323,33 +319,11 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     
     switch (step) {
       case 0:
-        if (!formData.customer_id) {
-          errors.customer_id = 'Customer is required';
-          isValid = false;
-        }
         if (!formData.expected_delivery_date) {
           errors.expected_delivery_date = 'Expected delivery date is required';
           isValid = false;
         }
         break;
-        
-      case 2:
-        soItems.forEach((item, index) => {
-          if (!item.item_id) {
-            errors[`item_${index}_item_id`] = `Item ${index + 1}: Item is required`;
-            isValid = false;
-          }
-          if (!item.ordered_qty || item.ordered_qty <= 0) {
-            errors[`item_${index}_ordered_qty`] = `Item ${index + 1}: Valid quantity is required`;
-            isValid = false;
-          }
-          if (!item.unit_price || item.unit_price <= 0) {
-            errors[`item_${index}_unit_price`] = `Item ${index + 1}: Valid unit price is required`;
-            isValid = false;
-          }
-        });
-        break;
-        
       default:
         return true;
     }
@@ -357,6 +331,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     setFieldErrors(errors);
     if (!isValid) {
       setError('Please fix the errors in this section');
+    } else {
+      setError('');
     }
     return isValid;
   };
@@ -365,30 +341,10 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     const errors = {};
     let isValid = true;
     
-    if (!formData.customer_id) {
-      errors.customer_id = 'Customer is required';
-      isValid = false;
-    }
-    
     if (!formData.expected_delivery_date) {
       errors.expected_delivery_date = 'Expected delivery date is required';
       isValid = false;
     }
-    
-    soItems.forEach((item, index) => {
-      if (!item.item_id) {
-        errors[`item_${index}_item_id`] = `Item ${index + 1}: Item is required`;
-        isValid = false;
-      }
-      if (!item.ordered_qty || item.ordered_qty <= 0) {
-        errors[`item_${index}_ordered_qty`] = `Item ${index + 1}: Valid quantity is required`;
-        isValid = false;
-      }
-      if (!item.unit_price || item.unit_price <= 0) {
-        errors[`item_${index}_unit_price`] = `Item ${index + 1}: Valid unit price is required`;
-        isValid = false;
-      }
-    });
     
     setFieldErrors(errors);
     if (!isValid) {
@@ -409,65 +365,79 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     setActiveStep((prevStep) => prevStep - 1);
   };
   
- const handleSubmit = async () => {
-  if (!validateAllFields()) {
-    return;
-  }
-  
-  setLoading(true);
-  setError('');
-  
-  try {
-    const token = localStorage.getItem('token');
-    
-    const submitData = {
-      ...formData,
-      items: soItems.map(item => ({
-        item_id: item.item_id,
-        part_no: item.part_no,        // Add this
-        part_name: item.part_name,    // Add this
-        hsn_code: item.hsn_code,      // Add this
-        unit: item.unit,              // Add this
-        ordered_qty: Number(item.ordered_qty),
-        unit_price: Number(item.unit_price),
-        discount_percent: Number(item.discount_percent),
-        required_date: item.required_date,
-        committed_date: item.committed_date,
-        remarks: item.remarks
-      }))
-    };
-    
-    const response = await axios.put(`${BASE_URL}/api/sales-orders/${so._id}`, submitData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.data.success) {
-      onUpdate();
-      onClose();
-    } else {
-      setError(response.data.message || 'Failed to update Sales Order');
+  const handleSubmit = async () => {
+    if (!validateAllFields()) {
+      return;
     }
-  } catch (err) {
-    console.error('Error updating Sales Order:', err);
-    setError(err.response?.data?.message || 'Failed to update Sales Order. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+    
+    // Check if order is Cancelled or Closed
+    if (readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed') {
+      setError(`Cannot update ${readOnlyData.status} Sales Order`);
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Only send updatable fields
+      const submitData = {
+        expected_delivery_date: formData.expected_delivery_date,
+        payment_terms: formData.payment_terms || undefined,
+        delivery_terms: formData.delivery_terms || undefined,
+        delivery_mode: formData.delivery_mode || undefined,
+        transporter: formData.transporter || undefined,
+        internal_remarks: formData.internal_remarks || undefined,
+        customer_po_number: formData.customer_po_number || undefined,
+        customer_po_date: formData.customer_po_date || undefined,
+        shipping_address: formData.shipping_address,
+        billing_address: formData.billing_address,
+        terms_conditions: formData.terms_conditions
+      };
+      
+      // Remove undefined values
+      Object.keys(submitData).forEach(key => {
+        if (submitData[key] === undefined) {
+          delete submitData[key];
+        }
+      });
+      
+      console.log('Submitting edit data:', submitData);
+      
+      const response = await axios.put(`${BASE_URL}/api/sales-orders/${so._id}`, submitData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        if (onUpdate) {
+          onUpdate(response.data.data);
+        }
+        onClose();
+      } else {
+        setError(response.data.message || 'Failed to update Sales Order');
+      }
+    } catch (err) {
+      console.error('Error updating Sales Order:', err);
+      setError(err.response?.data?.message || 'Failed to update Sales Order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return '-';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: formData.currency || 'INR',
+      currency: readOnlyData.currency || 'INR',
       minimumFractionDigits: 2
     }).format(amount);
   };
   
-  // Label component for consistency
   const Label = ({ children, required }) => (
     <Typography sx={{ 
       fontSize: '0.7rem', 
@@ -484,20 +454,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 0:
         return (
           <Stack spacing={2}>
-            {/* Basic Information Section */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Basic Information
               </Typography>
@@ -507,72 +465,66 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Label>SO NUMBER</Label>
                     <Typography sx={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 500, 
-                      color: COLORS.text.primary,
-                      py: 1,
-                      px: 1.5,
-                      bgcolor: COLORS.background.light,
-                      borderRadius: 1.5,
-                      border: `1px solid ${COLORS.border}`
+                      fontSize: '0.8rem', fontWeight: 500, color: COLORS.text.primary,
+                      py: 1, px: 1.5, bgcolor: COLORS.background.light,
+                      borderRadius: 1.5, border: `1px solid ${COLORS.border}`
                     }}>
-                      {so?.so_number || '-'}
+                      {readOnlyData.so_number}
                     </Typography>
                   </Box>
                 </Grid>
                 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Label required>CUSTOMER</Label>
-                      <Tooltip title="Add New Customer">
-                        <IconButton
-                          size="small"
-                          onClick={() => setAddCustomerOpen(true)}
-                          sx={{
-                            color: COLORS.primary,
-                            p: 0.25,
-                            '&:hover': { bgcolor: COLORS.primaryLight }
-                          }}
-                        >
-                          <AddIcon sx={{ fontSize: '0.8rem' }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                    <Autocomplete
-                      fullWidth
-                      options={customers}
-                      getOptionLabel={(option) => `${option.customer_name} - ${option.customer_code}`}
-                      value={customers.find(c => c._id === formData.customer_id) || null}
-                      onChange={(event, newValue) => {
-                        setFormData(prev => ({ ...prev, customer_id: newValue?._id || '' }));
-                        setFieldErrors(prev => ({ ...prev, customer_id: '' }));
-                      }}
-                      loading={loadingData}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          error={!!fieldErrors.customer_id}
-                          helperText={fieldErrors.customer_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      )}
-                    />
+                    <Label>SO DATE</Label>
+                    <Typography sx={{ 
+                      fontSize: '0.8rem', fontWeight: 500, color: COLORS.text.primary,
+                      py: 1, px: 1.5, bgcolor: COLORS.background.light,
+                      borderRadius: 1.5, border: `1px solid ${COLORS.border}`
+                    }}>
+                      {readOnlyData.so_date}
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label required>CUSTOMER</Label>
+                    <Typography sx={{ 
+                      fontSize: '0.8rem', fontWeight: 500, color: COLORS.text.primary,
+                      py: 1, px: 1.5, bgcolor: COLORS.background.light,
+                      borderRadius: 1.5, border: `1px solid ${COLORS.border}`
+                    }}>
+                      {readOnlyData.customer_name}
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label>STATUS</Label>
+                    <Typography sx={{ 
+                      fontSize: '0.8rem', fontWeight: 500,
+                      py: 1, px: 1.5, bgcolor: COLORS.background.light,
+                      borderRadius: 1.5, border: `1px solid ${COLORS.border}`,
+                      color: readOnlyData.status === 'Cancelled' ? '#DC2626' : 
+                             readOnlyData.status === 'Closed' ? '#059669' : COLORS.text.primary
+                    }}>
+                      {readOnlyData.status}
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label>CURRENCY</Label>
+                    <Typography sx={{ 
+                      fontSize: '0.8rem', fontWeight: 500, color: COLORS.text.primary,
+                      py: 1, px: 1.5, bgcolor: COLORS.background.light,
+                      borderRadius: 1.5, border: `1px solid ${COLORS.border}`
+                    }}>
+                      {readOnlyData.currency}
+                    </Typography>
                   </Box>
                 </Grid>
                 
@@ -586,24 +538,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                       value={formData.customer_po_number}
                       onChange={handleChange}
                       placeholder="e.g., PO-2025-001"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      disabled={readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed'}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                     />
                   </Box>
                 </Grid>
@@ -618,49 +554,10 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                       name="customer_po_date"
                       value={formData.customer_po_date}
                       onChange={handleChange}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
+                      disabled={readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed'}
                       InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                     />
-                  </Box>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Label>CURRENCY</Label>
-                    <FormControl fullWidth size="small">
-                      <Select
-                        name="currency"
-                        value={formData.currency}
-                        onChange={handleChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5
-                          }
-                        }}
-                      >
-                        {CURRENCY_OPTIONS.map(option => (
-                          <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                            {option}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
                   </Box>
                 </Grid>
                 
@@ -674,24 +571,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                       value={formData.payment_terms}
                       onChange={handleChange}
                       placeholder="e.g., Net 30, 50% Advance"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
+                      disabled={readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed'}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                     />
                   </Box>
                 </Grid>
@@ -701,23 +582,13 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         );
         
       case 1:
+        const isDisabled = readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed';
+        
         return (
           <Stack spacing={2}>
-            {/* Delivery Information Section */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
-                <ShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <LocalShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Delivery Information
               </Typography>
               
@@ -725,19 +596,12 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Label>DELIVERY TERMS</Label>
-                    <FormControl fullWidth size="small">
+                    <FormControl fullWidth size="small" disabled={isDisabled}>
                       <Select
                         name="delivery_terms"
                         value={formData.delivery_terms}
                         onChange={handleChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5
-                          }
-                        }}
+                        sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
                       >
                         {DELIVERY_TERMS_OPTIONS.map(option => (
                           <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
@@ -752,19 +616,12 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Label>DELIVERY MODE</Label>
-                    <FormControl fullWidth size="small">
+                    <FormControl fullWidth size="small" disabled={isDisabled}>
                       <Select
                         name="delivery_mode"
                         value={formData.delivery_mode}
                         onChange={handleChange}
-                        sx={{
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '& .MuiSelect-select': {
-                            py: 1,
-                            px: 1.5
-                          }
-                        }}
+                        sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
                       >
                         {DELIVERY_MODE_OPTIONS.map(option => (
                           <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
@@ -773,6 +630,22 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                         ))}
                       </Select>
                     </FormControl>
+                  </Box>
+                </Grid>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Label>TRANSPORTER</Label>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      name="transporter"
+                      value={formData.transporter}
+                      onChange={handleChange}
+                      placeholder="e.g., XYZ Transport"
+                      disabled={isDisabled}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                    />
                   </Box>
                 </Grid>
                 
@@ -788,42 +661,217 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                       onChange={handleChange}
                       error={!!fieldErrors.expected_delivery_date}
                       helperText={fieldErrors.expected_delivery_date}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                          '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary
-                        }
-                      }}
+                      disabled={isDisabled}
                       InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                     />
                   </Box>
                 </Grid>
               </Grid>
             </Paper>
             
-            {/* Additional Information Section */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            {/* Shipping Address Section */}
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <LocalShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Shipping Address
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Address Line 1"
+                    value={formData.shipping_address.line1}
+                    onChange={(e) => handleAddressChange('shipping_address', 'line1', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Address Line 2"
+                    value={formData.shipping_address.line2}
+                    onChange={(e) => handleAddressChange('shipping_address', 'line2', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="City"
+                    value={formData.shipping_address.city}
+                    onChange={(e) => handleAddressChange('shipping_address', 'city', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="District"
+                    value={formData.shipping_address.district}
+                    onChange={(e) => handleAddressChange('shipping_address', 'district', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="State"
+                    value={formData.shipping_address.state}
+                    onChange={(e) => handleAddressChange('shipping_address', 'state', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    size="small"
+                    label="State Code"
+                    value={formData.shipping_address.state_code}
+                    onChange={(e) => handleAddressChange('shipping_address', 'state_code', Number(e.target.value))}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Pincode"
+                    value={formData.shipping_address.pincode}
+                    onChange={(e) => handleAddressChange('shipping_address', 'pincode', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Country"
+                    value={formData.shipping_address.country}
+                    onChange={(e) => handleAddressChange('shipping_address', 'country', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+            
+            {/* Billing Address Section */}
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Billing Address
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Address Line 1"
+                    value={formData.billing_address.line1}
+                    onChange={(e) => handleAddressChange('billing_address', 'line1', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Address Line 2"
+                    value={formData.billing_address.line2}
+                    onChange={(e) => handleAddressChange('billing_address', 'line2', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="City"
+                    value={formData.billing_address.city}
+                    onChange={(e) => handleAddressChange('billing_address', 'city', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="District"
+                    value={formData.billing_address.district}
+                    onChange={(e) => handleAddressChange('billing_address', 'district', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="State"
+                    value={formData.billing_address.state}
+                    onChange={(e) => handleAddressChange('billing_address', 'state', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    size="small"
+                    label="State Code"
+                    value={formData.billing_address.state_code}
+                    onChange={(e) => handleAddressChange('billing_address', 'state_code', Number(e.target.value))}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Pincode"
+                    value={formData.billing_address.pincode}
+                    onChange={(e) => handleAddressChange('billing_address', 'pincode', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Country"
+                    value={formData.billing_address.country}
+                    onChange={(e) => handleAddressChange('billing_address', 'country', e.target.value)}
+                    disabled={isDisabled}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+            
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Additional Information
               </Typography>
@@ -839,26 +887,33 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                   value={formData.internal_remarks}
                   onChange={handleChange}
                   placeholder="Any internal notes or special instructions..."
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1.5,
-                      fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      color: COLORS.text.primary,
-                      '&::placeholder': {
-                        color: COLORS.text.tertiary,
-                        fontSize: '0.75rem'
-                      }
-                    }
-                  }}
+                  disabled={isDisabled}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
                 />
               </Box>
+            </Paper>
+            
+            {/* Terms & Conditions Section */}
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Terms & Conditions
+              </Typography>
+              
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                size="small"
+                value={Array.isArray(formData.terms_conditions) ? formData.terms_conditions.join('\n') : ''}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  terms_conditions: e.target.value.split('\n').filter(line => line.trim())
+                }))}
+                placeholder="Enter terms and conditions (one per line)..."
+                disabled={isDisabled}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+              />
             </Paper>
           </Stack>
         );
@@ -866,420 +921,90 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
       case 2:
         return (
           <Stack spacing={2}>
-            {/* Order Items Section */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Order Items <span style={{ color: '#EF4444' }}>*</span>
+                Order Items (Read-Only)
               </Typography>
               
-              {soItems.map((item, index) => (
-                <Paper
-                  key={index}
-                  sx={{
-                    p: 2,
-                    mb: 2,
-                    bgcolor: COLORS.background.light,
-                    borderRadius: 1.5,
-                    border: `1px solid ${COLORS.border}`
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      Item {index + 1}
-                    </Typography>
-                    {soItems.length > 1 && (
-                      <IconButton
-                        size="small"
-                        onClick={() => removeItem(index)}
-                        sx={{ color: '#EF4444' }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Stack>
-                  
-                  <Grid container spacing={1.5}>
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Label required>ITEM</Label>
-                          <Tooltip title="Add New Item">
-                            <IconButton
-                              size="small"
-                              onClick={() => openAddItemDialog(index)}
-                              sx={{
-                                color: COLORS.primary,
-                                p: 0.25,
-                                '&:hover': { bgcolor: COLORS.primaryLight }
-                              }}
-                            >
-                              <AddIcon sx={{ fontSize: '0.8rem' }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                        <Autocomplete
-                          fullWidth
-                          options={items}
-                          getOptionLabel={(option) => `${option.part_no} - ${option.part_description}`}
-                          value={items.find(i => i._id === item.item_id) || null}
-                          onChange={(event, newValue) => handleItemChange(index, 'item_id', newValue?._id || '')}
-                          loading={loadingData}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              size="small"
-                              error={!!fieldErrors[`item_${index}_item_id`]}
-                              helperText={fieldErrors[`item_${index}_item_id`]}
-                              sx={{
-                                '& .MuiOutlinedInput-root': {
-                                  borderRadius: 1.5,
-                                  fontSize: '0.75rem',
-                                  '&:hover fieldset': { borderColor: COLORS.primary },
-                                  '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                                  '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                                },
-                                '& .MuiInputBase-input': {
-                                  py: 1,
-                                  px: 1.5,
-                                  fontSize: '0.75rem',
-                                  color: COLORS.text.primary
-                                }
-                              }}
-                            />
-                          )}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 3 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>PART NO</Label>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.part_no}
-                          disabled
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              backgroundColor: COLORS.background.light
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.secondary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 2 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>UNIT</Label>
-                        <FormControl fullWidth size="small">
-                          <Select
-                            value={item.unit}
-                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                            sx={{
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '& .MuiSelect-select': {
-                                py: 1,
-                                px: 1.5
-                              }
-                            }}
-                          >
-                            {UNIT_OPTIONS.map(option => (
-                              <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                                {option}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 2 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label required>QUANTITY</Label>
-                        <TextField
-                          fullWidth
-                          type="number"
-                          size="small"
-                          value={item.ordered_qty}
-                          onChange={(e) => handleItemChange(index, 'ordered_qty', e.target.value)}
-                          error={!!fieldErrors[`item_${index}_ordered_qty`]}
-                          helperText={fieldErrors[`item_${index}_ordered_qty`]}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 2 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label required>UNIT PRICE</Label>
-                        <TextField
-                          fullWidth
-                          type="number"
-                          size="small"
-                          value={item.unit_price}
-                          onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
-                          error={!!fieldErrors[`item_${index}_unit_price`]}
-                          helperText={fieldErrors[`item_${index}_unit_price`]}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
-                              '&.Mui-error fieldset': { borderColor: '#EF4444' }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 6, sm: 2 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>DISCOUNT %</Label>
-                        <TextField
-                          fullWidth
-                          type="number"
-                          size="small"
-                          value={item.discount_percent}
-                          onChange={(e) => handleItemChange(index, 'discount_percent', e.target.value)}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>REQUIRED DATE</Label>
-                        <TextField
-                          fullWidth
-                          type="date"
-                          size="small"
-                          value={item.required_date}
-                          onChange={(e) => handleItemChange(index, 'required_date', e.target.value)}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>COMMITTED DATE</Label>
-                        <TextField
-                          fullWidth
-                          type="date"
-                          size="small"
-                          value={item.committed_date}
-                          onChange={(e) => handleItemChange(index, 'committed_date', e.target.value)}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary
-                            }
-                          }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Label>REMARKS</Label>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.remarks}
-                          onChange={(e) => handleItemChange(index, 'remarks', e.target.value)}
-                          placeholder="Additional notes..."
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              '&::placeholder': {
-                                color: COLORS.text.tertiary,
-                                fontSize: '0.75rem'
-                              }
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-              ))}
+              {soItems.length > 0 && (
+                <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: COLORS.background.light }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Item</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Part No</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Qty</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Unit</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }} align="right">Unit Price</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }} align="right">Discount</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }} align="right">Total</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {soItems.map((item, index) => {
+                        const total = (item.ordered_qty * item.unit_price) * (1 - (item.discount_percent / 100));
+                        return (
+                          <TableRow key={index} hover>
+                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_name || '-'}</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_no || '-'}</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.ordered_qty}</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }}>{item.unit}</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">{item.discount_percent}%</TableCell>
+                            <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(total)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
               
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                onClick={addItem}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  border: `1px solid ${COLORS.border}`,
-                  color: COLORS.text.secondary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: COLORS.primary,
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                Add Item
-              </Button>
+              <Box sx={{ mt: 2, p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 1 }}>
+                  Note: To modify quantities or prices, please use the Revise Order feature.
+                </Typography>
+              </Box>
             </Paper>
           </Stack>
         );
         
       case 3:
+        const totalSetup = soItems.reduce((sum, op) => sum + (Number(op.planned_setup_min) || 0), 0);
+        const totalRun = soItems.reduce((sum, op) => sum + (Number(op.planned_run_min) || 0), 0);
+        
         return (
           <Stack spacing={2}>
-            {/* Review Section */}
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.background.white, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: 'none'
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
                 <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Review & Submit
               </Typography>
               
               <Stack spacing={2}>
-                {/* Customer Info Summary */}
                 <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-                    Customer Information
+                    Order Information
                   </Typography>
                   <Grid container spacing={1}>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>SO Number:</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{so?.so_number || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {customers.find(c => c._id === formData.customer_id)?.customer_name || '-'}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>PO Number:</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.customer_po_number || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Expected Delivery:</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.expected_delivery_date}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Currency:</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.currency}</Typography>
-                    </Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>SO Number:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{readOnlyData.so_number}</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Customer:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{readOnlyData.customer_name}</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>PO Number:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.customer_po_number || '-'}</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Expected Delivery:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{formData.expected_delivery_date}</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Currency:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{readOnlyData.currency}</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Status:</Typography></Grid>
+                    <Grid size={{ xs: 6 }}><Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: readOnlyData.status === 'Cancelled' ? '#DC2626' : readOnlyData.status === 'Closed' ? '#059669' : COLORS.text.primary }}>
+                      {readOnlyData.status}
+                    </Typography></Grid>
                   </Grid>
                 </Paper>
                 
-                {/* Items Summary */}
                 <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
                     Order Summary
@@ -1288,11 +1013,11 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Item</TableCell>
-                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Qty</TableCell>
-                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }}>Unit</TableCell>
-                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }} align="right">Price</TableCell>
-                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary }} align="right">Total</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Item</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Qty</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Unit</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }} align="right">Price</TableCell>
+                          <TableCell sx={{ fontSize: '0.65rem', fontWeight: 600 }} align="right">Total</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -1300,7 +1025,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
                           const total = (item.ordered_qty * item.unit_price) * (1 - (item.discount_percent / 100));
                           return (
                             <TableRow key={idx}>
-                              <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_no || '-'}</TableCell>
+                              <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_name || item.part_no || '-'}</TableCell>
                               <TableCell sx={{ fontSize: '0.7rem' }}>{item.ordered_qty}</TableCell>
                               <TableCell sx={{ fontSize: '0.7rem' }}>{item.unit}</TableCell>
                               <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(item.unit_price)}</TableCell>
@@ -1350,26 +1075,16 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
     }
   };
   
+  const isDisabled = readOnlyData.status === 'Cancelled' || readOnlyData.status === 'Closed';
+  
   return (
     <>
-      <Dialog
-        open={open}
-        onClose={onClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-            border: `1px solid ${COLORS.border}`,
-            overflow: 'hidden'
-          }
-        }}
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
+        PaperProps={{ sx: { borderRadius: 2, border: `1px solid ${COLORS.border}`, overflow: 'hidden' } }}
       >
         <DialogTitle sx={{
           borderBottom: `1px solid ${COLORS.border}`,
-          py: 1.5,
-          px: 2.5,
+          py: 1.5, px: 2.5,
           bgcolor: COLORS.background.white,
           display: 'flex',
           justifyContent: 'space-between',
@@ -1383,13 +1098,8 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
           </IconButton>
         </DialogTitle>
         
-        {/* Modern Stepper with Primary Color */}
         <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
-          <Stepper
-            activeStep={activeStep}
-            alternativeLabel
-            connector={<ColorConnector />}
-          >
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
             {steps.map((label) => (
               <Step key={label}>
                 <StepLabel>
@@ -1404,118 +1114,32 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         
         <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
           {renderStepContent(activeStep)}
-          
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mt: 2, 
-                borderRadius: 1.5,
-                fontSize: '0.75rem',
-                py: 0.5,
-                '& .MuiAlert-icon': { fontSize: '1.25rem' }
-              }}
-            >
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem' }}>{error}</Alert>}
         </DialogContent>
         
-        <DialogActions sx={{
-          px: 2.5,
-          py: 1.5,
-          borderTop: `1px solid ${COLORS.border}`,
-          bgcolor: COLORS.background.white,
-          justifyContent: 'space-between'
-        }}>
-          <Button
-            onClick={handleBack}
-            disabled={activeStep === 0 || loading}
-            size="small"
-            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
-            sx={{
-              height: 32,
-              px: 2,
-              borderRadius: 1.5,
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.text.secondary,
-              fontSize: '0.7rem',
-              fontWeight: 500,
-              textTransform: 'none',
-              '&:hover': {
-                borderColor: COLORS.primary,
-                bgcolor: `${COLORS.primary}10`
-              }
-            }}
-          >
+        <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.white, justifyContent: 'space-between' }}>
+          <Button onClick={handleBack} disabled={activeStep === 0 || loading} size="small" startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}>
             Back
           </Button>
           <Box>
-            <Button
-              onClick={onClose}
-              disabled={loading}
-              size="small"
-              sx={{
-                height: 32,
-                px: 2,
-                mr: 1,
-                borderRadius: 1.5,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text.secondary,
-                fontSize: '0.7rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: COLORS.primary,
-                  bgcolor: `${COLORS.primary}10`
-                }
-              }}
-            >
-              Cancel
-            </Button>
+            <Button onClick={onClose} disabled={loading} size="small" sx={{ mr: 1 }}>Cancel</Button>
             {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading}
-                size="small"
+              <Button 
+                variant="contained" 
+                onClick={handleSubmit} 
+                disabled={loading || isDisabled} 
+                size="small" 
                 startIcon={<SaveIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                  '&:hover': {
-                    bgcolor: COLORS.primaryDark,
-                  }
-                }}
               >
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
             ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={loading}
-                size="small"
+              <Button 
+                variant="contained" 
+                onClick={handleNext} 
+                disabled={loading} 
+                size="small" 
                 endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                  '&:hover': {
-                    bgcolor: COLORS.primaryDark,
-                  }
-                }}
               >
                 Next
               </Button>
@@ -1524,22 +1148,7 @@ const EditSaleOrder = ({ open, onClose, so, onUpdate }) => {
         </DialogActions>
       </Dialog>
       
-      {/* Add Customer Dialog */}
-      <AddCustomer
-        open={addCustomerOpen}
-        onClose={() => setAddCustomerOpen(false)}
-        onAdd={handleCustomerAdded}
-      />
-      
-      {/* Add Item Dialog */}
-      <AddItem
-        open={addItemOpen}
-        onClose={() => {
-          setAddItemOpen(false);
-          setCurrentItemIndex(null);
-        }}
-        onAdd={handleItemAdded}
-      />
+      <AddCustomer open={addCustomerOpen} onClose={() => setAddCustomerOpen(false)} onAdd={handleCustomerAdded} />
     </>
   );
 };

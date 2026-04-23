@@ -83,6 +83,9 @@ import ProductionScheduleMaster from './pages/productionmaster/productionschedul
 import ProductionConflict from './pages/productionmaster/productionconflict/ProductionConflict'
 import DeliveryScheduleMaster from './pages/dispatchmaster/deliveryschedulemaster/DeliveryScheduleMaster'
 import ToolMaster from './pages/productionmaster/toolmaster/ToolMaster'
+import GaugeMaster from './pages/inspectionmaster/gaugemaster/GaugeMaster'
+import InspectionPlanMaster from './pages/inspectionmaster/inspectionplanmaster/InspectionPlanMaster'
+import InspectionRecordMaster from './pages/inspectionmaster/inspectionrecordmaster/InspectionRecordMaster'
 
 
 const PrivateRoute = ({ children }) => {
@@ -98,7 +101,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-    {/* // <BrowserRouter basename="/suyashtest-front"> */}
+    {/* //  <BrowserRouter basename="/suyashtest-front"> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -192,9 +195,13 @@ const App = () => {
           <Route path='productionmaster/productionconflict' element={<ProductionConflict/>} />
           <Route path='productionmaster/toolmaster' element={<ToolMaster/>} />
 
-          <Route path="/delivery-challan" element={<DeliveryChallanMaster />} />
+          <Route path="dispatchmaster/delivery-challan" element={<DeliveryChallanMaster />} />
 
-          <Route path="/delivery-schedule" element={<DeliveryScheduleMaster />} />
+          <Route path="dispatchmaster/delivery-schedule" element={<DeliveryScheduleMaster />} />
+
+          <Route path="inspectionmaster/gaugemaster" element={<GaugeMaster />} />
+          <Route path="inspectionmaster/inspectionplan" element={<InspectionPlanMaster />} />
+           <Route path="inspectionmaster/inspectionrecord" element={<InspectionRecordMaster />} />
 
         </Route>
 

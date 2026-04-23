@@ -75,7 +75,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingSO(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/sales-orders?page=1&limit=50`, {
+      const response = await axios.get(`${BASE_URL}/api/sales-orders`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -93,7 +93,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingBOM(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/boms?page=1&limit=50`, {
+      const response = await axios.get(`${BASE_URL}/api/boms`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -111,7 +111,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingRouting(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/routings?page=1&limit=50`, {
+      const response = await axios.get(`${BASE_URL}/api/routings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -129,7 +129,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingMRP(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/mrp/runs?page=1&limit=50`, {
+      const response = await axios.get(`${BASE_URL}/api/mrp/runs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -147,7 +147,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     try {
       setLoadingItems(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/items?page=1&limit=50`, {
+      const response = await axios.get(`${BASE_URL}/api/items`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -175,7 +175,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       console.error('Error fetching assembly lines:', err);
       // Fallback to regular assembly-lines endpoint if dropdown endpoint doesn't exist
       try {
-        const fallbackResponse = await axios.get(`${BASE_URL}/api/assembly-lines?limit=100`, {
+        const fallbackResponse = await axios.get(`${BASE_URL}/api/assembly-lines`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (fallbackResponse.data.success) {
@@ -207,11 +207,6 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
-    
-    // ✅ Clear assembly line when work order type is changed to non-assembly type
-    if (name === 'wo_type' && value !== 'Assembly' && value !== 'SubAssembly') {
-      setFormData(prev => ({ ...prev, assembly_line: '' }));
-    }
   };
 
   const handleSOChange = (event, newValue) => {
@@ -289,12 +284,6 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     }
     if (!formData.planned_end) {
       errors.planned_end = 'Planned end date is required';
-      isValid = false;
-    }
-
-    // ✅ Validate assembly line is required for Assembly and SubAssembly types
-    if ((formData.wo_type === 'Assembly' || formData.wo_type === 'SubAssembly') && !formData.assembly_line) {
-      errors.assembly_line = 'Assembly line is required for Assembly/SubAssembly work orders';
       isValid = false;
     }
 
@@ -381,9 +370,6 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
   // Get available items for selected SO
   const availableSOItems = selectedSO?.items || [];
   const hasMultipleSOItems = availableSOItems.length > 1;
-
-  // ✅ Check if assembly line should be shown
-  const shouldShowAssemblyLine = formData.wo_type === 'Assembly' || formData.wo_type === 'SubAssembly';
 
   // ✅ Get selected assembly line display
   const getSelectedAssemblyLine = () => {
@@ -823,7 +809,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
             </Typography>
 
             <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12, sm: shouldShowAssemblyLine ? 6 : 12 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                     PRIORITY
@@ -849,46 +835,42 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
                 </Box>
               </Grid>
 
-              {/* ✅ Assembly Line Dropdown - Only shown for Assembly and SubAssembly */}
-              {shouldShowAssemblyLine && (
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      ASSEMBLY LINE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Autocomplete
-                      fullWidth
-                      options={assemblyLines}
-                      getOptionLabel={getAssemblyLineLabel}
-                      value={getSelectedAssemblyLine()}
-                      onChange={handleAssemblyLineChange}
-                      loading={loadingAssemblyLines}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder={loadingAssemblyLines ? "Loading assembly lines..." : "Select assembly line"}
-                          error={!!fieldErrors.assembly_line}
-                          helperText={fieldErrors.assembly_line}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary }
-                            },
-                            '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                          }}
-                        />
-                      )}
-                      noOptionsText="No assembly lines found"
-                      loadingText="Loading assembly lines..."
-                    />
-                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
-                      Select the assembly line where this work order will be processed
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
+              {/* ✅ Updated Assembly Line Dropdown with API data */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    ASSEMBLY LINE
+                  </Typography>
+                  <Autocomplete
+                    fullWidth
+                    options={assemblyLines}
+                    getOptionLabel={getAssemblyLineLabel}
+                    value={getSelectedAssemblyLine()}
+                    onChange={handleAssemblyLineChange}
+                    loading={loadingAssemblyLines}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder={loadingAssemblyLines ? "Loading assembly lines..." : "Select assembly line (optional)"}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary }
+                          },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    )}
+                    noOptionsText="No assembly lines found"
+                    loadingText="Loading assembly lines..."
+                  />
+                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                    Select the assembly line where this work order will be processed
+                  </Typography>
+                </Box>
+              </Grid>
 
               <Grid size={{ xs: 12 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>

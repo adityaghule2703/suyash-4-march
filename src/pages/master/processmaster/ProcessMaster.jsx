@@ -39,7 +39,9 @@ import {
   Category as CategoryIcon,
   Label as LabelIcon,
   CalendarToday as CalendarIcon,
-  Update as UpdateIcon
+  Update as UpdateIcon,
+  Business as BusinessIcon,
+  SubdirectoryArrowRight as SubcontractIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -74,7 +76,9 @@ const COLORS = {
     active: '#9FE2BF',
     inactive: '#F1F5F9',
     suspended: '#FEF3C7',
-    locked: '#FEE2E2'
+    locked: '#FEE2E2',
+    subcontract: '#E0F2FE',
+    inhouse: '#DCFCE7'
   }
 };
 
@@ -508,6 +512,53 @@ const ProcessMaster = () => {
     return isActive ? 'Active' : 'Inactive';
   };
   
+  // Get subcontract chip
+  const getSubcontractChip = (isSubcontract) => {
+    if (isSubcontract) {
+      return (
+        <Chip
+          label="Subcontract"
+          size="small"
+          icon={<SubcontractIcon sx={{ fontSize: '0.7rem' }} />}
+          sx={{
+            bgcolor: COLORS.chips.subcontract,
+            color: '#0369A1',
+            border: '1px solid #7DD3FC',
+            fontWeight: 500,
+            fontSize: '0.65rem',
+            height: 20,
+            '& .MuiChip-icon': {
+              color: '#0369A1',
+              fontSize: '0.7rem',
+              ml: 0.5
+            }
+          }}
+        />
+      );
+    } else {
+      return (
+        <Chip
+          label="In-House"
+          size="small"
+          icon={<BusinessIcon sx={{ fontSize: '0.7rem' }} />}
+          sx={{
+            bgcolor: COLORS.chips.inhouse,
+            color: '#065F46',
+            border: '1px solid #6EE7B7',
+            fontWeight: 500,
+            fontSize: '0.65rem',
+            height: 20,
+            '& .MuiChip-icon': {
+              color: '#065F46',
+              fontSize: '0.7rem',
+              ml: 0.5
+            }
+          }}
+        />
+      );
+    }
+  };
+  
   // Get process initials for avatar
   const getProcessInitials = (processName) => {
     if (!processName) return 'PR';
@@ -813,6 +864,14 @@ const ProcessMaster = () => {
                   fontWeight: 600, 
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
+                  color: COLORS.text.light
+                }}>
+                  Type
+                </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.5px',
                   width: 60,
                   color: COLORS.text.light
                 }} align="center">
@@ -823,7 +882,7 @@ const ProcessMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading processes...
@@ -832,7 +891,7 @@ const ProcessMaster = () => {
                 </TableRow>
               ) : processes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                         {searchTerm ? 'No processes found' : 'No processes available'}
@@ -939,6 +998,9 @@ const ProcessMaster = () => {
                       </TableCell>
                       <TableCell>
                         {getRateTypeChip(process.rate_type)}
+                      </TableCell>
+                      <TableCell>
+                        {getSubcontractChip(process.is_subcontract)}
                       </TableCell>
                       <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu 

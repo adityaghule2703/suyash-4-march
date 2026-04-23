@@ -33,44 +33,47 @@ import {
     TableRow,
     Tooltip,
     Autocomplete,
-    InputAdornment
+    InputAdornment,
+    FormControlLabel,
+    Checkbox,
+    Switch
 } from '@mui/material';
 import {
     Add as AddIcon,
     Close as CloseIcon,
     Route as RouteIcon,
-    Settings as SettingsIcon,
     Build as BuildIcon,
     Info as InfoIcon,
     NavigateNext as NavigateNextIcon,
     NavigateBefore as NavigateBeforeIcon,
     Delete as DeleteIcon,
-    Inventory as InventoryIcon,
-    Search as SearchIcon
+    Search as SearchIcon,
+    Science as ScienceIcon,
+    CheckCircle as CheckCircleIcon,
+    Bolt as BoltIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 import AddItem from '../../master/itemmaster/AddItem';
-
 import AddVendor from '../../master/vendormaster/AddVendor';
 import AddProcess from '../../master/processmaster/AddProcess';
 import AddMachine from '../machinemaster/AddMachine';
 
 const COLORS = {
-    primary: '#1976D2',
-    primaryDark: '#1565C0',
+    primary: '#063C3F',
+    primaryDark: '#05292B',
     success: '#2E7D32',
     warning: '#ED6C02',
     error: '#D32F2F',
-    border: '#E5E7EB',
+    border: '#E3E8EF',
     text: {
-        primary: '#111827',
-        secondary: '#6B7280',
-        tertiary: '#9CA3AF'
+        primary: '#151C26',
+        secondary: '#4B5568',
+        tertiary: '#94A3B8'
     },
     background: {
-        light: '#F9FAFB',
+        light: '#F8FFFC',
         white: '#FFFFFF'
     }
 };
@@ -125,11 +128,14 @@ const AddRouting = ({ open, onClose, onAdd }) => {
     // Add state for vendors
     const [vendors, setVendors] = useState([]);
 
+    const [currentJoint, setCurrentJoint] = useState('');
+    const [jointError, setJointError] = useState('');
+
     // Fetch vendors when dialog opens
     const fetchVendors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${BASE_URL}/api/vendors?limit=1000`, {
+            const response = await axios.get(`${BASE_URL}/api/vendors`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.data.success) {
@@ -140,22 +146,20 @@ const AddRouting = ({ open, onClose, onAdd }) => {
         }
     };
 
-    // Add to useEffect
     useEffect(() => {
         if (open) {
             fetchProcesses();
             fetchMachines();
             fetchItems();
-            fetchVendors(); // Add this
+            fetchVendors();
         }
     }, [open]);
-
 
     const [formData, setFormData] = useState({
         routing_name: '',
         routing_type: '',
-        applicable_items: [], // Store item IDs
-        version: '1.0',
+        applicable_items: [],
+        version: '',
         operations: []
     });
 
@@ -170,18 +174,13 @@ const AddRouting = ({ open, onClose, onAdd }) => {
         planned_setup_min: '',
         planned_run_min: '',
         scrap_pct: '',
-        description: ''
+        description: '',
+        requires_torque_recording: false,
+        requires_functional_test: false,
+        expected_joints: []
     });
 
-    const [selectedItems, setSelectedItems] = useState([]); // Store full item objects for display
-
-    useEffect(() => {
-        if (open) {
-            fetchProcesses();
-            fetchMachines();
-            fetchItems();
-        }
-    }, [open]);
+    const [selectedItems, setSelectedItems] = useState([]);
 
     const ROUTING_TYPE_OPTIONS = [
         'Stamping',
@@ -213,8 +212,9 @@ const AddRouting = ({ open, onClose, onAdd }) => {
     const fetchMachines = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${BASE_URL}/api/machines?page=1&limit=1000`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await axios.get(`${BASE_URL}/api/machines`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                params: { 'status': ['Active', 'Idle'] },
             });
 
             if (response.data.success) {
@@ -268,7 +268,6 @@ const AddRouting = ({ open, onClose, onAdd }) => {
 
     const handleProcessAdded = (newProcess) => {
         setProcesses(prev => [...prev, newProcess]);
-        // Optionally auto-select the newly added process
         setCurrentOperation(prev => ({
             ...prev,
             operation_id: newProcess._id,
@@ -277,42 +276,59 @@ const AddRouting = ({ open, onClose, onAdd }) => {
         }));
     };
 
-    // Handle item added from modal
     const handleItemAdded = (newItem) => {
         setItems(prev => [...prev, newItem]);
-        // Optionally auto-select the newly added item
         addApplicableItem(newItem);
     };
 
-    // Handle machine added from modal
     const handleMachineAdded = (newMachine) => {
         setMachines(prev => [...prev, newMachine]);
-        // Optionally auto-select the newly added machine
         setCurrentOperation(prev => ({
             ...prev,
             machine_id: newMachine._id
         }));
     };
 
-    // Add this function to handle machine selection
     const handleMachineSelect = (machineId) => {
         const selectedMachine = machines.find(m => m._id === machineId);
         if (selectedMachine) {
             setCurrentOperation(prev => ({
                 ...prev,
                 machine_id: selectedMachine._id,
-                work_centre: selectedMachine.work_centre || prev.work_centre // Auto-populate work_centre
+                work_centre: selectedMachine.work_centre || prev.work_centre
             }));
         }
     };
 
-    // Handle vendor added from modal
     const handleVendorAdded = (newVendor) => {
         setVendors(prev => [...prev, newVendor]);
-        // Optionally auto-select the newly added vendor
         setCurrentOperation(prev => ({
             ...prev,
             subcontract_vendor: newVendor._id
+        }));
+    };
+
+    const addJoint = () => {
+        if (!currentJoint.trim()) {
+            setJointError('Joint name is required');
+            return;
+        }
+        if (currentOperation.expected_joints.includes(currentJoint.trim())) {
+            setJointError('Joint name already exists');
+            return;
+        }
+        setCurrentOperation(prev => ({
+            ...prev,
+            expected_joints: [...prev.expected_joints, currentJoint.trim()]
+        }));
+        setCurrentJoint('');
+        setJointError('');
+    };
+
+    const removeJoint = (jointToRemove) => {
+        setCurrentOperation(prev => ({
+            ...prev,
+            expected_joints: prev.expected_joints.filter(joint => joint !== jointToRemove)
         }));
     };
 
@@ -342,6 +358,12 @@ const AddRouting = ({ open, onClose, onAdd }) => {
             return;
         }
 
+        // Validate torque recording requirements
+        if (currentOperation.requires_torque_recording && currentOperation.expected_joints.length === 0) {
+            setError('Please add at least one expected joint for torque recording');
+            return;
+        }
+
         const newOperation = {
             op_sequence: Number(currentOperation.op_sequence),
             operation_id: currentOperation.operation_id,
@@ -353,10 +375,12 @@ const AddRouting = ({ open, onClose, onAdd }) => {
             planned_setup_min: Number(currentOperation.planned_setup_min),
             planned_run_min: Number(currentOperation.planned_run_min),
             scrap_pct: Number(currentOperation.scrap_pct) || 0,
-            description: currentOperation.description || undefined
+            description: currentOperation.description || undefined,
+            requires_torque_recording: currentOperation.requires_torque_recording,
+            requires_functional_test: currentOperation.requires_functional_test,
+            expected_joints: currentOperation.expected_joints
         };
 
-        // Only add subcontract_vendor if is_subcontract is true AND vendor is selected
         if (currentOperation.is_subcontract && currentOperation.subcontract_vendor) {
             newOperation.subcontract_vendor = currentOperation.subcontract_vendor;
         }
@@ -382,8 +406,12 @@ const AddRouting = ({ open, onClose, onAdd }) => {
             planned_setup_min: '',
             planned_run_min: '',
             scrap_pct: '',
-            description: ''
+            description: '',
+            requires_torque_recording: false,
+            requires_functional_test: false,
+            expected_joints: []
         });
+        setCurrentJoint('');
         setError('');
     };
 
@@ -433,16 +461,20 @@ const AddRouting = ({ open, onClose, onAdd }) => {
                     errors.operations = 'At least one operation is required';
                     isValid = false;
                 }
-                // Validate each operation has work_centre
                 const invalidOps = formData.operations.filter(op => !op.work_centre);
                 if (invalidOps.length > 0) {
                     errors.operations = `Operations ${invalidOps.map(op => op.op_sequence).join(', ')} missing work centre`;
                     isValid = false;
                 }
-                // Validate op_sequence minimum value
                 const invalidSequenceOps = formData.operations.filter(op => op.op_sequence < 10);
                 if (invalidSequenceOps.length > 0) {
                     errors.operations = `Operation sequences ${invalidSequenceOps.map(op => op.op_sequence).join(', ')} must be at least 10`;
+                    isValid = false;
+                }
+                // Validate torque recording for operations that require it
+                const invalidTorqueOps = formData.operations.filter(op => op.requires_torque_recording && (!op.expected_joints || op.expected_joints.length === 0));
+                if (invalidTorqueOps.length > 0) {
+                    errors.operations = `Operations ${invalidTorqueOps.map(op => op.op_sequence).join(', ')} require torque recording but have no expected joints`;
                     isValid = false;
                 }
                 break;
@@ -487,21 +519,13 @@ const AddRouting = ({ open, onClose, onAdd }) => {
                 return;
             }
 
-            // Clean up operations - remove undefined values and empty strings
             const cleanedOperations = formData.operations.map(op => {
                 const cleanedOp = { ...op };
-
-                // Remove machine_id if empty
                 if (!cleanedOp.machine_id) delete cleanedOp.machine_id;
-
-                // Remove subcontract_vendor if not subcontracting or empty
                 if (!cleanedOp.is_subcontract || !cleanedOp.subcontract_vendor) {
-                    cleanedOp.subcontract_vendor = op.subcontract_vendor;
+                    delete cleanedOp.subcontract_vendor;
                 }
-
-                // Remove description if empty
-                // if (!cleanedOp.description) delete cleanedOp.description;
-
+                if (!cleanedOp.description) delete cleanedOp.description;
                 return cleanedOp;
             });
 
@@ -542,7 +566,7 @@ const AddRouting = ({ open, onClose, onAdd }) => {
             routing_name: '',
             routing_type: '',
             applicable_items: [],
-            version: '1.0',
+            version: '',
             operations: []
         });
         setSelectedItems([]);
@@ -557,8 +581,12 @@ const AddRouting = ({ open, onClose, onAdd }) => {
             planned_setup_min: '',
             planned_run_min: '',
             scrap_pct: '',
-            description: ''
+            description: '',
+            requires_torque_recording: false,
+            requires_functional_test: false,
+            expected_joints: []
         });
+        setCurrentJoint('');
         setFieldErrors({});
         setError('');
     };
@@ -678,8 +706,7 @@ const AddRouting = ({ open, onClose, onAdd }) => {
                                                     getOptionLabel={(option) => {
                                                         const partNo = option.part_no || '';
                                                         const partName = option.part_name || option.part_description || '';
-                                                        const itemNo = option.item_no || '';
-                                                        return `${partNo} - ${partName}${itemNo ? ` (${itemNo})` : ''}`.trim();
+                                                        return `${partNo} - ${partName}`.trim();
                                                     }}
                                                     onChange={(event, newValue) => {
                                                         if (newValue) {
@@ -704,24 +731,6 @@ const AddRouting = ({ open, onClose, onAdd }) => {
                                                     )}
                                                     PaperComponent={CustomPaper}
                                                     isOptionEqualToValue={(option, value) => option._id === value?._id}
-                                                    renderOption={(props, option) => {
-                                                        const { key, ...otherProps } = props;
-                                                        return (
-                                                            <li key={key} {...otherProps}>
-                                                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                                                                        {option.part_no || option.item_id}
-                                                                    </Typography>
-                                                                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
-                                                                        {option.part_name || option.part_description}
-                                                                    </Typography>
-                                                                    <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
-                                                                        Category: {option.item_category} | Role: {option.item_role}
-                                                                    </Typography>
-                                                                </Box>
-                                                            </li>
-                                                        );
-                                                    }}
                                                 />
                                             </Box>
                                             <Button
@@ -773,390 +782,473 @@ const AddRouting = ({ open, onClose, onAdd }) => {
                     </Stack>
                 );
 
-case 1:
-    return (
-        <Stack spacing={2}>
-            <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                    <BuildIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                    Operations
-                </Typography>
-
-                {/* Line 1: SEQUENCE & PROCESS */}
-                <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>
-                                SEQUENCE <span style={{ color: '#EF4444' }}>*</span>
+            case 1:
+                return (
+                    <Stack spacing={2}>
+                        <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                                <BuildIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                                Operations
                             </Typography>
-                            <TextField
-                                fullWidth
-                                type="number"
-                                size="small"
-                                name="op_sequence"
-                                value={currentOperation.op_sequence}
-                                onChange={handleOperationChange}
-                                placeholder="10, 20, 30..."
-                                sx={inputStyle}
-                            />
-                        </Box>
-                    </Grid>
 
-                    <Grid size={{ xs: 12, sm: 9 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>
-                                PROCESS <span style={{ color: '#EF4444' }}>*</span>
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            value={currentOperation.operation_id}
-                                            onChange={(e) => handleProcessSelect(e.target.value)}
-                                            displayEmpty
-                                            sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                                        >
-                                            <MenuItem value="" disabled>Select process</MenuItem>
-                                            {processes.map((process) => (
-                                                <MenuItem key={process._id} value={process._id} sx={{ fontSize: '0.75rem' }}>
-                                                    {process.process_name} ({process.process_id})
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Box>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => setOpenAddProcessModal(true)}
-                                    startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
-                                    sx={{
-                                        height: 35,
-                                        minWidth: 'auto',
-                                        px: 1.5,
-                                        borderRadius: 1.5,
-                                        border: `1px solid ${COLORS.border}`,
-                                        color: COLORS.text.secondary,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 500,
-                                        textTransform: 'none',
-                                        whiteSpace: 'nowrap',
-                                        '&:hover': {
-                                            borderColor: COLORS.primary,
-                                            bgcolor: `${COLORS.primary}10`,
-                                            color: COLORS.primary
-                                        }
-                                    }}
-                                >
-                                    Add New
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Grid>
-                </Grid>
-
-                {/* Line 2: WORK CENTRE & MACHINE */}
-                <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>MACHINE</Typography>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            value={currentOperation.machine_id}
-                                            onChange={(e) => handleMachineSelect(e.target.value)}
-                                            name="machine_id"
-                                            displayEmpty
-                                            sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                                        >
-                                            <MenuItem value="" disabled>Select machine (optional)</MenuItem>
-                                            {machines.map((machine) => (
-                                                <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
-                                                    {machine.machine_name} ({machine.machine_code})
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Box>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => setOpenAddMachineModal(true)}
-                                    startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
-                                    sx={{
-                                        height: 35,
-                                        minWidth: 'auto',
-                                        px: 1.5,
-                                        borderRadius: 1.5,
-                                        border: `1px solid ${COLORS.border}`,
-                                        color: COLORS.text.secondary,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 500,
-                                        textTransform: 'none',
-                                        whiteSpace: 'nowrap',
-                                        '&:hover': {
-                                            borderColor: COLORS.primary,
-                                            bgcolor: `${COLORS.primary}10`,
-                                            color: COLORS.primary
-                                        }
-                                    }}
-                                >
-                                    Add New
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>
-                                WORK CENTRE <span style={{ color: '#EF4444' }}>*</span>
-                            </Typography>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                name="work_centre"
-                                value={currentOperation.work_centre}
-                                onChange={handleOperationChange}
-                                placeholder="Enter work centre"
-                                sx={inputStyle}
-                                disabled
-                            />
-                        </Box>
-                    </Grid>
-
-                </Grid>
-
-                {/* Line 3: SETUP TIME & RUN TIME */}
-                <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>
-                                SETUP TIME (min) <span style={{ color: '#EF4444' }}>*</span>
-                            </Typography>
-                            <TextField
-                                fullWidth
-                                type="number"
-                                size="small"
-                                name="planned_setup_min"
-                                value={currentOperation.planned_setup_min}
-                                onChange={handleOperationChange}
-                                placeholder="e.g., 15"
-                                sx={inputStyle}
-                            />
-                        </Box>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>
-                                RUN TIME (min/unit) <span style={{ color: '#EF4444' }}>*</span>
-                            </Typography>
-                            <TextField
-                                fullWidth
-                                type="number"
-                                size="small"
-                                name="planned_run_min"
-                                value={currentOperation.planned_run_min}
-                                onChange={handleOperationChange}
-                                placeholder="e.g., 2.5"
-                                sx={inputStyle}
-                            />
-                        </Box>
-                    </Grid>
-                </Grid>
-
-                {/* Line 4: SCRAP % & DESCRIPTION */}
-                <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>SCRAP %</Typography>
-                            <TextField
-                                fullWidth
-                                type="number"
-                                size="small"
-                                name="scrap_pct"
-                                value={currentOperation.scrap_pct}
-                                onChange={handleOperationChange}
-                                placeholder="0"
-                                sx={inputStyle}
-                            />
-                        </Box>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 9 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography sx={labelStyle}>DESCRIPTION</Typography>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                name="description"
-                                value={currentOperation.description}
-                                onChange={handleOperationChange}
-                                placeholder="Operation description"
-                                sx={inputStyle}
-                            />
-                        </Box>
-                    </Grid>
-                </Grid>
-
-                {/* Line 5: Is Subcontract (if yes Vendor) */}
-                <Grid container spacing={1.5} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 12 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <input
-                                    type="checkbox"
-                                    name="is_subcontract"
-                                    checked={currentOperation.is_subcontract}
-                                    onChange={handleOperationChange}
-                                    style={{ margin: 0 }}
-                                />
-                                <Typography sx={{ fontSize: '0.7rem' }}>Is Subcontract</Typography>
-                            </Box>
-                            {currentOperation.is_subcontract && (
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1 }}>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Autocomplete
-                                            options={vendors}
-                                            getOptionLabel={(option) => {
-                                                return `${option.vendor_name} (${option.vendor_code})`;
-                                            }}
-                                            onChange={(event, newValue) => {
-                                                setCurrentOperation(prev => ({
-                                                    ...prev,
-                                                    subcontract_vendor: newValue?._id || ''
-                                                }));
-                                            }}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    size="small"
-                                                    placeholder="Select vendor"
-                                                    sx={inputStyle}
-                                                />
-                                            )}
-                                            renderOption={(props, option) => {
-                                                const { key, ...otherProps } = props;
-                                                return (
-                                                    <li key={key} {...otherProps}>
-                                                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                                                                {option.vendor_name}
-                                                            </Typography>
-                                                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
-                                                                Code: {option.vendor_code} | GST: {option.gstin}
-                                                            </Typography>
-                                                            <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
-                                                                Type: {option.vendor_type} | Category: {option.supply_category?.join(', ')}
-                                                            </Typography>
-                                                        </Box>
-                                                    </li>
-                                                );
-                                            }}
-                                            PaperComponent={CustomPaper}
-                                            isOptionEqualToValue={(option, value) => option._id === value?._id}
-                                            noOptionsText="No vendors found"
+                            {/* Line 1: SEQUENCE & PROCESS */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>
+                                            SEQUENCE <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            size="small"
+                                            name="op_sequence"
+                                            value={currentOperation.op_sequence}
+                                            onChange={handleOperationChange}
+                                            placeholder="10, 20, 30..."
+                                            sx={inputStyle}
                                         />
                                     </Box>
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        onClick={() => setOpenAddVendorModal(true)}
-                                        startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
-                                        sx={{
-                                            height: 35,
-                                            minWidth: 'auto',
-                                            px: 1.5,
-                                            borderRadius: 1.5,
-                                            border: `1px solid ${COLORS.border}`,
-                                            color: COLORS.text.secondary,
-                                            fontSize: '0.7rem',
-                                            fontWeight: 500,
-                                            textTransform: 'none',
-                                            whiteSpace: 'nowrap',
-                                            '&:hover': {
-                                                borderColor: COLORS.primary,
-                                                bgcolor: `${COLORS.primary}10`,
-                                                color: COLORS.primary
+                                </Grid>
+
+                                <Grid size={{ xs: 12, sm: 9 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>
+                                            PROCESS <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                            <Box sx={{ flex: 1 }}>
+                                                <FormControl fullWidth size="small">
+                                                    <Select
+                                                        value={currentOperation.operation_id}
+                                                        onChange={(e) => handleProcessSelect(e.target.value)}
+                                                        displayEmpty
+                                                        sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+                                                    >
+                                                        <MenuItem value="" disabled>Select process</MenuItem>
+                                                        {processes.map((process) => (
+                                                            <MenuItem key={process._id} value={process._id} sx={{ fontSize: '0.75rem' }}>
+                                                                {process.process_name} ({process.process_id})
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </Box>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={() => setOpenAddProcessModal(true)}
+                                                startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                                                sx={{
+                                                    height: 35,
+                                                    minWidth: 'auto',
+                                                    px: 1.5,
+                                                    borderRadius: 1.5,
+                                                    border: `1px solid ${COLORS.border}`,
+                                                    color: COLORS.text.secondary,
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 500,
+                                                    textTransform: 'none',
+                                                    whiteSpace: 'nowrap',
+                                                    '&:hover': {
+                                                        borderColor: COLORS.primary,
+                                                        bgcolor: `${COLORS.primary}10`,
+                                                        color: COLORS.primary
+                                                    }
+                                                }}
+                                            >
+                                                Add New
+                                            </Button>
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                            </Grid>
+
+                            {/* Line 2: WORK CENTRE & MACHINE */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>MACHINE</Typography>
+                                        <FormControl fullWidth size="small">
+                                            <Select
+                                                value={currentOperation.machine_id}
+                                                onChange={(e) => handleMachineSelect(e.target.value)}
+                                                name="machine_id"
+                                                displayEmpty
+                                                sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+                                            >
+                                                <MenuItem value="" disabled>Select machine (optional)</MenuItem>
+                                                {machines.map((machine) => (
+                                                    <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
+                                                        {machine.machine_name} ({machine.machine_code})
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    </Box>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>
+                                            WORK CENTRE <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            name="work_centre"
+                                            value={currentOperation.work_centre}
+                                            onChange={handleOperationChange}
+                                            placeholder="Enter work centre"
+                                            sx={inputStyle}
+                                            disabled
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+
+                            {/* Line 3: SETUP TIME & RUN TIME */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>
+                                            SETUP TIME (min) <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            size="small"
+                                            name="planned_setup_min"
+                                            value={currentOperation.planned_setup_min}
+                                            onChange={handleOperationChange}
+                                            placeholder="e.g., 15"
+                                            sx={inputStyle}
+                                        />
+                                    </Box>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>
+                                            RUN TIME (min/unit) <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            size="small"
+                                            name="planned_run_min"
+                                            value={currentOperation.planned_run_min}
+                                            onChange={handleOperationChange}
+                                            placeholder="e.g., 2.5"
+                                            sx={inputStyle}
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+
+                            {/* Line 4: SCRAP % & DESCRIPTION */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>SCRAP %</Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            size="small"
+                                            name="scrap_pct"
+                                            value={currentOperation.scrap_pct}
+                                            onChange={handleOperationChange}
+                                            placeholder="0"
+                                            sx={inputStyle}
+                                        />
+                                    </Box>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, sm: 9 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={labelStyle}>DESCRIPTION</Typography>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            name="description"
+                                            value={currentOperation.description}
+                                            onChange={handleOperationChange}
+                                            placeholder="Operation description"
+                                            sx={inputStyle}
+                                        />
+                                    </Box>
+                                </Grid>
+                            </Grid>
+
+                            {/* Line 5: Quality Requirements - Torque Recording & Functional Test */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                                        <Stack spacing={1.5}>
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch
+                                                        checked={currentOperation.requires_torque_recording}
+                                                        onChange={handleOperationChange}
+                                                        name="requires_torque_recording"
+                                                        size="small"
+                                                        sx={{
+                                                            '& .MuiSwitch-switchBase.Mui-checked': {
+                                                                color: COLORS.primary,
+                                                            },
+                                                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                                backgroundColor: COLORS.primary,
+                                                            },
+                                                        }}
+                                                    />
+                                                }
+                                                label={
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <BoltIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                                            Requires Torque Recording
+                                                        </Typography>
+                                                    </Box>
+                                                }
+                                            />
+
+                                            {currentOperation.requires_torque_recording && (
+                                                <Box>
+                                                    <Typography sx={{ ...labelStyle, mb: 1 }}>
+                                                        EXPECTED JOINTS <span style={{ color: '#EF4444' }}>*</span>
+                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                                                        <TextField
+                                                            size="small"
+                                                            value={currentJoint}
+                                                            onChange={(e) => {
+                                                                setCurrentJoint(e.target.value);
+                                                                setJointError('');
+                                                            }}
+                                                            placeholder="e.g., Phase A, Phase B, Earth"
+                                                            error={!!jointError}
+                                                            helperText={jointError}
+                                                            sx={{ flex: 1, ...inputStyle }}
+                                                        />
+                                                        <Button
+                                                            variant="outlined"
+                                                            size="small"
+                                                            onClick={addJoint}
+                                                            startIcon={<AddIcon sx={{ fontSize: '0.8rem' }} />}
+                                                            sx={{ height: 35, px: 1.5, borderRadius: 1.5, fontSize: '0.7rem', textTransform: 'none' }}
+                                                        >
+                                                            Add
+                                                        </Button>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                        {currentOperation.expected_joints.map((joint, idx) => (
+                                                            <Chip
+                                                                key={idx}
+                                                                label={joint}
+                                                                onDelete={() => removeJoint(joint)}
+                                                                size="small"
+                                                                sx={{ bgcolor: COLORS.background.white, fontSize: '0.65rem', height: 26 }}
+                                                            />
+                                                        ))}
+                                                        {currentOperation.expected_joints.length === 0 && (
+                                                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, fontStyle: 'italic' }}>
+                                                                No joints added. Add at least one joint for torque recording.
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            )}
+                                        </Stack>
+                                    </Paper>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1.5 }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={currentOperation.requires_functional_test}
+                                                    onChange={handleOperationChange}
+                                                    name="requires_functional_test"
+                                                    size="small"
+                                                    sx={{
+                                                        '& .MuiSwitch-switchBase.Mui-checked': {
+                                                            color: COLORS.primary,
+                                                        },
+                                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                            backgroundColor: COLORS.primary,
+                                                        },
+                                                    }}
+                                                />
                                             }
-                                        }}
-                                    >
-                                        Add New
-                                    </Button>
-                                </Box>
+                                            label={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <ScienceIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                                        Requires Functional Test
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </Paper>
+                                </Grid>
+                            </Grid>
+
+                            {/* Line 6: Is Subcontract (if yes Vendor) */}
+                            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                                <Grid size={{ xs: 12 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={currentOperation.is_subcontract}
+                                                    onChange={handleOperationChange}
+                                                    name="is_subcontract"
+                                                    size="small"
+                                                />
+                                            }
+                                            label={<Typography sx={{ fontSize: '0.7rem' }}>Is Subcontract</Typography>}
+                                        />
+                                        {currentOperation.is_subcontract && (
+                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1 }}>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Autocomplete
+                                                        options={vendors}
+                                                        getOptionLabel={(option) => `${option.vendor_name} (${option.vendor_code})`}
+                                                        onChange={(event, newValue) => {
+                                                            setCurrentOperation(prev => ({
+                                                                ...prev,
+                                                                subcontract_vendor: newValue?._id || ''
+                                                            }));
+                                                        }}
+                                                        renderInput={(params) => (
+                                                            <TextField
+                                                                {...params}
+                                                                size="small"
+                                                                placeholder="Select vendor"
+                                                                sx={inputStyle}
+                                                            />
+                                                        )}
+                                                        PaperComponent={CustomPaper}
+                                                        isOptionEqualToValue={(option, value) => option._id === value?._id}
+                                                    />
+                                                </Box>
+                                                <Button
+                                                    variant="outlined"
+                                                    size="small"
+                                                    onClick={() => setOpenAddVendorModal(true)}
+                                                    startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+                                                    sx={{
+                                                        height: 35,
+                                                        minWidth: 'auto',
+                                                        px: 1.5,
+                                                        borderRadius: 1.5,
+                                                        border: `1px solid ${COLORS.border}`,
+                                                        color: COLORS.text.secondary,
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 500,
+                                                        textTransform: 'none',
+                                                        whiteSpace: 'nowrap',
+                                                        '&:hover': {
+                                                            borderColor: COLORS.primary,
+                                                            bgcolor: `${COLORS.primary}10`,
+                                                            color: COLORS.primary
+                                                        }
+                                                    }}
+                                                >
+                                                    Add New
+                                                </Button>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Grid>
+                            </Grid>
+
+                            {/* Add Operation Button */}
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={addOperation}
+                                    startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                                    sx={{ height: 36, px: 3, borderRadius: 1.5, fontSize: '0.75rem', textTransform: 'none' }}
+                                >
+                                    Add Operation
+                                </Button>
+                            </Box>
+
+                            {/* Operations Table */}
+                            {formData.operations.length > 0 && (
+                                <TableContainer component={Paper} sx={{ mt: 3, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow sx={{ bgcolor: COLORS.background.light }}>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Seq</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Operation</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Work Centre</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Machine</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Setup</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Run</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Torque</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Test</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', width: 50 }}>Actions</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {formData.operations.map((op, index) => (
+                                                <TableRow key={index}>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>{op.op_sequence}</TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>{op.operation_name}</TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>{op.work_centre || '-'}</TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>
+                                                        {machines.find(m => m._id === op.machine_id)?.machine_name || '-'}
+                                                    </TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_setup_min}</TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_run_min}</TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>
+                                                        {op.requires_torque_recording ? (
+                                                            <Chip 
+                                                                label="Yes" 
+                                                                size="small" 
+                                                                sx={{ fontSize: '0.6rem', height: 20, bgcolor: COLORS.primary, color: '#fff' }} 
+                                                            />
+                                                        ) : '-'}
+                                                    </TableCell>
+                                                    <TableCell sx={{ fontSize: '0.7rem' }}>
+                                                        {op.requires_functional_test ? (
+                                                            <Chip 
+                                                                label="Yes" 
+                                                                size="small" 
+                                                                sx={{ fontSize: '0.6rem', height: 20, bgcolor: COLORS.success, color: '#fff' }} 
+                                                            />
+                                                        ) : '-'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <IconButton size="small" onClick={() => removeOperation(index)} sx={{ color: COLORS.error }}>
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
                             )}
-                        </Box>
-                    </Grid>
-                </Grid>
 
-                {/* Add Operation Button */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                    <Button
-                        variant="contained"
-                        onClick={addOperation}
-                        startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                        sx={{ height: 36, px: 3, borderRadius: 1.5, fontSize: '0.75rem', textTransform: 'none' }}
-                    >
-                        Add Operation
-                    </Button>
-                </Box>
-
-                {/* Operations Table */}
-                {formData.operations.length > 0 && (
-                    <TableContainer component={Paper} sx={{ mt: 3, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow sx={{ bgcolor: COLORS.background.light }}>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Seq</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Operation</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Work Centre</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Machine</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Setup (min)</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Run (min)</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem' }}>Scrap %</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', width: 50 }}>Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {formData.operations.map((op, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.op_sequence}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.operation_name}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.work_centre || '-'}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>
-                                            {machines.find(m => m._id === op.machine_id)?.machine_name || '-'}
-                                        </TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_setup_min}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_run_min}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.7rem' }}>{op.scrap_pct}%</TableCell>
-                                        <TableCell>
-                                            <IconButton size="small" onClick={() => removeOperation(index)} sx={{ color: COLORS.error }}>
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                )}
-
-                {fieldErrors.operations && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 1 }}>
-                        {fieldErrors.operations}
-                    </Typography>
-                )}
-            </Paper>
-        </Stack>
-    );
+                            {fieldErrors.operations && (
+                                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 1 }}>
+                                    {fieldErrors.operations}
+                                </Typography>
+                            )}
+                        </Paper>
+                    </Stack>
+                );
 
             case 2:
                 const totalOperations = formData.operations.length;
                 const totalSetupTime = formData.operations.reduce((sum, op) => sum + (op.planned_setup_min || 0), 0);
                 const totalRunTime = formData.operations.reduce((sum, op) => sum + (op.planned_run_min || 0), 0);
+                const torqueOps = formData.operations.filter(op => op.requires_torque_recording).length;
+                const testOps = formData.operations.filter(op => op.requires_functional_test).length;
 
                 return (
                     <Stack spacing={2}>
@@ -1210,9 +1302,7 @@ case 1:
                                             <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Operations:</Typography>
                                         </Grid>
                                         <Grid size={{ xs: 6 }}>
-                                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: '#059669' }}>
-                                                {totalOperations}
-                                            </Typography>
+                                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: '#059669' }}>{totalOperations}</Typography>
                                         </Grid>
                                         <Grid size={{ xs: 6 }}>
                                             <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Setup Time:</Typography>
@@ -1225,6 +1315,18 @@ case 1:
                                         </Grid>
                                         <Grid size={{ xs: 6 }}>
                                             <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{totalRunTime} min/unit</Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Torque Recording Ops:</Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{torqueOps}</Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Functional Test Ops:</Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{testOps}</Typography>
                                         </Grid>
                                     </Grid>
                                 </Paper>
@@ -1242,6 +1344,8 @@ case 1:
                                                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Operation</TableCell>
                                                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Setup</TableCell>
                                                         <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Run</TableCell>
+                                                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Torque</TableCell>
+                                                        <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Test</TableCell>
                                                     </TableRow>
                                                 </TableHead>
                                                 <TableBody>
@@ -1251,6 +1355,8 @@ case 1:
                                                             <TableCell sx={{ fontSize: '0.7rem' }}>{op.operation_name}</TableCell>
                                                             <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_setup_min} min</TableCell>
                                                             <TableCell sx={{ fontSize: '0.7rem' }}>{op.planned_run_min} min</TableCell>
+                                                            <TableCell sx={{ fontSize: '0.7rem' }}>{op.requires_torque_recording ? 'Yes' : '-'}</TableCell>
+                                                            <TableCell sx={{ fontSize: '0.7rem' }}>{op.requires_functional_test ? 'Yes' : '-'}</TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
@@ -1410,6 +1516,7 @@ case 1:
                     )}
                 </Box>
             </DialogActions>
+
             {/* Add Item Modal */}
             <AddItem
                 open={openAddItemModal}
@@ -1437,7 +1544,6 @@ case 1:
                 onClose={() => setOpenAddProcessModal(false)}
                 onAdd={handleProcessAdded}
             />
-
         </Dialog>
     );
 };

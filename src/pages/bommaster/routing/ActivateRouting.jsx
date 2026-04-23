@@ -14,7 +14,8 @@ import {
   IconButton,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  Tooltip
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -23,25 +24,29 @@ import {
   ThumbUp as ThumbUpIcon,
   Route as RouteIcon,
   Verified as VerifiedIcon,
-  PlayArrow as PlayArrowIcon
+  PlayArrow as PlayArrowIcon,
+  Build as BuildIcon,
+  Science as ScienceIcon,
+  Bolt as BoltIcon,
+  Inventory as InventoryIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
 const COLORS = {
-  primary: '#1976D2',
-  primaryDark: '#1565C0',
+  primary: '#063C3F',
+  primaryDark: '#05292B',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
-  border: '#E5E7EB',
+  border: '#E3E8EF',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF'
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
   },
   background: {
-    light: '#F9FAFB',
+    light: '#F8FFFC',
     white: '#FFFFFF'
   }
 };
@@ -103,12 +108,10 @@ const ActivateRouting = ({ open, onClose, routing, onActivate }) => {
         setSuccess(true);
         setActivationData(response.data.data);
         
-        // Call onActivate callback if provided
         if (onActivate) {
           onActivate(response.data.data);
         }
         
-        // Auto close after 2 seconds on success
         setTimeout(() => {
           handleClose();
         }, 2000);
@@ -133,6 +136,9 @@ const ActivateRouting = ({ open, onClose, routing, onActivate }) => {
   const totalOperations = routing.operations?.length || 0;
   const totalSetupTime = routing.operations?.reduce((sum, op) => sum + (op.planned_setup_min || 0), 0) || 0;
   const totalRunTime = routing.operations?.reduce((sum, op) => sum + (op.planned_run_min || 0), 0) || 0;
+  const torqueOpsCount = routing.operations?.filter(op => op.requires_torque_recording).length || 0;
+  const testOpsCount = routing.operations?.filter(op => op.requires_functional_test).length || 0;
+  const totalJoints = routing.operations?.reduce((sum, op) => sum + (op.expected_joints?.length || 0), 0) || 0;
 
   return (
     <Dialog
@@ -302,25 +308,68 @@ const ActivateRouting = ({ open, onClose, routing, onActivate }) => {
               </Grid>
             </Paper>
 
+            {/* Quality Requirements Summary */}
+            {(torqueOpsCount > 0 || testOpsCount > 0) && (
+              <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <ScienceIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Quality Requirements
+                </Typography>
+                <Grid container spacing={1.5}>
+                  {torqueOpsCount > 0 && (
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <BoltIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+                          Torque Recording
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        Operations: {torqueOpsCount} | Joints: {totalJoints}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {testOpsCount > 0 && (
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <ScienceIcon sx={{ fontSize: '0.9rem', color: COLORS.success }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.success }}>
+                          Functional Test
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                        Operations: {testOpsCount}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            )}
+
             {/* Operations Summary */}
             <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <BuildIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Operations Summary
               </Typography>
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Operations</Typography>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primary }}>
                     {totalOperations}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Setup Time</Typography>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{totalSetupTime} min</Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Total Run Time</Typography>
                   <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{totalRunTime} min/unit</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Torque Ops</Typography>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: COLORS.primary }}>{torqueOpsCount}</Typography>
                 </Grid>
               </Grid>
             </Paper>
@@ -329,23 +378,134 @@ const ActivateRouting = ({ open, onClose, routing, onActivate }) => {
             {routing.operations && routing.operations.length > 0 && (
               <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <BuildIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                   Operation Sequence
                 </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ gap: 1 }}>
                   {routing.operations
                     .sort((a, b) => a.op_sequence - b.op_sequence)
-                    .map((op, index) => (
-                      <Chip
-                        key={index}
-                        label={`${op.op_sequence}. ${typeof op.operation_id === 'object' ? op.operation_id.process_name : op.operation_name}`}
-                        size="small"
-                        sx={{ 
-                          fontSize: '0.65rem', 
-                          bgcolor: COLORS.background.white,
-                          border: `1px solid ${COLORS.border}`
-                        }}
-                      />
+                    .map((op, index) => {
+                      const hasTorque = op.requires_torque_recording;
+                      const hasTest = op.requires_functional_test;
+                      return (
+                        <Tooltip
+                          key={index}
+                          title={
+                            <Box>
+                              <Typography variant="caption" display="block">
+                                Setup: {op.planned_setup_min} min | Run: {op.planned_run_min} min
+                              </Typography>
+                              {hasTorque && (
+                                <Typography variant="caption" display="block" sx={{ color: '#FFD700' }}>
+                                  🔩 Torque: {op.expected_joints?.join(', ') || 'No joints'}
+                                </Typography>
+                              )}
+                              {hasTest && (
+                                <Typography variant="caption" display="block" sx={{ color: '#90EE90' }}>
+                                  🧪 Functional Test Required
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          arrow
+                          placement="top"
+                        >
+                          <Chip
+                            label={`${op.op_sequence}. ${typeof op.operation_id === 'object' ? op.operation_id.process_name : op.operation_name}`}
+                            size="small"
+                            sx={{ 
+                              fontSize: '0.65rem', 
+                              bgcolor: COLORS.background.white,
+                              border: `1px solid ${COLORS.border}`,
+                              ...(hasTorque && {
+                                borderLeft: `3px solid ${COLORS.primary}`,
+                              }),
+                              ...(hasTest && {
+                                borderRight: `3px solid ${COLORS.success}`,
+                              })
+                            }}
+                          />
+                        </Tooltip>
+                      );
+                    })}
+                </Stack>
+                {(torqueOpsCount > 0 || testOpsCount > 0) && (
+                  <Box sx={{ mt: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    {torqueOpsCount > 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <BoltIcon sx={{ fontSize: '0.7rem', color: COLORS.primary }} />
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Blue border = Torque Recording
+                        </Typography>
+                      </Box>
+                    )}
+                    {testOpsCount > 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <ScienceIcon sx={{ fontSize: '0.7rem', color: COLORS.success }} />
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Green border = Functional Test
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Paper>
+            )}
+
+            {/* Expected Joints Details (if any) */}
+            {torqueOpsCount > 0 && routing.operations?.some(op => op.expected_joints?.length > 0) && (
+              <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <BoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Torque Recording Joints
+                </Typography>
+                <Stack spacing={1}>
+                  {routing.operations
+                    .filter(op => op.requires_torque_recording && op.expected_joints?.length > 0)
+                    .map((op, idx) => (
+                      <Box key={idx}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                          Op {op.op_sequence}: {typeof op.operation_id === 'object' ? op.operation_id.process_name : op.operation_name}
+                        </Typography>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          {op.expected_joints.map((joint, jIdx) => (
+                            <Chip
+                              key={jIdx}
+                              label={joint}
+                              size="small"
+                              sx={{ fontSize: '0.6rem', height: 22, bgcolor: COLORS.background.white }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
                     ))}
+                </Stack>
+              </Paper>
+            )}
+
+            {/* Applicable Items Preview */}
+            {routing.applicable_items && routing.applicable_items.length > 0 && (
+              <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                  <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Applicable Items ({routing.applicable_items.length})
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ gap: 1 }}>
+                  {routing.applicable_items.slice(0, 5).map((item, index) => (
+                    <Chip
+                      key={index}
+                      label={item.part_no || item.item_id || 'Item'}
+                      size="small"
+                      sx={{ fontSize: '0.65rem', bgcolor: COLORS.background.white }}
+                    />
+                  ))}
+                  {routing.applicable_items.length > 5 && (
+                    <Chip
+                      label={`+${routing.applicable_items.length - 5} more`}
+                      size="small"
+                      sx={{ fontSize: '0.65rem', bgcolor: COLORS.background.white }}
+                    />
+                  )}
                 </Stack>
               </Paper>
             )}

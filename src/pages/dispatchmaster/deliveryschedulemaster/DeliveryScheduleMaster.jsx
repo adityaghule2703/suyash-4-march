@@ -253,6 +253,7 @@ const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 2,
         px: 3,
+        mb: 2,
         bgcolor: COLORS.background.white
       }}>
         <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>

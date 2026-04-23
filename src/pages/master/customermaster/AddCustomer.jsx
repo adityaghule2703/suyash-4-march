@@ -978,30 +978,6 @@ const AddCustomer = ({ open, onClose, onAdd }) => {
                     </Box>
                   </Grid>
 
-                  <Grid size={{ xs: 12 }}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.is_sez}
-                            onChange={(e) => setFormData(prev => ({ ...prev, is_sez: e.target.checked }))}
-                            size="small"
-                          />
-                        }
-                        label={<Typography sx={{ fontSize: '0.75rem' }}>SEZ Unit</Typography>}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.is_export}
-                            onChange={(e) => setFormData(prev => ({ ...prev, is_export: e.target.checked }))}
-                            size="small"
-                          />
-                        }
-                        label={<Typography sx={{ fontSize: '0.75rem' }}>Export Customer</Typography>}
-                      />
-                    </Box>
-                  </Grid>
                 </Grid>
               </Paper>
             </Stack>

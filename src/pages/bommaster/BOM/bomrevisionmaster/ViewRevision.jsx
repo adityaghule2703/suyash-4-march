@@ -156,7 +156,7 @@ const ViewRevision = ({ open, onClose, bomId, revisionNo }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
@@ -356,7 +356,7 @@ const ViewRevision = ({ open, onClose, bomId, revisionNo }) => {
                 Revision Metadata
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                {/* <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <PersonIcon sx={{ fontSize: '0.9rem', color: COLORS.text.secondary }} />
                     <Box>
@@ -366,7 +366,7 @@ const ViewRevision = ({ open, onClose, bomId, revisionNo }) => {
                       </Typography>
                     </Box>
                   </Box>
-                </Grid>
+                </Grid> */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <DateIcon sx={{ fontSize: '0.9rem', color: COLORS.text.secondary }} />

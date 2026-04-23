@@ -46,7 +46,9 @@ import {
     Factory as MachineIcon,
     Assignment as WOrderIcon,
     Close as CloseIcon,
-    ReportProblem as ConflictIcon
+    ReportProblem as ConflictIcon,
+    Cancel as CancelIcon,
+    EventRepeat as EventRepeatIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -54,6 +56,10 @@ import AddProductionSchedule from './AddProductionSchedule';
 import EditProductionSchedule from './EditProductionSchedule';
 import CompleteProductionSchedule from './CompleteProductionSchedule';
 import ViewProductionSchedule from './ViewProductionSchedule';
+import ConfirmedProductionSchedule from './ConfirmedProdutionSchedule';
+import StartProductionSchedule from './StartProductionSchedule';
+import CancelProductionSchedule from './CancelProductionSchedule';
+import PostponeProductionSchedule from './PostpondProductionSchedule';
 
 const COLORS = {
     primary: '#063C3F',
@@ -79,12 +85,28 @@ const COLORS = {
 };
 
 const SHIFT_OPTIONS = ['All', 'General', 'Morning', 'Evening', 'Night'];
-const STATUS_OPTIONS = ['All', 'Planned', 'In Progress', 'Completed', 'Cancelled'];
+const STATUS_OPTIONS = ['All', 'Planned', 'Confirmed', 'In Progress', 'Completed', 'Cancelled', 'Postponed'];
 
 // Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onComplete }) => {
+const ActionMenu = ({ 
+    item, 
+    anchorEl, 
+    onOpen, 
+    onClose, 
+    onView, 
+    onEdit, 
+    onConfirm,
+    onStart,
+    onComplete,
+    onCancel,
+    onPostpone
+}) => {
+    const canConfirm = item?.status === 'Planned';
+    const canStart = item?.status === 'Confirmed';
     const canComplete = item?.status === 'In Progress';
-    const canReschedule = item?.status !== 'Completed'; 
+    const canCancel = ['Planned', 'Confirmed', 'Postponed'].includes(item?.status);
+    const canPostpone = ['Planned', 'Confirmed', 'In Progress'].includes(item?.status);
+    const canEdit = item?.status !== 'Completed' && item?.status !== 'Cancelled';
 
     return (
         <>
@@ -93,7 +115,21 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onComplet
                     <MoreVertIcon fontSize="small" />
                 </IconButton>
             </Tooltip>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose} PaperProps={{ elevation: 3, sx: { mt: 1, minWidth: 180, borderRadius: 2, border: `1px solid ${COLORS.border}`, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' } }}>
+            <Menu 
+                anchorEl={anchorEl} 
+                open={Boolean(anchorEl)} 
+                onClose={onClose} 
+                PaperProps={{ 
+                    elevation: 3, 
+                    sx: { 
+                        mt: 1, 
+                        minWidth: 200, 
+                        borderRadius: 2, 
+                        border: `1px solid ${COLORS.border}`, 
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+                    } 
+                }}
+            >
                 {/* View Details */}
                 <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
                     <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -106,17 +142,33 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onComplet
                     </ListItemText>
                 </MenuItem>
 
-                {/* Reschedule (Edit) */}
-                <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-                    <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>
-                        <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                            Reschedule
-                        </Typography>
-                    </ListItemText>
-                </MenuItem>
+                {/* Confirm - Only for Planned status */}
+                {canConfirm && (
+                    <MenuItem onClick={() => { onConfirm(item); onClose(); }} sx={{ py: 1.5 }}>
+                        <ListItemIcon sx={{ color: '#059669', minWidth: 36 }}>
+                            <CheckCircleIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>
+                            <Typography variant="body2" fontWeight={500} sx={{ color: '#059669', fontSize: '0.75rem' }}>
+                                Confirm Schedule
+                            </Typography>
+                        </ListItemText>
+                    </MenuItem>
+                )}
+
+                {/* Start Production - Only for Confirmed status */}
+                {canStart && (
+                    <MenuItem onClick={() => { onStart(item); onClose(); }} sx={{ py: 1.5 }}>
+                        <ListItemIcon sx={{ color: '#0284C7', minWidth: 36 }}>
+                            <PlayArrowIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>
+                            <Typography variant="body2" fontWeight={500} sx={{ color: '#0284C7', fontSize: '0.75rem' }}>
+                                Start Production
+                            </Typography>
+                        </ListItemText>
+                    </MenuItem>
+                )}
 
                 {/* Complete - Only for In Progress status */}
                 {canComplete && (
@@ -126,10 +178,55 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onComplet
                         </ListItemIcon>
                         <ListItemText>
                             <Typography variant="body2" fontWeight={500} sx={{ color: '#059669', fontSize: '0.75rem' }}>
-                                Complete
+                                Complete Production
                             </Typography>
                         </ListItemText>
                     </MenuItem>
+                )}
+
+                {/* Reschedule (Edit) - Only if not completed or cancelled */}
+                {canEdit && (
+                    <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+                        <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+                            <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>
+                            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                                Reschedule
+                            </Typography>
+                        </ListItemText>
+                    </MenuItem>
+                )}
+
+                {/* Postpone - Only for Planned, Confirmed, or In Progress */}
+                {canPostpone && (
+                    <MenuItem onClick={() => { onPostpone(item); onClose(); }} sx={{ py: 1.5 }}>
+                        <ListItemIcon sx={{ color: '#D97706', minWidth: 36 }}>
+                            <EventRepeatIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>
+                            <Typography variant="body2" fontWeight={500} sx={{ color: '#D97706', fontSize: '0.75rem' }}>
+                                Postpone Schedule
+                            </Typography>
+                        </ListItemText>
+                    </MenuItem>
+                )}
+
+                {/* Cancel - Only for Planned, Confirmed, or Postponed */}
+                {canCancel && (
+                    <>
+                        <Divider />
+                        <MenuItem onClick={() => { onCancel(item); onClose(); }} sx={{ py: 1.5 }}>
+                            <ListItemIcon sx={{ color: COLORS.error, minWidth: 36 }}>
+                                <CancelIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>
+                                <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.error, fontSize: '0.75rem' }}>
+                                    Cancel Schedule
+                                </Typography>
+                            </ListItemText>
+                        </MenuItem>
+                    </>
                 )}
             </Menu>
         </>
@@ -164,8 +261,11 @@ const ProductionScheduleMaster = () => {
     const [openAddModal, setOpenAddModal] = useState(false);
     const [openViewModal, setOpenViewModal] = useState(false);
     const [openEditModal, setOpenEditModal] = useState(false);
-    const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
-    const [openConflictModal, setOpenConflictModal] = useState(false);
+    const [openConfirmModal, setOpenConfirmModal] = useState(false);
+    const [openStartModal, setOpenStartModal] = useState(false);
+    const [openCompleteModal, setOpenCompleteModal] = useState(false);
+    const [openCancelModal, setOpenCancelModal] = useState(false);
+    const [openPostponeModal, setOpenPostponeModal] = useState(false);
 
     // Debounce search
     useEffect(() => {
@@ -275,9 +375,29 @@ const ProductionScheduleMaster = () => {
         showNotification('Production schedule rescheduled successfully!', 'success');
     };
 
+    const handleConfirmSuccess = () => {
+        fetchSchedules();
+        showNotification('Production schedule confirmed successfully!', 'success');
+    };
+
+    const handleStartSuccess = () => {
+        fetchSchedules();
+        showNotification('Production started successfully!', 'success');
+    };
+
     const handleCompleteSuccess = () => {
         fetchSchedules();
         showNotification('Production completed successfully!', 'success');
+    };
+
+    const handleCancelSuccess = () => {
+        fetchSchedules();
+        showNotification('Production schedule cancelled successfully!', 'success');
+    };
+
+    const handlePostponeSuccess = () => {
+        fetchSchedules();
+        showNotification('Production schedule postponed successfully!', 'success');
     };
 
     const handleActionMenuOpen = (event, schedule) => {
@@ -302,9 +422,33 @@ const ProductionScheduleMaster = () => {
         handleActionMenuClose();
     };
 
-    const openCompleteDialogHandler = (schedule) => {
+    const openConfirmModalHandler = (schedule) => {
         setSelectedSchedule(schedule);
-        setOpenCompleteDialog(true);
+        setOpenConfirmModal(true);
+        handleActionMenuClose();
+    };
+
+    const openStartModalHandler = (schedule) => {
+        setSelectedSchedule(schedule);
+        setOpenStartModal(true);
+        handleActionMenuClose();
+    };
+
+    const openCompleteModalHandler = (schedule) => {
+        setSelectedSchedule(schedule);
+        setOpenCompleteModal(true);
+        handleActionMenuClose();
+    };
+
+    const openCancelModalHandler = (schedule) => {
+        setSelectedSchedule(schedule);
+        setOpenCancelModal(true);
+        handleActionMenuClose();
+    };
+
+    const openPostponeModalHandler = (schedule) => {
+        setSelectedSchedule(schedule);
+        setOpenPostponeModal(true);
         handleActionMenuClose();
     };
 
@@ -336,7 +480,10 @@ const ProductionScheduleMaster = () => {
         switch (status) {
             case 'Completed': return { bg: '#D1FAE5', color: '#059669' };
             case 'In Progress': return { bg: '#E0F2FE', color: '#0284C7' };
+            case 'Confirmed': return { bg: '#D1FAE5', color: '#059669' };
             case 'Planned': return { bg: '#FEF3C7', color: '#D97706' };
+            case 'Cancelled': return { bg: '#FEE2E2', color: '#DC2626' };
+            case 'Postponed': return { bg: '#FEF3C7', color: '#D97706' };
             default: return { bg: '#F1F5F9', color: '#475569' };
         }
     };
@@ -385,172 +532,116 @@ const ProductionScheduleMaster = () => {
             </Box>
 
             {/* Filters Bar */}
-<Paper sx={{
-    p: 1.5,
-    mb: 2.5,
-    borderRadius: 2,
-    bgcolor: COLORS.background.white,
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-    border: `1px solid ${COLORS.border}`
-}}>
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
-        {/* Filters Row */}
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
-            <TextField
-                placeholder="Search by schedule ID, WO number..."
-                size="small"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                sx={{
-                    width: { xs: '100%', sm: 250 },
-                    '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                    }
-                }}
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
-                        </InputAdornment>
-                    ),
-                    sx: {
-                        height: 36,
-                        bgcolor: COLORS.background.light,
-                    }
-                }}
-            />
+            <Paper sx={{
+                p: 1.5,
+                mb: 2.5,
+                borderRadius: 2,
+                bgcolor: COLORS.background.white,
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                border: `1px solid ${COLORS.border}`
+            }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+                    {/* Filters Row */}
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+                        <TextField
+                            placeholder="Search by schedule ID, WO number..."
+                            size="small"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            sx={{
+                                width: { xs: '100%', sm: 250 },
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1.5,
+                                    fontSize: '0.75rem',
+                                }
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                    </InputAdornment>
+                                ),
+                                sx: {
+                                    height: 36,
+                                    bgcolor: COLORS.background.light,
+                                }
+                            }}
+                        />
 
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel sx={{ fontSize: '0.75rem' }}>Machine</InputLabel>
-                <Select
-                    value={machineFilter}
-                    onChange={(e) => setMachineFilter(e.target.value)}
-                    label="Machine"
-                    sx={{ height: 36, fontSize: '0.75rem' }}
-                >
-                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All Machines</MenuItem>
-                    {machines.map(machine => (
-                        <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
-                            {machine.machine_name} ({machine.machine_code})
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel sx={{ fontSize: '0.75rem' }}>Machine</InputLabel>
+                            <Select
+                                value={machineFilter}
+                                onChange={(e) => setMachineFilter(e.target.value)}
+                                label="Machine"
+                                sx={{ height: 36, fontSize: '0.75rem' }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.75rem' }}>All Machines</MenuItem>
+                                {machines.map(machine => (
+                                    <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
+                                        {machine.machine_name} ({machine.machine_code})
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
 
-            {/* <FormControl size="small" sx={{ minWidth: 100 }}>
-                <InputLabel sx={{ fontSize: '0.75rem' }}>Shift</InputLabel>
-                <Select
-                    value={shiftFilter}
-                    onChange={(e) => setShiftFilter(e.target.value)}
-                    label="Shift"
-                    sx={{ height: 36, fontSize: '0.75rem' }}
-                >
-                    {SHIFT_OPTIONS.map(shift => (
-                        <MenuItem key={shift} value={shift} sx={{ fontSize: '0.75rem' }}>{shift}</MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                            <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
+                            <Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                label="Status"
+                                sx={{ height: 36, fontSize: '0.75rem' }}
+                            >
+                                {STATUS_OPTIONS.map(status => (
+                                    <MenuItem key={status} value={status} sx={{ fontSize: '0.75rem' }}>{status}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-                <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
-                <Select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    label="Status"
-                    sx={{ height: 36, fontSize: '0.75rem' }}
-                >
-                    {STATUS_OPTIONS.map(status => (
-                        <MenuItem key={status} value={status} sx={{ fontSize: '0.75rem' }}>{status}</MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+                        <Button
+                            size="small"
+                            onClick={clearFilters}
+                            sx={{ height: 36, textTransform: 'none', fontSize: '0.7rem' }}
+                        >
+                            Clear Filters
+                        </Button>
 
-            <TextField
-                type="date"
-                size="small"
-                label="From"
-                value={fromDateFilter}
-                onChange={(e) => setFromDateFilter(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                    width: 120,
-                    '& .MuiInputBase-root': {
-                        height: 36,
-                        fontSize: '0.75rem'
-                    },
-                    '& .MuiInputBase-input': {
-                        py: 0,
-                        height: 36,
-                        boxSizing: 'border-box'
-                    }
-                }}
-            />
+                        <FormControlLabel
+                            control={
+                                <Switch 
+                                    checked={groupedView} 
+                                    onChange={(e) => setGroupedView(e.target.checked)} 
+                                    disabled={!!machineFilter} 
+                                    size="small" 
+                                />
+                            }
+                            label={<Typography sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Group by Machine</Typography>}
+                        />
+                    </Stack>
 
-            <TextField
-                type="date"
-                size="small"
-                label="To"
-                value={toDateFilter}
-                onChange={(e) => setToDateFilter(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                    width: 120,
-                    '& .MuiInputBase-root': {
-                        height: 36,
-                        fontSize: '0.75rem'
-                    },
-                    '& .MuiInputBase-input': {
-                        py: 0,
-                        height: 36,
-                        boxSizing: 'border-box'
-                    }
-                }}
-            /> */}
-
-            <Button
-                size="small"
-                onClick={clearFilters}
-                sx={{ height: 36, textTransform: 'none', fontSize: '0.7rem' }}
-            >
-                Clear Filters
-            </Button>
-
-            <FormControlLabel
-                control={
-                    <Switch 
-                        checked={groupedView} 
-                        onChange={(e) => setGroupedView(e.target.checked)} 
-                        disabled={!!machineFilter} 
-                        size="small" 
-                    />
-                }
-                label={<Typography sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Group by Machine</Typography>}
-            />
-        </Stack>
-
-        {/* Action Buttons */}
-        <Stack direction="row" spacing={1.5} alignItems="center">
-            <Button
-                variant="contained"
-                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                onClick={() => setOpenAddModal(true)}
-                sx={{
-                    height: 36,
-                    borderRadius: 1.5,
-                    bgcolor: COLORS.primaryDark,
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                    '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-            >
-                Add Schedule
-            </Button>
-        </Stack>
-    </Stack>
-</Paper>
+                    {/* Action Buttons */}
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                            onClick={() => setOpenAddModal(true)}
+                            sx={{
+                                height: 36,
+                                borderRadius: 1.5,
+                                bgcolor: COLORS.primaryDark,
+                                fontSize: '0.75rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                                '&:hover': { bgcolor: COLORS.primaryDark }
+                            }}
+                        >
+                            Add Schedule
+                        </Button>
+                    </Stack>
+                </Stack>
+            </Paper>
 
             {/* Schedules Table */}
             <Paper sx={{
@@ -655,7 +746,11 @@ const ProductionScheduleMaster = () => {
                                                     onClose={handleActionMenuClose}
                                                     onView={openViewModalHandler}
                                                     onEdit={openEditModalHandler}
-                                                    onComplete={openCompleteDialogHandler}
+                                                    onConfirm={openConfirmModalHandler}
+                                                    onStart={openStartModalHandler}
+                                                    onComplete={openCompleteModalHandler}
+                                                    onCancel={openCancelModalHandler}
+                                                    onPostpone={openPostponeModalHandler}
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -684,7 +779,11 @@ const ProductionScheduleMaster = () => {
             </Paper>
 
             {/* Modal Components */}
-            <AddProductionSchedule open={openAddModal} onClose={() => setOpenAddModal(false)} onSchedule={handleAddSuccess} />
+            <AddProductionSchedule 
+                open={openAddModal} 
+                onClose={() => setOpenAddModal(false)} 
+                onSchedule={handleAddSuccess} 
+            />
 
             {selectedSchedule && (
                 <>
@@ -707,21 +806,76 @@ const ProductionScheduleMaster = () => {
                         onUpdate={handleEditSuccess} 
                     />
                     
+                    <ConfirmedProductionSchedule
+                        open={openConfirmModal}
+                        onClose={() => {
+                            setOpenConfirmModal(false);
+                            setSelectedSchedule(null);
+                        }}
+                        schedule={selectedSchedule}
+                        onConfirm={handleConfirmSuccess}
+                    />
+
+                    <StartProductionSchedule
+                        open={openStartModal}
+                        onClose={() => {
+                            setOpenStartModal(false);
+                            setSelectedSchedule(null);
+                        }}
+                        schedule={selectedSchedule}
+                        onStart={handleStartSuccess}
+                    />
+                    
                     <CompleteProductionSchedule 
-                        open={openCompleteDialog} 
+                        open={openCompleteModal} 
                         onClose={() => { 
-                            setOpenCompleteDialog(false); 
+                            setOpenCompleteModal(false); 
                             setSelectedSchedule(null); 
                         }} 
                         schedule={selectedSchedule} 
                         onComplete={handleCompleteSuccess} 
                     />
+
+                    <CancelProductionSchedule
+                        open={openCancelModal}
+                        onClose={() => {
+                            setOpenCancelModal(false);
+                            setSelectedSchedule(null);
+                        }}
+                        schedule={selectedSchedule}
+                        onCancel={handleCancelSuccess}
+                    />
+
+                    <PostponeProductionSchedule
+                        open={openPostponeModal}
+                        onClose={() => {
+                            setOpenPostponeModal(false);
+                            setSelectedSchedule(null);
+                        }}
+                        schedule={selectedSchedule}
+                        onPostpone={handlePostponeSuccess}
+                    />
                 </>
             )}
 
             {/* Snackbar Notification */}
-            <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: '100%', borderRadius: 1.5, fontSize: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={3000} 
+                onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert 
+                    onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                    severity={snackbar.severity} 
+                    variant="filled" 
+                    sx={{ 
+                        width: '100%', 
+                        borderRadius: 1.5, 
+                        fontSize: '0.75rem', 
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+                    }}
+                >
                     {snackbar.message}
                 </Alert>
             </Snackbar>

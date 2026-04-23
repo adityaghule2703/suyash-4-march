@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
- DialogContent,
+  DialogContent,
   DialogActions,
   Button,
   TextField,
@@ -10,11 +10,10 @@ import {
   Alert,
   Typography,
   Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Autocomplete
+  Autocomplete,
+  Switch,
+  FormControlLabel,
+  CircularProgress
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -60,10 +59,20 @@ const AddProcess = ({ open, onClose, onAdd }) => {
     category: 'Core',
     rate_type: 'Per Hour',
     description: '',
-    is_active: true
+    work_centre: '',
+    setup_time_min: 0,
+    cycle_time_min: 0,
+    is_subcontract: false,
+    default_vendor: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // State for dropdown options
+  const [workCentres, setWorkCentres] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [loadingWorkCentres, setLoadingWorkCentres] = useState(false);
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
   // Category options based on enum in backend
   const categoryOptions = ['Core', 'Finishing', 'Packing', 'Other'];
@@ -73,6 +82,60 @@ const AddProcess = ({ open, onClose, onAdd }) => {
 
   const [selectedCategory, setSelectedCategory] = useState(categoryOptions[0]);
   const [selectedRateType, setSelectedRateType] = useState(rateTypeOptions[2]); // 'Per Hour' is at index 2
+  const [selectedWorkCentre, setSelectedWorkCentre] = useState(null);
+  const [selectedVendor, setSelectedVendor] = useState(null);
+
+  // Fetch work centres (machines) from API
+  useEffect(() => {
+    if (open) {
+      fetchWorkCentres();
+      fetchVendors();
+    }
+  }, [open]);
+
+  const fetchWorkCentres = async () => {
+    setLoadingWorkCentres(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/machines`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        // Filter only active machines
+        const activeMachines = response.data.data.filter(machine => machine.is_active === true);
+        setWorkCentres(activeMachines);
+      }
+    } catch (err) {
+      console.error('Error fetching work centres:', err);
+      setError('Failed to load work centres');
+    } finally {
+      setLoadingWorkCentres(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/vendors`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setVendors(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+      setError('Failed to load vendors');
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -98,6 +161,34 @@ const AddProcess = ({ open, onClose, onAdd }) => {
     }));
   };
 
+  const handleWorkCentreChange = (event, newValue) => {
+    setSelectedWorkCentre(newValue);
+    setFormData(prev => ({
+      ...prev,
+      work_centre: newValue ? newValue._id : ''
+    }));
+  };
+
+  const handleVendorChange = (event, newValue) => {
+    setSelectedVendor(newValue);
+    setFormData(prev => ({
+      ...prev,
+      default_vendor: newValue ? newValue._id : ''
+    }));
+  };
+
+  const handleSubcontractChange = (e) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      is_subcontract: checked,
+      default_vendor: checked ? prev.default_vendor : '' // Clear vendor if subcontract is unchecked
+    }));
+    if (!checked) {
+      setSelectedVendor(null);
+    }
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!formData.process_id.trim()) {
@@ -120,12 +211,40 @@ const AddProcess = ({ open, onClose, onAdd }) => {
       return;
     }
 
+    if (!formData.work_centre) {
+      setError('Work Centre is required');
+      return;
+    }
+
+    if (formData.is_subcontract && !formData.default_vendor) {
+      setError('Default Vendor is required for subcontract processes');
+      return;
+    }
+
+    // Prepare submission data
+    const submissionData = {
+      process_id: formData.process_id,
+      process_name: formData.process_name,
+      description: formData.description,
+      category: formData.category,
+      rate_type: formData.rate_type,
+      work_centre: formData.work_centre,
+      setup_time_min: Number(formData.setup_time_min) || 0,
+      cycle_time_min: Number(formData.cycle_time_min) || 0,
+      is_subcontract: formData.is_subcontract
+    };
+
+    // Only add default_vendor if is_subcontract is true
+    if (formData.is_subcontract && formData.default_vendor) {
+      submissionData.default_vendor = formData.default_vendor;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${BASE_URL}/api/processes`, formData, {
+      const response = await axios.post(`${BASE_URL}/api/processes`, submissionData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -154,10 +273,16 @@ const AddProcess = ({ open, onClose, onAdd }) => {
       category: 'Core',
       rate_type: 'Per Hour',
       description: '',
-      is_active: true
+      work_centre: '',
+      setup_time_min: 0,
+      cycle_time_min: 0,
+      is_subcontract: false,
+      default_vendor: ''
     });
     setSelectedCategory(categoryOptions[0]);
     setSelectedRateType(rateTypeOptions[2]);
+    setSelectedWorkCentre(null);
+    setSelectedVendor(null);
     setError('');
   };
 
@@ -223,7 +348,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
                   value={formData.process_id}
                   onChange={handleChange}
                   disabled={loading}
-                  placeholder="e.g., PROC-ML-002"
+                  placeholder="e.g., PROC-CNC-001"
                   size="small"
                   variant="outlined"
                   sx={{
@@ -275,7 +400,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
                   value={formData.process_name}
                   onChange={handleChange}
                   disabled={loading}
-                  placeholder="e.g., Injection Molding"
+                  placeholder="e.g., CNC Drilling"
                   size="small"
                   variant="outlined"
                   sx={{
@@ -429,6 +554,279 @@ const AddProcess = ({ open, onClose, onAdd }) => {
               </Box>
             </Box>
 
+            {/* Work Centre Field */}
+            <Box sx={{ gridColumn: 'span 2' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  WORK CENTRE <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={workCentres}
+                  getOptionLabel={(option) => option.machine_name || option.machine_id}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
+                  value={selectedWorkCentre}
+                  onChange={handleWorkCentreChange}
+                  disabled={loading || loadingWorkCentres}
+                  loading={loadingWorkCentres}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Select work centre"
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingWorkCentres ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.primary
+                        }
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          {option.machine_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          Code: {option.machine_code} | Type: {option.machine_type} | Work Centre: {option.work_centre}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  ListboxProps={{
+                    sx: {
+                      '& .MuiAutocomplete-option': {
+                        fontSize: '0.75rem',
+                        py: 1,
+                        px: 1.5
+                      }
+                    }
+                  }}
+                />
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.25 }}>
+                  Select the machine/work centre for this process
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Setup Time and Cycle Time */}
+            <Box sx={{ gridColumn: 'span 1' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  SETUP TIME (MINUTES)
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="setup_time_min"
+                  type="number"
+                  value={formData.setup_time_min}
+                  onChange={handleChange}
+                  disabled={loading}
+                  placeholder="0"
+                  size="small"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.5 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ gridColumn: 'span 1' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: COLORS.text.secondary,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  CYCLE TIME (MINUTES)
+                </Typography>
+                <TextField
+                  fullWidth
+                  name="cycle_time_min"
+                  type="number"
+                  value={formData.cycle_time_min}
+                  onChange={handleChange}
+                  disabled={loading}
+                  placeholder="0"
+                  size="small"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.5 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      color: COLORS.text.primary
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* Subcontract Toggle */}
+            <Box sx={{ gridColumn: 'span 2' }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.is_subcontract}
+                    onChange={handleSubcontractChange}
+                    disabled={loading}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: COLORS.primary,
+                        '&:hover': {
+                          backgroundColor: `${COLORS.primary}10`,
+                        },
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: COLORS.primary,
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    Subcontract Process
+                  </Typography>
+                }
+              />
+            </Box>
+
+            {/* Default Vendor - Conditional Field */}
+            {formData.is_subcontract && (
+              <Box sx={{ gridColumn: 'span 2' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      color: COLORS.text.secondary,
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    DEFAULT VENDOR <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <Autocomplete
+                    fullWidth
+                    options={vendors}
+                    getOptionLabel={(option) => `${option.vendor_name} (${option.vendor_code})`}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    value={selectedVendor}
+                    onChange={handleVendorChange}
+                    disabled={loading || loadingVendors}
+                    loading={loadingVendors}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Select default vendor"
+                        required
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {loadingVendors ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputBase-input': {
+                            py: 1,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: COLORS.text.primary
+                          }
+                        }}
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                            {option.vendor_name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                            Code: {option.vendor_code} | Type: {option.vendor_type}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    ListboxProps={{
+                      sx: {
+                        '& .MuiAutocomplete-option': {
+                          fontSize: '0.75rem',
+                          py: 1,
+                          px: 1.5
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
+
             {/* Description Field */}
             <Box sx={{ gridColumn: 'span 2' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -529,6 +927,31 @@ const AddProcess = ({ open, onClose, onAdd }) => {
                       {formData.rate_type}
                     </Typography>
                   </Stack>
+
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Work Centre:</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {selectedWorkCentre ? selectedWorkCentre.machine_name : 'Not selected'}
+                    </Typography>
+                  </Stack>
+
+                  {selectedWorkCentre && (
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Machine Code:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                        {selectedWorkCentre.machine_code}
+                      </Typography>
+                    </Stack>
+                  )}
+
+                  {formData.is_subcontract && selectedVendor && (
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Default Vendor:</Typography>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.primary }}>
+                        {selectedVendor.vendor_name}
+                      </Typography>
+                    </Stack>
+                  )}
                 </Stack>
               </Box>
             )}
@@ -586,7 +1009,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || !formData.process_id || !formData.process_name}
+          disabled={loading || !formData.process_id || !formData.process_name || !formData.work_centre || (formData.is_subcontract && !formData.default_vendor)}
           startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,
