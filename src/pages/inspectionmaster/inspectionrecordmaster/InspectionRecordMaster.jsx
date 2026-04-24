@@ -30,21 +30,34 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled,
+  Autocomplete
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
-  Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
   Assignment as RecordIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Pending as PendingIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Assessment as ResultsIcon,
+  DoneAll as CompleteIcon,
+  PlayArrow as BulkStartIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -75,7 +88,8 @@ const COLORS = {
     Accepted: { bg: '#D1FAE5', color: '#065F46', icon: <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> },
     Rejected: { bg: '#FEE2E2', color: '#991B1B', icon: <CancelIcon sx={{ fontSize: '0.7rem' }} /> },
     Pending: { bg: '#FEF3C7', color: '#B45309', icon: <PendingIcon sx={{ fontSize: '0.7rem' }} /> },
-    'Conditionally Accepted': { bg: '#F3E8FF', color: '#7E22CE', icon: <WarningIcon sx={{ fontSize: '0.7rem' }} /> }
+    'Conditionally Accepted': { bg: '#F3E8FF', color: '#7E22CE', icon: <WarningIcon sx={{ fontSize: '0.7rem' }} /> },
+    'Partially Completed': { bg: '#FEF3C7', color: '#B45309', icon: <PendingIcon sx={{ fontSize: '0.7rem' }} /> }
   },
   inspectionType: {
     Incoming: { bg: '#E0F2FE', color: '#0369A1' },
@@ -89,8 +103,1222 @@ const COLORS = {
   }
 };
 
+// Disposition options
+const DISPOSITION_OPTIONS = [
+  'Use As-Is',
+  'Sort',
+  'Rework',
+  'Return to Vendor',
+  'Scrap',
+  'MRB Review',
+  'Customer Concession'
+];
+
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Bulk Start Dialog Component
+const BulkStartDialog = ({ open, onClose, record, onSuccess }) => {
+  const [workOrders, setWorkOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
+  const [availableSequences, setAvailableSequences] = useState([]);
+  const [selectedSequence, setSelectedSequence] = useState('');
+
+  // Fetch completed work orders
+  const fetchWorkOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${BASE_URL}/api/work-orders?limit=200`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Filter only completed work orders
+        const completedWOs = response.data.data.filter(wo => wo.status === 'Completed');
+        setWorkOrders(completedWOs);
+      }
+    } catch (err) {
+      console.error('Error fetching work orders:', err);
+      setError('Failed to load work orders');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      fetchWorkOrders();
+    }
+  }, [open, fetchWorkOrders]);
+
+  // Update sequences when work order is selected
+  const handleWorkOrderChange = (event, newValue) => {
+    setSelectedWorkOrder(newValue);
+    setSelectedSequence('');
+    
+    if (newValue && newValue.operations && newValue.operations.length > 0) {
+      // Get unique operation sequences
+      const sequences = newValue.operations
+        .filter(op => op.op_sequence)
+        .map(op => ({
+          value: op.op_sequence,
+          label: `Operation ${op.op_sequence} - ${op.operation_name || 'Unnamed'}`
+        }));
+      setAvailableSequences(sequences);
+    } else {
+      setAvailableSequences([]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedWorkOrder) {
+      setError('Please select a work order');
+      return;
+    }
+    if (!selectedSequence) {
+      setError('Please select an operation sequence');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError('');
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.post(
+        `${BASE_URL}/api/inspection-records/wo/${selectedWorkOrder._id}/operations/${selectedSequence}/bulk-start`,
+        {},
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+        setSelectedWorkOrder(null);
+        setSelectedSequence('');
+        setAvailableSequences([]);
+      } else {
+        setError(response.data.message || 'Failed to start bulk inspection');
+      }
+    } catch (err) {
+      console.error('Error starting bulk inspection:', err);
+      setError(err.response?.data?.message || 'Failed to start bulk inspection');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedWorkOrder(null);
+    setSelectedSequence('');
+    setAvailableSequences([]);
+    setError('');
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white
+      }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <BulkStartIcon sx={{ color: COLORS.primary }} />
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Bulk Start Inspection
+          </Typography>
+        </Stack>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            <BulkStartIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+            Select Work Order & Operation
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Work Order <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={workOrders}
+                  getOptionLabel={(option) => `${option.wo_number} - ${option.part_name || option.part_no} (${option.status})`}
+                  value={selectedWorkOrder}
+                  onChange={handleWorkOrderChange}
+                  loading={loading}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Search and select completed work order"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem'
+                        }
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            </Grid>
+            
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Operation Sequence <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedSequence}
+                    onChange={(e) => setSelectedSequence(e.target.value)}
+                    displayEmpty
+                    disabled={!selectedWorkOrder || availableSequences.length === 0}
+                    sx={{
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '& .MuiSelect-select': { py: 1, px: 1.5 }
+                    }}
+                  >
+                    <MenuItem value="" disabled>Select operation sequence</MenuItem>
+                    {availableSequences.map(seq => (
+                      <MenuItem key={seq.value} value={seq.value} sx={{ fontSize: '0.75rem' }}>
+                        {seq.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {selectedWorkOrder && availableSequences.length === 0 && (
+                  <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                    No operations found for this work order
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+        
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+            {error}
+          </Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'flex-end'
+      }}>
+        <Button
+          onClick={handleClose}
+          disabled={submitting}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={submitting || !selectedWorkOrder || !selectedSequence}
+          startIcon={<BulkStartIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 3,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {submitting ? <CircularProgress size={16} /> : 'Start Bulk Inspection'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Results Dialog Component - Redesigned
+const ResultsDialog = ({ open, onClose, recordId, onSuccess }) => {
+  const [activeStep, setActiveStep] = useState(0);
+  const [checkpointResults, setCheckpointResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const steps = ['Checkpoint Details', 'Measurements & Notes'];
+
+  const addCheckpoint = () => {
+    const newCheckpoint = {
+      checkpoint_seq: checkpointResults.length + 1,
+      characteristic: '',
+      specification: '',
+      nominal: '',
+      usl: '',
+      lsl: '',
+      readings: ['', '', '', '', ''],
+      inspector_note: ''
+    };
+    setCheckpointResults([...checkpointResults, newCheckpoint]);
+    setActiveStep(0);
+  };
+
+  const removeCheckpoint = (index) => {
+    const updated = checkpointResults.filter((_, i) => i !== index);
+    updated.forEach((cp, idx) => {
+      cp.checkpoint_seq = idx + 1;
+    });
+    setCheckpointResults(updated);
+  };
+
+  const handleCheckpointChange = (index, field, value) => {
+    const updatedResults = [...checkpointResults];
+    updatedResults[index][field] = value;
+    setCheckpointResults(updatedResults);
+  };
+
+  const handleReadingChange = (checkpointIndex, readingIndex, value) => {
+    const updatedResults = [...checkpointResults];
+    updatedResults[checkpointIndex].readings[readingIndex] = value;
+    setCheckpointResults(updatedResults);
+  };
+
+  const validateStep = (step, checkpointIndex) => {
+    const cp = checkpointResults[checkpointIndex];
+    
+    if (step === 0) {
+      if (!cp.characteristic || !cp.specification) {
+        setError('Characteristic and Specification are required');
+        return false;
+      }
+    }
+    
+    setError('');
+    return true;
+  };
+
+  const handleNext = (checkpointIndex) => {
+    if (validateStep(activeStep, checkpointIndex)) {
+      setActiveStep((prevStep) => prevStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
+  const handleSubmitCheckpoint = async (checkpointIndex) => {
+    const cp = checkpointResults[checkpointIndex];
+    if (!cp.characteristic || !cp.specification) {
+      setError('Characteristic and Specification are required');
+      return;
+    }
+
+    if (checkpointIndex === checkpointResults.length - 1) {
+      await handleSubmitAll();
+    } else {
+      setActiveStep(0);
+      setTimeout(() => {
+        const nextCheckpoint = document.getElementById(`checkpoint-${checkpointIndex + 1}`);
+        if (nextCheckpoint) {
+          nextCheckpoint.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  };
+
+  const handleSubmitAll = async () => {
+    for (let i = 0; i < checkpointResults.length; i++) {
+      const cp = checkpointResults[i];
+      if (!cp.characteristic || !cp.specification) {
+        setError(`Checkpoint ${cp.checkpoint_seq}: Characteristic and Specification are required`);
+        return;
+      }
+    }
+
+    if (checkpointResults.length === 0) {
+      setError('Please add at least one checkpoint');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const payload = {
+        checkpoint_results: checkpointResults.map(cp => ({
+          checkpoint_seq: cp.checkpoint_seq,
+          characteristic: cp.characteristic,
+          specification: cp.specification,
+          nominal: cp.nominal ? parseFloat(cp.nominal) : null,
+          usl: cp.usl ? parseFloat(cp.usl) : null,
+          lsl: cp.lsl ? parseFloat(cp.lsl) : null,
+          readings: cp.readings.map(r => r === '' ? null : parseFloat(r)),
+          inspector_note: cp.inspector_note || ''
+        }))
+      };
+      
+      const response = await axios.put(
+        `${BASE_URL}/api/inspection-records/${recordId}/results`,
+        payload,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+        setCheckpointResults([]);
+        setActiveStep(0);
+        setError('');
+      } else {
+        setError(response.data.message || 'Failed to save results');
+      }
+    } catch (err) {
+      console.error('Error saving results:', err);
+      setError(err.response?.data?.message || 'Failed to save checkpoint results');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setCheckpointResults([]);
+    setActiveStep(0);
+    setError('');
+    onClose();
+  };
+
+  const renderCheckpointContent = (checkpoint, idx) => {
+    switch (activeStep) {
+      case 0:
+        return (
+          <Stack spacing={2}>
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Characteristic <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={checkpoint.characteristic}
+                    onChange={(e) => handleCheckpointChange(idx, 'characteristic', e.target.value)}
+                    placeholder="e.g., Length, Diameter, Hardness"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Specification <span style={{ color: '#EF4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={checkpoint.specification}
+                    onChange={(e) => handleCheckpointChange(idx, 'specification', e.target.value)}
+                    placeholder="e.g., 100mm ± 0.5mm"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Nominal Value
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    size="small"
+                    value={checkpoint.nominal}
+                    onChange={(e) => handleCheckpointChange(idx, 'nominal', e.target.value)}
+                    placeholder="Target value"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Upper Limit (USL)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    size="small"
+                    value={checkpoint.usl}
+                    onChange={(e) => handleCheckpointChange(idx, 'usl', e.target.value)}
+                    placeholder="Maximum allowed"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                    Lower Limit (LSL)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    size="small"
+                    value={checkpoint.lsl}
+                    onChange={(e) => handleCheckpointChange(idx, 'lsl', e.target.value)}
+                    placeholder="Minimum allowed"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                      },
+                      '& .MuiInputBase-input': {
+                        py: 1,
+                        px: 1.5,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+            </Grid>
+          </Stack>
+        );
+      
+      case 1:
+        return (
+          <Stack spacing={2}>
+            <Box>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 1 }}>
+                Readings (5 readings)
+              </Typography>
+              <Grid container spacing={1}>
+                {[0, 1, 2, 3, 4].map((rIdx) => (
+                  <Grid size={{ xs: 2.4 }} key={rIdx}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      label={`R${rIdx + 1}`}
+                      value={checkpoint.readings[rIdx] || ''}
+                      onChange={(e) => handleReadingChange(idx, rIdx, e.target.value)}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem'
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.7rem'
+                        }
+                      }}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+            
+            <Box>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
+                Inspector Note
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                multiline
+                rows={3}
+                value={checkpoint.inspector_note || ''}
+                onChange={(e) => handleCheckpointChange(idx, 'inspector_note', e.target.value)}
+                placeholder="Add any observations or notes about this checkpoint..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary },
+                    '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                  },
+                  '& .MuiInputBase-input': {
+                    py: 1,
+                    px: 1.5,
+                    fontSize: '0.75rem'
+                  }
+                }}
+              />
+            </Box>
+          </Stack>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb:2,
+        bgcolor: COLORS.background.white
+      }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Inspection Results
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={addCheckpoint}
+            startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              borderColor: COLORS.primary,
+              color: COLORS.primary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primaryDark,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Add Checkpoint
+          </Button>
+        </Stack>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        {checkpointResults.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 6 }}>
+            <ResultsIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
+            <Typography sx={{ color: COLORS.text.secondary, fontSize: '0.875rem' }}>
+              No checkpoints added. Click "Add Checkpoint" to start entering inspection results.
+            </Typography>
+          </Box>
+        ) : (
+          <Stack spacing={3}>
+            {checkpointResults.map((checkpoint, idx) => (
+              <Paper 
+                key={idx} 
+                id={`checkpoint-${idx}`}
+                sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  border: `1px solid ${COLORS.border}`,
+                  position: 'relative'
+                }}
+              >
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 10, 
+                  left: 16, 
+                  bgcolor: COLORS.background.white,
+                  px: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    fontWeight: 600, 
+                    color: COLORS.primary
+                  }}>
+                    Checkpoint {checkpoint.checkpoint_seq}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => removeCheckpoint(idx)}
+                    sx={{ color: '#EF4444', p: 0.5 }}
+                  >
+                    <DeleteIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Box>
+                
+                <Box sx={{ mt: 1 }}>
+                  <Box sx={{ px: 2, pt: 1, pb: 0 }}>
+                    <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+                      {steps.map((label) => (
+                        <Step key={label}>
+                          <StepLabel>
+                            <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                              {label}
+                            </Typography>
+                          </StepLabel>
+                        </Step>
+                      ))}
+                    </Stepper>
+                  </Box>
+                  
+                  <Box sx={{ mt: 2 }}>
+                    {renderCheckpointContent(checkpoint, idx)}
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                    <Button
+                      onClick={handleBack}
+                      disabled={activeStep === 0}
+                      sx={{
+                        height: 32,
+                        px: 2,
+                        borderRadius: 1.5,
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text.secondary,
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          bgcolor: `${COLORS.primary}10`
+                        }
+                      }}
+                    >
+                      Back
+                    </Button>
+                    
+                    {activeStep === steps.length - 1 ? (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleSubmitCheckpoint(idx)}
+                        disabled={loading}
+                        sx={{
+                          height: 32,
+                          px: 3,
+                          borderRadius: 1.5,
+                          bgcolor: COLORS.primary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: COLORS.primaryDark }
+                        }}
+                      >
+                        {idx === checkpointResults.length - 1 ? 'Save All Results' : 'Next Checkpoint'}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleNext(idx)}
+                        sx={{
+                          height: 32,
+                          px: 3,
+                          borderRadius: 1.5,
+                          bgcolor: COLORS.primary,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: COLORS.primaryDark }
+                        }}
+                      >
+                        Next
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+        
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+            {error}
+          </Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white
+      }}>
+        <Button
+          onClick={handleClose}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Complete Dialog Component - Redesigned
+const CompleteDialog = ({ open, onClose, recordId, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    accepted_qty: '',
+    rejected_qty: '',
+    rework_qty: '',
+    on_hold_qty: '',
+    disposition: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.accepted_qty || !formData.rejected_qty) {
+      setError('Accepted Quantity and Rejected Quantity are required');
+      return;
+    }
+
+    if (!formData.disposition) {
+      setError('Disposition is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const token = localStorage.getItem('token');
+      const payload = {
+        accepted_qty: parseInt(formData.accepted_qty),
+        rejected_qty: parseInt(formData.rejected_qty),
+        rework_qty: parseInt(formData.rework_qty) || 0,
+        on_hold_qty: parseInt(formData.on_hold_qty) || 0,
+        disposition: formData.disposition
+      };
+      
+      const response = await axios.put(
+        `${BASE_URL}/api/inspection-records/${recordId}/complete`,
+        payload,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        onSuccess();
+        onClose();
+        setFormData({
+          accepted_qty: '',
+          rejected_qty: '',
+          rework_qty: '',
+          on_hold_qty: '',
+          disposition: ''
+        });
+      } else {
+        setError(response.data.message || 'Failed to complete inspection');
+      }
+    } catch (err) {
+      console.error('Error completing inspection:', err);
+      setError(err.response?.data?.message || 'Failed to complete inspection');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({
+      accepted_qty: '',
+      rejected_qty: '',
+      rework_qty: '',
+      on_hold_qty: '',
+      disposition: ''
+    });
+    setError('');
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        mb: 2,
+        bgcolor: COLORS.background.white
+      }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Complete Inspection
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+            <CompleteIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+            Final Disposition
+          </Typography>
+          
+          <Grid container spacing={1.5}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Accepted Quantity <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  size="small"
+                  value={formData.accepted_qty}
+                  onChange={(e) => handleChange('accepted_qty', e.target.value)}
+                  placeholder="0"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+            
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Rejected Quantity <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  size="small"
+                  value={formData.rejected_qty}
+                  onChange={(e) => handleChange('rejected_qty', e.target.value)}
+                  placeholder="0"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+            
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Rework Quantity
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  size="small"
+                  value={formData.rework_qty}
+                  onChange={(e) => handleChange('rework_qty', e.target.value)}
+                  placeholder="0"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+            
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  On Hold Quantity
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  size="small"
+                  value={formData.on_hold_qty}
+                  onChange={(e) => handleChange('on_hold_qty', e.target.value)}
+                  placeholder="0"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '&:hover fieldset': { borderColor: COLORS.primary },
+                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 1,
+                      px: 1.5,
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+            
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  Disposition <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={formData.disposition}
+                    onChange={(e) => handleChange('disposition', e.target.value)}
+                    displayEmpty
+                    sx={{
+                      borderRadius: 1.5,
+                      fontSize: '0.75rem',
+                      '& .MuiSelect-select': { py: 1, px: 1.5 }
+                    }}
+                  >
+                    <MenuItem value="" disabled>Select disposition</MenuItem>
+                    {DISPOSITION_OPTIONS.map(option => (
+                      <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+        
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+            {error}
+          </Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'flex-end'
+      }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading}
+          sx={{
+            height: 32,
+            px: 3,
+            borderRadius: 1.5,
+            bgcolor: COLORS.primary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {loading ? <CircularProgress size={16} /> : 'Complete Inspection'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 // Action Menu Component
-const ActionMenu = ({ record, onView, onEdit, onDelete, anchorEl, onClose, onOpen }) => {
+const ActionMenu = ({ record, onView, onResults, onComplete, onBulkStart, anchorEl, onClose, onOpen }) => {
+  const showResults = record.overall_result === 'Pending';
+  const showComplete = record.overall_result === 'Partially Completed';
+  const showBulkStart = record.inspection_type === 'First Article' && record.overall_result === 'Accepted';
+
   return (
     <>
       <Tooltip title="Actions">
@@ -139,41 +1367,62 @@ const ActionMenu = ({ record, onView, onEdit, onDelete, anchorEl, onClose, onOpe
           </ListItemText>
         </MenuItem>
         
-        <MenuItem 
-          onClick={() => {
-            onEdit(record);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {showBulkStart && (
+          <MenuItem 
+            onClick={() => {
+              onBulkStart(record);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <BulkStartIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Bulk Start
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {showResults && (
+          <MenuItem 
+            onClick={() => {
+              onResults(record);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ResultsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Results
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem 
-          onClick={() => {
-            onDelete(record);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {showComplete && (
+          <MenuItem 
+            onClick={() => {
+              onComplete(record);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <CompleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Complete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -244,8 +1493,9 @@ const InspectionRecordMaster = () => {
   // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openResultsDialog, setOpenResultsDialog] = useState(false);
+  const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
+  const [openBulkStartDialog, setOpenBulkStartDialog] = useState(false);
   
   // Selected record
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -374,15 +1624,21 @@ const InspectionRecordMaster = () => {
     handleActionMenuClose();
   };
 
-  const openEditModalHandler = (record) => {
+  const openResultsDialogHandler = (record) => {
     setSelectedRecord(record);
-    setOpenEditModal(true);
+    setOpenResultsDialog(true);
     handleActionMenuClose();
   };
 
-  const openDeleteDialogHandler = (record) => {
+  const openCompleteDialogHandler = (record) => {
     setSelectedRecord(record);
-    setOpenDeleteDialog(true);
+    setOpenCompleteDialog(true);
+    handleActionMenuClose();
+  };
+
+  const openBulkStartDialogHandler = (record) => {
+    setSelectedRecord(record);
+    setOpenBulkStartDialog(true);
     handleActionMenuClose();
   };
 
@@ -392,18 +1648,25 @@ const InspectionRecordMaster = () => {
     showNotification('Inspection record created successfully!', 'success');
   };
 
-  const handleEditSuccess = () => {
-    setOpenEditModal(false);
+  const handleResultsSuccess = () => {
+    setOpenResultsDialog(false);
     setSelectedRecord(null);
     fetchRecords();
-    showNotification('Inspection record updated successfully!', 'success');
+    showNotification('Inspection results saved successfully!', 'success');
   };
 
-  const handleDeleteSuccess = () => {
-    setOpenDeleteDialog(false);
+  const handleCompleteSuccess = () => {
+    setOpenCompleteDialog(false);
     setSelectedRecord(null);
     fetchRecords();
-    showNotification('Inspection record deleted successfully!', 'success');
+    showNotification('Inspection completed successfully!', 'success');
+  };
+
+  const handleBulkStartSuccess = () => {
+    setOpenBulkStartDialog(false);
+    setSelectedRecord(null);
+    fetchRecords();
+    showNotification('Bulk inspection started successfully!', 'success');
   };
 
   const handleBulkDelete = async () => {
@@ -842,7 +2105,7 @@ const InspectionRecordMaster = () => {
                       </TableCell>
                       
                       <TableCell>
-                        {InspectionTypeChip({ type: record.inspection_type })}
+                        <InspectionTypeChip type={record.inspection_type} />
                       </TableCell>
                       
                       <TableCell>
@@ -877,8 +2140,9 @@ const InspectionRecordMaster = () => {
                         <ActionMenu 
                           record={record}
                           onView={openViewModalHandler}
-                          onEdit={openEditModalHandler}
-                          onDelete={openDeleteDialogHandler}
+                          onResults={openResultsDialogHandler}
+                          onComplete={openCompleteDialogHandler}
+                          onBulkStart={openBulkStartDialogHandler}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, record)}
@@ -925,17 +2189,6 @@ const InspectionRecordMaster = () => {
 
       {selectedRecord && (
         <>
-          <AddInspectionRecord 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedRecord(null);
-            }}
-            onSuccess={handleEditSuccess}
-            initialData={selectedRecord}
-            isEditMode={true}
-          />
-
           <ViewInspectionRecord 
             open={openViewModal}
             onClose={() => {
@@ -945,14 +2198,34 @@ const InspectionRecordMaster = () => {
             record={selectedRecord}
           />
 
-          <DeleteInspectionRecord 
-            open={openDeleteDialog}
+          <ResultsDialog
+            open={openResultsDialog}
             onClose={() => {
-              setOpenDeleteDialog(false);
+              setOpenResultsDialog(false);
+              setSelectedRecord(null);
+            }}
+            recordId={selectedRecord._id}
+            onSuccess={handleResultsSuccess}
+          />
+
+          <CompleteDialog
+            open={openCompleteDialog}
+            onClose={() => {
+              setOpenCompleteDialog(false);
+              setSelectedRecord(null);
+            }}
+            recordId={selectedRecord._id}
+            onSuccess={handleCompleteSuccess}
+          />
+
+          <BulkStartDialog
+            open={openBulkStartDialog}
+            onClose={() => {
+              setOpenBulkStartDialog(false);
               setSelectedRecord(null);
             }}
             record={selectedRecord}
-            onDelete={handleDeleteSuccess}
+            onSuccess={handleBulkStartSuccess}
           />
         </>
       )}

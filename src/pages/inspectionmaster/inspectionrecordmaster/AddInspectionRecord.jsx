@@ -116,6 +116,8 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
   // Selected values
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
+  const [availableSequences, setAvailableSequences] = useState([]);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -263,19 +265,21 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
     }
   }, []);
 
-  // Fetch Work Orders
+  // Fetch Work Orders (only completed)
   const fetchWorkOrders = useCallback(async () => {
     try {
       setLoadingWorkOrders(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/work-orders?limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/work-orders?limit=200`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.data.success) {
-        setWorkOrders(response.data.data || []);
+        // Filter only completed work orders
+        const completedWOs = response.data.data.filter(wo => wo.status === 'Completed');
+        setWorkOrders(completedWOs);
       }
     } catch (err) {
       console.error('Error fetching work orders:', err);
@@ -366,8 +370,23 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
       // Set selected item
       const item = items.find(i => i._id === (initialData.item_id?._id || initialData.item_id));
       if (item) setSelectedItem(item);
+      
+      // Set selected work order and populate sequences
+      const wo = workOrders.find(w => w._id === (initialData.wo_id?._id || initialData.wo_id));
+      if (wo) {
+        setSelectedWorkOrder(wo);
+        if (wo.operations && wo.operations.length > 0) {
+          const sequences = wo.operations
+            .filter(op => op.op_sequence)
+            .map(op => ({
+              value: op.op_sequence,
+              label: `Operation ${op.op_sequence} - ${op.operation_name || 'Unnamed'}`
+            }));
+          setAvailableSequences(sequences);
+        }
+      }
     }
-  }, [isEditMode, initialData, open, inspectionPlans, items]);
+  }, [isEditMode, initialData, open, inspectionPlans, items, workOrders]);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -386,11 +405,7 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
     setSelectedPlan(newValue);
     setFormData(prev => ({ ...prev, plan_id: newValue?._id || '' }));
     setFieldErrors(prev => ({ ...prev, plan_id: '' }));
-    
-    // Auto-fill inspection type from plan
-    if (newValue) {
-      setFormData(prev => ({ ...prev, inspection_type: newValue.plan_type || '' }));
-    }
+    // Removed auto-fill of inspection type - user selection is respected
   };
 
   const handleItemChange = (event, newValue) => {
@@ -401,6 +416,35 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
       part_no: newValue?.part_no || ''
     }));
     setFieldErrors(prev => ({ ...prev, item_id: '' }));
+  };
+
+  const handleWorkOrderChange = (event, newValue) => {
+    setSelectedWorkOrder(newValue);
+    setFormData(prev => ({ 
+      ...prev, 
+      wo_id: newValue?._id || '',
+      op_sequence: '' // Reset operation sequence when work order changes
+    }));
+    setFieldErrors(prev => ({ ...prev, wo_id: '' }));
+    
+    // Update available operation sequences
+    if (newValue && newValue.operations && newValue.operations.length > 0) {
+      const sequences = newValue.operations
+        .filter(op => op.op_sequence)
+        .map(op => ({
+          value: op.op_sequence,
+          label: `Operation ${op.op_sequence} - ${op.operation_name || 'Unnamed'}`
+        }));
+      setAvailableSequences(sequences);
+    } else {
+      setAvailableSequences([]);
+    }
+  };
+
+  const handleOperationSequenceChange = (event) => {
+    const value = event.target.value;
+    setFormData(prev => ({ ...prev, op_sequence: value }));
+    setFieldErrors(prev => ({ ...prev, op_sequence: '' }));
   };
 
   const validateStep = (step) => {
@@ -643,6 +687,8 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
     setActiveStep(0);
     setSelectedPlan(null);
     setSelectedItem(null);
+    setSelectedWorkOrder(null);
+    setAvailableSequences([]);
     setFormData({
       inspection_type: '',
       plan_id: '',
@@ -686,18 +732,15 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
                 <Autocomplete
                   fullWidth
                   options={workOrders}
-                  getOptionLabel={(option) => `${option.wo_number} - ${option.item_name || ''}`}
-                  value={workOrders.find(wo => wo._id === formData.wo_id) || null}
-                  onChange={(event, newValue) => {
-                    setFormData(prev => ({ ...prev, wo_id: newValue?._id || '' }));
-                    setFieldErrors(prev => ({ ...prev, wo_id: '' }));
-                  }}
+                  getOptionLabel={(option) => `${option.wo_number} - ${option.part_name || option.part_no}`}
+                  value={selectedWorkOrder}
+                  onChange={handleWorkOrderChange}
                   loading={loadingWorkOrders}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       size="small"
-                      placeholder="Search and select work order"
+                      placeholder="Search and select completed work order"
                       error={!!fieldErrors.wo_id}
                       sx={{
                         '& .MuiOutlinedInput-root': {
@@ -727,29 +770,31 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
                 <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                   Operation Sequence <span style={{ color: '#EF4444' }}>*</span>
                 </Typography>
-                <TextField
-                  fullWidth
-                  type="number"
-                  size="small"
-                  name="op_sequence"
-                  value={formData.op_sequence}
-                  onChange={handleChange}
-                  placeholder="10"
-                  error={!!fieldErrors.op_sequence}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
+                <FormControl fullWidth size="small" error={!!fieldErrors.op_sequence}>
+                  <Select
+                    value={formData.op_sequence}
+                    onChange={handleOperationSequenceChange}
+                    displayEmpty
+                    disabled={!selectedWorkOrder || availableSequences.length === 0}
+                    sx={{
                       borderRadius: 1.5,
                       fontSize: '0.75rem',
-                      '&:hover fieldset': { borderColor: COLORS.primary },
-                      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 1,
-                      px: 1.5,
-                      fontSize: '0.75rem'
-                    }
-                  }}
-                />
+                      '& .MuiSelect-select': { py: 1, px: 1.5 }
+                    }}
+                  >
+                    <MenuItem value="" disabled>Select operation sequence</MenuItem>
+                    {availableSequences.map(seq => (
+                      <MenuItem key={seq.value} value={seq.value} sx={{ fontSize: '0.75rem' }}>
+                        {seq.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {selectedWorkOrder && availableSequences.length === 0 && (
+                  <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                    No operations found for this work order
+                  </Typography>
+                )}
                 {fieldErrors.op_sequence && (
                   <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
                     {fieldErrors.op_sequence}
@@ -770,18 +815,15 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
               <Autocomplete
                 fullWidth
                 options={workOrders}
-                getOptionLabel={(option) => `${option.wo_number} - ${option.item_name || ''}`}
-                value={workOrders.find(wo => wo._id === formData.wo_id) || null}
-                onChange={(event, newValue) => {
-                  setFormData(prev => ({ ...prev, wo_id: newValue?._id || '' }));
-                  setFieldErrors(prev => ({ ...prev, wo_id: '' }));
-                }}
+                getOptionLabel={(option) => `${option.wo_number} - ${option.part_name || option.part_no}`}
+                value={selectedWorkOrder}
+                onChange={handleWorkOrderChange}
                 loading={loadingWorkOrders}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     size="small"
-                    placeholder="Search and select work order"
+                    placeholder="Search and select completed work order"
                     error={!!fieldErrors.wo_id}
                     sx={{
                       '& .MuiOutlinedInput-root': {
@@ -819,18 +861,15 @@ const AddInspectionRecord = ({ open, onClose, onSuccess, initialData, isEditMode
                 <Autocomplete
                   fullWidth
                   options={workOrders}
-                  getOptionLabel={(option) => `${option.wo_number} - ${option.item_name || ''}`}
-                  value={workOrders.find(wo => wo._id === formData.wo_id) || null}
-                  onChange={(event, newValue) => {
-                    setFormData(prev => ({ ...prev, wo_id: newValue?._id || '' }));
-                    setFieldErrors(prev => ({ ...prev, wo_id: '' }));
-                  }}
+                  getOptionLabel={(option) => `${option.wo_number} - ${option.part_name || option.part_no}`}
+                  value={selectedWorkOrder}
+                  onChange={handleWorkOrderChange}
                   loading={loadingWorkOrders}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       size="small"
-                      placeholder="Search and select work order"
+                      placeholder="Search and select completed work order"
                       error={!!fieldErrors.wo_id}
                       sx={{
                         '& .MuiOutlinedInput-root': {

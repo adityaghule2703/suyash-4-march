@@ -150,6 +150,12 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     return parts.join(', ');
   };
 
+  // Check if address has valid data
+  const isValidAddress = (address) => {
+    if (!address) return false;
+    return address.line1 || address.city || address.state || address.pincode;
+  };
+
   // Fetch Sales Orders
   const fetchSalesOrders = useCallback(async () => {
     try {
@@ -227,7 +233,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
       if (so) {
         setSelectedSO(so);
         // Set shipping address from the sales order
-        if (so.shipping_address) {
+        if (so.shipping_address && isValidAddress(so.shipping_address)) {
           setShippingAddress(so.shipping_address);
         }
       }
@@ -246,14 +252,28 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     if (newValue) {
       // Set shipping address from the sales order
       const shippingAddr = newValue.shipping_address;
-      setShippingAddress(shippingAddr);
+      
+      // Check if address is valid
+      if (shippingAddr && isValidAddress(shippingAddr)) {
+        setShippingAddress(shippingAddr);
+      } else {
+        setShippingAddress(null);
+      }
+      
+      // Find customer from the customers list
+      const customer = customers.find(c => c._id === newValue.customer_id);
+      if (customer) {
+        setSelectedCustomer(customer);
+      } else {
+        setSelectedCustomer(null);
+      }
       
       setFormData(prev => ({
         ...prev,
         so_id: newValue._id,
         so_number: newValue.so_number,
         customer_id: newValue.customer_id,
-        shipping_address_id: shippingAddr ? JSON.stringify(shippingAddr) : '',
+        shipping_address_id: (shippingAddr && isValidAddress(shippingAddr)) ? JSON.stringify(shippingAddr) : '',
         items: (newValue.items || []).map(item => ({
           so_item_id: item._id,
           part_no: item.part_no,
@@ -263,12 +283,6 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
           remarks: ''
         }))
       }));
-
-      // Find and set customer
-      const customer = customers.find(c => c._id === newValue.customer_id);
-      if (customer) {
-        setSelectedCustomer(customer);
-      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -283,22 +297,6 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     }
     setFieldErrors({});
     setError('');
-  };
-
-  // Handle Customer selection
-  const handleCustomerChange = (event, newValue) => {
-    setSelectedCustomer(newValue);
-    if (newValue) {
-      setFormData(prev => ({
-        ...prev,
-        customer_id: newValue._id
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        customer_id: ''
-      }));
-    }
   };
 
   const handleChange = (e) => {
@@ -328,9 +326,21 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
           errors.customer_id = 'Customer is required';
           isValid = false;
         }
+        // Check if shipping address has actual data
         if (!formData.shipping_address_id) {
           errors.shipping_address_id = 'Shipping address is required';
           isValid = false;
+        } else {
+          try {
+            const address = JSON.parse(formData.shipping_address_id);
+            if (!isValidAddress(address)) {
+              errors.shipping_address_id = 'Valid shipping address is required. Please update the sales order first.';
+              isValid = false;
+            }
+          } catch (e) {
+            errors.shipping_address_id = 'Invalid shipping address';
+            isValid = false;
+          }
         }
         break;
       
@@ -385,6 +395,17 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     if (!formData.shipping_address_id) {
       errors.shipping_address_id = 'Shipping address is required';
       isValid = false;
+    } else {
+      try {
+        const address = JSON.parse(formData.shipping_address_id);
+        if (!isValidAddress(address)) {
+          errors.shipping_address_id = 'Valid shipping address is required';
+          isValid = false;
+        }
+      } catch (e) {
+        errors.shipping_address_id = 'Invalid shipping address';
+        isValid = false;
+      }
     }
     if (!formData.dispatch_date) {
       errors.dispatch_date = 'Dispatch date is required';
@@ -516,6 +537,13 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
     onClose();
   };
 
+  // Get customer name helper
+  const getCustomerName = (so) => {
+    if (!so) return '';
+    const customer = customers.find(c => c._id === so.customer_id);
+    return customer?.customer_name || 'Unknown Customer';
+  };
+
   // Render Step Content
   const renderStepContent = (step) => {
     switch (step) {
@@ -538,7 +566,10 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                       <Autocomplete
                         fullWidth
                         options={salesOrders}
-                        getOptionLabel={(option) => `${option.so_number} - ${option.customer_name}`}
+                        getOptionLabel={(option) => {
+                          const customerName = getCustomerName(option);
+                          return `${option.so_number} - ${customerName}`;
+                        }}
                         loading={loadingSO}
                         value={selectedSO}
                         onChange={handleSOChange}
@@ -613,7 +644,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                     <TextField
                       fullWidth
                       size="small"
-                      value={selectedCustomer ? selectedCustomer.customer_name : (selectedSO?.customer_name || '')}
+                      value={selectedCustomer ? selectedCustomer.customer_name : (selectedSO ? getCustomerName(selectedSO) : '')}
                       InputProps={{ readOnly: true }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
@@ -623,6 +654,11 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                         }
                       }}
                     />
+                    {fieldErrors.customer_id && (
+                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                        {fieldErrors.customer_id}
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
 
@@ -631,7 +667,7 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       Shipping Address <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    {shippingAddress ? (
+                    {shippingAddress && isValidAddress(shippingAddress) ? (
                       <Paper
                         variant="outlined"
                         sx={{
@@ -657,19 +693,23 @@ const AddDeliverySchedule = ({ open, onClose, onSuccess, initialData, isEditMode
                         </Typography>
                       </Paper>
                     ) : (
-                      <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Select a sales order to view shipping address"
-                        disabled
+                      <Paper
+                        variant="outlined"
                         sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            bgcolor: '#F5F5F5'
-                          }
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          border: fieldErrors.shipping_address_id ? '1px solid #EF4444' : `1px solid ${COLORS.border}`,
+                          bgcolor: COLORS.background.light
                         }}
-                      />
+                      >
+                        <Typography sx={{ fontSize: '0.75rem', color: '#EF4444' }}>
+                          {selectedSO ? (
+                            '⚠️ No valid shipping address found for this sales order. Please update the sales order with shipping address first.'
+                          ) : (
+                            'Please select a sales order to view shipping address'
+                          )}
+                        </Typography>
+                      </Paper>
                     )}
                     {fieldErrors.shipping_address_id && (
                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>

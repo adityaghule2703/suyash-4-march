@@ -273,14 +273,16 @@ const ViewWorkOrder = ({ open, onClose, workOrder, onEdit }) => {
                   {workOrder.wo_type || 'Machining'}
                 </Typography>
               </Grid>
-              {workOrder.assembly_line && (
-                <Grid size={{ xs: 12 }}>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Assembly Line</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.text.primary }}>
-                    {workOrder.assembly_line}
-                  </Typography>
-                </Grid>
-              )}
+            {workOrder.assembly_line && (
+  <Grid size={{ xs: 12 }}>
+    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Assembly Line</Typography>
+    <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.text.primary }}>
+      {typeof workOrder.assembly_line === 'object' 
+        ? workOrder.assembly_line.line_name || workOrder.assembly_line._id
+        : workOrder.assembly_line}
+    </Typography>
+  </Grid>
+)}  
               {workOrder.hold_reason && (
                 <Grid size={{ xs: 12 }}>
                   <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>Hold Reason</Typography>

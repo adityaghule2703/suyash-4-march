@@ -2,12 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Alert, Typography, Box, Stack, Grid,
-  Autocomplete, CircularProgress, Chip, FormControl, InputLabel,
-  Select, MenuItem, Paper
+  Autocomplete, FormControl, Select, MenuItem, Paper, IconButton, Tooltip,
+  Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, styled
 } from '@mui/material';
-import { Add as AddIcon, Inventory as InventoryIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, Inventory as InventoryIcon, 
+  NavigateNext as NavigateNextIcon, NavigateBefore as NavigateBeforeIcon,
+  ProductionQuantityLimits as ProductionIcon, CalendarMonth as CalendarIcon,
+  Settings as SettingsIcon
+} from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import AddSaleOrder from '../../salesordermaster/AddSaleOrder';
+import AddItem from '../../master/itemmaster/AddItem';
+import AddBom from '../../bommaster/BOM/bom/AddBom';
+import AddRouting from '../../bommaster/routing/AddRouting';
+import MrpRun from '../../bommaster/MRP/MrpRun';
+import AddAssembly from '../assemblylines/AddAssembly';
 
 const COLORS = {
   primary: '#063C3F',
@@ -29,10 +40,41 @@ const COLORS = {
 const PRIORITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low'];
 const WO_TYPE_OPTIONS = ['Machining', 'Assembly', 'SubAssembly', 'Kit'];
 
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+const steps = ['Production Details', 'Planning & Settings'];
+
 const AddWorkOrder = ({ open, onClose, onAdd }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+
+  // Dialog states
+  const [addSaleOrderOpen, setAddSaleOrderOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [addBomOpen, setAddBomOpen] = useState(false);
+  const [addRoutingOpen, setAddRoutingOpen] = useState(false);
+  const [addMrpRunOpen, setAddMrpRunOpen] = useState(false);
+  const [addAssemblyOpen, setAddAssemblyOpen] = useState(false);
 
   // Data fetching states
   const [salesOrders, setSalesOrders] = useState([]);
@@ -43,14 +85,14 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
   const [routings, setRoutings] = useState([]);
   const [mrpRuns, setMrpRuns] = useState([]);
   const [items, setItems] = useState([]);
-  const [assemblyLines, setAssemblyLines] = useState([]); // ✅ New state for assembly lines
+  const [assemblyLines, setAssemblyLines] = useState([]);
   
   const [loadingSO, setLoadingSO] = useState(false);
   const [loadingBOM, setLoadingBOM] = useState(false);
   const [loadingRouting, setLoadingRouting] = useState(false);
   const [loadingMRP, setLoadingMRP] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
-  const [loadingAssemblyLines, setLoadingAssemblyLines] = useState(false); // ✅ Loading state for assembly lines
+  const [loadingAssemblyLines, setLoadingAssemblyLines] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -69,6 +111,9 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     serial_tracking: false,
     mrp_run_id: ''
   });
+
+  // Check if assembly line should be shown
+  const showAssemblyLine = ['Assembly', 'SubAssembly'].includes(formData.wo_type);
 
   // Fetch Sales Orders
   const fetchSalesOrders = useCallback(async () => {
@@ -160,7 +205,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     }
   }, []);
 
-  // ✅ Fetch Assembly Lines for dropdown (active only)
+  // Fetch Assembly Lines
   const fetchAssemblyLines = useCallback(async () => {
     try {
       setLoadingAssemblyLines(true);
@@ -173,13 +218,11 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       }
     } catch (err) {
       console.error('Error fetching assembly lines:', err);
-      // Fallback to regular assembly-lines endpoint if dropdown endpoint doesn't exist
       try {
         const fallbackResponse = await axios.get(`${BASE_URL}/api/assembly-lines`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (fallbackResponse.data.success) {
-          // Filter only active assembly lines
           const activeLines = (fallbackResponse.data.data || []).filter(line => line.is_active === true);
           setAssemblyLines(activeLines);
         }
@@ -199,14 +242,84 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       fetchRoutings();
       fetchMrpRuns();
       fetchItems();
-      fetchAssemblyLines(); // ✅ Fetch assembly lines
+      fetchAssemblyLines();
     }
   }, [open, fetchSalesOrders, fetchBOMs, fetchRoutings, fetchMrpRuns, fetchItems, fetchAssemblyLines]);
+
+  // Reset active step when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setActiveStep(0);
+    }
+  }, [open]);
+
+  // Handle Sales Order added
+  const handleSaleOrderAdded = (newSaleOrder) => {
+    setSalesOrders(prev => [newSaleOrder, ...prev]);
+    setSelectedSO(newSaleOrder);
+    setFormData(prev => ({
+      ...prev,
+      so_id: newSaleOrder._id,
+      so_item_id: ''
+    }));
+    setSelectedSOItem(null);
+  };
+
+  // Handle Item added
+  const handleItemAdded = (newItem) => {
+    setItems(prev => [newItem, ...prev]);
+    setSelectedItem(newItem);
+    setFormData(prev => ({
+      ...prev,
+      item_id: newItem._id
+    }));
+  };
+
+  // Handle BOM added
+  const handleBomAdded = (newBom) => {
+    setBoms(prev => [newBom, ...prev]);
+    setFormData(prev => ({
+      ...prev,
+      bom_id: newBom._id
+    }));
+  };
+
+  // Handle Routing added
+  const handleRoutingAdded = (newRouting) => {
+    setRoutings(prev => [newRouting, ...prev]);
+    setFormData(prev => ({
+      ...prev,
+      routing_id: newRouting._id
+    }));
+  };
+
+  // Handle MRP Run added
+  const handleMrpRunAdded = (newMrpRun) => {
+    setMrpRuns(prev => [newMrpRun, ...prev]);
+    setFormData(prev => ({
+      ...prev,
+      mrp_run_id: newMrpRun._id
+    }));
+  };
+
+  // Handle Assembly Line added
+  const handleAssemblyAdded = (newAssembly) => {
+    setAssemblyLines(prev => [newAssembly, ...prev]);
+    setFormData(prev => ({
+      ...prev,
+      assembly_line: newAssembly._id
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    
+    // Reset assembly line if wo_type changes to non-assembly type
+    if (name === 'wo_type' && !['Assembly', 'SubAssembly'].includes(value)) {
+      setFormData(prev => ({ ...prev, assembly_line: '' }));
+    }
   };
 
   const handleSOChange = (event, newValue) => {
@@ -238,7 +351,6 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     setFieldErrors(prev => ({ ...prev, item_id: '' }));
   };
 
-  // ✅ Handle assembly line change
   const handleAssemblyLineChange = (event, newValue) => {
     setFormData(prev => ({
       ...prev,
@@ -246,7 +358,8 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     }));
   };
 
-  const validateForm = () => {
+  // Validate Step 1 (Production Details)
+  const validateStep1 = () => {
     const errors = {};
     let isValid = true;
 
@@ -255,7 +368,6 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       isValid = false;
     }
     
-    // SO Item is required only if the selected SO has multiple items
     const hasMultipleItems = selectedSO && selectedSO.items && selectedSO.items.length > 1;
     if (hasMultipleItems && !formData.so_item_id) {
       errors.so_item_id = 'Please select an SO item';
@@ -274,6 +386,19 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
       errors.routing_id = 'Routing is required';
       isValid = false;
     }
+
+    setFieldErrors(errors);
+    if (!isValid) {
+      setError('Please fix the errors in Production Details');
+    }
+    return isValid;
+  };
+
+  // Validate Step 2 (Planning & Settings)
+  const validateStep2 = () => {
+    const errors = {};
+    let isValid = true;
+
     if (!formData.planned_qty || formData.planned_qty <= 0) {
       errors.planned_qty = 'Valid planned quantity is required';
       isValid = false;
@@ -289,9 +414,27 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
 
     setFieldErrors(errors);
     if (!isValid) {
-      setError('Please fix the errors in the form');
+      setError('Please fix the errors in Planning & Settings');
     }
     return isValid;
+  };
+
+  const handleNext = () => {
+    if (validateStep1()) {
+      setError('');
+      setActiveStep(1);
+    }
+  };
+
+  const handleBack = () => {
+    setError('');
+    setActiveStep(0);
+  };
+
+  const validateForm = () => {
+    const step1Valid = validateStep1();
+    const step2Valid = validateStep2();
+    return step1Valid && step2Valid;
   };
 
   const handleSubmit = async () => {
@@ -314,7 +457,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
         required_by: formData.required_by || formData.planned_end,
         priority: formData.priority,
         wo_type: formData.wo_type,
-        assembly_line: formData.assembly_line || undefined,
+        assembly_line: showAssemblyLine ? (formData.assembly_line || undefined) : undefined,
         serial_tracking: formData.serial_tracking,
         mrp_run_id: formData.mrp_run_id || undefined
       };
@@ -360,6 +503,7 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     setSelectedItem(null);
     setFieldErrors({});
     setError('');
+    setActiveStep(0);
   };
 
   const handleClose = () => {
@@ -367,310 +511,61 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
     onClose();
   };
 
-  // Get available items for selected SO
   const availableSOItems = selectedSO?.items || [];
   const hasMultipleSOItems = availableSOItems.length > 1;
 
-  // ✅ Get selected assembly line display
   const getSelectedAssemblyLine = () => {
     return assemblyLines.find(al => al._id === formData.assembly_line) || null;
   };
 
-  // ✅ Get assembly line display label
   const getAssemblyLineLabel = (option) => {
     return `${option.line_code} - ${option.line_name} (${option.line_type})`;
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 2,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Add New Work Order
+  // Render Step 1 Content
+  const renderStep1Content = () => (
+    <Stack spacing={2}>
+      {/* Sales Order Selection */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+          Sales Order Details
         </Typography>
-      </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5 }}>
-        <Stack spacing={2}>
-          {/* Sales Order Selection */}
-          <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Sales Order Details
-            </Typography>
-
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    SALES ORDER <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={salesOrders}
-                    getOptionLabel={(option) => `${option.so_number} - ${option.customer_name}`}
-                    value={selectedSO}
-                    onChange={handleSOChange}
-                    loading={loadingSO}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Select sales order"
-                        error={!!fieldErrors.so_id}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                  {fieldErrors.so_id && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.so_id}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              {/* SO Item - Only show if selected SO has multiple items */}
-              {hasMultipleSOItems && (
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                      SO ITEM <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <Autocomplete
-                      fullWidth
-                      options={availableSOItems}
-                      getOptionLabel={(option) => `${option.part_no} - ${option.part_name} (Qty: ${option.ordered_qty})`}
-                      value={selectedSOItem}
-                      onChange={handleSOItemChange}
-                      disabled={!selectedSO}
-                      loading={loadingSO}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          size="small"
-                          placeholder={selectedSO ? "Select SO item" : "Select sales order first"}
-                          error={!!fieldErrors.so_item_id}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary }
-                            }
-                          }}
-                        />
-                      )}
-                    />
-                    {fieldErrors.so_item_id && (
-                      <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                        {fieldErrors.so_item_id}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-              )}
-
-              {/* Show info when SO has single item */}
-              {selectedSO && !hasMultipleSOItems && availableSOItems.length === 1 && (
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ 
-                    p: 1, 
-                    bgcolor: COLORS.primaryLight, 
-                    borderRadius: 1.5,
-                    border: `1px solid ${COLORS.primary}20`
-                  }}>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                      SO Item (Auto-selected):
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                      {availableSOItems[0]?.part_no} - {availableSOItems[0]?.part_name}
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
-            </Grid>
-          </Paper>
-
-          {/* Item Master Selection */}
-          <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              Item Details
-            </Typography>
-
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    ITEM <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={items}
-                    getOptionLabel={(option) => `${option.part_no} - ${option.part_description || option.part_name} (${option.item_category || 'N/A'})`}
-                    value={selectedItem}
-                    onChange={handleItemChange}
-                    loading={loadingItems}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Select item"
-                        error={!!fieldErrors.item_id}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                  {fieldErrors.item_id && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.item_id}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* BOM & Routing */}
-          <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              Production Specifications
-            </Typography>
-
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    BOM <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={boms}
-                    getOptionLabel={(option) => `${option.bom_id} - ${option.parent_part_no} (v${option.bom_version})`}
-                    value={boms.find(b => b._id === formData.bom_id) || null}
-                    onChange={(event, newValue) => {
-                      setFormData(prev => ({ ...prev, bom_id: newValue?._id || '' }));
-                      setFieldErrors(prev => ({ ...prev, bom_id: '' }));
-                    }}
-                    loading={loadingBOM}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Select BOM"
-                        error={!!fieldErrors.bom_id}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                  {fieldErrors.bom_id && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.bom_id}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    ROUTING <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={routings}
-                    getOptionLabel={(option) => `${option.routing_id} - ${option.routing_name}`}
-                    value={routings.find(r => r._id === formData.routing_id) || null}
-                    onChange={(event, newValue) => {
-                      setFormData(prev => ({ ...prev, routing_id: newValue?._id || '' }));
-                      setFieldErrors(prev => ({ ...prev, routing_id: '' }));
-                    }}
-                    loading={loadingRouting}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Select routing"
-                        error={!!fieldErrors.routing_id}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                  {fieldErrors.routing_id && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.routing_id}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Quantity & Dates */}
-          <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              Planning Details
-            </Typography>
-
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    PLANNED QUANTITY <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    type="number"
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  SALES ORDER <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Tooltip title="Add New Sales Order">
+                  <IconButton
                     size="small"
-                    name="planned_qty"
-                    value={formData.planned_qty}
-                    onChange={handleChange}
-                    placeholder="e.g., 500"
-                    error={!!fieldErrors.planned_qty}
+                    onClick={() => setAddSaleOrderOpen(true)}
+                    sx={{
+                      color: COLORS.primary,
+                      p: 0.25,
+                      '&:hover': { bgcolor: COLORS.primaryLight }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Autocomplete
+                fullWidth
+                options={salesOrders}
+                getOptionLabel={(option) => `${option.so_number} - ${option.customer_name}`}
+                value={selectedSO}
+                onChange={handleSOChange}
+                loading={loadingSO}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select sales order"
+                    error={!!fieldErrors.so_id}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 1.5,
@@ -679,287 +574,743 @@ const AddWorkOrder = ({ open, onClose, onAdd }) => {
                       }
                     }}
                   />
-                  {fieldErrors.planned_qty && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.planned_qty}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
+                )}
+              />
+              {fieldErrors.so_id && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.so_id}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    WORK ORDER TYPE
-                  </Typography>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      name="wo_type"
-                      value={formData.wo_type}
-                      onChange={handleChange}
+          {hasMultipleSOItems && (
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  SO ITEM <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={availableSOItems}
+                  getOptionLabel={(option) => `${option.part_no} - ${option.part_name} (Qty: ${option.ordered_qty})`}
+                  value={selectedSOItem}
+                  onChange={handleSOItemChange}
+                  disabled={!selectedSO}
+                  loading={loadingSO}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder={selectedSO ? "Select SO item" : "Select sales order first"}
+                      error={!!fieldErrors.so_item_id}
                       sx={{
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '& .MuiSelect-select': { py: 1, px: 1.5 }
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary }
+                        }
                       }}
-                    >
-                      {WO_TYPE_OPTIONS.map(option => (
-                        <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    PLANNED START <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
-                    name="planned_start"
-                    value={formData.planned_start}
-                    onChange={handleChange}
-                    error={!!fieldErrors.planned_start}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary }
-                      },
-                      '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                    }}
-                  />
-                  {fieldErrors.planned_start && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.planned_start}
-                    </Typography>
+                    />
                   )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    PLANNED END <span style={{ color: '#EF4444' }}>*</span>
+                />
+                {fieldErrors.so_item_id && (
+                  <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                    {fieldErrors.so_item_id}
                   </Typography>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
-                    name="planned_end"
-                    value={formData.planned_end}
-                    onChange={handleChange}
-                    error={!!fieldErrors.planned_end}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary }
-                      },
-                      '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                    }}
-                  />
-                  {fieldErrors.planned_end && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.planned_end}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    REQUIRED BY
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    size="small"
-                    name="required_by"
-                    value={formData.required_by}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary }
-                      },
-                      '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                    }}
-                  />
-                </Box>
-              </Grid>
+                )}
+              </Box>
             </Grid>
-          </Paper>
+          )}
 
-          {/* Additional Settings */}
-          <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              Additional Settings
-            </Typography>
+          {selectedSO && !hasMultipleSOItems && availableSOItems.length === 1 && (
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ 
+                p: 1, 
+                bgcolor: COLORS.primaryLight, 
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.primary}20`
+              }}>
+                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                  SO Item (Auto-selected):
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                  {availableSOItems[0]?.part_no} - {availableSOItems[0]?.part_name}
+                </Typography>
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
 
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    PRIORITY
-                  </Typography>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      name="priority"
-                      value={formData.priority}
-                      onChange={handleChange}
-                      sx={{
+      {/* Item Master Selection */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          <ProductionIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+          Item Details
+        </Typography>
+
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  ITEM <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Tooltip title="Add New Item">
+                  <IconButton
+                    size="small"
+                    onClick={() => setAddItemOpen(true)}
+                    sx={{
+                      color: COLORS.primary,
+                      p: 0.25,
+                      '&:hover': { bgcolor: COLORS.primaryLight }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Autocomplete
+                fullWidth
+                options={items}
+                getOptionLabel={(option) => `${option.part_no} - ${option.part_description || option.part_name} (${option.item_category || 'N/A'})`}
+                value={selectedItem}
+                onChange={handleItemChange}
+                loading={loadingItems}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select item"
+                    error={!!fieldErrors.item_id}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
                         borderRadius: 1.5,
                         fontSize: '0.75rem',
-                        '& .MuiSelect-select': { py: 1, px: 1.5 }
-                      }}
-                    >
-                      {PRIORITY_OPTIONS.map(option => (
-                        <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Grid>
+                        '&:hover fieldset': { borderColor: COLORS.primary }
+                      }
+                    }}
+                  />
+                )}
+              />
+              {fieldErrors.item_id && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.item_id}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
 
-              {/* ✅ Updated Assembly Line Dropdown with API data */}
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      {/* BOM & Routing */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          Production Specifications
+        </Typography>
+
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  BOM <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Tooltip title="Add New BOM">
+                  <IconButton
+                    size="small"
+                    onClick={() => setAddBomOpen(true)}
+                    sx={{
+                      color: COLORS.primary,
+                      p: 0.25,
+                      '&:hover': { bgcolor: COLORS.primaryLight }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Autocomplete
+                fullWidth
+                options={boms}
+                getOptionLabel={(option) => `${option.bom_id} - ${option.parent_part_no} (v${option.bom_version})`}
+                value={boms.find(b => b._id === formData.bom_id) || null}
+                onChange={(event, newValue) => {
+                  setFormData(prev => ({ ...prev, bom_id: newValue?._id || '' }));
+                  setFieldErrors(prev => ({ ...prev, bom_id: '' }));
+                }}
+                loading={loadingBOM}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select BOM"
+                    error={!!fieldErrors.bom_id}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary }
+                      }
+                    }}
+                  />
+                )}
+              />
+              {fieldErrors.bom_id && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.bom_id}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  ROUTING <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Tooltip title="Add New Routing">
+                  <IconButton
+                    size="small"
+                    onClick={() => setAddRoutingOpen(true)}
+                    sx={{
+                      color: COLORS.primary,
+                      p: 0.25,
+                      '&:hover': { bgcolor: COLORS.primaryLight }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Autocomplete
+                fullWidth
+                options={routings}
+                getOptionLabel={(option) => `${option.routing_id} - ${option.routing_name}`}
+                value={routings.find(r => r._id === formData.routing_id) || null}
+                onChange={(event, newValue) => {
+                  setFormData(prev => ({ ...prev, routing_id: newValue?._id || '' }));
+                  setFieldErrors(prev => ({ ...prev, routing_id: '' }));
+                }}
+                loading={loadingRouting}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select routing"
+                    error={!!fieldErrors.routing_id}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary }
+                      }
+                    }}
+                  />
+                )}
+              />
+              {fieldErrors.routing_id && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.routing_id}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Stack>
+  );
+
+  // Render Step 2 Content
+  const renderStep2Content = () => (
+    <Stack spacing={2}>
+      {/* Quantity & Dates */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          <CalendarIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+          Planning Details
+        </Typography>
+
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                PLANNED QUANTITY <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                size="small"
+                name="planned_qty"
+                value={formData.planned_qty}
+                onChange={handleChange}
+                placeholder="e.g., 500"
+                error={!!fieldErrors.planned_qty}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary }
+                  }
+                }}
+              />
+              {fieldErrors.planned_qty && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.planned_qty}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                WORK ORDER TYPE
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  name="wo_type"
+                  value={formData.wo_type}
+                  onChange={handleChange}
+                  sx={{
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '& .MuiSelect-select': { py: 1, px: 1.5 }
+                  }}
+                >
+                  {WO_TYPE_OPTIONS.map(option => (
+                    <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                PLANNED START <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <TextField
+                fullWidth
+                type="date"
+                size="small"
+                name="planned_start"
+                value={formData.planned_start}
+                onChange={handleChange}
+                error={!!fieldErrors.planned_start}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary }
+                  },
+                  '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                }}
+              />
+              {fieldErrors.planned_start && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.planned_start}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                PLANNED END <span style={{ color: '#EF4444' }}>*</span>
+              </Typography>
+              <TextField
+                fullWidth
+                type="date"
+                size="small"
+                name="planned_end"
+                value={formData.planned_end}
+                onChange={handleChange}
+                error={!!fieldErrors.planned_end}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary }
+                  },
+                  '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                }}
+              />
+              {fieldErrors.planned_end && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                  {fieldErrors.planned_end}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                REQUIRED BY
+              </Typography>
+              <TextField
+                fullWidth
+                type="date"
+                size="small"
+                name="required_by"
+                value={formData.required_by}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '&:hover fieldset': { borderColor: COLORS.primary }
+                  },
+                  '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                }}
+              />
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Additional Settings */}
+      <Paper sx={{ p: 2, borderRadius: 1.5, border: `1px solid ${COLORS.border}`, boxShadow: 'none' }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+          <SettingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+          Additional Settings
+        </Typography>
+
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12, sm: showAssemblyLine ? 6 : 12 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                PRIORITY
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  sx={{
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem',
+                    '& .MuiSelect-select': { py: 1, px: 1.5 }
+                  }}
+                >
+                  {PRIORITY_OPTIONS.map(option => (
+                    <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Grid>
+
+          {showAssemblyLine && (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                     ASSEMBLY LINE
                   </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={assemblyLines}
-                    getOptionLabel={getAssemblyLineLabel}
-                    value={getSelectedAssemblyLine()}
-                    onChange={handleAssemblyLineChange}
-                    loading={loadingAssemblyLines}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder={loadingAssemblyLines ? "Loading assembly lines..." : "Select assembly line (optional)"}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          },
-                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                        }}
-                      />
-                    )}
-                    noOptionsText="No assembly lines found"
-                    loadingText="Loading assembly lines..."
-                  />
-                  <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
-                    Select the assembly line where this work order will be processed
-                  </Typography>
+                  <Tooltip title="Add New Assembly Line">
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddAssemblyOpen(true)}
+                      sx={{
+                        color: COLORS.primary,
+                        p: 0.25,
+                        '&:hover': { bgcolor: COLORS.primaryLight }
+                      }}
+                    >
+                      <AddIcon sx={{ fontSize: '0.8rem' }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    MRP RUN ID
-                  </Typography>
-                  <Autocomplete
-                    fullWidth
-                    options={mrpRuns}
-                    getOptionLabel={(option) => `${option.mrp_run_id} - ${option.run_type} (${new Date(option.run_date).toLocaleDateString()})`}
-                    value={mrpRuns.find(m => m._id === formData.mrp_run_id) || null}
-                    onChange={(event, newValue) => {
-                      setFormData(prev => ({ ...prev, mrp_run_id: newValue?._id || '' }));
-                    }}
-                    loading={loadingMRP}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Select MRP run (optional)"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            fontSize: '0.75rem',
-                            '&:hover fieldset': { borderColor: COLORS.primary }
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                </Box>
-              </Grid>
+                <Autocomplete
+                  fullWidth
+                  options={assemblyLines}
+                  getOptionLabel={getAssemblyLineLabel}
+                  value={getSelectedAssemblyLine()}
+                  onChange={handleAssemblyLineChange}
+                  loading={loadingAssemblyLines}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder={loadingAssemblyLines ? "Loading assembly lines..." : "Select assembly line (optional)"}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary }
+                        },
+                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                      }}
+                    />
+                  )}
+                  noOptionsText="No assembly lines found"
+                  loadingText="Loading assembly lines..."
+                />
+                <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                  Select the assembly line where this work order will be processed
+                </Typography>
+              </Box>
             </Grid>
-          </Paper>
+          )}
 
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                  MRP RUN ID
+                </Typography>
+                <Tooltip title="Add New MRP Run">
+                  <IconButton
+                    size="small"
+                    onClick={() => setAddMrpRunOpen(true)}
+                    sx={{
+                      color: COLORS.primary,
+                      p: 0.25,
+                      '&:hover': { bgcolor: COLORS.primaryLight }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Autocomplete
+                fullWidth
+                options={mrpRuns}
+                getOptionLabel={(option) => `${option.mrp_run_id} - ${option.run_type} (${new Date(option.run_date).toLocaleDateString()})`}
+                value={mrpRuns.find(m => m._id === formData.mrp_run_id) || null}
+                onChange={(event, newValue) => {
+                  setFormData(prev => ({ ...prev, mrp_run_id: newValue?._id || '' }));
+                }}
+                loading={loadingMRP}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    placeholder="Select MRP run (optional)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        fontSize: '0.75rem',
+                        '&:hover fieldset': { borderColor: COLORS.primary }
+                      }
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Stack>
+  );
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 5,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${COLORS.border}`,
+          py: 1.5,
+          px: 2.5,
+          mb: 0,
+          bgcolor: COLORS.background.white
+        }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Add New Work Order
+          </Typography>
+        </DialogTitle>
+
+        {/* Stepper */}
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
+        <DialogContent sx={{ p: 2.5 }}>
+          {activeStep === 0 ? renderStep1Content() : renderStep2Content()}
+          
           {error && (
-            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
               {error}
             </Alert>
           )}
-        </Stack>
-      </DialogContent>
+        </DialogContent>
 
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 1
-      }}>
-        <Button
-          onClick={handleClose}
-          disabled={loading}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading}
-          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            bgcolor: COLORS.primary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': { bgcolor: COLORS.primaryDark }
-          }}
-        >
-          {loading ? 'Creating...' : 'Create Work Order'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
+          <Button
+            onClick={handleBack}
+            disabled={activeStep === 0 || loading}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Back
+          </Button>
+          <Box>
+            <Button
+              onClick={handleClose}
+              disabled={loading}
+              sx={{
+                height: 32,
+                px: 2,
+                mr: 1,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+              >
+                {loading ? 'Creating...' : 'Create Work Order'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Sale Order Dialog */}
+      <AddSaleOrder
+        open={addSaleOrderOpen}
+        onClose={() => setAddSaleOrderOpen(false)}
+        onAdd={handleSaleOrderAdded}
+      />
+
+      {/* Add Item Dialog */}
+      <AddItem
+        open={addItemOpen}
+        onClose={() => setAddItemOpen(false)}
+        onAdd={handleItemAdded}
+      />
+
+      {/* Add BOM Dialog */}
+      <AddBom
+        open={addBomOpen}
+        onClose={() => setAddBomOpen(false)}
+        onAdd={handleBomAdded}
+      />
+
+      {/* Add Routing Dialog */}
+      <AddRouting
+        open={addRoutingOpen}
+        onClose={() => setAddRoutingOpen(false)}
+        onAdd={handleRoutingAdded}
+      />
+
+      {/* Add MRP Run Dialog */}
+      <MrpRun
+        open={addMrpRunOpen}
+        onClose={() => setAddMrpRunOpen(false)}
+        onAdd={handleMrpRunAdded}
+      />
+
+      {/* Add Assembly Line Dialog */}
+      <AddAssembly
+        open={addAssemblyOpen}
+        onClose={() => setAddAssemblyOpen(false)}
+        onAdd={handleAssemblyAdded}
+      />
+    </>
   );
 };
 

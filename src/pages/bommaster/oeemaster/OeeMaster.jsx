@@ -90,14 +90,15 @@ const COLORS = {
     primary: '#151C26',
     secondary: '#4B5568',
     tertiary: '#94A3B8',
-    light: '#6B7280'
+     light: '#FFFFFF',
   },
   background: {
-    light: '#F8FFFC',
     white: '#FFFFFF',
+    light: '#F8FFFC',
     hover: '#F0FDF9',
-    tableHeader: '#F9FAFB'
-  }
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
 };
 
 const SHIFT_OPTIONS = ['All', 'General', 'Morning', 'Afternoon', 'Night'];

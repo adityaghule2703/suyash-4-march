@@ -71,18 +71,20 @@ const COLORS = {
   error: '#D32F2F',
   border: '#E5E7EB',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF',
-    light: '#6B7280'
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
   },
   background: {
-    light: '#F9FAFB',
     white: '#FFFFFF',
-    hover: '#F3F4F6',
-    tableHeader: '#F9FAFB'
-  }
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
 };
+
 
 const ROUTING_TYPE_OPTIONS = ['All', 'Stamping', 'Busbar', 'Gasket', 'Assembly', 'Toolroom', 'General'];
 const STATUS_OPTIONS = ['All', 'Planned', 'In Progress', 'Completed', 'Postponed', 'Cancelled'];
@@ -817,7 +819,7 @@ const RoutingMaster = () => {
               sx={{
                 height: 36,
                 borderRadius: 1.5,
-                bgcolor: COLORS.primary,
+                bgcolor: COLORS.primaryDark,
                 fontSize: '0.75rem',
                 fontWeight: 500,
                 textTransform: 'none',

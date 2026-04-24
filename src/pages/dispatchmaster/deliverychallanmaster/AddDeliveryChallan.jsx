@@ -36,7 +36,8 @@ import {
   LocalShipping as LocalShippingIcon,
   Inventory as InventoryIcon,
   LocationOn as LocationIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Inventory2 as Inventory2Icon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -85,8 +86,9 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
 // Options
 const UNIT_OPTIONS = ['Nos', 'Kg', 'Meter', 'Set', 'Piece'];
 const DC_TYPE_OPTIONS = ['Supply of Goods', 'Delivery for Approval', 'Job Work Outward', 'Sales Return', 'Exhibition', 'Export'];
+const PACKING_TYPE_OPTIONS = ['Cardboard Box', 'Wooden Crate', 'Pallet', 'Gunny Bag', 'Bare Bundle', 'Polybag', 'Drum'];
 
-const steps = ['Sales Order Info', 'Shipping Address', 'Items Details'];
+const steps = ['Sales Order Info', 'Shipping Address', 'Items Details', 'Packing Details'];
 
 const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
   const [activeStep, setActiveStep] = useState(0);
@@ -113,7 +115,8 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
       pincode: '',
       country: 'India'
     },
-    items: []
+    items: [],
+    packing: [] // Changed to array
   });
 
   // Fetch Sales Orders
@@ -205,38 +208,52 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
     setFieldErrors(prev => ({ ...prev, [`ship_to_${field}`]: '' }));
   };
 
-  const handleItemChange = (index, field, value) => {
-    const updatedItems = [...formData.items];
-    updatedItems[index][field] = value;
-    setFormData(prev => ({ ...prev, items: updatedItems }));
-    setFieldErrors(prev => ({ ...prev, [`item_${index}_${field}`]: '' }));
-  };
-
-  const addItem = () => {
+  // Packing array functions
+  const addPackingEntry = () => {
     setFormData(prev => ({
       ...prev,
-      items: [
-        ...prev.items,
+      packing: [
+        ...prev.packing,
         {
-          so_item_id: '',
-          part_no: '',
-          part_name: '',
-          hsn_code: '',
-          dispatch_qty: '',
-          unit: 'Nos',
-          unit_price: '',
-          batch_no: '',
-          quality_cert_id: ''
+          no_of_packages: '',
+          gross_weight_kg: '',
+          net_weight_kg: '',
+          packing_type: 'Cardboard Box',
+          dimension_l_mm: '',
+          dimension_w_mm: '',
+          dimension_h_mm: ''
         }
       ]
     }));
   };
 
-  const removeItem = (index) => {
-    if (formData.items.length > 1) {
-      const updatedItems = formData.items.filter((_, i) => i !== index);
-      setFormData(prev => ({ ...prev, items: updatedItems }));
-    }
+  const removePackingEntry = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      packing: prev.packing.filter((_, i) => i !== index)
+    }));
+    // Clear field errors for removed entry
+    const newErrors = { ...fieldErrors };
+    Object.keys(newErrors).forEach(key => {
+      if (key.startsWith(`packing_${index}_`)) {
+        delete newErrors[key];
+      }
+    });
+    setFieldErrors(newErrors);
+  };
+
+  const handlePackingChange = (index, field, value) => {
+    const updatedPacking = [...formData.packing];
+    updatedPacking[index][field] = value;
+    setFormData(prev => ({ ...prev, packing: updatedPacking }));
+    setFieldErrors(prev => ({ ...prev, [`packing_${index}_${field}`]: '' }));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...formData.items];
+    updatedItems[index][field] = value;
+    setFormData(prev => ({ ...prev, items: updatedItems }));
+    setFieldErrors(prev => ({ ...prev, [`item_${index}_${field}`]: '' }));
   };
 
   const validateStep = (step) => {
@@ -294,6 +311,43 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
           }
           if (formData.items[i].unit_price && formData.items[i].unit_price <= 0) {
             errors[`item_${i}_unit_price`] = `Item ${i + 1}: Unit price must be greater than 0`;
+            isValid = false;
+          }
+        }
+        break;
+      
+      case 3: // Packing Details
+        if (formData.packing.length === 0) {
+          errors.packing_general = 'At least one packing entry is required';
+          isValid = false;
+        }
+        for (let i = 0; i < formData.packing.length; i++) {
+          if (!formData.packing[i].no_of_packages) {
+            errors[`packing_${i}_no_of_packages`] = `Entry ${i + 1}: Number of packages is required`;
+            isValid = false;
+          }
+          if (formData.packing[i].no_of_packages && formData.packing[i].no_of_packages <= 0) {
+            errors[`packing_${i}_no_of_packages`] = `Entry ${i + 1}: Number of packages must be greater than 0`;
+            isValid = false;
+          }
+          if (!formData.packing[i].gross_weight_kg) {
+            errors[`packing_${i}_gross_weight_kg`] = `Entry ${i + 1}: Gross weight is required`;
+            isValid = false;
+          }
+          if (formData.packing[i].gross_weight_kg && formData.packing[i].gross_weight_kg <= 0) {
+            errors[`packing_${i}_gross_weight_kg`] = `Entry ${i + 1}: Gross weight must be greater than 0`;
+            isValid = false;
+          }
+          if (!formData.packing[i].net_weight_kg) {
+            errors[`packing_${i}_net_weight_kg`] = `Entry ${i + 1}: Net weight is required`;
+            isValid = false;
+          }
+          if (formData.packing[i].net_weight_kg && formData.packing[i].net_weight_kg <= 0) {
+            errors[`packing_${i}_net_weight_kg`] = `Entry ${i + 1}: Net weight must be greater than 0`;
+            isValid = false;
+          }
+          if (!formData.packing[i].packing_type) {
+            errors[`packing_${i}_packing_type`] = `Entry ${i + 1}: Packing type is required`;
             isValid = false;
           }
         }
@@ -360,6 +414,41 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
       }
     }
 
+    if (formData.packing.length === 0) {
+      errors.packing_general = 'At least one packing entry is required';
+      isValid = false;
+    }
+    for (let i = 0; i < formData.packing.length; i++) {
+      if (!formData.packing[i].no_of_packages) {
+        errors[`packing_${i}_no_of_packages`] = `Entry ${i + 1}: Number of packages is required`;
+        isValid = false;
+      }
+      if (formData.packing[i].no_of_packages && formData.packing[i].no_of_packages <= 0) {
+        errors[`packing_${i}_no_of_packages`] = `Entry ${i + 1}: Number of packages must be greater than 0`;
+        isValid = false;
+      }
+      if (!formData.packing[i].gross_weight_kg) {
+        errors[`packing_${i}_gross_weight_kg`] = `Entry ${i + 1}: Gross weight is required`;
+        isValid = false;
+      }
+      if (formData.packing[i].gross_weight_kg && formData.packing[i].gross_weight_kg <= 0) {
+        errors[`packing_${i}_gross_weight_kg`] = `Entry ${i + 1}: Gross weight must be greater than 0`;
+        isValid = false;
+      }
+      if (!formData.packing[i].net_weight_kg) {
+        errors[`packing_${i}_net_weight_kg`] = `Entry ${i + 1}: Net weight is required`;
+        isValid = false;
+      }
+      if (formData.packing[i].net_weight_kg && formData.packing[i].net_weight_kg <= 0) {
+        errors[`packing_${i}_net_weight_kg`] = `Entry ${i + 1}: Net weight must be greater than 0`;
+        isValid = false;
+      }
+      if (!formData.packing[i].packing_type) {
+        errors[`packing_${i}_packing_type`] = `Entry ${i + 1}: Packing type is required`;
+        isValid = false;
+      }
+    }
+
     setFieldErrors(errors);
     if (!isValid) {
       setError('Please fix all validation errors');
@@ -393,7 +482,16 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
       const requestData = {
         so_id: formData.so_id,
         dc_type: formData.dc_type,
-        ship_to: formData.ship_to,
+        ship_to: {
+          line1: formData.ship_to.line1,
+          line2: formData.ship_to.line2,
+          city: formData.ship_to.city,
+          district: formData.ship_to.district,
+          state: formData.ship_to.state,
+          state_code: formData.ship_to.state_code ? Number(formData.ship_to.state_code) : undefined,
+          pincode: formData.ship_to.pincode,
+          country: formData.ship_to.country
+        },
         items: formData.items.map(item => ({
           so_item_id: item.so_item_id,
           part_no: item.part_no,
@@ -404,6 +502,15 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
           unit_price: Number(item.unit_price),
           batch_no: item.batch_no || undefined,
           quality_cert_id: item.quality_cert_id || undefined
+        })),
+        packing: formData.packing.map(pkg => ({
+          no_of_packages: Number(pkg.no_of_packages),
+          gross_weight_kg: Number(pkg.gross_weight_kg),
+          net_weight_kg: Number(pkg.net_weight_kg),
+          packing_type: pkg.packing_type,
+          dimension_l_mm: pkg.dimension_l_mm ? Number(pkg.dimension_l_mm) : undefined,
+          dimension_w_mm: pkg.dimension_w_mm ? Number(pkg.dimension_w_mm) : undefined,
+          dimension_h_mm: pkg.dimension_h_mm ? Number(pkg.dimension_h_mm) : undefined
         }))
       };
 
@@ -445,7 +552,8 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
         pincode: '',
         country: 'India'
       },
-      items: []
+      items: [],
+      packing: [] // Reset to empty array
     });
     setFieldErrors({});
     setError('');
@@ -826,271 +934,534 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
                 Items to Dispatch <span style={{ color: '#EF4444' }}>*</span>
               </Typography>
               
-              {formData.items.map((item, index) => (
-                <Paper
-                  key={index}
-                  sx={{
-                    p: 1.5,
-                    mb: 2,
-                    bgcolor: COLORS.background.light,
-                    borderRadius: 1.5,
-                    border: `1px solid ${COLORS.border}`
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+              {formData.items.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>
+                    Please select a Sales Order to view items
+                  </Typography>
+                </Box>
+              ) : (
+                formData.items.map((item, index) => (
+                  <Paper
+                    key={index}
+                    sx={{
+                      p: 1.5,
+                      mb: 2,
+                      bgcolor: COLORS.background.light,
+                      borderRadius: 1.5,
+                      border: `1px solid ${COLORS.border}`
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 1 }}>
                       Item {index + 1}
                     </Typography>
-                    {formData.items.length > 1 && (
+                    
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Part No <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.part_no}
+                            InputProps={{ readOnly: true }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                bgcolor: '#F5F5F5',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Part Name
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.part_name}
+                            InputProps={{ readOnly: true }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                bgcolor: '#F5F5F5',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            HSN Code
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.hsn_code}
+                            InputProps={{ readOnly: true }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                bgcolor: '#F5F5F5',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 3 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Dispatch Qty <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={item.dispatch_qty}
+                            onChange={(e) => handleItemChange(index, 'dispatch_qty', e.target.value)}
+                            placeholder="100"
+                            error={!!fieldErrors[`item_${index}_dispatch_qty`]}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                          {fieldErrors[`item_${index}_dispatch_qty`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`item_${index}_dispatch_qty`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 3 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Unit
+                          </Typography>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={item.unit}
+                              onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                              sx={{
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '& .MuiSelect-select': { py: 1, px: 1.5 }
+                              }}
+                            >
+                              {UNIT_OPTIONS.map(option => (
+                                <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                                  {option}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 3 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Unit Price <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={item.unit_price}
+                            onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
+                            placeholder="2500"
+                            error={!!fieldErrors[`item_${index}_unit_price`]}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                          {fieldErrors[`item_${index}_unit_price`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`item_${index}_unit_price`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 3 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Batch No (Optional)
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.batch_no}
+                            onChange={(e) => handleItemChange(index, 'batch_no', e.target.value)}
+                            placeholder="BATCH-2403-001"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ))
+              )}
+            </Paper>
+          </Stack>
+        );
+
+      case 3:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary }}>
+                  <Inventory2Icon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Packing Information <span style={{ color: '#EF4444' }}>*</span>
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={addPackingEntry}
+                  sx={{
+                    fontSize: '0.7rem',
+                    textTransform: 'none',
+                    color: COLORS.primary,
+                    '&:hover': { bgcolor: `${COLORS.primary}10` }
+                  }}
+                >
+                  Add Package
+                </Button>
+              </Box>
+              
+              {fieldErrors.packing_general && (
+                <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0 }}>
+                  {fieldErrors.packing_general}
+                </Alert>
+              )}
+              
+              {formData.packing.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>
+                    No packing entries added. Click "Add Package" to add packing details.
+                  </Typography>
+                </Box>
+              ) : (
+                formData.packing.map((pkg, index) => (
+                  <Paper
+                    key={index}
+                    sx={{
+                      p: 1.5,
+                      mb: 2,
+                      bgcolor: COLORS.background.light,
+                      borderRadius: 1.5,
+                      border: `1px solid ${COLORS.border}`,
+                      position: 'relative'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                        Package {index + 1}
+                      </Typography>
                       <IconButton
                         size="small"
-                        onClick={() => removeItem(index)}
-                        sx={{ color: '#EF4444' }}
+                        onClick={() => removePackingEntry(index)}
+                        sx={{
+                          color: '#EF4444',
+                          '&:hover': { bgcolor: '#FEE2E2' }
+                        }}
                       >
-                        <DeleteIcon fontSize="small" />
+                        <DeleteIcon sx={{ fontSize: '1rem' }} />
                       </IconButton>
-                    )}
-                  </Stack>
-                  
-                  <Grid container spacing={1.5}>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Part No <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.part_no}
-                          InputProps={{ readOnly: !!selectedSO }}
-                          placeholder="e.g., CB-100X10-C11000"
-                          error={!!fieldErrors[`item_${index}_part_no`]}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              bgcolor: selectedSO ? '#F5F5F5' : 'transparent',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                        {fieldErrors[`item_${index}_part_no`] && (
-                          <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                            {fieldErrors[`item_${index}_part_no`]}
+                    </Box>
+                    
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            No. of Packages <span style={{ color: '#EF4444' }}>*</span>
                           </Typography>
-                        )}
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Part Name
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.part_name}
-                          InputProps={{ readOnly: true }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              bgcolor: '#F5F5F5',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          HSN Code
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.hsn_code}
-                          InputProps={{ readOnly: true }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              bgcolor: '#F5F5F5',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Dispatch Qty <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          type="number"
-                          size="small"
-                          value={item.dispatch_qty}
-                          onChange={(e) => handleItemChange(index, 'dispatch_qty', e.target.value)}
-                          placeholder="100"
-                          error={!!fieldErrors[`item_${index}_dispatch_qty`]}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                        {fieldErrors[`item_${index}_dispatch_qty`] && (
-                          <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                            {fieldErrors[`item_${index}_dispatch_qty`]}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Unit
-                        </Typography>
-                        <FormControl fullWidth size="small">
-                          <Select
-                            value={item.unit}
-                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.no_of_packages}
+                            onChange={(e) => handlePackingChange(index, 'no_of_packages', e.target.value)}
+                            placeholder="e.g., 5"
+                            error={!!fieldErrors[`packing_${index}_no_of_packages`]}
                             sx={{
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '& .MuiSelect-select': { py: 1, px: 1.5 }
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
                             }}
-                          >
-                            {UNIT_OPTIONS.map(option => (
-                              <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
-                                {option}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Box>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Unit Price <span style={{ color: '#EF4444' }}>*</span>
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          type="number"
-                          size="small"
-                          value={item.unit_price}
-                          onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
-                          placeholder="2500"
-                          error={!!fieldErrors[`item_${index}_unit_price`]}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                        {fieldErrors[`item_${index}_unit_price`] && (
-                          <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                            {fieldErrors[`item_${index}_unit_price`]}
+                          />
+                          {fieldErrors[`packing_${index}_no_of_packages`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`packing_${index}_no_of_packages`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Gross Weight (KG) <span style={{ color: '#EF4444' }}>*</span>
                           </Typography>
-                        )}
-                      </Box>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.gross_weight_kg}
+                            onChange={(e) => handlePackingChange(index, 'gross_weight_kg', e.target.value)}
+                            placeholder="e.g., 350"
+                            error={!!fieldErrors[`packing_${index}_gross_weight_kg`]}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                          {fieldErrors[`packing_${index}_gross_weight_kg`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`packing_${index}_gross_weight_kg`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Net Weight (KG) <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.net_weight_kg}
+                            onChange={(e) => handlePackingChange(index, 'net_weight_kg', e.target.value)}
+                            placeholder="e.g., 320"
+                            error={!!fieldErrors[`packing_${index}_net_weight_kg`]}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                          {fieldErrors[`packing_${index}_net_weight_kg`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`packing_${index}_net_weight_kg`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+                      
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Packing Type <span style={{ color: '#EF4444' }}>*</span>
+                          </Typography>
+                          <FormControl fullWidth size="small" error={!!fieldErrors[`packing_${index}_packing_type`]}>
+                            <Select
+                              value={pkg.packing_type}
+                              onChange={(e) => handlePackingChange(index, 'packing_type', e.target.value)}
+                              sx={{
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '& .MuiSelect-select': { py: 1, px: 1.5 }
+                              }}
+                            >
+                              {PACKING_TYPE_OPTIONS.map(option => (
+                                <MenuItem key={option} value={option} sx={{ fontSize: '0.75rem' }}>
+                                  {option}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          {fieldErrors[`packing_${index}_packing_type`] && (
+                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                              {fieldErrors[`packing_${index}_packing_type`]}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Length (mm)
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.dimension_l_mm}
+                            onChange={(e) => handlePackingChange(index, 'dimension_l_mm', e.target.value)}
+                            placeholder="e.g., 600"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Width (mm)
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.dimension_w_mm}
+                            onChange={(e) => handlePackingChange(index, 'dimension_w_mm', e.target.value)}
+                            placeholder="e.g., 400"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                            Height (mm)
+                          </Typography>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            size="small"
+                            value={pkg.dimension_h_mm}
+                            onChange={(e) => handlePackingChange(index, 'dimension_h_mm', e.target.value)}
+                            placeholder="e.g., 200"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                '&:hover fieldset': { borderColor: COLORS.primary },
+                                '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                              },
+                              '& .MuiInputBase-input': {
+                                py: 1,
+                                px: 1.5,
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
                     </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 3 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                          Batch No (Optional)
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={item.batch_no}
-                          onChange={(e) => handleItemChange(index, 'batch_no', e.target.value)}
-                          placeholder="BATCH-2403-001"
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 1.5,
-                              fontSize: '0.75rem',
-                              '&:hover fieldset': { borderColor: COLORS.primary },
-                              '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                            },
-                            '& .MuiInputBase-input': {
-                              py: 1,
-                              px: 1.5,
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-              ))}
-              
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-                onClick={addItem}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  border: `1px solid ${COLORS.border}`,
-                  color: COLORS.text.secondary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: COLORS.primary,
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                Add Item
-              </Button>
+                  </Paper>
+                ))
+              )}
             </Paper>
           </Stack>
         );

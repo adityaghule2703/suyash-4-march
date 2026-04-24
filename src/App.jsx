@@ -86,6 +86,7 @@ import ToolMaster from './pages/productionmaster/toolmaster/ToolMaster'
 import GaugeMaster from './pages/inspectionmaster/gaugemaster/GaugeMaster'
 import InspectionPlanMaster from './pages/inspectionmaster/inspectionplanmaster/InspectionPlanMaster'
 import InspectionRecordMaster from './pages/inspectionmaster/inspectionrecordmaster/InspectionRecordMaster'
+import CustomerReturnMaster from './pages/dispatchmaster/customerreturnmaster/CustomerReturnMaster'
 
 
 const PrivateRoute = ({ children }) => {
@@ -101,7 +102,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-    {/* //  <BrowserRouter basename="/suyashtest-front"> */}
+      {/* <BrowserRouter basename="/suyashtest-front"> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -196,13 +197,18 @@ const App = () => {
           <Route path='productionmaster/toolmaster' element={<ToolMaster/>} />
 
           <Route path="dispatchmaster/delivery-challan" element={<DeliveryChallanMaster />} />
-
           <Route path="dispatchmaster/delivery-schedule" element={<DeliveryScheduleMaster />} />
+          <Route path="dispatchmaster/customer-returns" element={<CustomerReturnMaster />} />
+          
 
           <Route path="inspectionmaster/gaugemaster" element={<GaugeMaster />} />
           <Route path="inspectionmaster/inspectionplan" element={<InspectionPlanMaster />} />
            <Route path="inspectionmaster/inspectionrecord" element={<InspectionRecordMaster />} />
-
+                    <Route path='inspectionmaster/defectcode' element={<DefectCodeMaster />} />
+            <Route path='inspectionmaster/ncr' element={<NcrMaster/>} />
+            <Route path='inspectionmaster/trendanalysis' element={<NcrTrendAnalysis/>} />
+            <Route path='inspectionmaster/capa' element={<CapaMaster/>} />
+            <Route path='inspectionmaster/qualitycertificate' element={<QualityCertMaster/>} />
         </Route>
 
         {/* Catch all route - redirect to home */}

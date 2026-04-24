@@ -627,7 +627,7 @@ if (!revisionPermissions.view) {
                             {getBomInitials(bom)}
                           </Avatar>
                           <Box sx={{ minWidth: 0 }}>
-                            <Typography sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{bom.bom_id}</Typography>
+                            <Typography sx={{ fontWeight: 600,fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{bom.bom_id}</Typography>
                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, whiteSpace: 'nowrap' }}>
                               {parentItem.part_no || bom.parent_part_no}
                             </Typography>
