@@ -124,7 +124,7 @@ const AddDeliveryChallan = ({ open, onClose, onSuccess }) => {
     try {
       setLoadingSO(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/sales-orders?limit=100`, {
+      const response = await axios.get(`${BASE_URL}/api/sales-orders`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

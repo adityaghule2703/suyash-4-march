@@ -42,7 +42,7 @@ const EditWorkOrder = ({ open, onClose, workOrder, onUpdate }) => {
         status: workOrder.status || 'Planned',
         priority: workOrder.priority || 'Medium',
         hold_reason: workOrder.hold_reason || '',
-        assembly_line: workOrder.assembly_line || ''
+        assembly_line: workOrder.assembly_line?.line_name || ''
       });
     }
   }, [workOrder]);

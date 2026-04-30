@@ -137,44 +137,54 @@ const EditProcess = ({ open, onClose, process, onUpdate }) => {
     }
   };
 
-  useEffect(() => {
-    if (process) {
-      setFormData({
-        process_id: process.process_id || '',
-        process_name: process.process_name || '',
-        category: process.category || 'Core',
-        rate_type: process.rate_type || 'Per Hour',
-        description: process.description || '',
-        work_centre: process.work_centre || '',
-        setup_time_min: process.setup_time_min || 0,
-        cycle_time_min: process.cycle_time_min || 0,
-        is_subcontract: process.is_subcontract || false,
-        default_vendor: process.default_vendor || ''
-      });
+ useEffect(() => {
+  if (process) {
+    setFormData({
+      process_id: process.process_id || '',
+      process_name: process.process_name || '',
+      category: process.category || 'Core',
+      rate_type: process.rate_type || 'Per Hour',
+      description: process.description || '',
+      work_centre: process.work_centre?._id || process.work_centre || '', // Handle both object and string
+      setup_time_min: process.setup_time_min || 0,
+      cycle_time_min: process.cycle_time_min || 0,
+      is_subcontract: process.is_subcontract || false,
+      default_vendor: process.default_vendor?._id || process.default_vendor || '' // Handle both object and string
+    });
 
-      // Set selected category
-      if (process.category) {
-        setSelectedCategory(process.category);
-      }
-
-      // Set selected rate type
-      if (process.rate_type) {
-        setSelectedRateType(process.rate_type);
-      }
-
-      // Set selected work centre
-      if (process.work_centre && workCentres.length > 0) {
-        const foundWorkCentre = workCentres.find(wc => wc._id === process.work_centre);
-        setSelectedWorkCentre(foundWorkCentre || null);
-      }
-
-      // Set selected vendor
-      if (process.default_vendor && vendors.length > 0) {
-        const foundVendor = vendors.find(v => v._id === process.default_vendor);
-        setSelectedVendor(foundVendor || null);
-      }
+    // Set selected category
+    if (process.category) {
+      setSelectedCategory(process.category);
     }
-  }, [process, workCentres, vendors]);
+
+    // Set selected rate type
+    if (process.rate_type) {
+      setSelectedRateType(process.rate_type);
+    }
+
+    // Set selected work centre - Handle when work_centre is an object
+    if (process.work_centre && typeof process.work_centre === 'object' && process.work_centre._id) {
+      // If work_centre is a populated object
+      setSelectedWorkCentre(process.work_centre);
+      setFormData(prev => ({
+        ...prev,
+        work_centre: process.work_centre._id
+      }));
+    } else if (process.work_centre && typeof process.work_centre === 'string' && workCentres.length > 0) {
+      // If work_centre is just an ID string, find the full object
+      const foundWorkCentre = workCentres.find(wc => wc._id === process.work_centre);
+      setSelectedWorkCentre(foundWorkCentre || null);
+    }
+
+    // Set selected vendor - Handle when default_vendor is an object
+    if (process.default_vendor && typeof process.default_vendor === 'object' && process.default_vendor._id) {
+      setSelectedVendor(process.default_vendor);
+    } else if (process.default_vendor && typeof process.default_vendor === 'string' && vendors.length > 0) {
+      const foundVendor = vendors.find(v => v._id === process.default_vendor);
+      setSelectedVendor(foundVendor || null);
+    }
+  }
+}, [process, workCentres, vendors]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

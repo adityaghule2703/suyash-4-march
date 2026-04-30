@@ -54,7 +54,7 @@ const COLORS = {
   }
 };
 
-const SHIFT_OPTIONS = ['General', 'Morning', 'Evening', 'Night'];
+const SHIFT_OPTIONS =['General', 'Morning', 'Afternoon', 'Night'];
 const STATUS_OPTIONS = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
 
 const EditProductionSchedule = ({ open, onClose, schedule, onUpdate }) => {

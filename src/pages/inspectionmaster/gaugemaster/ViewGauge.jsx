@@ -90,6 +90,7 @@ const ViewGauge = ({ open, onClose, gauge }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 2,
         px: 3,
+        md: 1.5,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
@@ -222,7 +223,9 @@ const ViewGauge = ({ open, onClose, gauge }) => {
                   Custodian
                 </Typography>
                 <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.custodian_id || 'Not assigned'}
+                  {gauge.custodian_id
+                    ? `${gauge.custodian_id.FirstName} ${gauge.custodian_id.LastName}`
+                    : 'Not assigned'}
                 </Typography>
               </Grid>
             </Grid>

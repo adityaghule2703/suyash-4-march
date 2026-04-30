@@ -139,68 +139,96 @@ const AddQualityCert = ({ open, onClose, onCertificateGenerated }) => {
     }
   }, [open]);
 
-  const fetchInitialData = async () => {
-    setLoadingData(true);
-    setError('');
+ const fetchInitialData = async () => {
+  setLoadingData(true);
+  setError('');
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      setError('Authentication token not found. Please login again.');
+      setLoadingData(false);
+      return;
+    }
+    
+    // Don't use Promise.all - handle each separately so one failure doesn't break everything
+    let soRes = null, woRes = null, dcRes = null, inspectionRes = null;
+    
+    // Fetch Sales Orders
     try {
-      const token = localStorage.getItem('token');
-      
-      // Fetch all data without filters first to debug
-      const [soRes, woRes, dcRes, inspectionRes] = await Promise.all([
-        axios.get(`${BASE_URL}/api/sales-orders?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${BASE_URL}/api/work-orders?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${BASE_URL}/api/delivery-challans?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${BASE_URL}/api/inspection-records/final?limit=100`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      
-      console.log('Sales Orders Response:', soRes.data);
-      console.log('Work Orders Response:', woRes.data);
-      console.log('Delivery Challans Response:', dcRes.data);
-      console.log('Inspections Response:', inspectionRes.data);
-      
+      soRes = await axios.get(`${BASE_URL}/api/sales-orders`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
       if (soRes.data.success) {
-        // Show all SOs for testing, then filter if needed
         const allSOs = soRes.data.data || [];
-        const eligibleSOs = allSOs.filter(so => 
-          so.status === 'Ready for Dispatch' || so.status === 'Fully Delivered' || so.status === 'Confirmed'
-        );
-        setSalesOrders(eligibleSOs.length > 0 ? eligibleSOs : allSOs);
-        console.log('Filtered SOs:', eligibleSOs.length > 0 ? eligibleSOs : allSOs);
-      }
-      
-      if (woRes.data.success) {
-        const allWOs = woRes.data.data || [];
-        const eligibleWOs = allWOs.filter(wo => 
-          wo.status === 'Completed'
-        );
-        setWorkOrders(eligibleWOs.length > 0 ? eligibleWOs : allWOs);
-        console.log('Filtered WOs:', eligibleWOs.length > 0 ? eligibleWOs : allWOs);
-      }
-      
-      if (dcRes.data.success) {
-        const allDCs = dcRes.data.data || [];
-        const eligibleDCs = allDCs.filter(dc => 
-          dc.status === 'Inspected' || dc.status === 'Closed' || dc.status === 'Delivered'
-        );
-        setDeliveryChallans(eligibleDCs.length > 0 ? eligibleDCs : allDCs);
-        console.log('Filtered DCs:', eligibleDCs.length > 0 ? eligibleDCs : allDCs);
-      }
-      
-      if (inspectionRes.data.success) {
-        const allInspections = inspectionRes.data.data || [];
-        const eligibleInspections = allInspections.filter(insp => 
-          insp.overall_result === 'Accepted' || insp.overall_result === 'Pass'
-        );
-        setFinalInspections(eligibleInspections.length > 0 ? eligibleInspections : allInspections);
-        console.log('Filtered Inspections:', eligibleInspections.length > 0 ? eligibleInspections : allInspections);
+        setSalesOrders(allSOs);
+        console.log('Sales Orders loaded:', allSOs.length);
       }
     } catch (err) {
-      console.error('Error fetching initial data:', err);
-      setError('Failed to load required data: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setLoadingData(false);
+      console.error('Error fetching sales orders:', err);
+      // Don't set global error, just log it
     }
-  };
+    
+    // Fetch Work Orders
+   // In fetchInitialData function, replace the work orders section:
+
+// Fetch Work Orders - Get only completed ones
+try {
+  // Add status filter to API query
+  woRes = await axios.get(`${BASE_URL}/api/work-orders?status=Completed`, { 
+    headers: { Authorization: `Bearer ${token}` } 
+  });
+  
+  if (woRes.data.success) {
+    const allWOs = woRes.data.data || [];
+    // Additional filter to ensure only completed work orders
+    const completedWOs = allWOs.filter(wo => 
+      wo.status === 'Completed' || wo.status === 'completed'
+    );
+    setWorkOrders(completedWOs);
+    console.log('Completed Work Orders loaded:', completedWOs.length);
+  }
+} catch (err) {
+  console.error('Error fetching work orders:', err);
+}
+    
+    // Fetch Delivery Challans
+    try {
+      dcRes = await axios.get(`${BASE_URL}/api/delivery-challans`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (dcRes.data.success) {
+        const allDCs = dcRes.data.data || [];
+        setDeliveryChallans(allDCs);
+        console.log('Delivery Challans loaded:', allDCs.length);
+      }
+    } catch (err) {
+      console.error('Error fetching delivery challans:', err);
+    }
+    
+    // Fetch Final Inspections - This one is failing
+    try {
+      inspectionRes = await axios.get(`${BASE_URL}/api/inspection-records/all?status=Accepted`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (inspectionRes.data.success) {
+        const allInspections = inspectionRes.data.data || [];
+        setFinalInspections(allInspections);
+        console.log('Inspections loaded:', allInspections.length);
+      }
+    } catch (err) {
+      console.error('Error fetching inspections (this endpoint may be broken):', err);
+      // Show a warning but don't stop other data from loading
+      setError('Note: Inspection data unavailable, but you can still proceed with other options.');
+    }
+    
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    setError('Failed to load required data. Please refresh and try again.');
+  } finally {
+    setLoadingData(false);
+  }
+};
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

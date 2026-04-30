@@ -213,15 +213,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen,
 const RawMaterialMaster = () => {
   // State for data
   const [materials, setMaterials] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -257,6 +257,10 @@ const RawMaterialMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -325,25 +329,51 @@ const RawMaterialMaster = () => {
   const canExport = checkPermission(ACTIONS.EXPORT);
   const canImport = checkPermission(ACTIONS.IMPORT);
 
-  // Debounce search to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch raw materials from API with pagination
   const fetchMaterials = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -360,8 +390,7 @@ const RawMaterialMaster = () => {
       if (response.data.success) {
         const { data: materialsData, pagination } = response.data;
         setMaterials(materialsData || []);
-        setTotalItems(pagination.totalItems);
-        setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.totalItems || pagination.total || 0);
       } else {
         showNotification('Failed to load raw materials', 'error');
       }
@@ -371,7 +400,7 @@ const RawMaterialMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Fetch materials when dependencies change - only if user has permission
   useEffect(() => {
@@ -416,6 +445,7 @@ const RawMaterialMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -424,13 +454,38 @@ const RawMaterialMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
   // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/raw-materials/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (materials.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchMaterials();
+      }
+      
+      showNotification(`${selected.length} raw material(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete raw materials', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Handle export data
@@ -445,15 +500,13 @@ const RawMaterialMaster = () => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        responseType: 'blob' // Important for file download
+        responseType: 'blob'
       });
       
-      // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       
-      // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers['content-disposition'];
       let filename = 'raw-materials-export.csv';
       if (contentDisposition) {
@@ -489,15 +542,13 @@ const RawMaterialMaster = () => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        responseType: 'blob' // Important for file download
+        responseType: 'blob'
       });
       
-      // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       
-      // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers['content-disposition'];
       let filename = 'raw-materials-template.csv';
       if (contentDisposition) {
@@ -524,8 +575,6 @@ const RawMaterialMaster = () => {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file type
-      const validTypes = ['text/csv', 'application/vnd.ms-excel', '.csv'];
       const fileExtension = file.name.split('.').pop().toLowerCase();
       
       if (fileExtension !== 'csv') {
@@ -554,7 +603,6 @@ const RawMaterialMaster = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setImportProgress(prev => {
           if (prev >= 90) {
@@ -577,9 +625,7 @@ const RawMaterialMaster = () => {
       
       if (response.data.success) {
         showNotification(response.data.message || 'Data imported successfully!', 'success');
-        // Refresh the materials list
         fetchMaterials();
-        // Close dialog and reset states
         setOpenImportDialog(false);
         setImportFile(null);
         if (fileInputRef.current) {
@@ -661,18 +707,6 @@ const RawMaterialMaster = () => {
     });
   };
   
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -681,24 +715,6 @@ const RawMaterialMaster = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
-  };
-  
-  // Get status styles
-  const getStatusStyles = (isActive) => {
-    return isActive ? {
-      bg: COLORS.chips.active,
-      text: COLORS.primaryDark,
-      border: '#86efac'
-    } : {
-      bg: COLORS.chips.inactive,
-      text: COLORS.text.secondary,
-      border: COLORS.border
-    };
-  };
-  
-  // Get status text
-  const getStatusText = (isActive) => {
-    return isActive ? 'Active' : 'Inactive';
   };
   
   // Get material initials for avatar
@@ -790,7 +806,8 @@ const RawMaterialMaster = () => {
               placeholder="Search by material name, grade, or rate..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -821,12 +838,28 @@ const RawMaterialMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button
@@ -1270,7 +1303,6 @@ const RawMaterialMaster = () => {
               </Typography>
               <Button
                 variant="outlined"
-              
                 onClick={handleDownloadTemplate}
                 size="small"
                 sx={{

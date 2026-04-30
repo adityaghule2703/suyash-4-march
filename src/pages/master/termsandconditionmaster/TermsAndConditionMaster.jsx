@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -201,14 +201,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen,
 const TermsAndConditionMaster = () => {
   // State for data
   const [termsData, setTermsData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -237,6 +238,10 @@ const TermsAndConditionMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -289,27 +294,59 @@ const TermsAndConditionMaster = () => {
   const canCreate = checkPermission(ACTIONS.CREATE);
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
-  const canExport = checkPermission(ACTIONS.EXPORT);
-  const canImport = checkPermission(ACTIONS.IMPORT);
-  const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debounce search to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
-  // Fetch terms from API
+  // Fetch terms from API with server-side pagination and search
   const fetchTerms = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem("token");
+      
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: rowsPerPage
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
 
-      const response = await axios.get(`${BASE_URL}/api/terms-conditions`, {
+      const response = await axios.get(`${BASE_URL}/api/terms-conditions?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -317,7 +354,7 @@ const TermsAndConditionMaster = () => {
 
       if (response.data.success) {
         setTermsData(response.data.data || []);
-        setTotalItems(response.data.data?.length || 0);
+        setTotalItems(response.data.pagination?.totalItems || response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load terms', 'error');
       }
@@ -327,26 +364,14 @@ const TermsAndConditionMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
-  // Fetch data on mount - only if user has permission
+  // Fetch data when dependencies change
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchTerms();
     }
   }, [fetchTerms, permissionsLoaded, canViewPage, isSuperAdmin]);
-
-  // Filter data based on search term
-  const filteredData = termsData.filter(
-    (term) =>
-      term.Title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      term.Description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Update total items when filtered data changes
-  useEffect(() => {
-    setTotalItems(filteredData.length);
-  }, [filteredData.length]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -359,7 +384,7 @@ const TermsAndConditionMaster = () => {
     if (!canDelete) return;
     
     if (event.target.checked) {
-      setSelected(filteredData.map(item => item._id));
+      setSelected(termsData.map(item => item._id));
     } else {
       setSelected([]);
     }
@@ -384,6 +409,7 @@ const TermsAndConditionMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -392,30 +418,38 @@ const TermsAndConditionMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
   // Handle bulk delete
   const handleBulkDelete = async () => {
-    if (!canDelete) return;
+    if (!canDelete || selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem("token");
-
-      await Promise.all(
-        selected.map((id) =>
-          axios.delete(`${BASE_URL}/api/terms-conditions/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ),
+      
+      await axios.post(`${BASE_URL}/api/terms-conditions/bulk-delete`, 
+        { ids: selected },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setSelected([]);
-      fetchTerms();
-      showNotification('Selected terms deleted successfully!', 'success');
+      
+      if (termsData.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchTerms();
+      }
+      
+      showNotification(`${selected.length} term(s) deleted successfully!`, 'success');
     } catch (error) {
       console.error("Bulk delete error:", error);
       showNotification('Failed to delete selected terms', 'error');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -508,12 +542,6 @@ const TermsAndConditionMaster = () => {
     return colors[charCode % colors.length];
   };
 
-  // Get paginated data
-  const paginatedData = filteredData.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
   // Show loading state while permissions are being fetched
   if (!permissionsLoaded) {
     return <LoadingState />;
@@ -562,7 +590,8 @@ const TermsAndConditionMaster = () => {
               placeholder="Search by title or description..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -593,12 +622,28 @@ const TermsAndConditionMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button
@@ -675,8 +720,8 @@ const TermsAndConditionMaster = () => {
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < filteredData.length}
-                      checked={filteredData.length > 0 && selected.length === filteredData.length}
+                      indeterminate={selected.length > 0 && selected.length < termsData.length}
+                      checked={termsData.length > 0 && selected.length === termsData.length}
                       onChange={handleSelectAll}
                       sx={{
                         color: COLORS.text.light,
@@ -690,7 +735,7 @@ const TermsAndConditionMaster = () => {
                           fontSize: '1.25rem'
                         }
                       }}
-                      disabled={loading || filteredData.length === 0}
+                      disabled={loading || termsData.length === 0}
                     />
                   </TableCell>
                 )}
@@ -739,7 +784,7 @@ const TermsAndConditionMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedData.length === 0 ? (
+              ) : termsData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canDelete ? 6 : 5} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
@@ -753,7 +798,7 @@ const TermsAndConditionMaster = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((term) => {
+                termsData.map((term) => {
                   const isSelected = selected.includes(term._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedItemForAction?._id === term._id;

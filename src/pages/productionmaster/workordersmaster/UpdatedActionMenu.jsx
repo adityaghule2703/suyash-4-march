@@ -1,4 +1,3 @@
-// ActionMenu.jsx
 import React from 'react';
 import {
   Menu,
@@ -56,12 +55,16 @@ const ActionMenu = ({
   onJobCard, 
   onTimeline 
 }) => {
+
   const isPlanned = item?.status === 'Planned';
   const isReleased = item?.status === 'Released';
   const isOnHold = item?.status === 'On Hold';
   const isInProgress = item?.status === 'In Progress';
   const isPartiallyCompleted = item?.status === 'Partially Completed';
-  
+
+  // 🔥 NEW: CHECK OPERATIONS
+  const hasOperations = item?.operations && item.operations.length > 0;
+
   const menuItem = (onClick, icon, label, color = COLORS.text.primary, disabled = false, tooltipMsg = '') => {
     const el = (
       <MenuItem 
@@ -126,18 +129,42 @@ const ActionMenu = ({
         {menuItem(() => onTimeline(item), <TimelineIcon fontSize="small" />, 'Timeline', COLORS.primary)}
         
         <Divider sx={{ my: 0.5, borderColor: '#E3E8EF' }} />
+
+        {/* 🔥 PLANNED FLOW FIX */}
         
-        {isPlanned && menuItem(() => onRelease(item), <RocketLaunchIcon fontSize="small" />, 'Release Work Order', '#059669')}
+        {/* Step 1: Add Operations */}
+        {isPlanned && menuItem(
+          () => onOperations(item),
+          <SettingsIcon fontSize="small" />,
+          'Add Operations',
+          COLORS.primary
+        )}
+
+        {/* Step 2: Release ONLY if operations exist */}
+        {isPlanned && menuItem(
+          () => onRelease(item),
+          <RocketLaunchIcon fontSize="small" />,
+          'Release Work Order',
+          '#059669',
+          !hasOperations,
+          'Add operations first'
+        )}
+
+        {/* Cancel still allowed */}
         {isPlanned && menuItem(() => onCancel(item), <BlockIcon fontSize="small" />, 'Cancel Work Order', '#DC2626')}
-        
+
+        {/* Released flow */}
         {isReleased && menuItem(() => onStart(item), <StartIcon fontSize="small" />, 'Start', '#059669')}
-        {isReleased && menuItem(() => onOperations(item), <SettingsIcon fontSize="small" />, 'Operations', COLORS.primary)}
-        
+
+        {/* On Hold */}
         {isOnHold && menuItem(() => onResume(item), <ResumeIcon fontSize="small" />, 'Resume Work Order', '#059669')}
+
+        {/* In Progress */}
         {isInProgress && menuItem(() => onHold(item), <HoldIcon fontSize="small" />, 'Hold Work Order', '#D97706')}
         {isInProgress && menuItem(() => onCompleteOp(item), <CompleteOpIcon fontSize="small" />, 'Complete Operation', '#8B5CF6')}
         {isInProgress && menuItem(() => onCompleteWO(item), <CompleteWOIcon fontSize="small" />, 'Complete Work Order', '#059669')}
         {isInProgress && menuItem(() => onLabour(item), <LabourIcon fontSize="small" />, 'Labour Entry', '#F59E0B')}
+
         {isPartiallyCompleted && menuItem(() => onCompleteWO(item), <CompleteWOIcon fontSize="small" />, 'Complete Work Order', '#059669')}
       </Menu>
     </>

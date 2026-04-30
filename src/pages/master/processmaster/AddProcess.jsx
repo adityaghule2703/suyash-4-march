@@ -310,6 +310,7 @@ const AddProcess = ({ open, onClose, onAdd }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',

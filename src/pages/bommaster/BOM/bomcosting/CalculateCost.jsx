@@ -79,8 +79,8 @@ const CalculateCost = ({ open, onClose, bomId, onSuccess }) => {
   const [result, setResult] = useState(null);
   const [components, setComponents] = useState([]);
   const [selectedComponent, setSelectedComponent] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [scrapPercent, setScrapPercent] = useState(0);
+  const [quantity, setQuantity] = useState("1");
+  const [scrapPercent, setScrapPercent] = useState("0");
   const [fetchingComponents, setFetchingComponents] = useState(false);
   const [bomDetails, setBomDetails] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -436,7 +436,7 @@ const CalculateCost = ({ open, onClose, bomId, onSuccess }) => {
                     size="small"
                     value={quantity}
                     onChange={(e) => {
-                      setQuantity(Number(e.target.value));
+                      setQuantity((e.target.value));
                       setFieldErrors(prev => ({ ...prev, quantity: '' }));
                     }}
                     error={!!fieldErrors.quantity}
@@ -465,7 +465,7 @@ const CalculateCost = ({ open, onClose, bomId, onSuccess }) => {
                     size="small"
                     value={scrapPercent}
                     onChange={(e) => {
-                      setScrapPercent(Number(e.target.value));
+                      setScrapPercent((e.target.value));
                       setFieldErrors(prev => ({ ...prev, scrapPercent: '' }));
                     }}
                     error={!!fieldErrors.scrapPercent}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -537,11 +537,11 @@ const ActionMenu = ({
 const QuotationMaster = () => {
   // State for data
   const [quotations, setQuotations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // Search and filter state
-  const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
     quotationType: '',
@@ -553,6 +553,7 @@ const QuotationMaster = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -610,6 +611,10 @@ const QuotationMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
+
   // Fetch user permissions
   useEffect(() => {
     const fetchUserPermissions = async () => {
@@ -650,6 +655,46 @@ const QuotationMaster = () => {
   const canReject = checkPermission(ACTIONS.REJECT);
   const canSend = checkPermission(ACTIONS.SEND);
 
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Fetch templates
   const fetchTemplates = useCallback(async () => {
     try {
@@ -665,22 +710,19 @@ const QuotationMaster = () => {
     }
   }, []);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
   // Fetch quotations
   const fetchQuotations = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       if (searchTerm) params.append('search', searchTerm);
@@ -695,7 +737,7 @@ const QuotationMaster = () => {
       if (response.data.success) {
         const { data, pagination, statistics } = response.data;
         setQuotations(data || []);
-        setTotalItems(pagination.totalItems);
+        setTotalItems(pagination.totalItems || pagination.total || 0);
         setStatistics(statistics || {});
         setSelected([]);
       }
@@ -705,7 +747,7 @@ const QuotationMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm, filters]);
+  }, [currentPage, rowsPerPage, searchTerm, filters, canViewPage, isSuperAdmin]);
 
   // Fetch customers
   const fetchCustomers = useCallback(async () => {
@@ -742,6 +784,7 @@ const QuotationMaster = () => {
   };
 
   const applyFilters = () => {
+    setCurrentPage(1);
     setPage(0);
     fetchQuotations();
     setShowFilters(false);
@@ -751,6 +794,7 @@ const QuotationMaster = () => {
     setFilters({ status: '', quotationType: '', customerName: '' });
     setSearchInput('');
     setSearchTerm('');
+    setCurrentPage(1);
     setPage(0);
     setTimeout(() => fetchQuotations(), 0);
   };
@@ -783,29 +827,39 @@ const QuotationMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
   const handleBulkDelete = async () => {
     if (!canDelete) return;
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
-      await Promise.all(selected.map(id => 
-        axios.delete(`${BASE_URL}/api/quotations/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ));
-      showNotification(`${selected.length} quotations deleted successfully!`, 'success');
+      await axios.post(`${BASE_URL}/api/quotations/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
       setSelected([]);
-      fetchQuotations();
+      
+      if (quotations.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchQuotations();
+      }
+      
+      showNotification(`${selected.length} quotations deleted successfully!`, 'success');
     } catch (err) {
+      console.error('Bulk delete error:', err);
       showNotification('Failed to delete quotations', 'error');
     } finally {
       setLoading(false);
@@ -866,6 +920,7 @@ const QuotationMaster = () => {
       
       showNotification('Quotation exported to Excel successfully!', 'success');
     } catch (err) {
+      console.error('Error exporting:', err);
       showNotification('Failed to export quotation', 'error');
     } finally {
       setExportLoading(false);
@@ -890,6 +945,7 @@ const QuotationMaster = () => {
         fetchQuotations();
       }
     } catch (err) {
+      console.error('Error sending:', err);
       showNotification('Failed to send quotation', 'error');
     } finally {
       setActionLoading(false);
@@ -914,6 +970,7 @@ const QuotationMaster = () => {
         fetchQuotations();
       }
     } catch (err) {
+      console.error('Error approving:', err);
       showNotification('Failed to approve quotation', 'error');
     } finally {
       setActionLoading(false);
@@ -938,6 +995,7 @@ const QuotationMaster = () => {
         fetchQuotations();
       }
     } catch (err) {
+      console.error('Error rejecting:', err);
       showNotification('Failed to reject quotation', 'error');
     } finally {
       setActionLoading(false);
@@ -963,6 +1021,7 @@ const QuotationMaster = () => {
         fetchQuotations();
       }
     } catch (err) {
+      console.error('Error revising:', err);
       showNotification('Failed to revise quotation', 'error');
     } finally {
       setActionLoading(false);
@@ -1112,7 +1171,8 @@ const QuotationMaster = () => {
               placeholder="Search by quotation no, customer, or company..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ width: { xs: '100%', sm: 320 } }}
               InputProps={{
                 startAdornment: (
@@ -1122,14 +1182,13 @@ const QuotationMaster = () => {
                 ),
                 endAdornment: searchInput && (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => { setSearchInput(''); setSearchTerm(''); }}>
+                    <IconButton size="small" onClick={handleClearSearch}>
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
                 ),
                 sx: { height: 36, bgcolor: COLORS.background.light }
               }}
-              disabled={loading}
             />
             {hasActiveFilters() && (
               <Button variant="text" size="small" onClick={clearFilters} sx={{ height: 36, fontSize: '0.7rem' }}>
@@ -1139,6 +1198,8 @@ const QuotationMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
+            
+            
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"

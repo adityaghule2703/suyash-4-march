@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -206,15 +206,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen,
 const DimensionMaster = () => {
   // State for data
   const [dimensions, setDimensions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -252,6 +252,10 @@ const DimensionMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -317,25 +321,51 @@ const DimensionMaster = () => {
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
 
-  // Debounce search to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch dimensions from API with pagination
   const fetchDimensions = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       // Build query parameters
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -352,8 +382,7 @@ const DimensionMaster = () => {
       if (response.data.success) {
         const { data: dimensionsData, pagination, statistics } = response.data;
         setDimensions(dimensionsData || []);
-        setTotalItems(pagination.totalItems);
-        setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.totalItems || pagination.total || 0);
         setStatistics(statistics || {
           totalWeight: 0,
           avgWeight: 0,
@@ -370,7 +399,7 @@ const DimensionMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Fetch dimensions when dependencies change - only if user has permission
   useEffect(() => {
@@ -415,6 +444,7 @@ const DimensionMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -423,13 +453,38 @@ const DimensionMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
   // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/dimension-weights/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (dimensions.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchDimensions();
+      }
+      
+      showNotification(`${selected.length} dimension(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete dimensions', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Handle add dimension
@@ -586,7 +641,8 @@ const DimensionMaster = () => {
               placeholder="Search by Part No, dimensions, or weight..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -617,12 +673,28 @@ const DimensionMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button

@@ -36,7 +36,7 @@ export const MODULES = {
   PURCHASE_REQUISITION_MASTER: 'PURCHASE_REQUISITION_MASTER',
   RFQ_MASTER: 'RFQ_MASTER',
   PURCHASE_INVOICE_MASTER: 'PURCHASE_INVOICE_MASTER',
-  VENDOR_PAYMENTS: 'VENDOR_PAYMENTS', // NEW
+  VENDOR_PAYMENTS: 'VENDOR_PAYMENTS',
   
   // HR Master
   DEPARTMENT_MASTER: 'DEPARTMENT_MASTER',
@@ -73,12 +73,39 @@ export const MODULES = {
   SO_PENDING_DELIVERY: 'SO_PENDING_DELIVERY',
   
   // Production Master
-  WORK_ORDERS: 'WORK_ORDERS', // NEW
+  WORK_ORDERS: 'WORK_ORDERS',
+  ASSEMBLY_LINES: 'ASSEMBLY_LINES',
+  PRODUCTION_SCHEDULE: 'PRODUCTION_SCHEDULE',
+  PRODUCTION_CONFLICT: 'PRODUCTION_CONFLICT',
+  TOOL_MASTER: 'TOOL_MASTER',
   
   // Inventory Management
-  INVENTORY_MANAGEMENT: 'INVENTORY_MANAGEMENT', // NEW
+  INVENTORY_MANAGEMENT: 'INVENTORY_MANAGEMENT',
   
-  // Reports
+  // Dispatch Master
+  DISPATCH_MASTER: 'DISPATCH_MASTER',
+  DELIVERY_CHALLAN: 'DELIVERY_CHALLAN',
+  DELIVERY_SCHEDULE: 'DELIVERY_SCHEDULE',
+  CUSTOMER_RETURNS: 'CUSTOMER_RETURNS',
+  
+  // Inspection Master
+  INSPECTION_MASTER: 'INSPECTION_MASTER',
+  GAUGE_MASTER: 'GAUGE_MASTER',
+  INSPECTION_PLAN_MASTER: 'INSPECTION_PLAN_MASTER',
+  INSPECTION_RECORD_MASTER: 'INSPECTION_RECORD_MASTER',
+  DEFECT_CODE_MASTER: 'DEFECT_CODE_MASTER',
+  NCR_MASTER: 'NCR_MASTER',
+  NCR_TREND_ANALYSIS: 'NCR_TREND_ANALYSIS',
+  CAPA_MASTER: 'CAPA_MASTER',
+  QUALITY_CERTIFICATE_MASTER: 'QUALITY_CERTIFICATE_MASTER',
+  
+  // Reports Master
+  REPORTS_MASTER: 'REPORTS_MASTER',
+  INVOICE_REPORT: 'INVOICE_REPORT',
+  PAYMENT_RECEIPT: 'PAYMENT_RECEIPT',
+  CUSTOMER_ADVANCE: 'CUSTOMER_ADVANCE',
+  
+  // Legacy Reports (keep for backward compatibility)
   REPORTS: 'REPORTS'
 };
 
@@ -114,14 +141,14 @@ export const PAGES = {
   PURCHASE_REQUISITION_MASTER: 'Purchase Requisition Master',
   RFQ_MASTER: 'RFQ Master',
   PURCHASE_INVOICE_MASTER: 'Purchase Invoice Master',
-  VENDOR_PAYMENTS: 'Vendor Payments', // NEW
+  VENDOR_PAYMENTS: 'Vendor Payments',
   
   // BOM Master Pages
   BOM_MASTER: 'BOM Master',
-  MRP_MASTER: 'MRP Master', // NEW
-  ROUTING_MASTER: 'Routing Master', // NEW
-  MACHINE_MASTER: 'Machine Master', // NEW
-  OEE_MASTER: 'OEE Master', // NEW
+  MRP_MASTER: 'MRP Master',
+  ROUTING_MASTER: 'Routing Master',
+  MACHINE_MASTER: 'Machine Master',
+  OEE_MASTER: 'OEE Master',
   
   // HR Master Pages
   DEPARTMENT_MASTER: 'Department Master',
@@ -155,16 +182,40 @@ export const PAGES = {
   SO_PENDING_DELIVERY: 'SO Pending Delivery',
   
   // Production Master Pages
-  WORK_ORDERS_MASTER: 'Work Orders Master', // NEW
+  WORK_ORDERS_MASTER: 'Work Orders Master',
+  ASSEMBLY_LINES: 'Assembly Lines',
+  PRODUCTION_SCHEDULE: 'Production Schedule',
+  PRODUCTION_CONFLICT: 'Production Conflict',
+  TOOL_MASTER: 'Tool Master',
   
   // Inventory Management Pages
-  WAREHOUSE_MASTER: 'Warehouse Master', // NEW
-  STOCK_LEDGER: 'Stock Ledger', // NEW
-  MIV_MASTER: 'MIV Master (Material Issue Voucher)', // NEW
-  MRV_MASTER: 'MRV Master (Material Receipt Voucher)', // NEW
-  PSV_MASTER: 'PSV Master (Physical Stock Verification)', // NEW
+  WAREHOUSE_MASTER: 'Warehouse Master',
+  STOCK_LEDGER: 'Stock Ledger',
+  MIV_MASTER: 'MIV Master (Material Issue Voucher)',
+  MRV_MASTER: 'MRV Master (Material Receipt Voucher)',
+  PSV_MASTER: 'PSV Master (Physical Stock Verification)',
   
-  // Reports Pages
+  // Dispatch Master Pages
+  DELIVERY_CHALLAN: 'Delivery Challan',
+  DELIVERY_SCHEDULE: 'Delivery Schedule',
+  CUSTOMER_RETURNS: 'Customer Returns',
+  
+  // Inspection Master Pages
+  GAUGE_MASTER: 'Gauge Master',
+  INSPECTION_PLAN_MASTER: 'Inspection Plan',
+  INSPECTION_RECORD_MASTER: 'Inspection Record',
+  DEFECT_CODE_MASTER: 'Defect Code Master',
+  NCR_MASTER: 'NCR (Non-Conformance Report)',
+  NCR_TREND_ANALYSIS: 'NCR Trend Analysis',
+  CAPA_MASTER: 'CAPA (Corrective Action Preventive Action)',
+  QUALITY_CERTIFICATE_MASTER: 'Quality Certificate',
+  
+  // Reports Master Pages
+  INVOICE_REPORT: 'Invoice Report',
+  PAYMENT_RECEIPT: 'Payment Receipt',
+  CUSTOMER_ADVANCE: 'Customer Advance',
+  
+  // Legacy Reports Pages (keep for backward compatibility)
   RECRUITMENT_REPORT: 'Recruitment Report',
   EMPLOYEE_REPORT: 'Employee Report',
   INTERVIEW_REPORT: 'Interview Report'
@@ -608,6 +659,33 @@ export const MODULE_PERMISSIONS_CONFIG = [
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
               ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
   },
+  {
+    moduleKey: MODULES.ASSEMBLY_LINES,
+    page: PAGES.ASSEMBLY_LINES,
+    category: 'Production Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.PRODUCTION_SCHEDULE,
+    page: PAGES.PRODUCTION_SCHEDULE,
+    category: 'Production Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.PRODUCTION_CONFLICT,
+    page: PAGES.PRODUCTION_CONFLICT,
+    category: 'Production Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.TOOL_MASTER,
+    page: PAGES.TOOL_MASTER,
+    category: 'Production Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // INVENTORY MANAGEMENT
@@ -648,7 +726,113 @@ export const MODULE_PERMISSIONS_CONFIG = [
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // REPORTS
+  // DISPATCH MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.DISPATCH_MASTER,
+    page: PAGES.DELIVERY_CHALLAN,
+    category: 'Dispatch Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.DELIVERY_SCHEDULE,
+    page: PAGES.DELIVERY_SCHEDULE,
+    category: 'Dispatch Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.CUSTOMER_RETURNS,
+    page: PAGES.CUSTOMER_RETURNS,
+    category: 'Dispatch Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INSPECTION MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.INSPECTION_MASTER,
+    page: PAGES.GAUGE_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.INSPECTION_PLAN_MASTER,
+    page: PAGES.INSPECTION_PLAN_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.INSPECTION_RECORD_MASTER,
+    page: PAGES.INSPECTION_RECORD_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.DEFECT_CODE_MASTER,
+    page: PAGES.DEFECT_CODE_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.NCR_MASTER,
+    page: PAGES.NCR_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE, ACTIONS.REJECT]
+  },
+  {
+    moduleKey: MODULES.NCR_TREND_ANALYSIS,
+    page: PAGES.NCR_TREND_ANALYSIS,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.CAPA_MASTER,
+    page: PAGES.CAPA_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+  {
+    moduleKey: MODULES.QUALITY_CERTIFICATE_MASTER,
+    page: PAGES.QUALITY_CERTIFICATE_MASTER,
+    category: 'Inspection Master',
+    actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
+              ACTIONS.EXPORT, ACTIONS.PRINT, ACTIONS.APPROVE]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // REPORTS MASTER
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.INVOICE_REPORT,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.PAYMENT_RECEIPT,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.CUSTOMER_ADVANCE,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LEGACY REPORTS (keep for backward compatibility)
   // ─────────────────────────────────────────────────────────────────────────
   {
     moduleKey: MODULES.REPORTS,

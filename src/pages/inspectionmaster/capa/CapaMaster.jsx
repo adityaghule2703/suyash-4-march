@@ -248,16 +248,16 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
             allowed: isActionAllowed(capa, 'close'),
             tooltip: getActionTooltip(capa, 'close')
         },
-        { divider: true, show: canUpdate && canDelete && capa.status !== 'Closed' },
-        {
-            label: 'Delete',
-            icon: <DeleteIcon fontSize="small" />,
-            action: 'delete',
-            show: canDelete && capa.status !== 'Closed',
-            allowed: isActionAllowed(capa, 'delete'),
-            tooltip: getActionTooltip(capa, 'delete'),
-            color: '#EF4444'
-        }
+        // { divider: true, show: canUpdate && canDelete && capa.status !== 'Closed' },
+        // {
+        //     label: 'Delete',
+        //     icon: <DeleteIcon fontSize="small" />,
+        //     action: 'delete',
+        //     show: canDelete && capa.status !== 'Closed',
+        //     allowed: isActionAllowed(capa, 'delete'),
+        //     tooltip: getActionTooltip(capa, 'delete'),
+        //     color: '#EF4444'
+        // }
     ];
 
     return (
@@ -633,44 +633,42 @@ const CapaMaster = () => {
 
     // CRUD Handlers
     const handleAddCapa = (newCapa) => {
-        let capaData = newCapa;
+    let capaData = newCapa?.data || newCapa;
 
-        if (newCapa && newCapa.data) {
-            capaData = newCapa.data;
-        }
+    if (!capaData) return;
 
-        if (newCapa && newCapa.success && newCapa.data) {
-            capaData = newCapa.data;
-        }
+    const formattedCapa = {
+        _id: capaData._id || Date.now().toString(),
+        capa_id: capaData.capa_id || '',
+        capa_date: capaData.capa_date || new Date().toISOString(),
 
-        const formattedCapa = {
-            _id: capaData._id || Date.now().toString(),
-            capa_id: capaData.capa_id || '',
-            capa_date: capaData.capa_date || capaData.createdAt || new Date().toISOString(),
-            capa_type: capaData.capa_type || '',
-            source: capaData.source || '',
-            ncr_id: capaData.ncr_id || null,
-            problem_statement: capaData.problem_statement || '',
-            defect_description: capaData.defect_description || '',
-            quantity_affected: capaData.quantity_affected || 0,
-            customer_impact: capaData.customer_impact || false,
-            root_cause: capaData.root_cause || '',
-            assigned_to: capaData.assigned_to || null,
-            target_close_date: capaData.target_close_date || null,
-            status: capaData.status || 'Open',
-            effectiveness_verified: capaData.effectiveness_verified || false,
-            corrective_actions: capaData.corrective_actions || [],
-            preventive_actions: capaData.preventive_actions || [],
-            corrective_actions_count: capaData.corrective_actions?.length || 0,
-            preventive_actions_count: capaData.preventive_actions?.length || 0,
-            createdAt: capaData.createdAt || capaData.capa_date || new Date().toISOString(),
-            updatedAt: capaData.updatedAt || new Date().toISOString()
-        };
+        // ✅ MAIN FIX
+        capa_type: capaData.capa_type || capaData.type || '-',
+        source: capaData.source || capaData.capa_source || '-',
 
-        setCapas(prev => [formattedCapa, ...prev]);
-        setPage(0);
-        showNotification("CAPA created successfully!", "success");
+        problem_statement: capaData.problem_statement || '',
+        status: capaData.status || 'Open',
+
+        corrective_actions: capaData.corrective_actions || [],
+        preventive_actions: capaData.preventive_actions || [],
+
+        corrective_actions_count: capaData.corrective_actions?.length || 0,
+        preventive_actions_count: capaData.preventive_actions?.length || 0,
+
+        createdAt: capaData.createdAt || new Date().toISOString(),
+        updatedAt: capaData.updatedAt || new Date().toISOString()
     };
+
+    setCapas(prev => [formattedCapa, ...prev]);
+    setPage(0);
+
+    // 🔥 IMPORTANT (best fix)
+    setTimeout(() => {
+        fetchCapas();   // ensures correct backend data
+    }, 300);
+
+    showNotification("CAPA created successfully!", "success");
+};
 
     const handleUpdateFields = (updatedData) => {
         const updatedCapas = capas.map(capa =>

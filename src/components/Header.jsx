@@ -39,7 +39,8 @@ const Header = () => {
   const [filteredProductionItems, setFilteredProductionItems] = useState([]);
   const [filteredInventoryItems, setFilteredInventoryItems] = useState([]);
   const [filteredDispatchItems, setFilteredDispatchItems] = useState([]);
-  const [filteredInspectionItems, setFilteredInspectionItems] = useState([]); // New state for Inspection
+  const [filteredInspectionItems, setFilteredInspectionItems] = useState([]);
+  const [filteredReportsItems, setFilteredReportsItems] = useState([]); // New state for Reports
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [allSearchableItems, setAllSearchableItems] = useState([]);
@@ -122,6 +123,12 @@ const Header = () => {
       name: 'Inspection Master',
       type: 'inspection',
       icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
+      count: 0
+    },
+    {
+      name: 'Reports Master',
+      type: 'reports',
+      icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       count: 0
     },
   ];
@@ -351,33 +358,32 @@ const Header = () => {
   ];
 
   // Dispatch Master items
-  // Dispatch Master items
-const dispatchMasterItems = [
-  { 
-    name: 'Delivery Challan', 
-    path: '/dispatchmaster/delivery-challan', 
-    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 
-    moduleKey: MODULES.DISPATCH_MASTER, 
-    page: PAGES.DELIVERY_CHALLAN,
-    category: 'Dispatch Master' 
-  },
-  { 
-    name: 'Delivery Schedule', 
-    path: '/dispatchmaster/delivery-schedule', 
-    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', 
-    moduleKey: MODULES.DISPATCH_MASTER, 
-    page: PAGES.DELIVERY_SCHEDULE,
-    category: 'Dispatch Master' 
-  },
-  { 
-    name: 'Customer Returns', 
-    path: '/dispatchmaster/customer-returns', 
-    icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 
-    moduleKey: MODULES.DISPATCH_MASTER, 
-    page: PAGES.CUSTOMER_RETURNS,
-    category: 'Dispatch Master' 
-  },
-];
+  const dispatchMasterItems = [
+    { 
+      name: 'Delivery Challan', 
+      path: '/dispatchmaster/delivery-challan', 
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 
+      moduleKey: MODULES.DISPATCH_MASTER, 
+      page: PAGES.DELIVERY_CHALLAN,
+      category: 'Dispatch Master' 
+    },
+    { 
+      name: 'Delivery Schedule', 
+      path: '/dispatchmaster/delivery-schedule', 
+      icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', 
+      moduleKey: MODULES.DISPATCH_MASTER, 
+      page: PAGES.DELIVERY_SCHEDULE,
+      category: 'Dispatch Master' 
+    },
+    { 
+      name: 'Customer Returns', 
+      path: '/dispatchmaster/customer-returns', 
+      icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 
+      moduleKey: MODULES.DISPATCH_MASTER, 
+      page: PAGES.CUSTOMER_RETURNS,
+      category: 'Dispatch Master' 
+    },
+  ];
 
   // Inspection Master items
   const inspectionMasterItems = [
@@ -405,7 +411,123 @@ const dispatchMasterItems = [
       page: PAGES.INSPECTION_RECORD_MASTER,
       category: 'Inspection Master'
     },
+    { 
+      name: 'Defect Code Master', 
+      path: '/inspectionmaster/defectcode', 
+      icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
+      moduleKey: MODULES.INSPECTION_MASTER,
+      page: PAGES.DEFECT_CODE_MASTER,
+      category: 'Inspection Master'
+    },
+    { 
+      name: 'NCR (Non-Conformance Report)', 
+      path: '/inspectionmaster/ncr', 
+      icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+      moduleKey: MODULES.INSPECTION_MASTER,
+      page: PAGES.NCR_MASTER,
+      category: 'Inspection Master'
+    },
+    { 
+      name: 'NCR Trend Analysis', 
+      path: '/inspectionmaster/trendanalysis', 
+      icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15',
+      moduleKey: MODULES.INSPECTION_MASTER,
+      page: PAGES.NCR_TREND_ANALYSIS,
+      category: 'Inspection Master'
+    },
+    { 
+      name: 'CAPA (Corrective Action Preventive Action)', 
+      path: '/inspectionmaster/capa', 
+      icon: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      moduleKey: MODULES.INSPECTION_MASTER,
+      page: PAGES.CAPA_MASTER,
+      category: 'Inspection Master'
+    },
+    { 
+      name: 'Quality Certificate', 
+      path: '/inspectionmaster/qualitycertificate', 
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      moduleKey: MODULES.INSPECTION_MASTER,
+      page: PAGES.QUALITY_CERTIFICATE_MASTER,
+      category: 'Inspection Master'
+    },
   ];
+
+ // Reports Master items
+const reportsMasterItems = [
+  { 
+    name: 'Invoice Report', 
+    path: '/reportsmaster/invoice', 
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.INVOICE_REPORT,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'Payment Receipt', 
+    path: '/reportsmaster/paymentreceipt', 
+    icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.PAYMENT_RECEIPT,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'Customer Advance', 
+    path: '/reportsmaster/customeradvance', 
+    icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.CUSTOMER_ADVANCE,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'AR Aging', 
+    path: '/reportsmaster/araging', 
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.AR_AGING,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'TDS Reconciliation', 
+    path: '/reportsmaster/tdsreconciliation', 
+    icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.TDS_RECONCILIATION,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'Credit Note', 
+    path: '/reportsmaster/creditnote', 
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.CREDIT_NOTE,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'GSTR-1 Data', 
+    path: '/reportsmaster/gstr1data', 
+    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.GSTR1_DATA,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'GSTR-3B Data', 
+    path: '/reportsmaster/gstr3bdata', 
+    icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.GSTR3B_DATA,
+    category: 'Reports Master'
+  },
+  { 
+    name: 'Monthly Revenue Report', 
+    path: '/reportsmaster/monthlyrevenuereport', 
+    icon: 'M3 21h18M5 21V10l5 3V10l5 3V6h4v15',
+    moduleKey: MODULES.REPORTS_MASTER,
+    page: PAGES.MONTHLY_REVENUE_REPORT,
+    category: 'Reports Master'
+  },
+];
 
   // Leave Management items
   const leaveManagementItems = [
@@ -426,7 +548,8 @@ const dispatchMasterItems = [
       ...productionMasterItems,
       ...inventoryManagementItems,
       ...dispatchMasterItems,
-      ...inspectionMasterItems // Add inspection items to search
+      ...inspectionMasterItems,
+      ...reportsMasterItems // Add reports items to search
     ];
     
     // Filter based on permissions
@@ -505,6 +628,13 @@ const dispatchMasterItems = [
       }
       return true;
     });
+
+    const accessibleReportsItems = reportsMasterItems.filter(item => {
+      if (item.moduleKey && item.page) {
+        return canAccessPage(item.moduleKey, item.page);
+      }
+      return true;
+    });
     
     setFilteredQuotationItems(accessibleQuotationItems);
     setFilteredProcurementItems(accessibleProcurementItems);
@@ -515,6 +645,7 @@ const dispatchMasterItems = [
     setFilteredInventoryItems(accessibleInventoryItems);
     setFilteredDispatchItems(accessibleDispatchItems);
     setFilteredInspectionItems(accessibleInspectionItems);
+    setFilteredReportsItems(accessibleReportsItems);
     
     masterCategories[0].count = accessibleQuotationItems.length;
     masterCategories[1].count = accessibleProcurementItems.length;
@@ -524,7 +655,8 @@ const dispatchMasterItems = [
     masterCategories[5].count = accessibleProductionItems.length;
     masterCategories[6].count = accessibleInventoryItems.length;
     masterCategories[7].count = accessibleDispatchItems.length;
-    masterCategories[8].count = accessibleInspectionItems.length; // Update count for Inspection
+    masterCategories[8].count = accessibleInspectionItems.length;
+    masterCategories[9].count = accessibleReportsItems.length;
 
     buildSearchableItems();
   };
@@ -649,6 +781,11 @@ const dispatchMasterItems = [
         item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
       );
       setFilteredInspectionItems(filtered);
+    } else if (activeSubmenu === 'reports') {
+      const filtered = reportsMasterItems.filter(item => 
+        item.name.toLowerCase().includes(term) && canAccessPage(item.moduleKey, item.page)
+      );
+      setFilteredReportsItems(filtered);
     }
   };
 
@@ -861,10 +998,11 @@ const dispatchMasterItems = [
   const productionColumns = getColumns(filteredProductionItems);
   const inventoryColumns = getColumns(filteredInventoryItems);
   const dispatchColumns = getColumns(filteredDispatchItems);
-  const inspectionColumns = getColumns(filteredInspectionItems); // Add inspection columns
+  const inspectionColumns = getColumns(filteredInspectionItems);
+  const reportsColumns = getColumns(filteredReportsItems);
 
   const isMasterActive = (path) => {
-    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/') || path.startsWith('/salesordermaster/') || path.startsWith('/machinemaster/') || path.startsWith('/oeemaster/') || path.startsWith('/productionmaster/') || path.startsWith('/inventorymanagement/') || path.startsWith('/dispatchmaster/') || path.startsWith('/inspectionmaster/');
+    return path.startsWith('/master/') || path.startsWith('/hrmaster/') || path.startsWith('/procurementmaster/') || path.startsWith('/bommaster/') || path.startsWith('/salesordermaster/') || path.startsWith('/machinemaster/') || path.startsWith('/oeemaster/') || path.startsWith('/productionmaster/') || path.startsWith('/inventorymanagement/') || path.startsWith('/dispatchmaster/') || path.startsWith('/inspectionmaster/') || path.startsWith('/reportsmaster/');
   };
 
   const getUserInitials = () => {
@@ -1133,7 +1271,7 @@ const dispatchMasterItems = [
                 )}
 
                 {/* Master Dropdown */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0 || filteredInventoryItems.length > 0 || filteredDispatchItems.length > 0 || filteredInspectionItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0 || filteredInventoryItems.length > 0 || filteredDispatchItems.length > 0 || filteredInspectionItems.length > 0 || filteredReportsItems.length > 0) && (
                   <div className="relative" ref={masterRef}>
                     <button
                       onClick={() => toggleDropdown('master')}
@@ -1196,7 +1334,7 @@ const dispatchMasterItems = [
                               <input
                                 ref={masterSearchRef}
                                 type="text"
-                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : activeSubmenu === 'production' ? 'Production' : activeSubmenu === 'inventory' ? 'Inventory' : activeSubmenu === 'dispatch' ? 'Dispatch' : 'Inspection'}...`}
+                                placeholder={`Search ${activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : activeSubmenu === 'production' ? 'Production' : activeSubmenu === 'inventory' ? 'Inventory' : activeSubmenu === 'dispatch' ? 'Dispatch' : activeSubmenu === 'inspection' ? 'Inspection' : 'Reports'}...`}
                                 className="w-full pl-8 pr-7 py-2 text-xs border border-[#E3E8EF] rounded-md focus:outline-none focus:ring-1 focus:ring-[#0A5C60] focus:border-transparent bg-white text-[#4B5568] placeholder-[#94A3B8]"
                                 value={masterSearchTerm}
                                 onChange={handleMasterSearch}
@@ -1216,7 +1354,7 @@ const dispatchMasterItems = [
 
                           <div className="mb-1 px-2 flex justify-between items-center">
                             <h3 className="text-[11px] font-semibold text-[#4B5568] uppercase tracking-wider">
-                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : activeSubmenu === 'production' ? 'Production' : activeSubmenu === 'inventory' ? 'Inventory' : activeSubmenu === 'dispatch' ? 'Dispatch' : 'Inspection'}
+                              {activeSubmenu === 'quotation' ? 'Quotation' : activeSubmenu === 'procurement' ? 'Procurement' : activeSubmenu === 'hr' ? 'HR' : activeSubmenu === 'bom' ? 'BOM' : activeSubmenu === 'salesorder' ? 'Sales Order' : activeSubmenu === 'production' ? 'Production' : activeSubmenu === 'inventory' ? 'Inventory' : activeSubmenu === 'dispatch' ? 'Dispatch' : activeSubmenu === 'inspection' ? 'Inspection' : 'Reports'}
                             </h3>
                             <span className="text-[11px] text-[#94A3B8]">
                               {activeSubmenu === 'quotation' ? filteredQuotationItems.length : 
@@ -1227,7 +1365,8 @@ const dispatchMasterItems = [
                                activeSubmenu === 'production' ? filteredProductionItems.length :
                                activeSubmenu === 'inventory' ? filteredInventoryItems.length :
                                activeSubmenu === 'dispatch' ? filteredDispatchItems.length :
-                               filteredInspectionItems.length}
+                               activeSubmenu === 'inspection' ? filteredInspectionItems.length :
+                               filteredReportsItems.length}
                             </span>
                           </div>
 
@@ -1541,6 +1680,44 @@ const dispatchMasterItems = [
                               {inspectionColumns.length > 0 ? (
                                 inspectionColumns.map((column, index) => (
                                   <div key={`inspection-col-${index}`} className={`w-48 ${index < inspectionColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
+                                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                                      {column.map((item) => (
+                                        <NavLink
+                                          key={item.path}
+                                          to={item.path}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDropdownItemClick(item.path);
+                                          }}
+                                          className={`flex items-center px-2 py-2 text-xs transition-all hover:bg-[#F8FFFC] rounded ${
+                                            currentPath === item.path ? 'text-[#0A5C60] bg-[#F8FFFC]' : 'text-[#4B5568]'
+                                          }`}
+                                        >
+                                          <svg className="w-3.5 h-3.5 mr-2 text-[#94A3B8] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                          </svg>
+                                          <span className="line-clamp-2 text-xs">
+                                            {highlightText(item.name, masterSearchTerm)}
+                                          </span>
+                                        </NavLink>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="w-full py-5 text-center text-[#94A3B8] text-xs">
+                                  No matches found
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Reports Section */}
+                          {activeSubmenu === 'reports' && (
+                            <div className="flex">
+                              {reportsColumns.length > 0 ? (
+                                reportsColumns.map((column, index) => (
+                                  <div key={`reports-col-${index}`} className={`w-48 ${index < reportsColumns.length - 1 ? 'border-r border-[#E3E8EF]' : ''}`}>
                                     <div className="max-h-96 overflow-y-auto scrollbar-hide">
                                       {column.map((item) => (
                                         <NavLink
@@ -1939,7 +2116,7 @@ const dispatchMasterItems = [
                 )}
 
                 {/* Mobile Master Section */}
-                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0 || filteredInventoryItems.length > 0 || filteredDispatchItems.length > 0 || filteredInspectionItems.length > 0) && (
+                {(filteredQuotationItems.length > 0 || filteredProcurementItems.length > 0 || filteredHRItems.length > 0 || filteredBOMItems.length > 0 || filteredSalesOrderItems.length > 0 || filteredProductionItems.length > 0 || filteredInventoryItems.length > 0 || filteredDispatchItems.length > 0 || filteredInspectionItems.length > 0 || filteredReportsItems.length > 0) && (
                   <div className="border-t border-[#E3E8EF] my-2">
                     <div className="px-4 py-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                       Master
@@ -2177,6 +2354,34 @@ const dispatchMasterItems = [
                           Inspection Master
                         </div>
                         {filteredInspectionItems.map((item) => (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={({ isActive }) =>
+                              `flex items-center px-4 py-2.5 text-sm transition-colors pl-8 ${
+                                isActive
+                                  ? 'bg-[#9FE2BF]/20 text-[#0A5C60]'
+                                  : 'text-[#4B5568] hover:bg-[#F8FFFC]'
+                              }`
+                            }
+                          >
+                            <svg className="w-4 h-4 mr-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                            </svg>
+                            {item.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reports Master Items */}
+                    {filteredReportsItems.length > 0 && (
+                      <div className="mb-2">
+                        <div className="px-4 py-2 text-xs font-medium text-[#0A5C60] bg-[#F8FFFC]">
+                          Reports Master
+                        </div>
+                        {filteredReportsItems.map((item) => (
                           <NavLink
                             key={item.path}
                             to={item.path}

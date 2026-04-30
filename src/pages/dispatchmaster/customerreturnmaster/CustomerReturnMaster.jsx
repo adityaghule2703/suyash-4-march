@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -627,18 +627,17 @@ const ActionMenu = ({ customerReturn, onView, onReceive, onInspect, anchorEl, on
 const CustomerReturnMaster = () => {
   // State for data
   const [customerReturns, setCustomerReturns] = useState([]);
-  const [filteredReturns, setFilteredReturns] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Changed from 10 to 5
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -716,83 +715,82 @@ const CustomerReturnMaster = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
+      setCurrentPage(1);
       setPage(0);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch customer returns from API
-  useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchCustomerReturns();
-    }
-  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+  };
 
-  const fetchCustomerReturns = async () => {
+  // Fetch customer returns from API with server-side pagination and search
+  const fetchCustomerReturns = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/customer-returns?page=1&limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/customer-returns`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setCustomerReturns(response.data.data || []);
-        setFilteredReturns(response.data.data || []);
+        setTotalCount(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load customer returns', 'error');
+        setCustomerReturns([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching customer returns:', err);
-      showNotification('Failed to load customer returns. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load customer returns', 'error');
+      setCustomerReturns([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  };
-  
+  }, [currentPage, rowsPerPage, searchTerm]);
+
+  // Fetch data when dependencies change
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchCustomerReturns();
+    }
+  }, [fetchCustomerReturns, permissionsLoaded, canViewPage, isSuperAdmin]);
+
   // Handle refresh
   const handleRefresh = () => {
     fetchCustomerReturns();
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle search and filters
-  const handleSearchAndFilter = () => {
-    let filtered = [...customerReturns];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(returnItem =>
-        returnItem.return_id?.toLowerCase().includes(value) ||
-        returnItem.original_dc_id?.toLowerCase().includes(value) ||
-        returnItem.customer_id?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(returnItem => returnItem.status === statusFilter);
-    }
-    
-    if (typeFilter !== 'All') {
-      filtered = filtered.filter(returnItem => returnItem.return_type === typeFilter);
-    }
-    
-    setFilteredReturns(filtered);
-  };
-
-  useEffect(() => {
-    handleSearchAndFilter();
-  }, [searchTerm, statusFilter, typeFilter, customerReturns]);
-  
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
   };
   
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
   };
   
   const handleActionMenuOpen = (event, returnItem) => {
@@ -890,11 +888,6 @@ const CustomerReturnMaster = () => {
       />
     );
   };
-  
-  const paginatedReturns = filteredReturns.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   if (!permissionsLoaded) {
     return <LoadingState />;
@@ -941,8 +934,9 @@ const CustomerReturnMaster = () => {
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -971,56 +965,7 @@ const CustomerReturnMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ 
-                width: 150,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Status</MenuItem>
-              <MenuItem value="Pending Inspection">Pending Inspection</MenuItem>
-              <MenuItem value="Inspected">Inspected</MenuItem>
-              <MenuItem value="Approved">Approved</MenuItem>
-              <MenuItem value="Rejected">Rejected</MenuItem>
-              <MenuItem value="Credit Note Issued">Credit Note Issued</MenuItem>
-            </TextField>
-            
-            <TextField
-              select
-              size="small"
-              label="Return Type"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              sx={{ 
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Types</MenuItem>
-              <MenuItem value="Rejected at Delivery">Rejected at Delivery</MenuItem>
-              <MenuItem value="Return After Delivery">Return After Delivery</MenuItem>
-              <MenuItem value="Partial Return">Partial Return</MenuItem>
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1101,14 +1046,14 @@ const CustomerReturnMaster = () => {
                 }}>
                   Return Date
                 </TableCell>
-                <TableCell sx={{ 
+                {/* <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
                   letterSpacing: '0.5px',
                   color: COLORS.text.light
                 }}>
                   Original DC ID
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -1162,22 +1107,22 @@ const CustomerReturnMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedReturns.length === 0 ? (
+              ) : customerReturns.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <LocalShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || statusFilter !== 'All' || typeFilter !== 'All' ? 'No customer returns found' : 'No customer returns available'}
+                        {searchTerm ? 'No customer returns found' : 'No customer returns available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || statusFilter !== 'All' || typeFilter !== 'All' ? 'Try adjusting your search terms' : 'Create your first customer return'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Create your first customer return'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedReturns.map((returnItem, index) => {
+                customerReturns.map((returnItem, index) => {
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedReturnForAction?._id === returnItem._id;
 
@@ -1209,11 +1154,11 @@ const CustomerReturnMaster = () => {
                         </Typography>
                       </TableCell>
                       
-                      <TableCell>
+                      {/* <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
                           {returnItem.original_dc_id}
                         </Typography>
-                      </TableCell>
+                      </TableCell> */}
                       
                       <TableCell>
                         {getReturnTypeChip(returnItem.return_type)}
@@ -1258,7 +1203,7 @@ const CustomerReturnMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredReturns.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

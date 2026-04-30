@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -35,7 +35,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Autocomplete
+  Autocomplete,
+  debounce
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -117,12 +118,11 @@ const AccessDenied = () => (
   </Box>
 );
 
-// Action Menu Component with permission checks
+// Action Menu Component
 const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB, onPOD, onRejectDelivery, onPackingList, onEditPackingList, onDispatch, anchorEl, onClose, onOpen, permissions }) => {
   const canView = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.VIEW);
   const canUpdate = hasPermission(permissions, MODULES.DELIVERY_CHALLAN, PAGES.DELIVERY_CHALLAN, ACTIONS.UPDATE);
 
-  // Show buttons based on status
   const showGenerateEWB = deliveryChallan.status === 'Packed';
   const showPackingList = deliveryChallan.status === 'Planned';
   const showEditPackingList = deliveryChallan.status === 'Packed';
@@ -161,7 +161,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           }
         }}
       >
-        {/* View Details - Always visible for users with view permission */}
         {canView && (
           <MenuItem 
             onClick={() => {
@@ -181,7 +180,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* Packing List - Only for Planned status */}
         {showPackingList && (
           <MenuItem 
             onClick={() => {
@@ -201,7 +199,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* Edit Packing List - Only for Packed status */}
         {showEditPackingList && onEditPackingList && (
           <MenuItem 
             onClick={() => {
@@ -221,7 +218,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* Generate EWB - Only for Packed status */}
         {showGenerateEWB && canUpdate && (
           <MenuItem 
             onClick={() => {
@@ -241,7 +237,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* Dispatch - Only for EWB Generated status */}
         {showDispatch && (
           <MenuItem 
             onClick={() => {
@@ -261,7 +256,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* POD - Only for Dispatched status */}
         {showPOD && (
           <MenuItem 
             onClick={() => {
@@ -281,7 +275,6 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
           </MenuItem>
         )}
 
-        {/* Reject Delivery - Only for Dispatched status */}
         {showRejectDelivery && (
           <MenuItem 
             onClick={() => {
@@ -308,20 +301,18 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
 const DeliveryChallanMaster = () => {
   // State for data
   const [deliveryChallans, setDeliveryChallans] = useState([]);
-  const [filteredChallans, setFilteredChallans] = useState([]);
-  const [pendingDispatchDCs, setPendingDispatchDCs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Changed from 10 to 5
   const [selected, setSelected] = useState([]);
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -338,6 +329,7 @@ const DeliveryChallanMaster = () => {
   const [openPackingListDialog, setOpenPackingListDialog] = useState(false);
   const [openEditPackingListDialog, setOpenEditPackingListDialog] = useState(false);
   const [openDispatchDialog, setOpenDispatchDialog] = useState(false);
+  const [pendingDispatchDCs, setPendingDispatchDCs] = useState([]);
   
   // Selected delivery challan
   const [selectedDC, setSelectedDC] = useState(null);
@@ -353,6 +345,10 @@ const DeliveryChallanMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we should skip loading state for UI update
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -403,46 +399,92 @@ const DeliveryChallanMaster = () => {
   const canDelete = checkPermission(ACTIONS.DELETE);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+  };
 
   // Fetch delivery challans from API
-  useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchDeliveryChallans();
-    }
-  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
-
-  const fetchDeliveryChallans = async () => {
-    try {
+  const fetchDeliveryChallans = useCallback(async () => {
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/delivery-challans?limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/delivery-challans`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setDeliveryChallans(response.data.data || []);
-        setFilteredChallans(response.data.data || []);
+        setTotalCount(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load delivery challans', 'error');
+        setDeliveryChallans([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching delivery challans:', err);
-      showNotification('Failed to load delivery challans. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load delivery challans', 'error');
+      setDeliveryChallans([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  };
-  
+  }, [currentPage, rowsPerPage, searchTerm]);
+
+  // Load data when dependencies change
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDeliveryChallans();
+    }
+  }, [fetchDeliveryChallans, permissionsLoaded, canViewPage, isSuperAdmin]);
+
   // Fetch pending dispatch delivery challans
   const fetchPendingDispatchDCs = async () => {
     try {
@@ -471,40 +513,11 @@ const DeliveryChallanMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle search and filters (client-side filtering)
-  const handleSearchAndFilter = () => {
-    let filtered = [...deliveryChallans];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(dc =>
-        dc.dc_number?.toLowerCase().includes(value) ||
-        dc.so_number?.toLowerCase().includes(value) ||
-        dc.customer_name?.toLowerCase().includes(value) ||
-        dc.dc_type?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(dc => dc.status === statusFilter);
-    }
-    
-    if (typeFilter !== 'All') {
-      filtered = filtered.filter(dc => dc.dc_type === typeFilter);
-    }
-    
-    setFilteredChallans(filtered);
-  };
-
-  useEffect(() => {
-    handleSearchAndFilter();
-  }, [searchTerm, statusFilter, typeFilter, deliveryChallans]);
-  
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
     if (event.target.checked) {
-      setSelected(filteredChallans.map(dc => dc._id));
+      setSelected(deliveryChallans.map(dc => dc._id));
     } else {
       setSelected([]);
     }
@@ -527,12 +540,15 @@ const DeliveryChallanMaster = () => {
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
@@ -624,18 +640,29 @@ const DeliveryChallanMaster = () => {
   const handleBulkDelete = async () => {
     if (!canDelete || selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${BASE_URL}/api/delivery-challans/bulk-delete`, 
         { ids: selected },
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
+      
       setSelected([]);
-      fetchDeliveryChallans();
+      
+      if (deliveryChallans.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchDeliveryChallans();
+      }
+      
       showNotification(`${selected.length} delivery challan(s) deleted successfully!`, 'success');
     } catch (err) {
       console.error('Bulk delete error:', err);
       showNotification('Failed to delete delivery challans', 'error');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -689,11 +716,6 @@ const DeliveryChallanMaster = () => {
     const charCode = companyName.charCodeAt(0) || 0;
     return colors[charCode % colors.length];
   };
-  
-  const paginatedChallans = filteredChallans.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   if (!permissionsLoaded) {
     return <LoadingState />;
@@ -739,9 +761,10 @@ const DeliveryChallanMaster = () => {
               placeholder="Search by DC number, SO number, customer..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -770,101 +793,10 @@ const DeliveryChallanMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ 
-                width: 140,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Status</MenuItem>
-              <MenuItem value="Planned">Planned</MenuItem>
-              <MenuItem value="Packed">Packed</MenuItem>
-              <MenuItem value="EWB Generated">EWB Generated</MenuItem>
-              <MenuItem value="Dispatched">Dispatched</MenuItem>
-              <MenuItem value="Delivered">Delivered</MenuItem>
-              <MenuItem value="Rejected by Customer">Rejected</MenuItem>
-            </TextField>
-            
-            <TextField
-              select
-              size="small"
-              label="DC Type"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              sx={{ 
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Types</MenuItem>
-              <MenuItem value="Supply of Goods">Supply of Goods</MenuItem>
-              <MenuItem value="Delivery for Approval">Delivery for Approval</MenuItem>
-              <MenuItem value="Job Work Outward">Job Work Outward</MenuItem>
-              <MenuItem value="Sales Return">Sales Return</MenuItem>
-              <MenuItem value="Exhibition">Exhibition</MenuItem>
-              <MenuItem value="Export">Export</MenuItem>
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {/* <Tooltip title="Refresh">
-              <IconButton
-                size="small"
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.text.secondary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}20`
-                  }
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip> */}
-            
-            {/* <Button
-              variant="outlined"
-              startIcon={<PendingActionsIcon sx={{ fontSize: '1rem' }} />}
-              onClick={handlePendingDispatch}
-              sx={{ 
-                height: 36,
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                borderColor: COLORS.border,
-                color: '#F59E0B',
-                '&:hover': {
-                  borderColor: '#F59E0B',
-                  bgcolor: '#FEF3C7'
-                }
-              }}
-              disabled={loading}
-            >
-              Pending Dispatch
-            </Button> */}
-            
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -889,6 +821,29 @@ const DeliveryChallanMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
+            
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon sx={{ fontSize: '1rem' }} />}
+              onClick={handleRefresh}
+              disabled={loading}
+              sx={{ 
+                height: 36,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                borderColor: COLORS.border,
+                color: COLORS.text.secondary,
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  color: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
+              }}
+            >
+              Refresh
+            </Button>
             
             {canCreate && (
               <Button
@@ -938,8 +893,8 @@ const DeliveryChallanMaster = () => {
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < filteredChallans.length}
-                      checked={filteredChallans.length > 0 && selected.length === filteredChallans.length}
+                      indeterminate={selected.length > 0 && selected.length < deliveryChallans.length}
+                      checked={deliveryChallans.length > 0 && selected.length === deliveryChallans.length}
                       onChange={handleSelectAll}
                       sx={{
                         color: COLORS.text.light,
@@ -953,7 +908,7 @@ const DeliveryChallanMaster = () => {
                           fontSize: '1.25rem'
                         }
                       }}
-                      disabled={loading || filteredChallans.length === 0}
+                      disabled={loading || deliveryChallans.length === 0}
                     />
                   </TableCell>
                 )}
@@ -1034,22 +989,22 @@ const DeliveryChallanMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedChallans.length === 0 ? (
+              ) : deliveryChallans.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <LocalShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || statusFilter !== 'All' || typeFilter !== 'All' ? 'No delivery challans found' : 'No delivery challans available'}
+                        {searchTerm ? 'No delivery challans found' : 'No delivery challans available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || statusFilter !== 'All' || typeFilter !== 'All' ? 'Try adjusting your search terms' : 'Create your first delivery challan'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Create your first delivery challan'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedChallans.map((dc, index) => {
+                deliveryChallans.map((dc, index) => {
                   const isSelected = selected.includes(dc._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedDCForAction?._id === dc._id;
@@ -1188,10 +1143,11 @@ const DeliveryChallanMaster = () => {
           </Table>
         </TableContainer>
 
+        {/* Pagination */}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredChallans.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

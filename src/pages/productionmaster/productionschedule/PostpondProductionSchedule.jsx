@@ -70,7 +70,7 @@ const SHIFT_OPTIONS = [
   { value: 'Afternoon', label: 'Afternoon Shift', start: '16:00', end: '00:00' },
   { value: 'Night', label: 'Night Shift', start: '00:00', end: '08:00' },
   { value: 'General', label: 'General Shift', start: '09:00', end: '17:00' },
-  { value: 'Custom', label: 'Custom Timing', start: '', end: '' }
+  // { value: 'Custom', label: 'Custom Timing', start: '', end: '' }
 ];
 
 // Postpone reasons

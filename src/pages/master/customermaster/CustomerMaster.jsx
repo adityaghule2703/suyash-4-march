@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -46,7 +46,8 @@ import {
   Person as PersonIcon,
   LocationOn as LocationIcon,
   CreditCard as CreditCardIcon,
-  LocalShipping as ShippingIcon
+  LocalShipping as ShippingIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -56,6 +57,7 @@ import EditCustomer from './EditCustomer';
 import ViewCustomer from './ViewCustomer';
 import DeleteCustomer from './DeleteCustomer';
 import { COLORS, CUSTOMER_TYPE_COLORS, PRIORITY_COLORS } from './constants';
+import ShippingAddressDialog from './ShippingAddressDialog';
 
 // Loading state component
 const LoadingState = () => (
@@ -76,549 +78,14 @@ const AccessDenied = () => (
   </Box>
 );
 
-// Add this new component for Shipping Address Dialog - following the same styling as AddCustomer
-const ShippingAddressDialog = ({ open, onClose, customer, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    label: '',
-    line1: '',
-    line2: '',
-    city: '',
-    district: '',
-    state: '',
-    state_code: '',
-    pincode: '',
-    is_default: false
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({});
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    // Clear error for this field
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    setError('');
-  };
-
-  const handleAddressChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    if (fieldErrors[field]) {
-      setFieldErrors(prev => ({ ...prev, [field]: '' }));
-    }
-    setError('');
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    let isValid = true;
-
-    if (!formData.label.trim()) {
-      errors.label = 'Address label is required';
-      isValid = false;
-    }
-    if (!formData.line1.trim()) {
-      errors.line1 = 'Address line 1 is required';
-      isValid = false;
-    }
-    if (!formData.city.trim()) {
-      errors.city = 'City is required';
-      isValid = false;
-    }
-    if (!formData.state.trim()) {
-      errors.state = 'State is required';
-      isValid = false;
-    }
-    if (!formData.state_code) {
-      errors.state_code = 'State code is required';
-      isValid = false;
-    }
-    if (!formData.pincode.trim()) {
-      errors.pincode = 'Pincode is required';
-      isValid = false;
-    }
-    if (!/^\d{6}$/.test(formData.pincode)) {
-      errors.pincode = 'Invalid pincode format (6 digits required)';
-      isValid = false;
-    }
-    
-    setFieldErrors(errors);
-    if (!isValid) {
-      setError('Please fix all validation errors');
-    }
-    return isValid;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(
-        `${BASE_URL}/api/customers/${customer._id}/shipping-addresses`,
-        {
-          action: 'add',
-          address: {
-            label: formData.label,
-            line1: formData.line1,
-            line2: formData.line2 || undefined,
-            city: formData.city,
-            district: formData.district || undefined,
-            state: formData.state,
-            state_code: parseInt(formData.state_code),
-            pincode: formData.pincode,
-            is_default: formData.is_default
-          }
-        },
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-
-      if (response.data.success) {
-        onSuccess && onSuccess();
-        handleClose();
-      } else {
-        setError(response.data.message || 'Failed to add shipping address');
-      }
-    } catch (err) {
-      console.error('Error adding shipping address:', err);
-      setError(err.response?.data?.message || 'Failed to add shipping address. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (!loading) {
-      setFormData({
-        label: '',
-        line1: '',
-        line2: '',
-        city: '',
-        district: '',
-        state: '',
-        state_code: '',
-        pincode: '',
-        is_default: false
-      });
-      setFieldErrors({});
-      setError('');
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 2,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1
-      }}>
-        <ShippingIcon sx={{ fontSize: '1.2rem', color: COLORS.primary }} />
-        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
-          Add Shipping Address
-        </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, ml: 'auto' }}>
-          For: {customer?.customer_name}
-        </Typography>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5 }}>
-        <Stack spacing={2}>
-          {/* Address Label Section */}
-          <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              <LocationIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Address Information
-            </Typography>
-            
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Address Label <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="label"
-                    value={formData.label}
-                    onChange={handleChange}
-                    placeholder="e.g., Head Office, Warehouse, Factory"
-                    error={!!fieldErrors.label}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.label && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.label}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Address Line 1 <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="line1"
-                    value={formData.line1}
-                    onChange={handleChange}
-                    placeholder="Street address, P.O. Box, company name"
-                    error={!!fieldErrors.line1}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.line1 && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.line1}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Address Line 2
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="line2"
-                    value={formData.line2}
-                    onChange={handleChange}
-                    placeholder="Apartment, suite, unit, building, floor"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    City <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    placeholder="e.g., Mumbai"
-                    error={!!fieldErrors.city}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.city && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.city}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    District
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="district"
-                    value={formData.district}
-                    onChange={handleChange}
-                    placeholder="e.g., Thane"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    State <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    placeholder="e.g., Maharashtra"
-                    error={!!fieldErrors.state}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.state && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.state}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    State Code <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="state_code"
-                    value={formData.state_code}
-                    onChange={handleChange}
-                    type="number"
-                    placeholder="e.g., 27"
-                    error={!!fieldErrors.state_code}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.state_code && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.state_code}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Pincode <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleChange}
-                    placeholder="6 digits"
-                    error={!!fieldErrors.pincode}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': { borderColor: COLORS.primary },
-                        '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  />
-                  {fieldErrors.pincode && (
-                    <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                      {fieldErrors.pincode}
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      name="is_default"
-                      checked={formData.is_default}
-                      onChange={handleChange}
-                      size="small"
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: COLORS.primary,
-                        },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: COLORS.primary,
-                        },
-                      }}
-                    />
-                  }
-                  label={<Typography sx={{ fontSize: '0.75rem' }}>Set as default shipping address</Typography>}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          {error && (
-            <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
-              {error}
-            </Alert>
-          )}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}`, gap: 1 }}>
-        <Button
-          onClick={handleClose}
-          disabled={loading}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading}
-          startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            bgcolor: COLORS.primary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-            '&:hover': {
-              bgcolor: COLORS.primaryDark,
-            }
-          }}
-        >
-          {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Add Address'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
 
 // Action Menu Component with permission checks
 const ActionMenu = ({ item, onView, onEdit, onDelete, onShippingAddress, anchorEl, onClose, onOpen, permissions }) => {
-  // Use CUSTOMER_MASTER module
   const canView = hasPermission(permissions, MODULES.CUSTOMER_MASTER, PAGES.CUSTOMER_MASTER, ACTIONS.VIEW);
   const canUpdate = hasPermission(permissions, MODULES.CUSTOMER_MASTER, PAGES.CUSTOMER_MASTER, ACTIONS.UPDATE);
   const canDelete = hasPermission(permissions, MODULES.CUSTOMER_MASTER, PAGES.CUSTOMER_MASTER, ACTIONS.DELETE);
 
-  // If no actions available, don't render the menu
   if (!canView && !canUpdate && !canDelete) {
     return null;
   }
@@ -692,7 +159,6 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onShippingAddress, anchorE
           </MenuItem>
         )}
 
-        {/* Shipping Address Option - Only show if user has update permission */}
         {canUpdate && (
           <MenuItem 
             onClick={() => {
@@ -739,13 +205,14 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onShippingAddress, anchorE
 
 const CustomerMaster = () => {
   const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -769,6 +236,9 @@ const CustomerMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Ref for search timeout
+  const searchTimeoutRef = useRef(null);
+
   // Fetch user permissions
   useEffect(() => {
     const fetchUserPermissions = async () => {
@@ -784,13 +254,8 @@ const CustomerMaster = () => {
           const userData = response.data.data;
           setIsSuperAdmin(userData.isSuperAdmin || false);
           
-          // Set permissions array
           if (userData.permissions && Array.isArray(userData.permissions)) {
             setUserPermissions(userData.permissions);
-            
-            // Debug: Log permissions for CUSTOMER_MASTER
-            const customerPermissions = userData.permissions.filter(p => p.module === 'CUSTOMER_MASTER');
-            console.log('Customer Master Permissions:', customerPermissions);
           } else {
             setUserPermissions([]);
           }
@@ -808,17 +273,13 @@ const CustomerMaster = () => {
 
   // Check permission helper
   const checkPermission = (action) => {
-    // Super admin has all permissions
     if (isSuperAdmin) return true;
-    
-    const hasPerm = hasPermission(
+    return hasPermission(
       userPermissions,
       MODULES.CUSTOMER_MASTER,
       PAGES.CUSTOMER_MASTER,
       action
     );
-    
-    return hasPerm;
   };
 
   // Permission checks
@@ -826,41 +287,43 @@ const CustomerMaster = () => {
   const canCreate = checkPermission(ACTIONS.CREATE);
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
-  const canExport = checkPermission(ACTIONS.EXPORT);
-  const canImport = checkPermission(ACTIONS.IMPORT);
-  const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debug: Log permission values
-  useEffect(() => {
-    if (permissionsLoaded) {
-      console.log('Customer Master Permission Values:', {
-        canViewPage,
-        canCreate,
-        canUpdate,
-        canDelete,
-        canExport,
-        canImport,
-        canPrint,
-        isSuperAdmin
-      });
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  }, [permissionsLoaded, canViewPage, canCreate, canUpdate, canDelete, canExport, canImport, canPrint, isSuperAdmin]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    
+    // Set new timeout for debounce - but don't set loading to true
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Fetch customers - separate from search input
   const fetchCustomers = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -874,7 +337,7 @@ const CustomerMaster = () => {
 
       if (response.data.success) {
         setCustomers(response.data.data || []);
-        setTotalItems(response.data.pagination.total);
+        setTotalItems(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load customers', 'error');
       }
@@ -884,8 +347,9 @@ const CustomerMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
+  // Fetch data when dependencies change
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchCustomers();
@@ -897,7 +361,6 @@ const CustomerMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
@@ -908,7 +371,6 @@ const CustomerMaster = () => {
     }
   };
   
-  // Handle single selection - only if user has delete permission
   const handleSelect = (id) => {
     if (!canDelete) return;
     
@@ -926,12 +388,14 @@ const CustomerMaster = () => {
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
@@ -956,10 +420,33 @@ const CustomerMaster = () => {
     fetchCustomers();
   };
   
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/customers/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (customers.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchCustomers();
+      }
+      
+      showNotification(`${selected.length} customer(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete customers', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleActionMenuOpen = (event, customer) => {
@@ -1008,15 +495,6 @@ const CustomerMaster = () => {
     });
   };
   
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-  
   const getCustomerInitials = (customer) => {
     if (!customer.customer_name) return 'CS';
     return customer.customer_name.substring(0, 2).toUpperCase();
@@ -1029,12 +507,10 @@ const CustomerMaster = () => {
     return colors[charCode % colors.length];
   };
 
-  // Show loading state while permissions are being fetched
   if (!permissionsLoaded) {
     return <LoadingState />;
   }
 
-  // If user doesn't have view permission, show access denied
   if (!canViewPage && !isSuperAdmin) {
     return <AccessDenied />;
   }
@@ -1075,7 +551,8 @@ const CustomerMaster = () => {
               placeholder="Search by Customer Name, Code, GSTIN, or Contact..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
@@ -1106,12 +583,10 @@ const CustomerMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -1137,7 +612,22 @@ const CustomerMaster = () => {
               </Button>
             )}
             
-            {/* Add Customer Button - Only show if user has create permission */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {canCreate && (
               <Button
                 variant="contained"
@@ -1183,7 +673,6 @@ const CustomerMaster = () => {
                   py: 1.5
                 }
               }}>
-                {/* Checkbox Column - Only show if user has delete permission */}
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
@@ -1289,7 +778,6 @@ const CustomerMaster = () => {
                         }
                       }}
                     >
-                      {/* Checkbox Column - Only show if user has delete permission */}
                       {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
                           <Checkbox
@@ -1448,7 +936,7 @@ const CustomerMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components - Only render if user has appropriate permissions */}
+      {/* Modal Components */}
       {canCreate && (
         <AddCustomer 
           open={openAddModal}
@@ -1500,7 +988,6 @@ const CustomerMaster = () => {
             />
           )}
 
-          {/* Shipping Address Dialog */}
           {canUpdate && (
             <ShippingAddressDialog
               open={openShippingAddressDialog}

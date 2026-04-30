@@ -320,18 +320,18 @@ const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess }) => {
 const DeliveryScheduleMaster = () => {
   // State for data
   const [schedules, setSchedules] = useState([]);
-  const [filteredSchedules, setFilteredSchedules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(5); // Changed from 10 to 5
   const [selected, setSelected] = useState([]);
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -358,36 +358,60 @@ const DeliveryScheduleMaster = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
+      setCurrentPage(1);
       setPage(0);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch delivery schedules from API
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+  };
+
+  // Fetch delivery schedules from API with server-side pagination and search
   const fetchDeliverySchedules = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/delivery-schedules?limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/delivery-schedules`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setSchedules(response.data.data || []);
-        setFilteredSchedules(response.data.data || []);
+        setTotalCount(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load delivery schedules', 'error');
+        setSchedules([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching delivery schedules:', err);
-      showNotification('Failed to load delivery schedules. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load delivery schedules', 'error');
+      setSchedules([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
+  // Load data when dependencies change
   useEffect(() => {
     fetchDeliverySchedules();
   }, [fetchDeliverySchedules]);
@@ -398,29 +422,9 @@ const DeliveryScheduleMaster = () => {
     showNotification('Data refreshed', 'success');
   };
 
-  // Handle search and filters
-  useEffect(() => {
-    let filtered = [...schedules];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(schedule =>
-        schedule.schedule_id?.toLowerCase().includes(value) ||
-        schedule.so_number?.toLowerCase().includes(value) ||
-        schedule.transporter_preference?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(schedule => schedule.status === statusFilter);
-    }
-    
-    setFilteredSchedules(filtered);
-  }, [searchTerm, statusFilter, schedules]);
-
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredSchedules.map(schedule => schedule._id));
+      setSelected(schedules.map(schedule => schedule._id));
     } else {
       setSelected([]);
     }
@@ -441,12 +445,15 @@ const DeliveryScheduleMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -514,18 +521,29 @@ const DeliveryScheduleMaster = () => {
   const handleBulkDelete = async () => {
     if (selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${BASE_URL}/api/delivery-schedules/bulk-delete`, 
         { ids: selected },
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
+      
       setSelected([]);
-      fetchDeliverySchedules();
+      
+      if (schedules.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchDeliverySchedules();
+      }
+      
       showNotification(`${selected.length} schedule(s) deleted successfully!`, 'success');
     } catch (err) {
       console.error('Bulk delete error:', err);
       showNotification('Failed to delete schedules', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -587,11 +605,6 @@ const DeliveryScheduleMaster = () => {
     );
   };
 
-  const paginatedSchedules = filteredSchedules.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -625,12 +638,13 @@ const DeliveryScheduleMaster = () => {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
             <TextField
-              placeholder="Search by schedule ID, SO number..."
+              placeholder="Search by schedule ID, SO number, transporter..."
               size="small"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -659,33 +673,7 @@ const DeliveryScheduleMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ 
-                width: 140,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Status</MenuItem>
-              <MenuItem value="Draft">Draft</MenuItem>
-              <MenuItem value="Confirmed">Confirmed</MenuItem>
-              <MenuItem value="In Transit">In Transit</MenuItem>
-              <MenuItem value="Delivered">Delivered</MenuItem>
-              <MenuItem value="Cancelled">Cancelled</MenuItem>
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -775,8 +763,8 @@ const DeliveryScheduleMaster = () => {
               }}>
                 <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredSchedules.length}
-                    checked={filteredSchedules.length > 0 && selected.length === filteredSchedules.length}
+                    indeterminate={selected.length > 0 && selected.length < schedules.length}
+                    checked={schedules.length > 0 && selected.length === schedules.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: COLORS.text.light,
@@ -790,7 +778,7 @@ const DeliveryScheduleMaster = () => {
                         fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading || filteredSchedules.length === 0}
+                    disabled={loading || schedules.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
@@ -870,22 +858,22 @@ const DeliveryScheduleMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedSchedules.length === 0 ? (
+              ) : schedules.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <LocalShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || statusFilter !== 'All' ? 'No delivery schedules found' : 'No delivery schedules available'}
+                        {searchTerm ? 'No delivery schedules found' : 'No delivery schedules available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || statusFilter !== 'All' ? 'Try adjusting your search terms' : 'Create your first delivery schedule'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Create your first delivery schedule'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedSchedules.map((schedule, index) => {
+                schedules.map((schedule, index) => {
                   const isSelected = selected.includes(schedule._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedScheduleForAction?._id === schedule._id;
@@ -991,7 +979,7 @@ const DeliveryScheduleMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredSchedules.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

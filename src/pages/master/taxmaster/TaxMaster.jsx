@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -184,15 +184,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, anchorEl, onClose, onOpen,
 const TaxMaster = () => {
   // State for data
   const [taxes, setTaxes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -220,6 +220,11 @@ const TaxMaster = () => {
   // User permissions state
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -246,6 +251,8 @@ const TaxMaster = () => {
       } catch (err) {
         console.error('Error fetching user permissions:', err);
         setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
       }
     };
     
@@ -287,38 +294,50 @@ const TaxMaster = () => {
   const canImport = checkPermission(ACTIONS.IMPORT);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // If user doesn't have view permission, show access denied
-  if (!canViewPage && !isSuperAdmin && userPermissions.length > 0) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h6" color="error" sx={{ mb: 2 }}>
-          Access Denied
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          You don't have permission to view this page. Please contact your administrator.
-        </Typography>
-      </Box>
-    );
-  }
-
-  // Debounce search to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch taxes from API with pagination
   const fetchTaxes = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -335,8 +354,7 @@ const TaxMaster = () => {
       if (response.data.success) {
         const { data: taxesData, pagination } = response.data;
         setTaxes(taxesData || []);
-        setTotalItems(pagination.totalItems);
-        setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.totalItems || pagination.total || 0);
       } else {
         showNotification('Failed to load taxes', 'error');
       }
@@ -346,14 +364,14 @@ const TaxMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Fetch taxes when dependencies change
   useEffect(() => {
-    if (canViewPage || isSuperAdmin) {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchTaxes();
     }
-  }, [fetchTaxes, canViewPage, isSuperAdmin]);
+  }, [fetchTaxes, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -391,6 +409,7 @@ const TaxMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -399,13 +418,38 @@ const TaxMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
   // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/taxes/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (taxes.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchTaxes();
+      }
+      
+      showNotification(`${selected.length} tax(es) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete taxes', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Handle add tax
@@ -542,6 +586,29 @@ const TaxMaster = () => {
     };
   };
 
+  // Show loading while permissions are being fetched
+  if (!permissionsLoaded) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+      </Box>
+    );
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+          Access Denied
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          You don't have permission to view this page. Please contact your administrator.
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -579,7 +646,8 @@ const TaxMaster = () => {
               placeholder="Search by HSN code or description..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -610,12 +678,28 @@ const TaxMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button

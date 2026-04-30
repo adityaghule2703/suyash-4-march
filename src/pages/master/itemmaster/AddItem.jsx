@@ -1187,7 +1187,7 @@ const AddItem = ({ open, onClose, onAdd }) => {
       >
         <DialogTitle sx={{
           borderBottom: `1px solid ${COLORS.border}`,
-          py: 1.5, px: 2.5,
+          py: 1.5, px: 2.5,mb: 2,
           bgcolor: COLORS.background.white,
           display: 'flex', flexDirection: 'column', gap: 1
         }}>

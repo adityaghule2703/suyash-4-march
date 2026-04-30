@@ -185,7 +185,16 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
       if (woRes.data.success) setWoList(woRes.data.data || []);
       if (vendorRes.data.success) setVendorList(vendorRes.data.data || []);
       if (customerRes.data.success) setCustomerList(customerRes.data.data || []);
-      if (defectRes.data.success) setDefectCodeList(defectRes.data.data || []);
+      
+      // Format defect codes for better handling
+      if (defectRes.data.success && defectRes.data.data) {
+        const formattedCodes = defectRes.data.data.map(code => ({
+          ...code,
+          displayLabel: `${code.defect_code} - ${code.defect_name}`
+        }));
+        setDefectCodeList(formattedCodes);
+      }
+      
       if (inspectionRes.data.success) {
         console.log('Inspection records fetched:', inspectionRes.data.data);
         setInspectionList(inspectionRes.data.data || []);
@@ -315,7 +324,9 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
   };
 
   const handleDefectCodesChange = (event) => {
-    setFormData(prev => ({ ...prev, defect_codes: event.target.value }));
+    const selectedValues = event.target.value;
+    // Store the full defect code objects
+    setFormData(prev => ({ ...prev, defect_codes: selectedValues }));
   };
 
   const validateStep = (step) => {
@@ -413,9 +424,9 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
         quantity_unit: formData.quantity_unit,
         lot_no: formData.lot_no || '',
         defect_codes: formData.defect_codes.map(dc => ({
-          code: dc.code,
-          name: dc.name,
-          category: dc.category
+          code: dc.defect_code,
+          name: dc.defect_name,
+          category: dc.defect_category
         })),
         defect_description: formData.defect_description,
         detected_at_operation: formData.detected_at_operation,
@@ -519,17 +530,13 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
   const showReferenceDocuments = () => formData.ncr_type !== 'Customer Return';
 
   const getInspectionDisplayText = (inspection) => {
-    // Try to get meaningful display text from different possible field names
     const inspectionType = inspection.inspection_type || inspection.type || 'Inspection';
     const partNo = inspection.part_no || inspection.item_part_no || inspection.material_code || 'No Part';
     const result = inspection.overall_result || inspection.status || inspection.result || 'Pending';
     const date = inspection.inspection_date || inspection.createdAt || inspection.date;
     const formattedDate = date ? new Date(date).toLocaleDateString() : '';
-    
-    // Get additional info if available
     const supplier = inspection.supplier_name || inspection.vendor_name || '';
     const additional = supplier ? ` - ${supplier}` : '';
-    
     return `${inspectionType} - ${partNo} (${result})${formattedDate ? ` - ${formattedDate}` : ''}${additional}`;
   };
 
@@ -551,6 +558,9 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
     const selectedItem = grnItems.find(item => item.item_id === formData.item_id);
     return selectedItem ? selectedItem.id : '';
   };
+
+  // Check if defect codes are loaded
+  const isDefectCodesLoaded = defectCodeList.length > 0;
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -884,20 +894,34 @@ const AddNCR = ({ open, onClose, onNcrAdded }) => {
                               {selected.map((code) => (
                                 <Chip 
                                   key={code._id} 
-                                  label={`${code.code} - ${code.name}`} 
+                                  label={`${code.defect_code} - ${code.defect_name}`} 
                                   size="small" 
                                   sx={{ fontSize: '0.65rem', height: 22, bgcolor: COLORS.primaryLight, color: COLORS.primary }} 
                                 />
                               ))}
                             </Box>
                           )}
+                          MenuProps={{
+                            PaperProps: {
+                              style: {
+                                maxHeight: 300,
+                              },
+                            },
+                          }}
                         >
-                          {defectCodeList.map(code => (
-                            <MenuItem key={code._id} value={code} sx={{ fontSize: '0.75rem' }}>
-                              {code.code} - {code.name}
-                            </MenuItem>
-                          ))}
+                          {defectCodeList.length === 0 ? (
+                            <MenuItem disabled>Loading defect codes...</MenuItem>
+                          ) : (
+                            defectCodeList.map((code) => (
+                              <MenuItem key={code._id} value={code} sx={{ fontSize: '0.75rem' }}>
+                                {code.defect_code} - {code.defect_name}
+                              </MenuItem>
+                            ))
+                          )}
                         </Select>
+                        <FormHelperText sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          Select one or more defect codes
+                        </FormHelperText>
                       </FormControl>
                     </Grid>
                     <Grid size={{ xs: 12 }}>

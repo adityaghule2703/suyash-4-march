@@ -87,6 +87,21 @@ import GaugeMaster from './pages/inspectionmaster/gaugemaster/GaugeMaster'
 import InspectionPlanMaster from './pages/inspectionmaster/inspectionplanmaster/InspectionPlanMaster'
 import InspectionRecordMaster from './pages/inspectionmaster/inspectionrecordmaster/InspectionRecordMaster'
 import CustomerReturnMaster from './pages/dispatchmaster/customerreturnmaster/CustomerReturnMaster'
+import DefectCodeMaster from './pages/inspectionmaster/defectcode/DefectCodeMaster'
+import NcrMaster from './pages/inspectionmaster/ncr/NcrMaster'
+import NcrTrendAnalysis from './pages/inspectionmaster/ncrtrendanalysis/NcrTrendAnalysis'
+import CapaMaster from './pages/inspectionmaster/capa/CapaMaster'
+import QualityCertMaster from './pages/inspectionmaster/qualitycertificate/QuailtyCertMaster'
+import InvoiceMaster from './pages/reportsmaster/invoicemaster/InvoiceMaster'
+import PaymentReceiptMaster from './pages/reportsmaster/paymentreceiptmaster/PaymentReceiptMaster'
+import CustomerAdvanceMaster from './pages/reportsmaster/customeradvance/CustomerAdvanceMaster'
+import ArAging from './pages/reportsmaster/collectionsmaster/ArAging'
+import TdsReconciliation from './pages/reportsmaster/tdsmaster/TdsReconciliation'
+import CreditNoteMaster from './pages/reportsmaster/creditnotemaster/CreditNoteMaster'
+import Gstr1Data from './pages/reportsmaster/gstcompilance/Gstr1Data'
+import Gstr3bData from './pages/reportsmaster/gstcompilance/Gstr3bData'
+import MonthlyRevenueReport from './pages/reportsmaster/monthlyrevenuemaster/MonthlyRevenueReport'
+
 
 
 const PrivateRoute = ({ children }) => {
@@ -102,7 +117,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-      {/* <BrowserRouter basename="/suyashtest-front"> */}
+      {/* //  <BrowserRouter basename="/suyashtest-front"> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -203,12 +218,22 @@ const App = () => {
 
           <Route path="inspectionmaster/gaugemaster" element={<GaugeMaster />} />
           <Route path="inspectionmaster/inspectionplan" element={<InspectionPlanMaster />} />
-           <Route path="inspectionmaster/inspectionrecord" element={<InspectionRecordMaster />} />
-                    <Route path='inspectionmaster/defectcode' element={<DefectCodeMaster />} />
-            <Route path='inspectionmaster/ncr' element={<NcrMaster/>} />
-            <Route path='inspectionmaster/trendanalysis' element={<NcrTrendAnalysis/>} />
-            <Route path='inspectionmaster/capa' element={<CapaMaster/>} />
-            <Route path='inspectionmaster/qualitycertificate' element={<QualityCertMaster/>} />
+          <Route path="inspectionmaster/inspectionrecord" element={<InspectionRecordMaster />} />
+          <Route path='inspectionmaster/defectcode' element={<DefectCodeMaster />} />
+          <Route path='inspectionmaster/ncr' element={<NcrMaster/>} />
+          <Route path='inspectionmaster/trendanalysis' element={<NcrTrendAnalysis/>} />
+          <Route path='inspectionmaster/capa' element={<CapaMaster/>} />
+          <Route path='inspectionmaster/qualitycertificate' element={<QualityCertMaster/>} />
+
+          <Route path='reportsmaster/invoice' element={<InvoiceMaster/>} />
+          <Route path='reportsmaster/paymentreceipt' element={<PaymentReceiptMaster />} />
+          <Route path='reportsmaster/customeradvance' element={<CustomerAdvanceMaster />} />
+          <Route path='reportsmaster/araging' element={<ArAging />} />
+          <Route path='reportsmaster/tdsreconciliation' element={<TdsReconciliation />} />
+          <Route path='reportsmaster/creditnote' element={<CreditNoteMaster />} />
+          <Route path='reportsmaster/gstr1data' element={<Gstr1Data />} />
+          <Route path='reportsmaster/gstr3bdata' element={<Gstr3bData />} />
+          <Route path='reportsmaster/monthlyrevenuereport' element={<MonthlyRevenueReport />} />
         </Route>
 
         {/* Catch all route - redirect to home */}

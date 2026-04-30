@@ -165,20 +165,31 @@ const WorkOrdersMaster = () => {
   const closeModal = (setter) => { setter(false); setSelectedWorkOrder(null); };
   const afterAction = (setter, message) => () => { closeModal(setter); fetchWorkOrders(); notify(message); };
 
-  const handleRelease = async (workOrder) => {
-    try { 
-      const token = localStorage.getItem('token'); 
-      const response = await axios.post(`${BASE_URL}/api/work-orders/${workOrder._id}/release`, {}, { headers: { Authorization: `Bearer ${token}` } }); 
-      if (response.data.success) { 
-        notify(`Work Order ${workOrder.wo_number} released successfully!`); 
-        fetchWorkOrders(); 
-      } else { 
-        notify(response.data.message || 'Failed to release work order', 'error'); 
-      } 
-    } catch (err) { 
-      notify(err.response?.data?.message || 'Failed to release work order', 'error'); 
+ const handleRelease = async (workOrder) => {
+  try {
+    // ❗ ADD THIS CHECK
+    if (!workOrder.operations || workOrder.operations.length === 0) {
+      notify('Please add operations before releasing the Work Order', 'error');
+      return;
     }
-  };
+
+    const token = localStorage.getItem('token');
+    const response = await axios.post(
+      `${BASE_URL}/api/work-orders/${workOrder._id}/release`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.data.success) {
+      notify(`Work Order ${workOrder.wo_number} released successfully!`);
+      fetchWorkOrders();
+    } else {
+      notify(response.data.message || 'Failed to release work order', 'error');
+    }
+  } catch (err) {
+    notify(err.response?.data?.message || 'Failed to release work order', 'error');
+  }
+};
 
   const handleStart = async (workOrder) => {
     try {

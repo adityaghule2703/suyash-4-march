@@ -181,10 +181,7 @@ const ReviewCapa = ({ open, onClose, capaId, capaNumber, onEffectivenessRecorded
       return false;
     }
     
-    if (formData.effectiveness_criteria.length < 20) {
-      setError('Effectiveness criteria should be more detailed (minimum 20 characters)');
-      return false;
-    }
+
     
     if (!formData.effectiveness_evidence?.trim()) {
       setError('Please provide evidence of effectiveness');

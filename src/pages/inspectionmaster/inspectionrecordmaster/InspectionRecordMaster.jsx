@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -1472,19 +1472,18 @@ const InspectionTypeChip = ({ type }) => {
 const InspectionRecordMaster = () => {
   // State for data
   const [records, setRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [inspectionTypeFilter, setInspectionTypeFilter] = useState('All');
-  const [resultFilter, setResultFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selected, setSelected] = useState([]);
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -1507,40 +1506,94 @@ const InspectionRecordMaster = () => {
     severity: 'success'
   });
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Ref to track if we're currently searching
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
-  // Fetch inspection records from API
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Fetch inspection records from API with server-side pagination and search
   const fetchRecords = useCallback(async () => {
-    try {
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/inspection-records/all?limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/inspection-records/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setRecords(response.data.data || []);
-        setFilteredRecords(response.data.data || []);
+        setTotalCount(response.data.total || response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load inspection records', 'error');
+        setRecords([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching inspection records:', err);
-      showNotification('Failed to load inspection records. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load inspection records', 'error');
+      setRecords([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
+  // Load data when dependencies change
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
@@ -1551,34 +1604,9 @@ const InspectionRecordMaster = () => {
     showNotification('Data refreshed', 'success');
   };
 
-  // Handle search and filters
-  useEffect(() => {
-    let filtered = [...records];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(record =>
-        record.inspection_id?.toLowerCase().includes(value) ||
-        record.inspection_number?.toLowerCase().includes(value) ||
-        record.part_no?.toLowerCase().includes(value) ||
-        record.plan_id?.plan_name?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (inspectionTypeFilter !== 'All') {
-      filtered = filtered.filter(record => record.inspection_type === inspectionTypeFilter);
-    }
-    
-    if (resultFilter !== 'All') {
-      filtered = filtered.filter(record => record.overall_result === resultFilter);
-    }
-    
-    setFilteredRecords(filtered);
-  }, [searchTerm, inspectionTypeFilter, resultFilter, records]);
-
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredRecords.map(record => record._id));
+      setSelected(records.map(record => record._id));
     } else {
       setSelected([]);
     }
@@ -1599,12 +1627,15 @@ const InspectionRecordMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -1672,19 +1703,29 @@ const InspectionRecordMaster = () => {
   const handleBulkDelete = async () => {
     if (selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      for (const id of selected) {
-        await axios.delete(`${BASE_URL}/api/inspection-records/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      await axios.post(`${BASE_URL}/api/inspection-records/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
       setSelected([]);
-      fetchRecords();
+      
+      if (records.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchRecords();
+      }
+      
       showNotification(`${selected.length} record(s) deleted successfully!`, 'success');
     } catch (err) {
       console.error('Bulk delete error:', err);
       showNotification('Failed to delete some records', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1704,15 +1745,6 @@ const InspectionRecordMaster = () => {
       day: 'numeric'
     });
   };
-
-  // Get unique inspection types and results for filters
-  const uniqueInspectionTypes = ['All', ...new Set(records.map(r => r.inspection_type).filter(Boolean))];
-  const uniqueResults = ['All', ...new Set(records.map(r => r.overall_result).filter(Boolean))];
-
-  const paginatedRecords = filteredRecords.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -1750,9 +1782,10 @@ const InspectionRecordMaster = () => {
               placeholder="Search by inspection ID, part no..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -1781,52 +1814,7 @@ const InspectionRecordMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Inspection Type"
-              value={inspectionTypeFilter}
-              onChange={(e) => setInspectionTypeFilter(e.target.value)}
-              sx={{ 
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              {uniqueInspectionTypes.map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </TextField>
-            
-            <TextField
-              select
-              size="small"
-              label="Result"
-              value={resultFilter}
-              onChange={(e) => setResultFilter(e.target.value)}
-              sx={{ 
-                width: 160,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              {uniqueResults.map(result => (
-                <MenuItem key={result} value={result}>{result}</MenuItem>
-              ))}
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1916,8 +1904,8 @@ const InspectionRecordMaster = () => {
               }}>
                 <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredRecords.length}
-                    checked={filteredRecords.length > 0 && selected.length === filteredRecords.length}
+                    indeterminate={selected.length > 0 && selected.length < records.length}
+                    checked={records.length > 0 && selected.length === records.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: COLORS.text.light,
@@ -1931,7 +1919,7 @@ const InspectionRecordMaster = () => {
                         fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading || filteredRecords.length === 0}
+                    disabled={loading || records.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
@@ -1957,14 +1945,6 @@ const InspectionRecordMaster = () => {
                   color: COLORS.text.light
                 }}>
                   Inspection Type
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Plan Name
                 </TableCell>
                 <TableCell sx={{ 
                   fontWeight: 600, 
@@ -2012,29 +1992,29 @@ const InspectionRecordMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading inspection records...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedRecords.length === 0 ? (
+              ) : records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <RecordIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || inspectionTypeFilter !== 'All' || resultFilter !== 'All' ? 'No inspection records found' : 'No inspection records available'}
+                        {searchTerm ? 'No inspection records found' : 'No inspection records available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || inspectionTypeFilter !== 'All' || resultFilter !== 'All' ? 'Try adjusting your search terms' : 'Add your first inspection record'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first inspection record'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedRecords.map((record, index) => {
+                records.map((record, index) => {
                   const isSelected = selected.includes(record._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedRecordForAction?._id === record._id;
@@ -2109,20 +2089,14 @@ const InspectionRecordMaster = () => {
                       </TableCell>
                       
                       <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {record.plan_id?.plan_name || '-'}
-                        </Typography>
-                      </TableCell>
-                      
-                      <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                          {record.part_no || record.item_id?.part_no || '-'}
+                          {record.items?.[0]?.part_no || record.part_no || '-'}
                         </Typography>
                       </TableCell>
                       
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {record.lot_size || '-'}
+                          {record.lot_size || record.items?.[0]?.received_qty || '-'}
                         </Typography>
                       </TableCell>
                       
@@ -2132,7 +2106,7 @@ const InspectionRecordMaster = () => {
                       
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {record.inspector_id?.FirstName} {record.inspector_id?.LastName || record.inspector_id || '-'}
+                          {record.created_by?.FirstName || record.created_by || '-'}
                         </Typography>
                       </TableCell>
                       
@@ -2159,7 +2133,7 @@ const InspectionRecordMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredRecords.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

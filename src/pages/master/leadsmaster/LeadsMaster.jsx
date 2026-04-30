@@ -1644,9 +1644,8 @@
 //     </Box>
 //   );
 // };
-
 'use strict';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, IconButton, Button, TextField, InputAdornment, Tooltip,
@@ -1879,12 +1878,13 @@ const ActionMenu = ({
 // ─── Main component ───────────────────────────────────────────────────────────
 const LeadsMaster = () => {
   const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedLeadForMenu, setSelectedLeadForMenu] = useState(null);
@@ -1907,6 +1907,10 @@ const LeadsMaster = () => {
   const [openDrawings, setOpenDrawings] = useState(false);
   const [openFeasibility, setOpenFeasibility] = useState(false);
   const [openFeasibilityCheck, setOpenFeasibilityCheck] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -1944,24 +1948,52 @@ const LeadsMaster = () => {
   const canCreate = checkPermission(ACTIONS.CREATE);
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
-  const canExport = checkPermission(ACTIONS.EXPORT);
-  const canImport = checkPermission(ACTIONS.IMPORT);
-  const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // ── debounce search ──────────────────────────────────────────────────────
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
   useEffect(() => {
-    const t = setTimeout(() => { setSearchTerm(searchInput); setPage(0); }, 500);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // ── fetch leads ──────────────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
     if (!canViewPage && !isSuperAdmin) return;
     
-    try {
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const params = new URLSearchParams({ page: page + 1, limit: rowsPerPage });
+      const params = new URLSearchParams({ 
+        page: currentPage, 
+        limit: rowsPerPage 
+      });
       if (searchTerm) params.append('company_name', searchTerm);
 
       const res = await axios.get(`${BASE_URL}/api/leads?${params}`, {
@@ -1979,7 +2011,7 @@ const LeadsMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
@@ -2026,6 +2058,7 @@ const LeadsMaster = () => {
   const handleBulkDelete = async () => {
     if (!canDelete || selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${BASE_URL}/api/leads/bulk-delete`, 
@@ -2033,19 +2066,34 @@ const LeadsMaster = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSelected([]);
-      fetchLeads();
+      
+      if (leads.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchLeads();
+      }
+      
       notify(`${selected.length} lead(s) deleted successfully!`);
     } catch (err) {
       console.error('Bulk delete error:', err);
       notify('Failed to delete leads', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   // ── pagination ───────────────────────────────────────────────────────────
-  const handleChangePage = (_, newPage) => { setPage(newPage); setSelected([]); };
+  const handleChangePage = (_, newPage) => { 
+    setPage(newPage); 
+    setCurrentPage(newPage + 1);
+    setSelected([]); 
+  };
+  
   const handleChangeRows = (e) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -2091,8 +2139,8 @@ const LeadsMaster = () => {
             placeholder="Search by company, contact, subject, lead ID..."
             size="small"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            disabled={loading}
+            onChange={handleSearchChange}
+            autoComplete="off"
             sx={{
               width: { xs: '100%', sm: 450 },
               '& .MuiOutlinedInput-root': {

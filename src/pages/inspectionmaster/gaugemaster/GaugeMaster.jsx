@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -244,19 +244,18 @@ const CalibrationIndicator = ({ nextCalibrationDate }) => {
 const GaugeMaster = () => {
   // State for data
   const [gauges, setGauges] = useState([]);
-  const [filteredGauges, setFilteredGauges] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [gaugeTypeFilter, setGaugeTypeFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -279,40 +278,94 @@ const GaugeMaster = () => {
     severity: 'success'
   });
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Ref to track if we're currently searching
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
-  // Fetch gauges from API
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Fetch gauges from API with server-side pagination and search
   const fetchGauges = useCallback(async () => {
-    try {
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/gauges?limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/gauges`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setGauges(response.data.data || []);
-        setFilteredGauges(response.data.data || []);
+        setTotalCount(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load gauges', 'error');
+        setGauges([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching gauges:', err);
-      showNotification('Failed to load gauges. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load gauges', 'error');
+      setGauges([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
+  // Load data when dependencies change
   useEffect(() => {
     fetchGauges();
   }, [fetchGauges]);
@@ -323,34 +376,9 @@ const GaugeMaster = () => {
     showNotification('Data refreshed', 'success');
   };
 
-  // Handle search and filters
-  useEffect(() => {
-    let filtered = [...gauges];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(gauge =>
-        gauge.gauge_code?.toLowerCase().includes(value) ||
-        gauge.gauge_name?.toLowerCase().includes(value) ||
-        gauge.gauge_type?.toLowerCase().includes(value) ||
-        gauge.serial_no?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(gauge => gauge.status === statusFilter);
-    }
-    
-    if (gaugeTypeFilter !== 'All') {
-      filtered = filtered.filter(gauge => gauge.gauge_type === gaugeTypeFilter);
-    }
-    
-    setFilteredGauges(filtered);
-  }, [searchTerm, statusFilter, gaugeTypeFilter, gauges]);
-
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredGauges.map(gauge => gauge._id));
+      setSelected(gauges.map(gauge => gauge._id));
     } else {
       setSelected([]);
     }
@@ -371,12 +399,15 @@ const GaugeMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -444,19 +475,29 @@ const GaugeMaster = () => {
   const handleBulkDelete = async () => {
     if (selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      for (const id of selected) {
-        await axios.delete(`${BASE_URL}/api/gauges/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      await axios.post(`${BASE_URL}/api/gauges/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
       setSelected([]);
-      fetchGauges();
+      
+      if (gauges.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchGauges();
+      }
+      
       showNotification(`${selected.length} gauge(s) deleted successfully!`, 'success');
     } catch (err) {
       console.error('Bulk delete error:', err);
-      showNotification('Failed to delete some gauges', 'error');
+      showNotification('Failed to delete gauges', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -519,14 +560,6 @@ const GaugeMaster = () => {
     );
   };
 
-  // Get unique gauge types for filter
-  const uniqueGaugeTypes = ['All', ...new Set(gauges.map(g => g.gauge_type).filter(Boolean))];
-
-  const paginatedGauges = filteredGauges.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -563,9 +596,10 @@ const GaugeMaster = () => {
               placeholder="Search by gauge code, name, serial no..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -594,55 +628,7 @@ const GaugeMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ 
-                width: 160,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              <MenuItem value="All">All Status</MenuItem>
-              <MenuItem value="Calibrated">Calibrated</MenuItem>
-              <MenuItem value="Due for Calibration">Due for Calibration</MenuItem>
-              <MenuItem value="Overdue">Overdue</MenuItem>
-              <MenuItem value="Under Repair">Under Repair</MenuItem>
-              <MenuItem value="Quarantined">Quarantined</MenuItem>
-            </TextField>
-            
-            <TextField
-              select
-              size="small"
-              label="Gauge Type"
-              value={gaugeTypeFilter}
-              onChange={(e) => setGaugeTypeFilter(e.target.value)}
-              sx={{ 
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              {uniqueGaugeTypes.map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -732,8 +718,8 @@ const GaugeMaster = () => {
               }}>
                 <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredGauges.length}
-                    checked={filteredGauges.length > 0 && selected.length === filteredGauges.length}
+                    indeterminate={selected.length > 0 && selected.length < gauges.length}
+                    checked={gauges.length > 0 && selected.length === gauges.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: COLORS.text.light,
@@ -747,7 +733,7 @@ const GaugeMaster = () => {
                         fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading || filteredGauges.length === 0}
+                    disabled={loading || gauges.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
@@ -827,22 +813,22 @@ const GaugeMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedGauges.length === 0 ? (
+              ) : gauges.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <GaugeIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || statusFilter !== 'All' || gaugeTypeFilter !== 'All' ? 'No gauges found' : 'No gauges available'}
+                        {searchTerm ? 'No gauges found' : 'No gauges available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || statusFilter !== 'All' || gaugeTypeFilter !== 'All' ? 'Try adjusting your search terms' : 'Add your first gauge'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first gauge'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedGauges.map((gauge, index) => {
+                gauges.map((gauge, index) => {
                   const isSelected = selected.includes(gauge._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedGaugeForAction?._id === gauge._id;
@@ -962,7 +948,7 @@ const GaugeMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredGauges.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

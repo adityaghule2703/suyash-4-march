@@ -409,60 +409,66 @@ const EditAccident = ({ open, onClose, accident, onUpdate }) => {
     setActiveStep(prev => prev - 1);
   };
 
-  const handleSubmit = async () => {
-    // Validate all steps
-    for (let i = 0; i <= 2; i++) {
-      if (!validateStep(i)) {
-        setActiveStep(i);
-        return;
-      }
+ const handleSubmit = async () => {
+  // Validate all steps
+  for (let i = 0; i <= 2; i++) {
+    if (!validateStep(i)) {
+      setActiveStep(i);
+      return;
+    }
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const token = localStorage.getItem('token');
+    const lostDaysNum = formData.lostDays ? parseInt(formData.lostDays, 10) : 0;
+
+    // Construct injury type value - similar to how it's done in useEffect
+    let injuryTypeValue = formData.injuryType;
+    if (injuryTypeValue === 'Other' && formData.otherInjuryType?.trim()) {
+      injuryTypeValue = `Other: ${formData.otherInjuryType.trim()}`;
     }
 
-    setLoading(true);
-    setError('');
+    const submissionData = {
+      employee: formData.employee,
+      date: new Date(formData.date).toISOString(),
+      location: formData.location,
+      department: formData.department,
+      machineId: formData.machineId || '',
+      machineName: formData.machineName || '',
+      injuryType: injuryTypeValue, // Now this is defined
+      bodyPartAffected: formData.bodyPartAffected || '',
+      severity: formData.severity,
+      description: formData.description || '',
+      immediateAction: formData.immediateAction || '',
+      rootCause: formData.rootCause || '',
+      reportedBy: formData.reportedBy || '',
+      lostDays: lostDaysNum
+    };
 
-    try {
-      const token = localStorage.getItem('token');
-      const lostDaysNum = formData.lostDays ? parseInt(formData.lostDays, 10) : 0;
+    const response = await axios.put(
+      `${BASE_URL}/api/safety/accidents/${accident._id}`,
+      submissionData,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
 
-      const submissionData = {
-        employee: formData.employee,
-        date: new Date(formData.date).toISOString(),
-        location: formData.location,
-        department: formData.department,
-        machineId: formData.machineId || '',
-        machineName: formData.machineName || '',
-        injuryType: injuryTypeValue,
-        bodyPartAffected: formData.bodyPartAffected || '',
-        severity: formData.severity,
-        description: formData.description || '',
-        immediateAction: formData.immediateAction || '',
-        rootCause: formData.rootCause || '',
-        reportedBy: formData.reportedBy || '',
-        lostDays: lostDaysNum
-      };
-
-      const response = await axios.put(
-        `${BASE_URL}/api/safety/accidents/${accident._id}`,
-        submissionData,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        if (onUpdate) {
-          onUpdate(response.data.data);
-        }
-        handleClose();
-      } else {
-        setError(response.data.message || 'Failed to update accident');
+    if (response.data.success) {
+      if (onUpdate) {
+        onUpdate(response.data.data);
       }
-    } catch (err) {
-      console.error('Error updating accident:', err);
-      setError(err.response?.data?.message || 'Failed to update accident. Please try again.');
-    } finally {
-      setLoading(false);
+      handleClose();
+    } else {
+      setError(response.data.message || 'Failed to update accident');
     }
-  };
+  } catch (err) {
+    console.error('Error updating accident:', err);
+    setError(err.response?.data?.message || 'Failed to update accident. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleClose = () => {
     initialDataLoaded.current = false;

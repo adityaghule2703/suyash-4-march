@@ -180,9 +180,15 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
     };
 
     const handleSalesOrderChange = (event) => {
-        const { value } = event.target;
-        setFormData(prev => ({ ...prev, so_ids: value }));
-    };
+    const {
+        target: { value },
+    } = event;
+
+    setFormData(prev => ({
+        ...prev,
+        so_ids: typeof value === 'string' ? value.split(',') : value,
+    }));
+};
 
     const validateForm = () => {
         const errors = {};
@@ -471,48 +477,33 @@ const MrpRun = ({ open, onClose, onRunComplete }) => {
                                         Sales Orders (Optional)
                                     </Typography>
                                     <FormControl fullWidth size="small">
-                                        <Select
-                                            multiple
-                                            value={formData.so_ids}
-                                            onChange={handleSalesOrderChange}
-                                            renderValue={(selected) => (
-                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                    {selected.map((value) => {
-                                                        const so = salesOrders.find(s => s._id === value);
-                                                        return (
-                                                            <Chip
-                                                                key={value}
-                                                                label={so?.so_number || value}
-                                                                size="small"
-                                                                sx={{ fontSize: '0.65rem', height: 24 }}
-                                                            />
-                                                        );
-                                                    })}
-                                                </Box>
-                                            )}
-                                            sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                                        >
-                                            {loadingOrders ? (
-                                                <MenuItem disabled>
-                                                    <CircularProgress size={20} />
-                                                </MenuItem>
-                                            ) : salesOrders.length === 0 ? (
-                                                <MenuItem disabled>No sales orders available</MenuItem>
-                                            ) : (
-                                                salesOrders.map((so) => (
-                                                    <MenuItem key={so._id} value={so._id} sx={{ fontSize: '0.75rem' }}>
-                                                        <Checkbox checked={formData.so_ids.indexOf(so._id) !== -1} />
-                                                        <ListItemText
-                                                            primary={so.so_number}
-                                                            secondary={`${so.customer_name || 'N/A'} - ${so.total_amount || 0}`}
-                                                            primaryTypographyProps={{ fontSize: '0.75rem' }}
-                                                            secondaryTypographyProps={{ fontSize: '0.65rem' }}
-                                                        />
-                                                    </MenuItem>
-                                                ))
-                                            )}
-                                        </Select>
-                                    </FormControl>
+    <Select
+        multiple
+        value={formData.so_ids || []}
+        onChange={handleSalesOrderChange}
+        renderValue={(selected) => (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {selected.map((value) => {
+                    const so = salesOrders.find(s => s.so_number === value);
+                    return (
+                        <Chip
+                            key={value}
+                            label={so?.so_number || value}
+                            size="small"
+                        />
+                    );
+                })}
+            </Box>
+        )}
+    >
+        {salesOrders.map((so) => (
+            <MenuItem key={so._id} value={so.so_number}>
+                <Checkbox checked={formData.so_ids.includes(so.so_number)} />
+                <ListItemText primary={so.so_number} />
+            </MenuItem>
+        ))}
+    </Select>
+</FormControl>
                                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                                         Leave empty to run MRP for all confirmed sales orders
                                     </Typography>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -419,19 +419,18 @@ const ApprovalStatusChip = ({ status }) => {
 const InspectionPlanMaster = () => {
   // State for data
   const [plans, setPlans] = useState([]);
-  const [filteredPlans, setFilteredPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
-  // Filter states
-  const [planTypeFilter, setPlanTypeFilter] = useState('All');
-  const [approvalStatusFilter, setApprovalStatusFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selected, setSelected] = useState([]);
+  
+  // Server-side pagination states
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Menu state for action buttons
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -454,40 +453,94 @@ const InspectionPlanMaster = () => {
     severity: 'success'
   });
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Ref to track if we're currently searching
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
-  // Fetch inspection plans from API
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Fetch inspection plans from API with server-side pagination and search
   const fetchPlans = useCallback(async () => {
-    try {
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/inspection-plans?limit=100`, {
+      const params = {
+        page: currentPage,
+        limit: rowsPerPage
+      };
+      
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/inspection-plans`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        params: params
       });
 
       if (response.data.success) {
         setPlans(response.data.data || []);
-        setFilteredPlans(response.data.data || []);
+        setTotalCount(response.data.count || response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load inspection plans', 'error');
+        setPlans([]);
+        setTotalCount(0);
       }
     } catch (err) {
       console.error('Error fetching inspection plans:', err);
-      showNotification('Failed to load inspection plans. Please try again.', 'error');
+      showNotification(err.response?.data?.message || 'Failed to load inspection plans', 'error');
+      setPlans([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
+  // Load data when dependencies change
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
@@ -498,34 +551,9 @@ const InspectionPlanMaster = () => {
     showNotification('Data refreshed', 'success');
   };
 
-  // Handle search and filters
-  useEffect(() => {
-    let filtered = [...plans];
-    
-    if (searchTerm) {
-      const value = searchTerm.toLowerCase();
-      filtered = filtered.filter(plan =>
-        plan.plan_id?.toLowerCase().includes(value) ||
-        plan.plan_name?.toLowerCase().includes(value) ||
-        plan.plan_type?.toLowerCase().includes(value) ||
-        plan.item_id?.part_no?.toLowerCase().includes(value)
-      );
-    }
-    
-    if (planTypeFilter !== 'All') {
-      filtered = filtered.filter(plan => plan.plan_type === planTypeFilter);
-    }
-    
-    if (approvalStatusFilter !== 'All') {
-      filtered = filtered.filter(plan => plan.approval_status === approvalStatusFilter);
-    }
-    
-    setFilteredPlans(filtered);
-  }, [searchTerm, planTypeFilter, approvalStatusFilter, plans]);
-
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelected(filteredPlans.map(plan => plan._id));
+      setSelected(plans.map(plan => plan._id));
     } else {
       setSelected([]);
     }
@@ -546,12 +574,15 @@ const InspectionPlanMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -630,19 +661,29 @@ const InspectionPlanMaster = () => {
       return;
     }
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      for (const id of selected) {
-        await axios.delete(`${BASE_URL}/api/inspection-plans/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      await axios.post(`${BASE_URL}/api/inspection-plans/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
       setSelected([]);
-      fetchPlans();
+      
+      if (plans.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchPlans();
+      }
+      
       showNotification(`${selected.length} plan(s) deleted successfully!`, 'success');
     } catch (err) {
       console.error('Bulk delete error:', err);
       showNotification('Failed to delete some plans', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -670,15 +711,6 @@ const InspectionPlanMaster = () => {
       />
     );
   };
-
-  // Get unique plan types for filter
-  const uniquePlanTypes = ['All', ...new Set(plans.map(p => p.plan_type).filter(Boolean))];
-  const uniqueApprovalStatuses = ['All', ...new Set(plans.map(p => p.approval_status).filter(Boolean))];
-
-  const paginatedPlans = filteredPlans.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -716,9 +748,10 @@ const InspectionPlanMaster = () => {
               placeholder="Search by plan ID, name, part no..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 280 },
+                width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -747,52 +780,7 @@ const InspectionPlanMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
-            
-            <TextField
-              select
-              size="small"
-              label="Plan Type"
-              value={planTypeFilter}
-              onChange={(e) => setPlanTypeFilter(e.target.value)}
-              sx={{ 
-                width: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              {uniquePlanTypes.map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </TextField>
-            
-            <TextField
-              select
-              size="small"
-              label="Approval Status"
-              value={approvalStatusFilter}
-              onChange={(e) => setApprovalStatusFilter(e.target.value)}
-              sx={{ 
-                width: 160,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5,
-                  fontSize: '0.75rem',
-                }
-              }}
-              SelectProps={{
-                sx: { height: 36, fontSize: '0.75rem' }
-              }}
-            >
-              {uniqueApprovalStatuses.map(status => (
-                <MenuItem key={status} value={status}>{status}</MenuItem>
-              ))}
-            </TextField>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -882,8 +870,8 @@ const InspectionPlanMaster = () => {
               }}>
                 <TableCell padding="checkbox" sx={{ width: 40 }}>
                   <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredPlans.length}
-                    checked={filteredPlans.length > 0 && selected.length === filteredPlans.length}
+                    indeterminate={selected.length > 0 && selected.length < plans.length}
+                    checked={plans.length > 0 && selected.length === plans.length}
                     onChange={handleSelectAll}
                     sx={{
                       color: COLORS.text.light,
@@ -897,7 +885,7 @@ const InspectionPlanMaster = () => {
                         fontSize: '1.25rem'
                       }
                     }}
-                    disabled={loading || filteredPlans.length === 0}
+                    disabled={loading || plans.length === 0}
                   />
                 </TableCell>
                 <TableCell sx={{ 
@@ -977,22 +965,22 @@ const InspectionPlanMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedPlans.length === 0 ? (
+              ) : plans.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <PlanIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm || planTypeFilter !== 'All' || approvalStatusFilter !== 'All' ? 'No inspection plans found' : 'No inspection plans available'}
+                        {searchTerm ? 'No inspection plans found' : 'No inspection plans available'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm || planTypeFilter !== 'All' || approvalStatusFilter !== 'All' ? 'Try adjusting your search terms' : 'Add your first inspection plan'}
+                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first inspection plan'}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedPlans.map((plan, index) => {
+                plans.map((plan, index) => {
                   const isSelected = selected.includes(plan._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedPlanForAction?._id === plan._id;
@@ -1113,7 +1101,7 @@ const InspectionPlanMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredPlans.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

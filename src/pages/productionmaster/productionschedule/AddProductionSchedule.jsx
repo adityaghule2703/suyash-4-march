@@ -1,3 +1,4 @@
+// AddProductionSchedule.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box,
@@ -61,7 +62,7 @@ const COLORS = {
     border: '#E3E8EF'
 };
 
-const SHIFT_OPTIONS = ['General', 'Morning', 'Evening', 'Night'];
+const SHIFT_OPTIONS = ['General', 'Morning', 'Afternoon', 'Night'];
 const steps = ['Basic Information', 'Schedule Details', 'Review & Submit'];
 
 // Modern Stepper Connector
@@ -107,59 +108,83 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
     });
 
     // Data options
-    const [availableMachines, setAvailableMachines] = useState([]); // Only machines from selected work order
+    const [availableMachines, setAvailableMachines] = useState([]);
     const [workOrders, setWorkOrders] = useState([]);
     const [selectedWO, setSelectedWO] = useState(null);
     const [availableOperations, setAvailableOperations] = useState([]);
     const [loadingWO, setLoadingWO] = useState(false);
-    const [loadingMachines, setLoadingMachines] = useState(false);
+    const [machinesList, setMachinesList] = useState([]); // Store all machines for lookup
 
-    // Fetch work orders on component mount
+    // Fetch work orders and machines on component mount
     useEffect(() => {
         if (open) {
             fetchWorkOrders();
+            fetchMachines();
         }
     }, [open]);
+
+    const fetchMachines = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/api/machines`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.data.success) {
+                setMachinesList(response.data.data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching machines:', err);
+        }
+    };
+
+    // Get machine name by ID
+    const getMachineName = (machineId) => {
+        if (!machineId) return 'Unknown Machine';
+        const machine = machinesList.find(m => m._id === machineId);
+        if (machine) {
+            return machine.machine_name || machine.name || `Machine ${machineId.slice(-6)}`;
+        }
+        return `Machine ${machineId.slice(-6)}`;
+    };
+
+    // Get machine code by ID
+    const getMachineCode = (machineId) => {
+        if (!machineId) return '';
+        const machine = machinesList.find(m => m._id === machineId);
+        return machine?.machine_code || machine?.code || '';
+    };
 
     // Update operations and machines when work order is selected
     useEffect(() => {
         if (selectedWO && selectedWO.operations && selectedWO.operations.length > 0) {
-            // Get ALL operations regardless of status
             const allOps = selectedWO.operations;
 
-            // Extract unique machines from ALL operations
-            const uniqueMachines = [];
-            const machineMap = new Map();
-
+            // Extract unique machine IDs from operations
+            const uniqueMachineIds = new Set();
             allOps.forEach(op => {
                 const machineId = op.machine_id?._id || op.machine_id;
-                const machineName = op.machine_id?.machine_name;
-                const machineCode = op.machine_id?.machine_code;
-
-                if (machineId && !machineMap.has(machineId)) {
-                    machineMap.set(machineId, {
-                        _id: machineId,
-                        machine_name: machineName || `Machine ${machineId}`,
-                        machine_code: machineCode || ''
-                    });
-                    uniqueMachines.push({
-                        _id: machineId,
-                        machine_name: machineName || `Machine ${machineId}`,
-                        machine_code: machineCode || ''
-                    });
+                if (machineId) {
+                    uniqueMachineIds.add(machineId);
                 }
             });
 
+            // Create machine objects with names from machinesList
+            const uniqueMachines = Array.from(uniqueMachineIds).map(machineId => ({
+                _id: machineId,
+                machine_name: getMachineName(machineId),
+                machine_code: getMachineCode(machineId)
+            }));
+
             setAvailableMachines(uniqueMachines);
 
-            // Map ALL operations to a consistent format (no status filter)
+            // Map all operations
             const formattedOps = allOps.map(op => ({
                 op_sequence: op.op_sequence,
                 operation_name: op.operation_name || (op.operation_id?.operation_name) || `Operation ${op.op_sequence}`,
                 operation_id: op.operation_id?._id || op.operation_id,
                 planned_qty: op.planned_qty || selectedWO.planned_qty,
                 machine_id: op.machine_id?._id || op.machine_id,
-                machine_name: op.machine_id?.machine_name,
+                machine_name: getMachineName(op.machine_id?._id || op.machine_id),
                 status: op.status || 'Pending'
             }));
 
@@ -187,7 +212,7 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                 part_no: ''
             }));
         }
-    }, [selectedWO]);
+    }, [selectedWO, machinesList]);
 
     const fetchWorkOrders = async () => {
         setLoadingWO(true);
@@ -198,12 +223,11 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
             });
 
             if (response.data.success) {
-                const allowedStatuses = ['Planned', 'Released', 'In Progress', 'Cancelled', 'Partially Completed', 'Components Kitted'];
-                // Filter work orders that have allowed status AND have operations with machines
+                const allowedStatuses = ['Planned', 'Released', 'In Progress', 'Partially Completed', 'Components Kitted'];
+                // Filter work orders that have allowed status AND have operations
                 const workOrdersWithOps = response.data.data.filter(wo => {
-                    return allowedStatuses.includes(wo.status) &&  // ← Add this line to filter by status
-                        wo.operations && wo.operations.length > 0 &&
-                        wo.operations.some(op => op.machine_id);
+                    return allowedStatuses.includes(wo.status) && 
+                        wo.operations && wo.operations.length > 0;
                 });
                 setWorkOrders(workOrdersWithOps);
             }
@@ -242,11 +266,9 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
         // Find the selected operation
         const selectedOp = availableOperations.find(op => op.op_sequence === opSeq);
         if (selectedOp) {
-            // Auto-fill planned_qty from operation if available
             if (selectedOp.planned_qty) {
                 handleChange('planned_qty', selectedOp.planned_qty);
             }
-            // Auto-set machine from operation
             if (selectedOp.machine_id) {
                 handleChange('machine_id', selectedOp.machine_id);
             }
@@ -275,7 +297,7 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
         let isValid = true;
 
         switch (step) {
-            case 0: // Basic Information
+            case 0:
                 if (!formData.machine_id) {
                     errors.machine_id = 'Machine is required';
                     isValid = false;
@@ -290,7 +312,7 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                 }
                 break;
 
-            case 1: // Schedule Details
+            case 1:
                 if (!formData.planned_qty || formData.planned_qty <= 0) {
                     errors.planned_qty = 'Valid planned quantity is required';
                     isValid = false;
@@ -448,65 +470,63 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                 return (
                     <Stack spacing={2}>
                         {/* Work Order Selection */}
-
-                        
-                            <Grid container spacing={1.5}>
-                                <Grid size={{ xs: 12 }}>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                                            WORK ORDER <span style={{ color: '#EF4444' }}>*</span>
-                                        </Typography>
-                                        <Autocomplete
-                                            fullWidth
-                                            options={workOrders}
-                                            getOptionLabel={(option) => `${option.wo_number} - ${option.part_no} (${option.status})`}
-                                            value={selectedWO}
-                                            onChange={handleWOSelect}
-                                            loading={loadingWO}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    size="small"
-                                                    placeholder="Select work order"
-                                                    error={!!fieldErrors.wo_id}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: 1.5,
-                                                            fontSize: '0.75rem'
-                                                        }
-                                                    }}
-                                                />
-                                            )}
-                                            renderOption={(props, option) => (
-                                                <li {...props}>
-                                                    <Stack direction="column" spacing={0.5}>
-                                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                                                            {option.wo_number}
-                                                        </Typography>
-                                                        <Stack direction="row" spacing={1}>
-                                                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
-                                                                Part: {option.part_no}
-                                                            </Typography>
-                                                            <Chip
-                                                                label={option.status}
-                                                                size="small"
-                                                                sx={{ fontSize: '0.6rem', height: 18 }}
-                                                            />
-                                                        </Stack>
-                                                    </Stack>
-                                                </li>
-                                            )}
-                                        />
-                                        {fieldErrors.wo_id && (
-                                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
-                                                {fieldErrors.wo_id}
-                                            </Typography>
+                        <Grid container spacing={1.5}>
+                            <Grid size={{ xs: 12 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                                        WORK ORDER <span style={{ color: '#EF4444' }}>*</span>
+                                    </Typography>
+                                    <Autocomplete
+                                        fullWidth
+                                        options={workOrders}
+                                        getOptionLabel={(option) => `${option.wo_number} - ${option.part_no} (${option.status})`}
+                                        value={selectedWO}
+                                        onChange={handleWOSelect}
+                                        loading={loadingWO}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                size="small"
+                                                placeholder="Select work order"
+                                                error={!!fieldErrors.wo_id}
+                                                sx={{
+                                                    '& .MuiOutlinedInput-root': {
+                                                        borderRadius: 1.5,
+                                                        fontSize: '0.75rem'
+                                                    }
+                                                }}
+                                            />
                                         )}
-                                    </Box>
-                                </Grid>
+                                        renderOption={(props, option) => (
+                                            <li {...props}>
+                                                <Stack direction="column" spacing={0.5}>
+                                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                                        {option.wo_number}
+                                                    </Typography>
+                                                    <Stack direction="row" spacing={1}>
+                                                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>
+                                                            Part: {option.part_no}
+                                                        </Typography>
+                                                        <Chip
+                                                            label={option.status}
+                                                            size="small"
+                                                            sx={{ fontSize: '0.6rem', height: 18 }}
+                                                        />
+                                                    </Stack>
+                                                </Stack>
+                                            </li>
+                                        )}
+                                    />
+                                    {fieldErrors.wo_id && (
+                                        <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                                            {fieldErrors.wo_id}
+                                        </Typography>
+                                    )}
+                                </Box>
                             </Grid>
+                        </Grid>
 
-                        {/* Machine Selection - Only shows machines from selected work order */}
+                        {/* Machine Selection */}
                         <Paper sx={{
                             p: 2,
                             bgcolor: COLORS.background.white,
@@ -530,34 +550,55 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                                             MACHINE <span style={{ color: '#EF4444' }}>*</span>
                                         </Typography>
-                                        <FormControl fullWidth size="small" error={!!fieldErrors.machine_id} disabled={!selectedWO}>
-                                            <Select
-                                                value={formData.machine_id}
-                                                onChange={(e) => handleChange('machine_id', e.target.value)}
-                                                sx={{
-                                                    borderRadius: 1.5,
-                                                    fontSize: '0.75rem',
-                                                    '& .MuiSelect-select': { py: 1, px: 1.5 }
-                                                }}
-                                            >
-                                                <MenuItem value="" disabled sx={{ fontSize: '0.75rem' }}>
-                                                    {!selectedWO ? 'Select work order first' : 'Select a machine'}
-                                                </MenuItem>
-                                                {availableMachines.map((machine) => (
-                                                    <MenuItem key={machine._id} value={machine._id} sx={{ fontSize: '0.75rem' }}>
+                                        <Autocomplete
+                                            fullWidth
+                                            options={availableMachines}
+                                            getOptionLabel={(option) => {
+                                                const machineName = getMachineName(option._id);
+                                                const machineCode = getMachineCode(option._id);
+                                                return machineCode ? `${machineName} (${machineCode})` : machineName;
+                                            }}
+                                            value={availableMachines.find(m => m._id === formData.machine_id) || null}
+                                            onChange={(event, newValue) => {
+                                                handleChange('machine_id', newValue?._id || '');
+                                            }}
+                                            disabled={!selectedWO}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    size="small"
+                                                    placeholder={!selectedWO ? "Select work order first" : "Select a machine"}
+                                                    error={!!fieldErrors.machine_id}
+                                                    helperText={fieldErrors.machine_id}
+                                                    sx={{
+                                                        '& .MuiOutlinedInput-root': {
+                                                            borderRadius: 1.5,
+                                                            fontSize: '0.75rem'
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                            renderOption={(props, option) => {
+                                                const machineName = getMachineName(option._id);
+                                                const machineCode = getMachineCode(option._id);
+                                                return (
+                                                    <li {...props}>
                                                         <Stack direction="row" alignItems="center" spacing={1}>
                                                             <MachineIcon sx={{ fontSize: '0.8rem', color: COLORS.primary }} />
-                                                            <span>{machine.machine_name} ({machine.machine_code})</span>
+                                                            <Typography sx={{ fontSize: '0.75rem' }}>
+                                                                {machineCode ? `${machineName} (${machineCode})` : machineName}
+                                                            </Typography>
                                                         </Stack>
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                            {fieldErrors.machine_id && (
-                                                <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
-                                                    {fieldErrors.machine_id}
-                                                </Typography>
-                                            )}
-                                        </FormControl>
+                                                    </li>
+                                                );
+                                            }}
+                                            isOptionEqualToValue={(option, value) => option?._id === value?._id}
+                                        />
+                                        {fieldErrors.machine_id && (
+                                            <Typography sx={{ fontSize: '0.65rem', color: '#EF4444', mt: 0.5 }}>
+                                                {fieldErrors.machine_id}
+                                            </Typography>
+                                        )}
                                     </Box>
                                 </Grid>
                             </Grid>
@@ -608,7 +649,6 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                                                                 <span>
                                                                     Operation {op.op_sequence}: {op.operation_name}
                                                                 </span>
-                                                                {/* Show status badge for all operations */}
                                                                 {op.status === 'Completed' && (
                                                                     <Chip
                                                                         label="Completed"
@@ -762,65 +802,64 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                                         </FormControl>
                                     </Box>
                                 </Grid>
-                                {/* <Grid container spacing={1.5}> */}
-                                   <Grid size={{ xs: 12, sm: 4 }}>
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-            START TIME <span style={{ color: '#EF4444' }}>*</span>
-        </Typography>
-        <TextField
-            fullWidth
-            type="time"
-            size="small"
-            value={formData.start_time}
-            onChange={(e) => handleChange('start_time', e.target.value)}
-            error={!!fieldErrors.start_time}
-            helperText={fieldErrors.start_time}
-            InputLabelProps={{ shrink: true }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-        />
-    </Box>
-</Grid>
 
-<Grid size={{ xs: 12, sm: 4 }}>
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-            END TIME <span style={{ color: '#EF4444' }}>*</span>
-        </Typography>
-        <TextField
-            fullWidth
-            type="time"
-            size="small"
-            value={formData.end_time}
-            onChange={(e) => handleChange('end_time', e.target.value)}
-            error={!!fieldErrors.end_time}
-            helperText={fieldErrors.end_time}
-            InputLabelProps={{ shrink: true }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-        />
-    </Box>
-</Grid>
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                                            START TIME <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="time"
+                                            size="small"
+                                            value={formData.start_time}
+                                            onChange={(e) => handleChange('start_time', e.target.value)}
+                                            error={!!fieldErrors.start_time}
+                                            helperText={fieldErrors.start_time}
+                                            InputLabelProps={{ shrink: true }}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                                        />
+                                    </Box>
+                                </Grid>
 
-<Grid size={{ xs: 12, sm: 4 }}>
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-            PLANNED HOURS
-        </Typography>
-        <TextField
-            fullWidth
-            type="number"
-            size="small"
-            value={formData.planned_hours}
-            InputProps={{
-                readOnly: true,
-                sx: { bgcolor: COLORS.background.light }
-            }}
-            helperText="Auto-calculated"
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
-        />
-    </Box>
-</Grid>
-                                
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                                            END TIME <span style={{ color: '#EF4444' }}>*</span>
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="time"
+                                            size="small"
+                                            value={formData.end_time}
+                                            onChange={(e) => handleChange('end_time', e.target.value)}
+                                            error={!!fieldErrors.end_time}
+                                            helperText={fieldErrors.end_time}
+                                            InputLabelProps={{ shrink: true }}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                                        />
+                                    </Box>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                                            PLANNED HOURS
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            size="small"
+                                            value={formData.planned_hours}
+                                            InputProps={{
+                                                readOnly: true,
+                                                sx: { bgcolor: COLORS.background.light }
+                                            }}
+                                            helperText="Auto-calculated"
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.75rem' } }}
+                                        />
+                                    </Box>
+                                </Grid>
                             </Grid>
                         </Paper>
                     </Stack>
@@ -858,7 +897,8 @@ const AddProductionSchedule = ({ open, onClose, onSchedule }) => {
                                         </Grid>
                                         <Grid size={{ xs: 6 }}>
                                             <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                                {availableMachines.find(m => m._id === formData.machine_id)?.machine_name || '-'}
+                                                {getMachineName(formData.machine_id)}
+                                                {getMachineCode(formData.machine_id) && ` (${getMachineCode(formData.machine_id)})`}
                                             </Typography>
                                         </Grid>
                                         <Grid size={{ xs: 6 }}>

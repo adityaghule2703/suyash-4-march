@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -9,9 +9,7 @@ import {
   Stack,
   Alert,
   Typography,
-  CircularProgress,
-  Box,
-  Autocomplete
+  Box
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -54,19 +52,11 @@ const AddTax = ({ open, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     HSNCode: '',
     GSTPercentage: '',
-    GSTType: 'CGST/SGST',
     Description: '',
     IsActive: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // GST Type options for Autocomplete
-  const gstTypeOptions = [
-    { value: 'CGST/SGST', label: 'CGST/SGST' },
-    { value: 'IGST', label: 'IGST' }
-  ];
-  const [selectedGSTType, setSelectedGSTType] = useState(gstTypeOptions[0]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -74,16 +64,6 @@ const AddTax = ({ open, onClose, onAdd }) => {
       ...prev,
       [name]: value
     }));
-  };
-
-  const handleGSTTypeChange = (event, newValue) => {
-    setSelectedGSTType(newValue);
-    if (newValue) {
-      setFormData(prev => ({
-        ...prev,
-        GSTType: newValue.value
-      }));
-    }
   };
 
   const handleSubmit = async () => {
@@ -104,19 +84,16 @@ const AddTax = ({ open, onClose, onAdd }) => {
       return;
     }
 
-    if (!formData.GSTType) {
-      setError('GST Type is required');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${BASE_URL}/api/taxes`, {
-        ...formData,
-        GSTPercentage: gstPercentage
+        HSNCode: formData.HSNCode,
+        GSTPercentage: gstPercentage,
+        Description: formData.Description,
+        IsActive: formData.IsActive
       }, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,11 +120,9 @@ const AddTax = ({ open, onClose, onAdd }) => {
     setFormData({
       HSNCode: '',
       GSTPercentage: '',
-      GSTType: 'CGST/SGST',
       Description: '',
       IsActive: true
     });
-    setSelectedGSTType(gstTypeOptions[0]);
     setError('');
   };
 
@@ -309,80 +284,6 @@ const AddTax = ({ open, onClose, onAdd }) => {
               </Box>
             </Box>
 
-            {/* GST Type Field - Using Autocomplete like in AddUser */}
-            <Box sx={{ gridColumn: 'span 2' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    color: COLORS.text.secondary,
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  GST TYPE <span style={{ color: '#EF4444' }}>*</span>
-                </Typography>
-                
-                <Autocomplete
-                  fullWidth
-                  options={gstTypeOptions}
-                  value={selectedGSTType}
-                  onChange={handleGSTTypeChange}
-                  getOptionLabel={(option) => option.label || ''}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
-                  disabled={loading}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      placeholder="Select GST type"
-                      required
-                      error={!!error && error.includes('GST Type')}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': {
-                            borderColor: COLORS.primary,
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: COLORS.primary,
-                            borderWidth: 1
-                          }
-                        },
-                        '& .MuiInputBase-input': {
-                          py: 1,
-                          px: 1.5,
-                          fontSize: '0.75rem',
-                          color: COLORS.text.primary,
-                          '&::placeholder': {
-                            color: COLORS.text.tertiary,
-                            fontSize: '0.75rem'
-                          }
-                        }
-                      }}
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                        {option.label}
-                      </Typography>
-                    </li>
-                  )}
-                  ListboxProps={{
-                    sx: {
-                      '& .MuiAutocomplete-option': {
-                        fontSize: '0.75rem',
-                        py: 1,
-                        px: 1.5
-                      }
-                    }
-                  }}
-                />
-              </Box>
-            </Box>
-
             {/* Description Field */}
             <Box sx={{ gridColumn: 'span 2' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -487,7 +388,7 @@ const AddTax = ({ open, onClose, onAdd }) => {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || !formData.HSNCode || !formData.GSTPercentage || !formData.GSTType}
+          disabled={loading || !formData.HSNCode || !formData.GSTPercentage}
           startIcon={loading ? null : <AddIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 32,

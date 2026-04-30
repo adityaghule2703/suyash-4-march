@@ -96,7 +96,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  
+
   // Data fetching states
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -214,9 +214,9 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
   };
@@ -248,7 +248,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
           isValid = false;
         }
         break;
-      
+
       case 1: // Technical Details
         if (!formData.serial_no) {
           errors.serial_no = 'Serial number is required';
@@ -275,7 +275,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
           isValid = false;
         }
         break;
-      
+
       case 2: // Calibration & MSA
         if (!formData.calibration_frequency_days) {
           errors.calibration_frequency_days = 'Calibration frequency is required';
@@ -389,7 +389,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
 
     try {
       const token = localStorage.getItem('token');
-      
+
       const requestData = {
         gauge_name: formData.gauge_name,
         gauge_type: formData.gauge_type,
@@ -489,7 +489,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
                 <GaugeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Basic Information
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -537,6 +537,18 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
                         value={formData.gauge_type}
                         onChange={handleChange}
                         displayEmpty
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              maxHeight: 45 * 5, // 5 items visible
+                              overflowY: 'auto',
+                              '&::-webkit-scrollbar': {
+                                display: 'none' // hide scrollbar (Chrome)
+                              },
+                              scrollbarWidth: 'none', // hide scrollbar (Firefox)
+                            }
+                          }
+                        }}
                         sx={{
                           borderRadius: 1.5,
                           fontSize: '0.75rem',
@@ -711,7 +723,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
                 <SettingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Technical Details
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -928,7 +940,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
                 <PeopleIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Calibration & MSA
               </Typography>
-              
+
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1232,7 +1244,7 @@ const AddGauge = ({ open, onClose, onSuccess, initialData, isEditMode = false })
 
       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {renderStepContent(activeStep)}
-        
+
         {error && (
           <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5, fontSize: '0.75rem', py: 0.5 }}>
             {error}

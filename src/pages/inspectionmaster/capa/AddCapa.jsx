@@ -1,5 +1,8 @@
+
+
+
 // AddCapa.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -26,33 +29,17 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
-  Collapse,
   Chip,
   Divider,
   Card,
   CardContent,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Autocomplete
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Add as AddIcon,
-  NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon,
   Build as BuildIcon,
-  Description as DescriptionIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Business as BusinessIcon,
-  Inventory as InventoryIcon,
-  Assessment as AssessmentIcon,
   Delete as DeleteIcon,
-  Person as PersonIcon,
-  CalendarToday as CalendarIcon,
-  Link as LinkIcon,
   Search as SearchIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -75,11 +62,6 @@ const COLORS = {
     light: '#F8FFFC'
   },
   border: '#E3E8EF',
-  severity: {
-    Critical: '#EF4444',
-    Major: '#F59E0B',
-    Minor: '#10B981'
-  }
 };
 
 // CAPA Types
@@ -125,11 +107,188 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
+// Memoized Action Dialog to prevent re-renders of the main form while typing
+const MemoizedActionDialog = memo(({ 
+  open, 
+  onClose, 
+  onSave, 
+  initialData, 
+  usersList, 
+  actionType 
+}) => {
+  const [formData, setFormData] = useState({
+    action_description: '',
+    action_type: '',
+    responsible_person_id: '',
+    target_date: null
+  });
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        action_description: initialData.action_description || '',
+        action_type: initialData.action_type || '',
+        responsible_person_id: initialData.responsible_person_id || '',
+        target_date: initialData.target_date ? new Date(initialData.target_date) : null
+      });
+    } else {
+      setFormData({
+        action_description: '',
+        action_type: '',
+        responsible_person_id: '',
+        target_date: null
+      });
+    }
+    setErrors({});
+  }, [initialData, open]);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const handleSave = () => {
+    const newErrors = {};
+    if (!formData.action_description?.trim()) newErrors.action_description = 'Required';
+    if (!formData.action_type) newErrors.action_type = 'Required';
+    if (!formData.responsible_person_id) newErrors.responsible_person_id = 'Required';
+    if (!formData.target_date) newErrors.target_date = 'Required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    onSave({
+      action_description: formData.action_description.trim(),
+      action_type: formData.action_type,
+      responsible_person_id: formData.responsible_person_id,
+      target_date: formData.target_date.toISOString().split('T')[0]
+    });
+  };
+
+  const inputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      fontSize: '0.75rem',
+      '&:hover fieldset': { borderColor: COLORS.primary },
+      '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+    },
+    '& .MuiInputBase-input': { py: 1, px: 1, fontSize: '0.75rem' },
+    '& .MuiInputLabel-root': { fontSize: '0.65rem' }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ py: 1, px: 2 }}>
+        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
+          {initialData ? 'Edit Action' : `Add ${actionType === 'corrective' ? 'Corrective' : 'Preventive'} Action`}
+        </Typography>
+      </DialogTitle>
+      <DialogContent sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            size="small"
+            label="Action Description"
+            value={formData.action_description}
+            onChange={(e) => handleChange('action_description', e.target.value)}
+            error={!!errors.action_description}
+            helperText={errors.action_description}
+            sx={inputStyle}
+            placeholder="Describe the action in detail..."
+          />
+          
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Action Type"
+            value={formData.action_type}
+            onChange={(e) => handleChange('action_type', e.target.value)}
+            error={!!errors.action_type}
+            helperText={errors.action_type}
+            sx={inputStyle}
+          >
+            <MenuItem value="">Select Action Type</MenuItem>
+            {ACTION_TYPES.map(type => (
+              <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.7rem' }}>
+                {type.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Responsible Person"
+            value={formData.responsible_person_id}
+            onChange={(e) => handleChange('responsible_person_id', e.target.value)}
+            error={!!errors.responsible_person_id}
+            helperText={errors.responsible_person_id}
+            sx={inputStyle}
+          >
+            <MenuItem value="">Select Responsible Person</MenuItem>
+            {usersList.map(user => (
+              <MenuItem key={user._id} value={user._id} sx={{ fontSize: '0.7rem' }}>
+                {user.Username || user.name || user.email}
+              </MenuItem>
+            ))}
+          </TextField>
+          
+          <DatePicker 
+            label="Target Date"
+            value={formData.target_date} 
+            onChange={(date) => handleChange('target_date', date)}
+            minDate={new Date()}
+            slotProps={{ 
+              textField: { 
+                size: 'small', 
+                fullWidth: true,
+                error: !!errors.target_date,
+                helperText: errors.target_date,
+                sx: inputStyle
+              } 
+            }}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 1.5 }}>
+        <Button 
+          onClick={onClose} 
+          size="small"
+          sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSave} 
+          variant="contained" 
+          size="small" 
+          sx={{ 
+            bgcolor: COLORS.primary, 
+            fontSize: '0.7rem', 
+            textTransform: 'none',
+            '&:hover': { bgcolor: COLORS.primaryDark }
+          }}
+        >
+          {initialData ? 'Update' : 'Add'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
 const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrNumber }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [stepErrors, setStepErrors] = useState({});
   
   const [ncrList, setNcrList] = useState([]);
   const [usersList, setUsersList] = useState([]);
@@ -141,7 +300,6 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
   const [editingAction, setEditingAction] = useState(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [currentActionType, setCurrentActionType] = useState('corrective');
-  const [ncrSearchTerm, setNcrSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
     capa_type: '',
@@ -156,20 +314,6 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
     assigned_to: '',
     target_close_date: null,
     remarks: ''
-  });
-
-  const [actionFormData, setActionFormData] = useState({
-    action_description: '',
-    action_type: '',
-    responsible_person_id: '',
-    target_date: null
-  });
-
-  const [touched, setTouched] = useState({
-    capa_type: false,
-    source: false,
-    problem_statement: false,
-    root_cause: false
   });
 
   useEffect(() => {
@@ -234,74 +378,42 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (touched[field]) setTouched(prev => ({ ...prev, [field]: false }));
     if (error) setError("");
-    if (stepErrors[activeStep]) setStepErrors(prev => ({ ...prev, [activeStep]: false }));
-  };
-
-  const handleBlur = (field) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
   };
 
   const handleOpenActionDialog = (type, action = null) => {
     setCurrentActionType(type);
-    if (action) {
-      setEditingAction(action);
-      setActionFormData({
-        action_description: action.action_description,
-        action_type: action.action_type,
-        responsible_person_id: action.responsible_person_id,
-        target_date: action.target_date ? new Date(action.target_date) : null
-      });
-    } else {
-      setEditingAction(null);
-      setActionFormData({
-        action_description: '',
-        action_type: '',
-        responsible_person_id: '',
-        target_date: null
-      });
-    }
+    setEditingAction(action);
     setActionDialogOpen(true);
   };
 
-  const handleActionFormChange = (field, value) => {
-    setActionFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddAction = () => {
-    if (!actionFormData.action_description || !actionFormData.action_type || !actionFormData.responsible_person_id || !actionFormData.target_date) {
-      setError('Please fill all required fields for the action');
-      return;
-    }
-
-    const newAction = {
-      action_description: actionFormData.action_description,
-      action_type: actionFormData.action_type,
-      responsible_person_id: actionFormData.responsible_person_id,
-      target_date: actionFormData.target_date.toISOString().split('T')[0]
-    };
-
+  const handleSaveAction = (actionData) => {
     if (currentActionType === 'corrective') {
       if (editingAction) {
-        const updatedActions = correctiveActions.map(a => 
-          a === editingAction ? newAction : a
-        );
-        setCorrectiveActions(updatedActions);
+        // Find the index of the action being edited and replace it
+        const index = correctiveActions.findIndex(a => a === editingAction);
+        if (index !== -1) {
+          const updatedActions = [...correctiveActions];
+          updatedActions[index] = actionData;
+          setCorrectiveActions(updatedActions);
+        }
       } else {
-        setCorrectiveActions([...correctiveActions, newAction]);
+        setCorrectiveActions([...correctiveActions, actionData]);
       }
     } else {
       if (editingAction) {
-        const updatedActions = preventiveActions.map(a => 
-          a === editingAction ? newAction : a
-        );
-        setPreventiveActions(updatedActions);
+        const index = preventiveActions.findIndex(a => a === editingAction);
+        if (index !== -1) {
+          const updatedActions = [...preventiveActions];
+          updatedActions[index] = actionData;
+          setPreventiveActions(updatedActions);
+        }
       } else {
-        setPreventiveActions([...preventiveActions, newAction]);
+        setPreventiveActions([...preventiveActions, actionData]);
       }
     }
-
+    
+    setEditingAction(null);
     setActionDialogOpen(false);
     setError('');
   };
@@ -367,66 +479,70 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
     setError('');
   };
 
-  const handleSubmit = async () => {
-    for (let i = 0; i < steps.length; i++) {
-      if (!validateStep(i)) {
-        setActiveStep(i);
-        return;
-      }
+  // In AddCapa.jsx - Update the handleSubmit function
+const handleSubmit = async () => {
+  for (let i = 0; i < steps.length; i++) {
+    if (!validateStep(i)) {
+      setActiveStep(i);
+      return;
+    }
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const token = localStorage.getItem('token');
+    
+    const requestBody = {
+      capa_type: formData.capa_type,
+      source: formData.source,
+      problem_statement: formData.problem_statement,
+      defect_description: formData.defect_description || formData.problem_statement,
+      quantity_affected: Number(formData.quantity_affected) || 0,
+      customer_impact: formData.customer_impact,
+      root_cause: formData.root_cause,
+      assigned_to: formData.assigned_to || null,
+      target_close_date: formData.target_close_date ? formData.target_close_date.toISOString().split('T')[0] : null,
+      corrective_actions: correctiveActions,
+      preventive_actions: preventiveActions
+    };
+
+    if (formData.source === 'NCR' && formData.ncr_id) {
+      requestBody.ncr_id = formData.ncr_id;
     }
 
-    setLoading(true);
-    setError('');
-
-    try {
-      const token = localStorage.getItem('token');
-      
-      const requestBody = {
-        capa_type: formData.capa_type,
-        source: formData.source,
-        problem_statement: formData.problem_statement,
-        defect_description: formData.defect_description || formData.problem_statement,
-        quantity_affected: Number(formData.quantity_affected) || 0,
-        customer_impact: formData.customer_impact,
-        root_cause: formData.root_cause,
-        assigned_to: formData.assigned_to || null,
-        target_close_date: formData.target_close_date ? formData.target_close_date.toISOString().split('T')[0] : null,
-        corrective_actions: correctiveActions,
-        preventive_actions: preventiveActions
-      };
-
-      if (formData.source === 'NCR' && formData.ncr_id) {
-        requestBody.ncr_id = formData.ncr_id;
-      }
-
-      if (formData.source_reference) {
-        requestBody.source_reference = formData.source_reference;
-      }
-
-      if (formData.remarks) {
-        requestBody.remarks = formData.remarks;
-      }
-
-      const response = await axios.post(`${BASE_URL}/api/capas`, requestBody, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
-        if (onCapaAdded) onCapaAdded(response.data.data);
-        handleClose();
-      } else {
-        setError(response.data.message || 'Failed to create CAPA');
-      }
-    } catch (err) {
-      console.error('Error creating CAPA:', err);
-      setError(err.response?.data?.message || 'Failed to create CAPA');
-    } finally {
-      setLoading(false);
+    if (formData.source_reference) {
+      requestBody.source_reference = formData.source_reference;
     }
-  };
+
+    if (formData.remarks) {
+      requestBody.remarks = formData.remarks;
+    }
+
+    const response = await axios.post(`${BASE_URL}/api/capas`, requestBody, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data.success) {
+      // FIX: Pass the actual CAPA data directly
+      if (onCapaAdded) {
+        onCapaAdded(response.data.data); // Pass the CAPA object directly
+      }
+      handleClose();
+    } else {
+      setError(response.data.message || 'Failed to create CAPA');
+    }
+  } catch (err) {
+    console.error('Error creating CAPA:', err);
+    setError(err.response?.data?.message || 'Failed to create CAPA');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleClose = () => {
     setFormData({
@@ -463,80 +579,6 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
   };
 
   const labelStyle = { fontSize: '0.65rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.3 };
-
-  const ActionDialog = () => (
-    <Dialog open={actionDialogOpen} onClose={() => setActionDialogOpen(false)} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ py: 1, px: 2 }}>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-          {editingAction ? 'Edit Action' : `Add ${currentActionType === 'corrective' ? 'Corrective' : 'Preventive'} Action`}
-        </Typography>
-      </DialogTitle>
-      <DialogContent sx={{ p: 2 }}>
-        <Stack spacing={1.5}>
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            size="small"
-            label="Action Description"
-            value={actionFormData.action_description}
-            onChange={(e) => handleActionFormChange('action_description', e.target.value)}
-            required
-            sx={inputStyle}
-          />
-          
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Action Type"
-            value={actionFormData.action_type}
-            onChange={(e) => handleActionFormChange('action_type', e.target.value)}
-            required
-            sx={inputStyle}
-          >
-            {ACTION_TYPES.map(type => (
-              <MenuItem key={type.value} value={type.value} sx={{ fontSize: '0.7rem' }}>
-                {type.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Responsible Person"
-            value={actionFormData.responsible_person_id}
-            onChange={(e) => handleActionFormChange('responsible_person_id', e.target.value)}
-            required
-            sx={inputStyle}
-          >
-            <MenuItem value="">Select person</MenuItem>
-            {usersList.map(user => (
-              <MenuItem key={user._id} value={user._id} sx={{ fontSize: '0.7rem' }}>
-                {user.Username || user.name || user.email}
-              </MenuItem>
-            ))}
-          </TextField>
-          
-          <DatePicker 
-            label="Target Date"
-            value={actionFormData.target_date} 
-            onChange={(date) => handleActionFormChange('target_date', date)}
-            minDate={new Date()}
-            slotProps={{ textField: { size: 'small', fullWidth: true, sx: inputStyle } }}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ p: 1.5 }}>
-        <Button onClick={() => setActionDialogOpen(false)} size="small">Cancel</Button>
-        <Button onClick={handleAddAction} variant="contained" size="small" sx={{ bgcolor: COLORS.primary }}>
-          {editingAction ? 'Update' : 'Add'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -660,13 +702,20 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
               </Button>
               {correctiveActions.map((action, idx) => (
                 <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: COLORS.background.light, p: 0.5, borderRadius: 1, mb: 0.5 }}>
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{action.action_description}</Typography>
-                    <Chip label={action.action_type} size="small" sx={{ fontSize: '0.55rem', height: 18, mt: 0.3 }} />
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 0.3 }}>
+                      <Chip label={action.action_type} size="small" sx={{ fontSize: '0.55rem', height: 18 }} />
+                    </Box>
                   </Box>
-                  <IconButton size="small" onClick={() => handleRemoveAction('corrective', idx)}>
-                    <DeleteIcon sx={{ fontSize: '0.7rem' }} />
-                  </IconButton>
+                  <Box>
+                    <IconButton size="small" onClick={() => handleOpenActionDialog('corrective', action)} sx={{ mr: 0.5 }}>
+                      <BuildIcon sx={{ fontSize: '0.7rem' }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleRemoveAction('corrective', idx)}>
+                      <DeleteIcon sx={{ fontSize: '0.7rem' }} />
+                    </IconButton>
+                  </Box>
                 </Box>
               ))}
               {correctiveActions.length === 0 && (
@@ -683,13 +732,20 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
               </Button>
               {preventiveActions.map((action, idx) => (
                 <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: COLORS.background.light, p: 0.5, borderRadius: 1, mb: 0.5 }}>
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{action.action_description}</Typography>
-                    <Chip label={action.action_type} size="small" sx={{ fontSize: '0.55rem', height: 18, mt: 0.3 }} />
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 0.3 }}>
+                      <Chip label={action.action_type} size="small" sx={{ fontSize: '0.55rem', height: 18 }} />
+                    </Box>
                   </Box>
-                  <IconButton size="small" onClick={() => handleRemoveAction('preventive', idx)}>
-                    <DeleteIcon sx={{ fontSize: '0.7rem' }} />
-                  </IconButton>
+                  <Box>
+                    <IconButton size="small" onClick={() => handleOpenActionDialog('preventive', action)} sx={{ mr: 0.5 }}>
+                      <BuildIcon sx={{ fontSize: '0.7rem' }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleRemoveAction('preventive', idx)}>
+                      <DeleteIcon sx={{ fontSize: '0.7rem' }} />
+                    </IconButton>
+                  </Box>
                 </Box>
               ))}
               {preventiveActions.length === 0 && (
@@ -712,8 +768,13 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography sx={labelStyle}>TARGET CLOSE DATE</Typography>
-                  <DatePicker value={formData.target_close_date} onChange={(date) => handleChange('target_close_date', date)}
-                    slotProps={{ textField: { size: 'small', fullWidth: true, sx: inputStyle } }} />
+                  <DatePicker 
+                    value={formData.target_close_date} 
+                    onChange={(date) => handleChange('target_close_date', date)}
+                    slotProps={{ 
+                      textField: { size: 'small', fullWidth: true, sx: inputStyle } 
+                    }} 
+                  />
                 </Grid>
               </Grid>
             </Paper>
@@ -810,7 +871,15 @@ const AddCapa = ({ open, onClose, onCapaAdded, preSelectedNcrId, preSelectedNcrN
           </Box>
         </DialogActions>
       </Dialog>
-      <ActionDialog />
+      
+      <MemoizedActionDialog 
+        open={actionDialogOpen}
+        onClose={() => setActionDialogOpen(false)}
+        onSave={handleSaveAction}
+        initialData={editingAction}
+        usersList={usersList}
+        actionType={currentActionType}
+      />
     </LocalizationProvider>
   );
 };

@@ -2752,7 +2752,7 @@ const AddVendor = ({ open, onClose, onAdd }) => {
                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                       10-digit mobile number starting with 6-9
                     </Typography>
-                  </Box>
+                  </Box>  
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -2800,50 +2800,64 @@ const AddVendor = ({ open, onClose, onAdd }) => {
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       STATE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
-                    <Autocomplete
-                      options={INDIAN_STATES}
-                      getOptionLabel={(option) => option.name}
-                      value={INDIAN_STATES.find(s => s.name === formData.state) || null}
-                      onChange={(event, newValue) => {
-                        setFieldErrors(prev => ({ ...prev, state: '', state_code: '' }));
-                        setFormData(prev => ({
-                          ...prev,
-                          state: newValue ? newValue.name : '',
-                          state_code: newValue ? newValue.code : ''
-                        }));
-                      }}
-                      disabled={loading}
-                      disablePortal
-                      size="small"
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder="Search and select state..."
-                          error={!!fieldErrors.state}
-                          helperText={fieldErrors.state}
-                          sx={textFieldSx}
-                        />
-                      )}
-                      ListboxProps={{
-                        sx: {
-                          '& .MuiAutocomplete-option': {
-                            fontSize: '0.75rem',
-                            py: 0.75
-                          }
-                        }
-                      }}
-                      noOptionsText="No states found"
-                      renderOption={(props, option) => (
-                        <li {...props}>
-                          <Stack direction="row" justifyContent="space-between" sx={{ width: '100%' }}>
-                            <Typography sx={{ fontSize: '0.75rem' }}>{option.name}</Typography>
-                            {/* <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-                              Code: {option.code}
-                            </Typography> */}
-                          </Stack>
-                        </li>
-                      )}
-                    />
+                   
+
+<Autocomplete
+  options={INDIAN_STATES}
+  getOptionLabel={(option) => option.name}
+  value={INDIAN_STATES.find(s => s.name === formData.state) || null}
+  onChange={(event, newValue) => {
+    setFieldErrors(prev => ({ ...prev, state: '', state_code: '' }));
+    setFormData(prev => ({
+      ...prev,
+      state: newValue ? newValue.name : '',
+      state_code: newValue ? newValue.code : ''
+    }));
+  }}
+  disabled={loading}
+  disablePortal={false} // Allow portal to render outside Dialog
+  size="small"
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      placeholder="Search and select state..."
+      error={!!fieldErrors.state}
+      helperText={fieldErrors.state}
+      sx={textFieldSx}
+    />
+  )}
+  ListboxProps={{
+    sx: {
+      maxHeight: 300, // Set max height for dropdown
+      '& .MuiAutocomplete-option': {
+        fontSize: '0.75rem',
+        py: 0.75
+      }
+    }
+  }}
+  PopperProps={{
+    sx: {
+      zIndex: 9999, // Ensure dropdown appears above Dialog
+    },
+    placement: 'bottom-start', // Ensure proper positioning
+    modifiers: [
+      {
+        name: 'preventOverflow',
+        options: {
+          boundary: 'viewport', // Prevent overflow beyond viewport
+        },
+      },
+    ],
+  }}
+  noOptionsText="No states found"
+  renderOption={(props, option) => (
+    <li {...props}>
+      <Stack direction="row" justifyContent="space-between" sx={{ width: '100%' }}>
+        <Typography sx={{ fontSize: '0.75rem' }}>{option.name}</Typography>
+      </Stack>
+    </li>
+  )}
+/>
                   </Box>
                 </Grid>
 
