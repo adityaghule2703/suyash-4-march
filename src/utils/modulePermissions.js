@@ -104,6 +104,12 @@ export const MODULES = {
   INVOICE_REPORT: 'INVOICE_REPORT',
   PAYMENT_RECEIPT: 'PAYMENT_RECEIPT',
   CUSTOMER_ADVANCE: 'CUSTOMER_ADVANCE',
+  AR_AGING: 'AR_AGING',
+  TDS_RECONCILIATION: 'TDS_RECONCILIATION',
+  CREDIT_NOTE: 'CREDIT_NOTE',
+  GSTR1_DATA: 'GSTR1_DATA',
+  GSTR3B_DATA: 'GSTR3B_DATA',
+  MONTHLY_REVENUE_REPORT: 'MONTHLY_REVENUE_REPORT',
   
   // Legacy Reports (keep for backward compatibility)
   REPORTS: 'REPORTS'
@@ -214,6 +220,12 @@ export const PAGES = {
   INVOICE_REPORT: 'Invoice Report',
   PAYMENT_RECEIPT: 'Payment Receipt',
   CUSTOMER_ADVANCE: 'Customer Advance',
+  AR_AGING: 'AR Aging',
+  TDS_RECONCILIATION: 'TDS Reconciliation',
+  CREDIT_NOTE: 'Credit Note',
+  GSTR1_DATA: 'GSTR-1 Data',
+  GSTR3B_DATA: 'GSTR-3B Data',
+  MONTHLY_REVENUE_REPORT: 'Monthly Revenue Report',
   
   // Legacy Reports Pages (keep for backward compatibility)
   RECRUITMENT_REPORT: 'Recruitment Report',
@@ -754,7 +766,7 @@ export const MODULE_PERMISSIONS_CONFIG = [
   // INSPECTION MASTER
   // ─────────────────────────────────────────────────────────────────────────
   {
-    moduleKey: MODULES.INSPECTION_MASTER,
+    moduleKey: MODULES.GAUGE_MASTER,
     page: PAGES.GAUGE_MASTER,
     category: 'Inspection Master',
     actions: [ACTIONS.VIEW, ACTIONS.CREATE, ACTIONS.UPDATE, ACTIONS.DELETE, 
@@ -813,20 +825,56 @@ export const MODULE_PERMISSIONS_CONFIG = [
   // REPORTS MASTER
   // ─────────────────────────────────────────────────────────────────────────
   {
-    moduleKey: MODULES.REPORTS_MASTER,
+    moduleKey: MODULES.INVOICE_REPORT,
     page: PAGES.INVOICE_REPORT,
     category: 'Reports Master',
     actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   },
   {
-    moduleKey: MODULES.REPORTS_MASTER,
+    moduleKey: MODULES.PAYMENT_RECEIPT,
     page: PAGES.PAYMENT_RECEIPT,
     category: 'Reports Master',
     actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   },
   {
-    moduleKey: MODULES.REPORTS_MASTER,
+    moduleKey: MODULES.CUSTOMER_ADVANCE,
     page: PAGES.CUSTOMER_ADVANCE,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.AR_AGING,
+    page: PAGES.AR_AGING,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.TDS_RECONCILIATION,
+    page: PAGES.TDS_RECONCILIATION,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.CREDIT_NOTE,
+    page: PAGES.CREDIT_NOTE,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.GSTR1_DATA,
+    page: PAGES.GSTR1_DATA,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.GSTR3B_DATA,
+    page: PAGES.GSTR3B_DATA,
+    category: 'Reports Master',
+    actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
+  },
+  {
+    moduleKey: MODULES.MONTHLY_REVENUE_REPORT,
+    page: PAGES.MONTHLY_REVENUE_REPORT,
     category: 'Reports Master',
     actions: [ACTIONS.VIEW, ACTIONS.EXPORT, ACTIONS.PRINT]
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -567,12 +567,13 @@ const ViewOrderModal = ({ open, onClose, order }) => {
 
 const OrderBook = () => {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedOrderForMenu, setSelectedOrderForMenu] = useState(null);
@@ -586,6 +587,10 @@ const OrderBook = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -641,23 +646,60 @@ const OrderBook = () => {
   const canExport = checkPermission(ACTIONS.EXPORT);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch orders from API - only if user has permission
   const fetchOrders = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -681,7 +723,7 @@ const OrderBook = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
@@ -717,13 +759,44 @@ const OrderBook = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/sales-orders/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (orders.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchOrders();
+      }
+      
+      showNotification(`${selected.length} order(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete orders', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleActionMenuOpen = (event, order) => {
@@ -834,7 +907,8 @@ const OrderBook = () => {
               placeholder="Search by SO number, customer, quotation, PO number..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
@@ -851,6 +925,13 @@ const OrderBook = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
@@ -861,11 +942,27 @@ const OrderBook = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Delete Button - Only show if user has DELETE permission AND items are selected */}
             {selected.length > 0 && canDelete && (
               <Button
@@ -880,70 +977,11 @@ const OrderBook = () => {
                   fontWeight: 500
                 }}
                 disabled={loading}
-                onClick={() => {
-                  // Handle bulk delete
-                  showNotification('Bulk delete feature coming soon', 'info');
-                }}
+                onClick={handleBulkDelete}
               >
                 Delete ({selected.length})
               </Button>
             )}
-            
-            {/* Export Button - Only show if user has EXPORT permission */}
-            {/* {canExport && (
-              <Tooltip title="Export">
-                <IconButton
-                  onClick={() => {
-                    showNotification('Export feature coming soon', 'info');
-                  }}
-                  disabled={loading || orders.length === 0}
-                  sx={{
-                    color: COLORS.primary,
-                    '&:hover': {
-                      bgcolor: `${COLORS.primary}10`
-                    }
-                  }}
-                >
-                  <ExportIcon sx={{ fontSize: '1rem' }} />
-                </IconButton>
-              </Tooltip>
-            )} */}
-            
-            {/* Print Button - Only show if user has PRINT permission */}
-            {/* {canPrint && (
-              <Tooltip title="Print">
-                <IconButton
-                  onClick={() => {
-                    showNotification('Print feature coming soon', 'info');
-                  }}
-                  disabled={loading || orders.length === 0}
-                  sx={{
-                    color: COLORS.primary,
-                    '&:hover': {
-                      bgcolor: `${COLORS.primary}10`
-                    }
-                  }}
-                >
-                  <PrintIcon sx={{ fontSize: '1rem' }} />
-                </IconButton>
-              </Tooltip>
-            )} */}
-            
-            {/* Refresh Button - Always show for users with view permission */}
-            {/* <Tooltip title="Refresh">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={loading}
-                sx={{
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: `${COLORS.primary}10`
-                  }
-                }}
-              >
-                <RefreshIcon sx={{ fontSize: '1rem' }} />
-              </IconButton>
-            </Tooltip> */}
           </Stack>
         </Stack>
       </Paper>
@@ -1002,9 +1040,9 @@ const OrderBook = () => {
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Delivery
                 </TableCell>
-                {/* <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
                   Actions
-                </TableCell> */}
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1117,7 +1155,7 @@ const OrderBook = () => {
                           EDD: {formatDate(order.expected_delivery_date)}
                         </Typography>
                       </TableCell>
-                      {/* <TableCell align="center" sx={{ width: 60 }}>
+                      <TableCell align="center" sx={{ width: 60 }}>
                         <ActionMenu
                           order={order}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
@@ -1129,7 +1167,7 @@ const OrderBook = () => {
                           permissions={userPermissions}
                           isSuperAdmin={isSuperAdmin}
                         />
-                      </TableCell> */}
+                      </TableCell>
                     </TableRow>
                   );
                 })

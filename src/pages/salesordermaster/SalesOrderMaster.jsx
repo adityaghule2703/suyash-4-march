@@ -1,5 +1,5 @@
 // SalesOrderMaster.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -34,7 +34,14 @@ import {
   StepLabel,
   StepContent,
   Card,
-  CardContent
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -52,7 +59,9 @@ import {
   Send as SendIcon,
   History as HistoryIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  Refresh as RefreshIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../config/Config';
@@ -61,6 +70,8 @@ import ViewSaleOrder from './ViewSaleOrder';
 import EditSaleOrder from './EditSaleOrder';
 import DeleteSaleOrder from './DeleteSaleOrder';
 import { COLORS } from './constants';
+import { ACTIONS, hasPermission, MODULES, PAGES } from '../../utils/modulePermissions';
+
 
 // Status colors
 const STATUS_COLORS = {
@@ -91,10 +102,42 @@ const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'AED'];
 const DELIVERY_TERMS_OPTIONS = ['Ex-Works', 'FOR Destination', 'CIF', 'FOB', ''];
 const DELIVERY_MODE_OPTIONS = ['Road', 'Rail', 'Air', 'Sea', 'Hand Delivery', ''];
 
-// Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate, onHistory }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate, onHistory, permissions }) => {
   const currentStatus = item?.status || 'Draft';
   const availableTransitions = SO_STATUS_TRANSITIONS[currentStatus] || [];
+  
+  // Permission checks
+  const canView = hasPermission(permissions, MODULES.SALES_ORDER_MASTER, PAGES.SALES_ORDER_MASTER, ACTIONS.VIEW);
+  const canUpdate = hasPermission(permissions, MODULES.SALES_ORDER_MASTER, PAGES.SALES_ORDER_MASTER, ACTIONS.UPDATE);
+  const canDelete = hasPermission(permissions, MODULES.SALES_ORDER_MASTER, PAGES.SALES_ORDER_MASTER, ACTIONS.DELETE);
+  const canApprove = hasPermission(permissions, MODULES.SALES_ORDER_MASTER, PAGES.SALES_ORDER_MASTER, ACTIONS.APPROVE);
+
+  // Check if any action is available
+  const hasAnyAction = canView || canUpdate || canDelete || canApprove;
+
+  if (!hasAnyAction) {
+    return null;
+  }
 
   return (
     <>
@@ -127,30 +170,34 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {/* Confirm Button - POST API */}
-        {currentStatus === 'Draft' && (
+        {/* Confirm Button - Requires APPROVE permission */}
+        {canApprove && currentStatus === 'Draft' && (
           <MenuItem onClick={() => { onStatusUpdate(item, 'confirm'); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
               <CheckCircleIcon fontSize="small" />
@@ -163,8 +210,8 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
         
-        {/* Regular Status Update for other transitions */}
-        {availableTransitions.length > 0 && currentStatus !== 'Draft' && (
+        {/* Regular Status Update for other transitions - Requires UPDATE permission */}
+        {canUpdate && availableTransitions.length > 0 && currentStatus !== 'Draft' && (
           <MenuItem onClick={() => { onStatusUpdate(item, 'regular'); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
               <SendIcon fontSize="small" />
@@ -177,36 +224,40 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
         
-        {/* History Button */}
-        <MenuItem onClick={() => { onHistory(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-            <HistoryIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-              View History
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* History Button - Uses VIEW permission */}
+        {canView && (
+          <MenuItem onClick={() => { onHistory(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <HistoryIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                View History
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
-        <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
 };
 
-// History Modal Component
+// History Modal Component (kept the same as original)
 const HistoryModal = ({ open, onClose, so, historyData, loading }) => {
   const getStatusIcon = (action, status) => {
     if (action === 'created') return <AddIcon sx={{ fontSize: '1rem', color: '#10B981' }} />;
@@ -446,12 +497,13 @@ const HistoryModal = ({ open, onClose, so, historyData, loading }) => {
 
 const SalesOrderMaster = () => {
   const [salesOrders, setSalesOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedSOForAction, setSelectedSOForAction] = useState(null);
@@ -471,23 +523,124 @@ const SalesOrderMaster = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Fetch Sales Orders from API
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.SALES_ORDER_MASTER,
+      PAGES.SALES_ORDER_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canExport = checkPermission(ACTIONS.EXPORT);
+  const canPrint = checkPermission(ACTIONS.PRINT);
+
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+      setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Fetch Sales Orders from API - only if user has permission
   const fetchSalesOrders = useCallback(async () => {
-    try {
+    // Don't show loading indicator while typing search and only if user has permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -501,7 +654,7 @@ const SalesOrderMaster = () => {
 
       if (response.data.success) {
         setSalesOrders(response.data.data || []);
-        setTotalItems(response.data.pagination.total);
+        setTotalItems(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load Sales Orders', 'error');
       }
@@ -511,13 +664,22 @@ const SalesOrderMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchSalesOrders();
+    }
+  }, [fetchSalesOrders, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+  const handleRefresh = () => {
     fetchSalesOrders();
-  }, [fetchSalesOrders]);
+    showNotification('Data refreshed', 'success');
+  };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(salesOrders.map(so => so._id));
     } else {
@@ -526,6 +688,8 @@ const SalesOrderMaster = () => {
   };
   
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -540,13 +704,44 @@ const SalesOrderMaster = () => {
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/sales-orders/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (salesOrders.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchSalesOrders();
+      }
+      
+      showNotification(`${selected.length} Sales Order(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete Sales Orders', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleAddSO = () => {
@@ -565,8 +760,13 @@ const SalesOrderMaster = () => {
     showNotification('Sales Order deleted successfully!', 'success');
   };
   
-  // Handle Confirm API Call
+  // Handle Confirm API Call - Requires APPROVE permission
   const handleConfirm = async (so) => {
+    if (!canApprove) {
+      showNotification('You don\'t have permission to confirm orders', 'error');
+      return;
+    }
+    
     setConfirmLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -590,8 +790,13 @@ const SalesOrderMaster = () => {
     }
   };
   
-  // Handle Regular Status Update
+  // Handle Regular Status Update - Requires UPDATE permission
   const handleStatusUpdate = async () => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to update status', 'error');
+      return;
+    }
+    
     if (!selectedSO || !selectedStatus) return;
     
     setStatusLoading(true);
@@ -620,8 +825,10 @@ const SalesOrderMaster = () => {
     }
   };
   
-  // Handle View History
+  // Handle View History - Requires VIEW permission
   const handleViewHistory = async (so) => {
+    if (!canViewPage) return;
+    
     setSelectedSO(so);
     setOpenHistoryModal(true);
     setHistoryLoading(true);
@@ -657,18 +864,21 @@ const SalesOrderMaster = () => {
   };
 
   const openViewSOModal = (so) => {
+    if (!canViewPage) return;
     setSelectedSO(so);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
   const openEditSOModal = (so) => {
+    if (!canUpdate) return;
     setSelectedSO(so);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
   const openDeleteSODialog = (so) => {
+    if (!canDelete) return;
     setSelectedSO(so);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -678,6 +888,10 @@ const SalesOrderMaster = () => {
     if (type === 'confirm') {
       handleConfirm(so);
     } else {
+      if (!canUpdate) {
+        showNotification('You don\'t have permission to update status', 'error');
+        return;
+      }
       setSelectedSO(so);
       setSelectedStatus(so.status || 'Draft');
       setOpenStatusDialog(true);
@@ -748,6 +962,16 @@ const SalesOrderMaster = () => {
     return SO_STATUS_TRANSITIONS[currentStatus] || [];
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -785,7 +1009,8 @@ const SalesOrderMaster = () => {
               placeholder="Search by SO Number, Customer, or PO Number..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
@@ -802,6 +1027,13 @@ const SalesOrderMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
@@ -816,17 +1048,35 @@ const SalesOrderMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Refresh Button - Available to all users with view permission */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Bulk Delete Button - Only show if user has delete permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleBulkDelete}
                 sx={{ 
                   height: 36,
                   borderRadius: 1.5,
@@ -845,26 +1095,30 @@ const SalesOrderMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Sales Order
-            </Button>
+            
+            {/* Add Sales Order Button - Only show if user has create permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Sales Order
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -888,26 +1142,29 @@ const SalesOrderMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < salesOrders.length}
-                    checked={salesOrders.length > 0 && selected.length === salesOrders.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has delete permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < salesOrders.length}
+                      checked={salesOrders.length > 0 && selected.length === salesOrders.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || salesOrders.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || salesOrders.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   SO No / Customer
                 </TableCell>
@@ -934,7 +1191,7 @@ const SalesOrderMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading Sales Orders...
@@ -943,7 +1200,7 @@ const SalesOrderMaster = () => {
                 </TableRow>
               ) : salesOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 8 : 7} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <ShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -985,21 +1242,24 @@ const SalesOrderMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(so._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has delete permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(so._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
@@ -1086,6 +1346,7 @@ const SalesOrderMaster = () => {
                           onDelete={openDeleteSODialog}
                           onStatusUpdate={openStatusUpdateDialog}
                           onHistory={handleViewHistory}
+                          permissions={userPermissions}
                         />
                       </TableCell>
                     </TableRow>
@@ -1121,153 +1382,165 @@ const SalesOrderMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddSaleOrder 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddSO}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddSaleOrder 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddSO}
+        />
+      )}
 
       {selectedSO && (
         <>
-          <ViewSaleOrder 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedSO(null);
-            }}
-            so={selectedSO}
-          />
+          {canViewPage && (
+            <ViewSaleOrder 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedSO(null);
+              }}
+              so={selectedSO}
+            />
+          )}
 
-          <EditSaleOrder 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedSO(null);
-            }}
-            so={selectedSO}
-            onUpdate={handleEditSO}
-          />
+          {canUpdate && (
+            <EditSaleOrder 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedSO(null);
+              }}
+              so={selectedSO}
+              onUpdate={handleEditSO}
+            />
+          )}
 
-          <DeleteSaleOrder 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedSO(null);
-            }}
-            so={selectedSO}
-            onDelete={handleDeleteSO}
-          />
+          {canDelete && (
+            <DeleteSaleOrder 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedSO(null);
+              }}
+              so={selectedSO}
+              onDelete={handleDeleteSO}
+            />
+          )}
 
-          {/* History Modal */}
-          <HistoryModal
-            open={openHistoryModal}
-            onClose={() => {
-              setOpenHistoryModal(false);
-              setSelectedSO(null);
-              setHistoryData(null);
-            }}
-            so={selectedSO}
-            historyData={historyData?.audit_log || []}
-            loading={historyLoading}
-          />
+          {/* History Modal - Uses VIEW permission */}
+          {canViewPage && (
+            <HistoryModal
+              open={openHistoryModal}
+              onClose={() => {
+                setOpenHistoryModal(false);
+                setSelectedSO(null);
+                setHistoryData(null);
+              }}
+              so={selectedSO}
+              historyData={historyData?.audit_log || []}
+              loading={historyLoading}
+            />
+          )}
 
           {/* Status Update Dialog */}
-          <Dialog
-            open={openStatusDialog}
-            onClose={() => {
-              setOpenStatusDialog(false);
-              setSelectedSO(null);
-              setSelectedStatus('');
-            }}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-              sx: {
-                borderRadius: 2,
-                border: `1px solid ${COLORS.border}`,
-                overflow: 'hidden'
-              }
-            }}
-          >
-            <DialogTitle sx={{
-              borderBottom: `1px solid ${COLORS.border}`,
-              py: 1.5,
-              px: 2.5,
-              bgcolor: COLORS.background.white,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
-                Update Status
-              </Typography>
-              <IconButton onClick={() => setOpenStatusDialog(false)} size="small">
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </DialogTitle>
-            <DialogContent sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 2 }}>
-                Sales Order: <strong>{selectedSO?.so_number}</strong>
-              </Typography>
-              
-              <FormControl fullWidth size="small">
-                <InputLabel sx={{ fontSize: '0.75rem' }}>Select New Status</InputLabel>
-                <Select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  label="Select New Status"
-                  sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
-                >
-                  {getAvailableStatuses(selectedSO?.status).map(status => (
-                    <MenuItem key={status} value={status} sx={{ fontSize: '0.75rem' }}>
-                      {status}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </DialogContent>
-            <DialogActions sx={{
-              px: 2.5,
-              py: 1.5,
-              borderTop: `1px solid ${COLORS.border}`,
-              bgcolor: COLORS.background.white,
-              gap: 1
-            }}>
-              <Button
-                onClick={() => setOpenStatusDialog(false)}
-                disabled={statusLoading}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
+          {canUpdate && (
+            <Dialog
+              open={openStatusDialog}
+              onClose={() => {
+                setOpenStatusDialog(false);
+                setSelectedSO(null);
+                setSelectedStatus('');
+              }}
+              maxWidth="sm"
+              fullWidth
+              PaperProps={{
+                sx: {
+                  borderRadius: 2,
                   border: `1px solid ${COLORS.border}`,
-                  color: COLORS.text.secondary,
-                  fontSize: '0.7rem',
-                  textTransform: 'none'
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleStatusUpdate}
-                disabled={!selectedStatus || statusLoading}
-                sx={{
-                  height: 32,
-                  px: 2,
-                  borderRadius: 1.5,
-                  bgcolor: COLORS.primary,
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: COLORS.primaryDark }
-                }}
-              >
-                {statusLoading ? 'Updating...' : 'Update Status'}
-              </Button>
-            </DialogActions>
-          </Dialog>
+                  overflow: 'hidden'
+                }
+              }}
+            >
+              <DialogTitle sx={{
+                borderBottom: `1px solid ${COLORS.border}`,
+                py: 1.5,
+                px: 2.5,
+                bgcolor: COLORS.background.white,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                  Update Status
+                </Typography>
+                <IconButton onClick={() => setOpenStatusDialog(false)} size="small">
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent sx={{ p: 2.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 2 }}>
+                  Sales Order: <strong>{selectedSO?.so_number}</strong>
+                </Typography>
+                
+                <FormControl fullWidth size="small">
+                  <InputLabel sx={{ fontSize: '0.75rem' }}>Select New Status</InputLabel>
+                  <Select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    label="Select New Status"
+                    sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+                  >
+                    {getAvailableStatuses(selectedSO?.status).map(status => (
+                      <MenuItem key={status} value={status} sx={{ fontSize: '0.75rem' }}>
+                        {status}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </DialogContent>
+              <DialogActions sx={{
+                px: 2.5,
+                py: 1.5,
+                borderTop: `1px solid ${COLORS.border}`,
+                bgcolor: COLORS.background.white,
+                gap: 1
+              }}>
+                <Button
+                  onClick={() => setOpenStatusDialog(false)}
+                  disabled={statusLoading}
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    border: `1px solid ${COLORS.border}`,
+                    color: COLORS.text.secondary,
+                    fontSize: '0.7rem',
+                    textTransform: 'none'
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleStatusUpdate}
+                  disabled={!selectedStatus || statusLoading}
+                  sx={{
+                    height: 32,
+                    px: 2,
+                    borderRadius: 1.5,
+                    bgcolor: COLORS.primary,
+                    fontSize: '0.7rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: COLORS.primaryDark }
+                  }}
+                >
+                  {statusLoading ? 'Updating...' : 'Update Status'}
+                </Button>
+              </DialogActions>
+            </Dialog>
+          )}
         </>
       )}
 
@@ -1295,14 +1568,5 @@ const SalesOrderMaster = () => {
     </Box>
   );
 };
-
-import CloseIcon from '@mui/icons-material/Close';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
 
 export default SalesOrderMaster;

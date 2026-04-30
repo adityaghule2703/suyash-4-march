@@ -751,259 +751,374 @@ const ItemMaster = () => {
       }}>
         <TableContainer>
           <Table size="small">
-            <TableHead>
-              <TableRow sx={{ 
-                bgcolor: COLORS.background.tableHeader,
-                '& .MuiTableCell-root': {
-                  borderBottom: 'none',
-                  color: COLORS.text.light,
-                  py: 1.5
-                }
-              }}>
-                {/* Checkbox Column - Only show if user has delete permission */}
-                {canDelete && (
-                  <TableCell padding="checkbox" sx={{ width: 40 }}>
-                    <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < items.length}
-                      checked={items.length > 0 && selected.length === items.length}
-                      onChange={handleSelectAll}
-                      sx={{
-                        color: COLORS.text.light,
-                        '&.Mui-checked': {
-                          color: COLORS.text.light,
-                        },
-                        '&.MuiCheckbox-indeterminate': {
-                          color: COLORS.text.light,
-                        },
-                        '& .MuiSvgIcon-root': {
-                          fontSize: '1.25rem'
-                        }
-                      }}
-                      disabled={loading || items.length === 0}
-                    />
-                  </TableCell>
-                )}
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Part No
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Description
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Material
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Drawing No
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  Revision
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  color: COLORS.text.light
-                }}>
-                  HSN Code
-                </TableCell>
-                <TableCell sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.5px',
-                  width: 60,
-                  color: COLORS.text.light
-                }} align="center">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
-                    <CircularProgress size={32} sx={{ color: COLORS.primary }} />
-                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
-                      Loading items...
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                        {searchTerm ? 'No items found' : 'No items available'}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                        {searchTerm ? 'Try adjusting your search terms' : 'Add your first item to get started'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => {
-                  const isSelected = selected.includes(item._id);
-                  const isActionMenuOpen = Boolean(actionMenuAnchor) && 
-                    selectedItemForAction?._id === item._id;
-                  const avatarColor = getAvatarColor(item.part_no);
+           <TableHead>
+  <TableRow sx={{ 
+    bgcolor: COLORS.background.tableHeader,
+    '& .MuiTableCell-root': {
+      borderBottom: 'none',
+      color: COLORS.text.light,
+      py: 1.5
+    }
+  }}>
+    {canDelete && (
+      <TableCell padding="checkbox" sx={{ width: 40 }}>
+        <Checkbox
+          indeterminate={selected.length > 0 && selected.length < items.length}
+          checked={items.length > 0 && selected.length === items.length}
+          onChange={handleSelectAll}
+          sx={{
+            color: COLORS.text.light,
+            '&.Mui-checked': {
+              color: COLORS.text.light,
+            },
+            '&.MuiCheckbox-indeterminate': {
+              color: COLORS.text.light,
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: '1.25rem'
+            }
+          }}
+          disabled={loading || items.length === 0}
+        />
+      </TableCell>
+    )}
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Part No
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Name & Description
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Material
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Dimensions
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Weight
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Category
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Rate/HSN
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Stock Levels
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Drawing
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: COLORS.text.light
+    }}>
+      Status
+    </TableCell>
+    <TableCell sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      width: 60,
+      color: COLORS.text.light
+    }} align="center">
+      Actions
+    </TableCell>
+  </TableRow>
+</TableHead>
+           
+<TableBody>
+  {loading ? (
+    <TableRow>
+      <TableCell colSpan={canDelete ? 12 : 11} align="center" sx={{ py: 6 }}>
+        <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
+          Loading items...
+        </Typography>
+      </TableCell>
+    </TableRow>
+  ) : items.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={canDelete ? 12 : 11} align="center" sx={{ py: 6 }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+            {searchTerm ? 'No items found' : 'No items available'}
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+            {searchTerm ? 'Try adjusting your search terms' : 'Add your first item to get started'}
+          </Typography>
+        </Box>
+      </TableCell>
+    </TableRow>
+  ) : (
+    items.map((item) => {
+      const isSelected = selected.includes(item._id);
+      const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+        selectedItemForAction?._id === item._id;
+      const avatarColor = getAvatarColor(item.part_no);
 
-                  return (
-                    <TableRow
-                      key={item._id}
-                      hover
-                      selected={isSelected}
-                      sx={{ 
-                        bgcolor: COLORS.background.white,
-                        '&:hover': {
-                          bgcolor: COLORS.background.hover
-                        },
-                        '&.Mui-selected': {
-                          bgcolor: `${COLORS.primary}10`,
-                          '&:hover': {
-                            bgcolor: `${COLORS.primary}20`
-                          }
-                        },
-                        '& .MuiTableCell-root': {
-                          py: 1.5,
-                          fontSize: '0.75rem',
-                          borderColor: COLORS.border
-                        }
-                      }}
-                    >
-                      {/* Checkbox Column - Only show if user has delete permission */}
-                      {canDelete && (
-                        <TableCell padding="checkbox" sx={{ width: 40 }}>
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => handleSelect(item._id)}
-                            sx={{
-                              color: COLORS.primary,
-                              '&.Mui-checked': {
-                                color: COLORS.primary,
-                              },
-                              '& .MuiSvgIcon-root': {
-                                fontSize: '1.25rem'
-                              }
-                            }}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar 
-                            sx={{ 
-                              width: 32, 
-                              height: 32, 
-                              bgcolor: avatarColor,
-                              fontSize: '0.7rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            {getAvatarInitials(item.part_no)}
-                          </Avatar>
-                          <Box>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
-                              {item.part_no}
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                              ID: {item._id.slice(-6)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={item.part_description || ''}>
-                          <Typography 
-                            sx={{ 
-                              fontSize: '0.75rem',
-                              color: COLORS.text.primary,
-                              maxWidth: 200,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {item.part_description || 'N/A'}
-                          </Typography>
-                        </Tooltip>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Unit: {item.unit || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                          {item.material || 'N/A'}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          Grade: {item.rm_grade || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {item.drawing_no || 'N/A'}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {item.strip_size ? `${item.strip_size}mm` : ''}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {item.revision_no || 'N/A'}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {item.pitch ? `Pitch: ${item.pitch}` : ''}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                          {item.hsn_code || 'N/A'}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {item.no_of_cavity ? `${item.no_of_cavity} cavity` : ''}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center" sx={{ width: 60 }}>
-                        <ActionMenu 
-                          item={item}
-                          onView={openViewItemModal}
-                          onEdit={openEditItemModal}
-                          onDelete={openDeleteItemDialog}
-                          anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                          onClose={handleActionMenuClose}
-                          onOpen={(e) => handleActionMenuOpen(e, item)}
-                          permissions={userPermissions}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+      return (
+        <TableRow
+          key={item._id}
+          hover
+          selected={isSelected}
+          sx={{ 
+            bgcolor: COLORS.background.white,
+            '&:hover': {
+              bgcolor: COLORS.background.hover
+            },
+            '&.Mui-selected': {
+              bgcolor: `${COLORS.primary}10`,
+              '&:hover': {
+                bgcolor: `${COLORS.primary}20`
+              }
+            },
+            '& .MuiTableCell-root': {
+              py: 1.5,
+              fontSize: '0.75rem',
+              borderColor: COLORS.border
+            }
+          }}
+        >
+          {/* Checkbox Column - Only show if user has delete permission */}
+          {canDelete && (
+            <TableCell padding="checkbox" sx={{ width: 40 }}>
+              <Checkbox
+                checked={isSelected}
+                onChange={() => handleSelect(item._id)}
+                sx={{
+                  color: COLORS.primary,
+                  '&.Mui-checked': {
+                    color: COLORS.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '1.25rem'
+                  }
+                }}
+              />
+            </TableCell>
+          )}
+          
+          {/* Part No with Avatar */}
+          <TableCell sx={{ minWidth: 120 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Avatar 
+                sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: avatarColor,
+                  fontSize: '0.7rem',
+                  fontWeight: 600
+                }}
+              >
+                {getAvatarInitials(item.part_no)}
+              </Avatar>
+              <Box>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  {item.part_no}
+                </Typography>
+                <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                  {item.item_id || `ID: ${item._id.slice(-6)}`}
+                </Typography>
+              </Box>
+            </Stack>
+          </TableCell>
+          
+          {/* Part Name & Description */}
+          <TableCell sx={{ minWidth: 180 }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+              {item.part_name || 'N/A'}
+            </Typography>
+            <Tooltip title={item.part_description || ''}>
+              <Typography 
+                sx={{ 
+                  fontSize: '0.65rem', 
+                  color: COLORS.text.tertiary,
+                  maxWidth: 200,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {item.part_description || 'No description'}
+              </Typography>
+            </Tooltip>
+          </TableCell>
+          
+          {/* Material Info */}
+          <TableCell sx={{ minWidth: 130 }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+              {item.material_name || item.material || 'N/A'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+              Grade: {item.material_grade || item.rm_grade || 'N/A'}
+            </Typography>
+          </TableCell>
+          
+          {/* Dimensions */}
+          <TableCell sx={{ minWidth: 140 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+              {item.dimensions_formatted || (
+                item.thickness && item.width && item.length 
+                  ? `${item.thickness}×${item.width}×${item.length}mm`
+                  : 'N/A'
               )}
-            </TableBody>
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+              Unit: {item.unit || 'Nos'}
+            </Typography>
+          </TableCell>
+          
+          {/* Weight */}
+          <TableCell sx={{ minWidth: 90 }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+              {item.weight_formatted || `${item.gross_weight_kg?.toFixed(3) || 0} Kg`}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+              Density: {item.density || 'N/A'} g/cm³
+            </Typography>
+          </TableCell>
+          
+          {/* Category & Type */}
+          <TableCell sx={{ minWidth: 120 }}>
+            <Chip 
+              label={item.item_category || 'N/A'} 
+              size="small"
+              sx={{ 
+                fontSize: '0.65rem',
+                height: 20,
+                bgcolor: item.item_category === 'Raw Material' ? '#E8F0F1' : '#9FE2BF',
+                color: COLORS.primary,
+                fontWeight: 500
+              }}
+            />
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+              {item.item_type || 'N/A'} • {item.procurement_type || 'N/A'}
+            </Typography>
+          </TableCell>
+          
+          {/* Rate & HSN */}
+          <TableCell sx={{ minWidth: 110 }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+              ₹{item.current_rate?.toFixed(2) || '0.00'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+              HSN: {item.hsn_code || 'N/A'}
+            </Typography>
+            {item.gst_percentage && (
+              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                GST: {item.gst_percentage}%
+              </Typography>
+            )}
+          </TableCell>
+          
+          {/* Stock Info */}
+          <TableCell sx={{ minWidth: 120 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box>
+                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                  Reorder: {item.reorder_level || 0}
+                </Typography>
+                <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                  Min/Max: {item.min_stock || 0}/{item.max_stock || 0}
+                </Typography>
+              </Box>
+            </Stack>
+          </TableCell>
+          
+          {/* Drawing & Revision */}
+          <TableCell sx={{ minWidth: 100 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+              {item.drawing_no || 'N/A'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+              Rev: {item.revision_no || '0'}
+            </Typography>
+          </TableCell>
+          
+          {/* Status */}
+          <TableCell sx={{ minWidth: 70 }}>
+            <Chip 
+              label={item.is_active ? 'Active' : 'Inactive'} 
+              size="small"
+              sx={{ 
+                fontSize: '0.65rem',
+                height: 20,
+                bgcolor: item.is_active ? COLORS.chips.active : COLORS.chips.inactive,
+                color: item.is_active ? '#065F46' : '#6B7280',
+                fontWeight: 500
+              }}
+            />
+            <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+              {item.item_role || 'N/A'}
+            </Typography>
+          </TableCell>
+          
+          {/* Actions */}
+          <TableCell align="center" sx={{ width: 60 }}>
+            <ActionMenu 
+              item={item}
+              onView={openViewItemModal}
+              onEdit={openEditItemModal}
+              onDelete={openDeleteItemDialog}
+              anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+              onClose={handleActionMenuClose}
+              onOpen={(e) => handleActionMenuOpen(e, item)}
+              permissions={userPermissions}
+            />
+          </TableCell>
+        </TableRow>
+      );
+    })
+  )}
+</TableBody>
           </Table>
         </TableContainer>
 

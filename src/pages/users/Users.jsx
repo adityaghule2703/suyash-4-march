@@ -174,6 +174,10 @@ const ALL_PAGES = [
   
   // Production Master
   { module: 'WORK_ORDERS', page: 'Work Orders Master', category: 'Production Master' },
+  { module: 'ASSEMBLY_LINES', page: 'Assembly Lines', category: 'Production Master' },
+  { module: 'PRODUCTION_SCHEDULE', page: 'Production Schedule', category: 'Production Master' },
+  { module: 'PRODUCTION_CONFLICT', page: 'Production Conflict', category: 'Production Master' },
+  { module: 'TOOL_MASTER', page: 'Tool Master', category: 'Production Master' },
   
   // Inventory Management - All Inventory pages
   { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management' },
@@ -182,20 +186,73 @@ const ALL_PAGES = [
   { module: 'INVENTORY_MANAGEMENT', page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management' },
   { module: 'INVENTORY_MANAGEMENT', page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
   
-  // Reports
+  // Dispatch Master
+  { module: 'DISPATCH_MASTER', page: 'Delivery Challan', category: 'Dispatch Master' },
+  { module: 'DELIVERY_SCHEDULE', page: 'Delivery Schedule', category: 'Dispatch Master' },
+  { module: 'CUSTOMER_RETURNS', page: 'Customer Returns', category: 'Dispatch Master' },
+  
+  // Inspection Master
+  { module: 'GAUGE_MASTER', page: 'Gauge Master', category: 'Inspection Master' },
+  { module: 'INSPECTION_PLAN_MASTER', page: 'Inspection Plan', category: 'Inspection Master' },
+  { module: 'INSPECTION_RECORD_MASTER', page: 'Inspection Record', category: 'Inspection Master' },
+  { module: 'DEFECT_CODE_MASTER', page: 'Defect Code Master', category: 'Inspection Master' },
+  { module: 'NCR_MASTER', page: 'NCR (Non-Conformance Report)', category: 'Inspection Master' },
+  { module: 'NCR_TREND_ANALYSIS', page: 'NCR Trend Analysis', category: 'Inspection Master' },
+  { module: 'CAPA_MASTER', page: 'CAPA (Corrective Action Preventive Action)', category: 'Inspection Master' },
+  { module: 'QUALITY_CERTIFICATE_MASTER', page: 'Quality Certificate', category: 'Inspection Master' },
+  
+  // Reports Master
+  { module: 'INVOICE_REPORT', page: 'Invoice Report', category: 'Reports Master' },
+  { module: 'PAYMENT_RECEIPT', page: 'Payment Receipt', category: 'Reports Master' },
+  { module: 'CUSTOMER_ADVANCE', page: 'Customer Advance', category: 'Reports Master' },
+  { module: 'AR_AGING', page: 'AR Aging', category: 'Reports Master' },
+  { module: 'TDS_RECONCILIATION', page: 'TDS Reconciliation', category: 'Reports Master' },
+  { module: 'CREDIT_NOTE', page: 'Credit Note', category: 'Reports Master' },
+  { module: 'GSTR1_DATA', page: 'GSTR-1 Data', category: 'Reports Master' },
+  { module: 'GSTR3B_DATA', page: 'GSTR-3B Data', category: 'Reports Master' },
+  { module: 'MONTHLY_REVENUE_REPORT', page: 'Monthly Revenue Report', category: 'Reports Master' },
+  
+  // Legacy Reports
   { module: 'REPORTS', page: 'Recruitment Report', category: 'Reports' },
   { module: 'REPORTS', page: 'Employee Report', category: 'Reports' },
   { module: 'REPORTS', page: 'Interview Report', category: 'Reports' }
 ];
 
-// Group pages by category
-const groupedPages = ALL_PAGES.reduce((acc, page) => {
-  if (!acc[page.category]) {
-    acc[page.category] = [];
-  }
-  acc[page.category].push(page);
+// Category order for consistent display
+const CATEGORY_ORDER = [
+  'Dashboard',
+  'Administration',
+  'Quotation Master',
+  'Procurement Master',
+  'HR Master',
+  'BOM Master',
+  'Sales Order Master',
+  'Production Master',
+  'Inventory Management',
+  'Dispatch Master',
+  'Inspection Master',
+  'Reports Master',
+  'Reports'
+];
+
+// Group pages by category with proper ordering
+const groupedPages = CATEGORY_ORDER.reduce((acc, category) => {
+  acc[category] = [];
   return acc;
 }, {});
+
+// Fill groupedPages with actual pages
+ALL_PAGES.forEach(page => {
+  if (groupedPages[page.category]) {
+    groupedPages[page.category].push(page);
+  } else {
+    // Fallback for any categories not in order
+    if (!groupedPages[page.category]) {
+      groupedPages[page.category] = [];
+    }
+    groupedPages[page.category].push(page);
+  }
+});
 
 // Permissions Matrix Component
 const PermissionsMatrix = ({ permissions = [] }) => {
@@ -252,73 +309,78 @@ const PermissionsMatrix = ({ permissions = [] }) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {Object.entries(groupedPages).map(([category, pages]) => (
-            <React.Fragment key={category}>
-              {/* Category Header Row */}
-              <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
-                <TableCell 
-                  colSpan={ALL_ACTIONS.length + 1}
-                  sx={{ 
-                    fontWeight: 600, 
-                    fontSize: '0.7rem', 
-                    color: COLORS.primary,
-                    py: 1,
-                    borderBottom: `1px solid ${COLORS.border}`
-                  }}
-                >
-                  {category}
-                </TableCell>
-              </TableRow>
-              
-              {/* Pages Rows */}
-              {pages.map((page) => (
-                <TableRow key={`${page.module}_${page.page}`} hover>
+          {CATEGORY_ORDER.map((category) => {
+            const pages = groupedPages[category];
+            if (!pages || pages.length === 0) return null;
+            
+            return (
+              <React.Fragment key={category}>
+                {/* Category Header Row */}
+                <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
                   <TableCell 
+                    colSpan={ALL_ACTIONS.length + 1}
                     sx={{ 
-                      fontSize: '0.75rem', 
-                      color: COLORS.text.primary,
-                      position: 'sticky',
-                      left: 0,
-                      bgcolor: COLORS.background.white,
-                      zIndex: 1,
-                      borderRight: `1px solid ${COLORS.border}`,
-                      py: 1.5
+                      fontWeight: 600, 
+                      fontSize: '0.7rem', 
+                      color: COLORS.primary,
+                      py: 1,
+                      borderBottom: `1px solid ${COLORS.border}`
                     }}
                   >
-                    <Box>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                        {page.page}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                        {page.module}
-                      </Typography>
-                    </Box>
+                    {category}
                   </TableCell>
-                  {ALL_ACTIONS.map((action) => {
-                    const isChecked = isPermissionChecked(page.module, action);
-                    return (
-                      <TableCell key={action} align="center" sx={{ p: 1 }}>
-                        <Checkbox
-                          checked={isChecked}
-                          disabled
-                          size="small"
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
-                              color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
-                    );
-                  })}
                 </TableRow>
-              ))}
-            </React.Fragment>
-          ))}
+                
+                {/* Pages Rows */}
+                {pages.map((page) => (
+                  <TableRow key={`${page.module}_${page.page}`} hover>
+                    <TableCell 
+                      sx={{ 
+                        fontSize: '0.75rem', 
+                        color: COLORS.text.primary,
+                        position: 'sticky',
+                        left: 0,
+                        bgcolor: COLORS.background.white,
+                        zIndex: 1,
+                        borderRight: `1px solid ${COLORS.border}`,
+                        py: 1.5
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          {page.page}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          {page.module}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    {ALL_ACTIONS.map((action) => {
+                      const isChecked = isPermissionChecked(page.module, action);
+                      return (
+                        <TableCell key={action} align="center" sx={{ p: 1 }}>
+                          <Checkbox
+                            checked={isChecked}
+                            disabled
+                            size="small"
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </React.Fragment>
+            );
+          })}
         </TableBody>
       </Table>
     </Box>

@@ -135,6 +135,10 @@ const ALL_PAGES = [
   
   // Production Master
   { module: 'WORK_ORDERS', page: 'Work Orders Master', category: 'Production Master' },
+  { module: 'ASSEMBLY_LINES', page: 'Assembly Lines', category: 'Production Master' },
+  { module: 'PRODUCTION_SCHEDULE', page: 'Production Schedule', category: 'Production Master' },
+  { module: 'PRODUCTION_CONFLICT', page: 'Production Conflict', category: 'Production Master' },
+  { module: 'TOOL_MASTER', page: 'Tool Master', category: 'Production Master' },
   
   // Inventory Management - All Inventory pages
   { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management' },
@@ -143,20 +147,73 @@ const ALL_PAGES = [
   { module: 'INVENTORY_MANAGEMENT', page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management' },
   { module: 'INVENTORY_MANAGEMENT', page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
   
-  // Reports
+  // Dispatch Master
+  { module: 'DISPATCH_MASTER', page: 'Delivery Challan', category: 'Dispatch Master' },
+  { module: 'DELIVERY_SCHEDULE', page: 'Delivery Schedule', category: 'Dispatch Master' },
+  { module: 'CUSTOMER_RETURNS', page: 'Customer Returns', category: 'Dispatch Master' },
+  
+  // Inspection Master
+  { module: 'GAUGE_MASTER', page: 'Gauge Master', category: 'Inspection Master' },
+  { module: 'INSPECTION_PLAN_MASTER', page: 'Inspection Plan', category: 'Inspection Master' },
+  { module: 'INSPECTION_RECORD_MASTER', page: 'Inspection Record', category: 'Inspection Master' },
+  { module: 'DEFECT_CODE_MASTER', page: 'Defect Code Master', category: 'Inspection Master' },
+  { module: 'NCR_MASTER', page: 'NCR (Non-Conformance Report)', category: 'Inspection Master' },
+  { module: 'NCR_TREND_ANALYSIS', page: 'NCR Trend Analysis', category: 'Inspection Master' },
+  { module: 'CAPA_MASTER', page: 'CAPA (Corrective Action Preventive Action)', category: 'Inspection Master' },
+  { module: 'QUALITY_CERTIFICATE_MASTER', page: 'Quality Certificate', category: 'Inspection Master' },
+  
+  // Reports Master
+  { module: 'INVOICE_REPORT', page: 'Invoice Report', category: 'Reports Master' },
+  { module: 'PAYMENT_RECEIPT', page: 'Payment Receipt', category: 'Reports Master' },
+  { module: 'CUSTOMER_ADVANCE', page: 'Customer Advance', category: 'Reports Master' },
+  { module: 'AR_AGING', page: 'AR Aging', category: 'Reports Master' },
+  { module: 'TDS_RECONCILIATION', page: 'TDS Reconciliation', category: 'Reports Master' },
+  { module: 'CREDIT_NOTE', page: 'Credit Note', category: 'Reports Master' },
+  { module: 'GSTR1_DATA', page: 'GSTR-1 Data', category: 'Reports Master' },
+  { module: 'GSTR3B_DATA', page: 'GSTR-3B Data', category: 'Reports Master' },
+  { module: 'MONTHLY_REVENUE_REPORT', page: 'Monthly Revenue Report', category: 'Reports Master' },
+  
+  // Legacy Reports
   { module: 'REPORTS', page: 'Recruitment Report', category: 'Reports' },
   { module: 'REPORTS', page: 'Employee Report', category: 'Reports' },
   { module: 'REPORTS', page: 'Interview Report', category: 'Reports' }
 ];
 
-// Group pages by category
-const groupedPages = ALL_PAGES.reduce((acc, page) => {
-  if (!acc[page.category]) {
-    acc[page.category] = [];
-  }
-  acc[page.category].push(page);
+// Category order for consistent display
+const CATEGORY_ORDER = [
+  'Dashboard',
+  'Administration',
+  'Quotation Master',
+  'Procurement Master',
+  'HR Master',
+  'BOM Master',
+  'Sales Order Master',
+  'Production Master',
+  'Inventory Management',
+  'Dispatch Master',
+  'Inspection Master',
+  'Reports Master',
+  'Reports'
+];
+
+// Group pages by category with proper ordering
+const groupedPages = CATEGORY_ORDER.reduce((acc, category) => {
+  acc[category] = [];
   return acc;
 }, {});
+
+// Fill groupedPages with actual pages
+ALL_PAGES.forEach(page => {
+  if (groupedPages[page.category]) {
+    groupedPages[page.category].push(page);
+  } else {
+    // Fallback for any categories not in order
+    if (!groupedPages[page.category]) {
+      groupedPages[page.category] = [];
+    }
+    groupedPages[page.category].push(page);
+  }
+});
 
 const AddUser = () => {
   const navigate = useNavigate();
@@ -241,8 +298,10 @@ const AddUser = () => {
     
     // Expand all categories by default
     const expanded = {};
-    Object.keys(groupedPages).forEach(category => {
-      expanded[category] = true;
+    CATEGORY_ORDER.forEach(category => {
+      if (groupedPages[category] && groupedPages[category].length > 0) {
+        expanded[category] = true;
+      }
     });
     setExpandedCategories(expanded);
   };
@@ -320,6 +379,26 @@ const AddUser = () => {
       ...prev,
       [category]: !prev[category]
     }));
+  };
+
+  const expandAllCategories = () => {
+    const expanded = {};
+    CATEGORY_ORDER.forEach(category => {
+      if (groupedPages[category] && groupedPages[category].length > 0) {
+        expanded[category] = true;
+      }
+    });
+    setExpandedCategories(expanded);
+  };
+
+  const collapseAllCategories = () => {
+    const expanded = {};
+    CATEGORY_ORDER.forEach(category => {
+      if (groupedPages[category] && groupedPages[category].length > 0) {
+        expanded[category] = false;
+      }
+    });
+    setExpandedCategories(expanded);
   };
 
   // Transform permissions to the format expected by the API
@@ -783,11 +862,35 @@ const AddUser = () => {
                 Based on role: {selectedRole.RoleName} - You can customize permissions below
               </Typography>
             </Box>
-            <Chip
-              label="Customize permissions for this user"
-              size="small"
-              sx={{ fontSize: '0.65rem', bgcolor: COLORS.primaryLight, color: COLORS.primary }}
-            />
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                onClick={expandAllCategories}
+                sx={{
+                  fontSize: '0.65rem',
+                  textTransform: 'none',
+                  color: COLORS.primary
+                }}
+              >
+                Expand All
+              </Button>
+              <Button
+                size="small"
+                onClick={collapseAllCategories}
+                sx={{
+                  fontSize: '0.65rem',
+                  textTransform: 'none',
+                  color: COLORS.primary
+                }}
+              >
+                Collapse All
+              </Button>
+              <Chip
+                label="Customize permissions for this user"
+                size="small"
+                sx={{ fontSize: '0.65rem', bgcolor: COLORS.primaryLight, color: COLORS.primary }}
+              />
+            </Box>
           </Box>
           
           <Box sx={{ p: 2.5, overflowX: 'auto' }}>
@@ -826,105 +929,110 @@ const AddUser = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(groupedPages).map(([category, pages]) => (
-                    <React.Fragment key={category}>
-                      {/* Category Header Row */}
-                      <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
-                        <TableCell 
-                          colSpan={ALL_ACTIONS.length + 1}
-                          sx={{ 
-                            fontWeight: 600, 
-                            fontSize: '0.7rem', 
-                            color: COLORS.primary,
-                            py: 1,
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => toggleCategory(category)}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <IconButton size="small" sx={{ p: 0 }}>
-                              {expandedCategories[category] ? 
-                                <KeyboardArrowDownIcon fontSize="small" /> : 
-                                <KeyboardArrowRightIcon fontSize="small" />
-                              }
-                            </IconButton>
-                            {category}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                      
-                      {/* Pages Rows - Only show if category is expanded */}
-                      {expandedCategories[category] && pages.map((page) => {
-                        const selectedCount = getPageSelectedCount(page.module);
-                        const allSelected = selectedCount === ALL_ACTIONS.length;
-                        const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
+                  {CATEGORY_ORDER.map((category) => {
+                    const pages = groupedPages[category];
+                    if (!pages || pages.length === 0) return null;
+                    
+                    return (
+                      <React.Fragment key={category}>
+                        {/* Category Header Row */}
+                        <TableRow sx={{ bgcolor: `${COLORS.primary}10` }}>
+                          <TableCell 
+                            colSpan={ALL_ACTIONS.length + 1}
+                            sx={{ 
+                              fontWeight: 600, 
+                              fontSize: '0.7rem', 
+                              color: COLORS.primary,
+                              py: 1,
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => toggleCategory(category)}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <IconButton size="small" sx={{ p: 0 }}>
+                                {expandedCategories[category] ? 
+                                  <KeyboardArrowDownIcon fontSize="small" /> : 
+                                  <KeyboardArrowRightIcon fontSize="small" />
+                                }
+                              </IconButton>
+                              {category}
+                            </Box>
+                          </TableCell>
+                        </TableRow>
                         
-                        return (
-                          <TableRow key={`${page.module}_${page.page}`} hover>
-                            <TableCell 
-                              sx={{ 
-                                fontSize: '0.75rem', 
-                                color: COLORS.text.primary,
-                                position: 'sticky',
-                                left: 0,
-                                bgcolor: COLORS.background.white,
-                                zIndex: 1,
-                                borderRight: `1px solid ${COLORS.border}`,
-                                py: 1.5
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Box>
-                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                                    {page.page}
-                                  </Typography>
-                                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                                    {page.module}
-                                  </Typography>
-                                </Box>
-                                <Checkbox
-                                  size="small"
-                                  checked={allSelected}
-                                  indeterminate={someSelected}
-                                  onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
-                                  sx={{
-                                    color: COLORS.primary,
-                                    '&.Mui-checked': {
-                                      color: COLORS.primary,
-                                    },
-                                    '&.MuiCheckbox-indeterminate': {
-                                      color: COLORS.primary,
-                                    }
-                                  }}
-                                />
-                              </Box>
-                            </TableCell>
-                            {ALL_ACTIONS.map((action) => {
-                              const isChecked = permissions[`${page.module}_${action}`] || false;
-                              return (
-                                <TableCell key={action} align="center" sx={{ p: 1 }}>
+                        {/* Pages Rows - Only show if category is expanded */}
+                        {expandedCategories[category] && pages.map((page) => {
+                          const selectedCount = getPageSelectedCount(page.module);
+                          const allSelected = selectedCount === ALL_ACTIONS.length;
+                          const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
+                          
+                          return (
+                            <TableRow key={`${page.module}_${page.page}`} hover>
+                              <TableCell 
+                                sx={{ 
+                                  fontSize: '0.75rem', 
+                                  color: COLORS.text.primary,
+                                  position: 'sticky',
+                                  left: 0,
+                                  bgcolor: COLORS.background.white,
+                                  zIndex: 1,
+                                  borderRight: `1px solid ${COLORS.border}`,
+                                  py: 1.5
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Box>
+                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                      {page.page}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                      {page.module}
+                                    </Typography>
+                                  </Box>
                                   <Checkbox
-                                    checked={isChecked}
-                                    onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
                                     size="small"
+                                    checked={allSelected}
+                                    indeterminate={someSelected}
+                                    onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
                                     sx={{
                                       color: COLORS.primary,
                                       '&.Mui-checked': {
                                         color: COLORS.primary,
                                       },
-                                      '& .MuiSvgIcon-root': {
-                                        fontSize: '1rem'
+                                      '&.MuiCheckbox-indeterminate': {
+                                        color: COLORS.primary,
                                       }
                                     }}
                                   />
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                                </Box>
+                              </TableCell>
+                              {ALL_ACTIONS.map((action) => {
+                                const isChecked = permissions[`${page.module}_${action}`] || false;
+                                return (
+                                  <TableCell key={action} align="center" sx={{ p: 1 }}>
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
+                                      size="small"
+                                      sx={{
+                                        color: COLORS.primary,
+                                        '&.Mui-checked': {
+                                          color: COLORS.primary,
+                                        },
+                                        '& .MuiSvgIcon-root': {
+                                          fontSize: '1rem'
+                                        }
+                                      }}
+                                    />
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

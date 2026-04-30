@@ -1,97 +1,153 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
+  DialogTitle,
   DialogContent,
-  Box,
-  Typography,
+  DialogActions,
   Button,
   Stack,
+  Typography,
   Chip,
-  Paper,
+  Divider,
   Grid,
-  Avatar,
   Stepper,
   Step,
   StepLabel,
   StepConnector,
   stepConnectorClasses,
+  Box,
+  Paper,
+  Avatar,
+  IconButton,
+  CircularProgress,
+  Alert,
   styled,
+  Tooltip
 } from '@mui/material';
 import {
-  Edit as EditIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  Inventory,
-  Description,
-  Category,
-  Receipt,
-  AccountBalanceWallet,
-  Straighten,
   Close as CloseIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Work as WorkIcon,
+  School as SchoolIcon,
+  LocationOn as LocationIcon,
+  CalendarToday as CalendarIcon,
+  Description as DescriptionIcon,
+  Download as DownloadIcon,
+  Star as StarIcon,
+  BusinessCenter as BusinessIcon,
+  Assignment as AssignmentIcon,
+  History as HistoryIcon,
+  Comment as CommentIcon,
+  ThumbUp as ThumbUpIcon,
+  ThumbDown as ThumbDownIcon,
+  Pending as PendingIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  CloudUpload as CloudUploadIcon,
+  LinkedIn as LinkedInIcon,
+  Language as LanguageIcon,
+  People as PeopleIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
+  Info as InfoIcon,
+  Category as CategoryIcon,
+  Straighten as StraightenIcon,
+  Inventory as InventoryIcon,
+  Receipt as ReceiptIcon,
+  AccountBalanceWallet as AccountBalanceIcon,
   Badge as BadgeIcon,
-  Factory,
-  Grain,
-  Style,
-  Info as InfoIcon
+  Grain as GrainIcon,
+  Factory as FactoryIcon,
+  Style as StyleIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
+import axios from 'axios';
+import BASE_URL from '../../../config/Config';
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
+// Color constants matching other components
+const COLORS = {
+  primary: '#063C3F',
+  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8',
+    light: '#FFFFFF',
+    lightMuted: 'rgba(255, 255, 255, 0.9)'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
+  },
+  border: '#E3E8EF',
+  status: {
+    success: '#9FE2BF',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    info: '#E0F2FE'
+  },
+  chips: {
+    active: '#9FE2BF',
+    inactive: '#F1F5F9',
+    suspended: '#FEF3C7',
+    locked: '#FEE2E2'
+  }
+};
 
-// Modern Stepper Connector with Gradient
+// Custom Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
     height: 2,
     border: 0,
-    backgroundColor: '#eaeaf0',
+    backgroundColor: COLORS.border,
     borderRadius: 1,
   },
 }));
 
-// Custom Step Icon styling to make numbers white
-const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
-  backgroundColor: ownerState.active || ownerState.completed ? '#00B4D8' : '#ccc',
-  zIndex: 1,
-  color: '#fff',
-  width: 24,
-  height: 24,
-  display: 'flex',
-  borderRadius: '50%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  ...(ownerState.active && {
-    backgroundColor: '#00B4D8',
-    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
-  }),
-  ...(ownerState.completed && {
-    backgroundColor: '#00B4D8',
-  }),
-}));
-
-function CustomStepIcon(props) {
-  const { active, completed, className } = props;
+// Custom Step Icon
+const StepIcon = ({ active, completed, icon }) => {
+  const getIcon = () => {
+    if (icon === 1) return <InventoryIcon sx={{ fontSize: '0.9rem' }} />;
+    if (icon === 2) return <CategoryIcon sx={{ fontSize: '0.9rem' }} />;
+    if (icon === 3) return <StraightenIcon sx={{ fontSize: '0.9rem' }} />;
+    return icon;
+  };
 
   return (
-    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
-      {completed ? '✓' : props.icon}
-    </CustomStepIconRoot>
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '50%',
+        bgcolor: completed || active ? COLORS.primary : COLORS.border,
+        color: completed || active ? COLORS.text.light : COLORS.text.tertiary,
+        transition: 'all 0.2s ease',
+        boxShadow: active ? `0 0 0 2px ${COLORS.primary}20` : 'none',
+        '& svg': { fontSize: '0.9rem' }
+      }}
+    >
+      {completed ? <CheckCircleIcon sx={{ fontSize: '0.9rem' }} /> : getIcon()}
+    </Box>
   );
-}
+};
 
 const steps = ['Basic Details', 'Material & Drawing', 'Production & System'];
 
@@ -100,9 +156,9 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
 
   if (!item) return null;
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -111,313 +167,640 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
     });
   };
 
-  const getItemInitials = (partDescription) => {
-    if (!partDescription) return 'I';
-    
-    const words = partDescription.split(' ');
-    if (words.length >= 2) {
-      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+  const formatShortDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getItemInitials = (partNo, partName) => {
+    if (partNo) {
+      const words = partNo.split('-');
+      if (words.length > 1) {
+        return `${words[0].substring(0, 1)}${words[1].substring(0, 1)}`.toUpperCase();
+      }
+      return partNo.substring(0, 2).toUpperCase();
     }
-    
-    return partDescription.substring(0, 2).toUpperCase();
+    if (partName) return partName.substring(0, 2).toUpperCase();
+    return 'IT';
   };
 
-  // Helper function to render field with icon
-  const renderField = (icon, label, value, color = '#0f172a') => (
-    <Stack direction="row" spacing={1} alignItems="flex-start">
-      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#64748B', 
-            display: 'block', 
-            fontSize: '10px',
-            fontWeight: 500,
-            lineHeight: 1.2,
-            mb: 0.2
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '13px',
-            color: color,
-            wordBreak: 'break-word'
-          }}
-        >
-          {value || '-'}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-
-  const handleNext = () => {
-    setActiveStep((prevStep) => prevStep + 1);
+  const labelStyle = {
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    color: COLORS.text.secondary,
+    letterSpacing: '0.5px',
+    mb: 0.5
   };
 
-  const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
+  const handleNext = () => setActiveStep((prev) => prev + 1);
+  const handleBack = () => setActiveStep((prev) => prev - 1);
+  const handleReset = () => setActiveStep(0);
+  const handleClose = () => {
+    setActiveStep(0);
+    onClose();
   };
 
-  const renderStepContent = (step) => {
+  const getStepContent = (step) => {
+    if (!item) return null;
+
     switch (step) {
-      case 0: // Basic Details
+      case 0:
         return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}>
-            {/* Item Profile */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 2 }}>
-                <Avatar 
-                  sx={{ 
-                    width: 70, 
-                    height: 70, 
-                    bgcolor: PRIMARY_BLUE,
-                    fontSize: '1.8rem',
-                    fontWeight: 600,
-                    border: '2px solid #E0E0E0'
-                  }}
-                >
-                  {getItemInitials(item.part_description)}
+          <Stack spacing={2}>
+            {/* Item Profile Header */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.primaryLight, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.primary}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Avatar sx={{ width: 64, height: 64, bgcolor: COLORS.primary, fontSize: '1.5rem', fontWeight: 600 }}>
+                  {getItemInitials(item.part_no, item.part_name)}
                 </Avatar>
-                <Box>
-                  <Typography variant="h6" fontWeight={600} color="#101010" sx={{ fontSize: '1.1rem' }}>
-                    {item.part_description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.primary }}>
+                      {item.part_name || item.part_description || 'Item'}
+                    </Typography>
                     <Chip
-                      icon={item.is_active ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <CancelIcon sx={{ fontSize: 14 }} />}
-                      label={item.is_active ? 'Active' : 'Inactive'}
+                      label={item.item_id || `ID: ${item._id?.slice(-6)}`}
                       size="small"
-                      sx={{
-                        bgcolor: item.is_active ? '#dcfce7' : '#fee2e2',
-                        color: item.is_active ? '#166534' : '#991b1b',
-                        border: item.is_active ? '1px solid #86efac' : '1px solid #fca5a5',
-                        fontWeight: 600,
-                        fontSize: '11px',
-                        height: '22px',
-                        '& .MuiChip-icon': { fontSize: 14 }
+                      sx={{ bgcolor: COLORS.background.white, color: COLORS.primary, fontWeight: 500, fontSize: '0.65rem', height: 24 }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      size="small"
+                      icon={item.is_active ? <CheckCircleIcon sx={{ fontSize: '0.7rem' }} /> : <ErrorIcon sx={{ fontSize: '0.7rem' }} />}
+                      label={item.is_active ? 'Active' : 'Inactive'}
+                      sx={{ 
+                        bgcolor: item.is_active ? COLORS.status.success : COLORS.status.error, 
+                        color: item.is_active ? COLORS.primaryDark : '#991B1B', 
+                        fontWeight: 500, 
+                        fontSize: '0.65rem', 
+                        height: 24 
                       }}
                     />
-                    <Typography variant="body2" color="#64748B" sx={{ fontSize: '12px' }}>
-                      Part No: {item.part_no}
-                    </Typography>
-                    <Typography variant="body2" color="#64748B" sx={{ fontSize: '12px' }}>
-                      Item No: {item.item_no}
-                    </Typography>
-                  </Stack>
+                    <Chip
+                      size="small"
+                      icon={<BusinessIcon sx={{ fontSize: '0.7rem' }} />}
+                      label={item.item_category || 'N/A'}
+                      sx={{ bgcolor: COLORS.background.white, color: COLORS.primary, fontWeight: 500, fontSize: '0.65rem', height: 24 }}
+                    />
+                    <Chip
+                      size="small"
+                      icon={<WorkIcon sx={{ fontSize: '0.7rem' }} />}
+                      label={item.procurement_type || 'N/A'}
+                      sx={{ bgcolor: COLORS.background.white, color: COLORS.primary, fontWeight: 500, fontSize: '0.65rem', height: 24 }}
+                    />
+                  </Box>
                 </Box>
-              </Stack>
-
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                Basic Information
-              </Typography>
               
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <BadgeIcon sx={{ fontSize: 16 }} />, 
-                    'Item ID', 
-                    item.item_id
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Grain sx={{ fontSize: 16 }} />, 
-                    'Unit', 
-                    item.unit
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Straighten sx={{ fontSize: 16 }} />, 
-                    'Density', 
-                    item.density ? `${item.density} g/cm³` : null
-                  )}
-                </Grid>
-              </Grid>
+              </Box>
             </Paper>
 
-            {/* Description & Tax Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
-                Description & Tax Information
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ 
-                    backgroundColor: '#F8FAFC', 
-                    p: 1.5, 
-                    borderRadius: 1,
-                    border: '1px solid #E0E0E0',
-                    mb: 1
-                  }}>
-                    <Typography variant="body2" sx={{ fontSize: '13px', color: '#0f172a' }}>
-                      {item.part_description || 'No description provided'}
+            {/* Basic Information */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <InfoIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Basic Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Part Number</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BadgeIcon sx={{ fontSize: '0.9rem', color: COLORS.primary }} />
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {item.part_no || 'N/A'}
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Receipt sx={{ fontSize: 16 }} />, 
-                    'HSN Code', 
-                    item.hsn_code
-                  )}
-                </Grid>
-              </Grid>
-            </Paper>
-          </Stack>
-        );
-
-      case 1: // Material & Drawing
-        return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}>
-            {/* Material Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                <Category sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Material Information
-              </Typography>
-              
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Category sx={{ fontSize: 16 }} />, 
-                    'Material', 
-                    item.material
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Factory sx={{ fontSize: 16 }} />, 
-                    'RM Grade', 
-                    item.rm_grade
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Factory sx={{ fontSize: 16 }} />, 
-                    'RM Source', 
-                    item.rm_source
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Style sx={{ fontSize: 16 }} />, 
-                    'RM Type', 
-                    item.rm_type
-                  )}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Part Name</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.part_name || 'N/A'}
+                  </Typography>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  {renderField(
-                    <Description sx={{ fontSize: 16 }} />, 
-                    'RM Specification', 
-                    item.rm_spec
-                  )}
+                  <Typography sx={labelStyle}>Description</Typography>
+                  <Paper sx={{ 
+                    p: 1.5, 
+                    bgcolor: COLORS.background.light, 
+                    borderRadius: 1.5, 
+                    border: `1px solid ${COLORS.border}`,
+                    mt: 0.5
+                  }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                      {item.part_description || 'No description provided'}
+                    </Typography>
+                  </Paper>
                 </Grid>
               </Grid>
             </Paper>
 
-            {/* Drawing Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
-                <Description sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Drawing Information
-              </Typography>
-              
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Description sx={{ fontSize: 16 }} />, 
-                    'Drawing Number', 
-                    item.drawing_no
-                  )}
+            {/* Unit & Tax Information */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <ReceiptIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Unit & Tax Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Unit</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                    {item.unit || 'Nos'}
+                  </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Description sx={{ fontSize: 16 }} />, 
-                    'Revision Number', 
-                    item.revision_no
-                  )}
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Sale Unit</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.sale_unit || item.unit || 'Nos'}
+                  </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Straighten sx={{ fontSize: 16 }} />, 
-                    'Strip Size', 
-                    item.strip_size ? `${item.strip_size} mm` : null
-                  )}
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>HSN Code</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.hsn_code || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>GST %</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.gst_percentage ? `${item.gst_percentage}%` : 'N/A'}
+                  </Typography>
                 </Grid>
               </Grid>
             </Paper>
-          </Stack>
-        );
 
-      case 2: // Production & System
-        return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}>
-            {/* Production Parameters */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                <Straighten sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> Production Parameters
-              </Typography>
-              
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Straighten sx={{ fontSize: 16 }} />, 
-                    'Pitch', 
-                    item.pitch ? `${item.pitch} mm` : null
-                  )}
+            {/* Dimensions & Weight */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <StraightenIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Dimensions & Weight
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Thickness (mm)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.thickness || '-'}
+                  </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Inventory sx={{ fontSize: 16 }} />, 
-                    'Number of Cavities', 
-                    item.no_of_cavity
-                  )}
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Width (mm)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.width || '-'}
+                  </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <Grain sx={{ fontSize: 16 }} />, 
-                    'RM Rejection %', 
-                    item.rm_rejection_percent ? `${item.rm_rejection_percent}%` : null
-                  )}
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Length (mm)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.length || '-'}
+                  </Typography>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <AccountBalanceWallet sx={{ fontSize: 16 }} />, 
-                    'Scrap Realisation %', 
-                    item.scrap_realisation_percent ? `${item.scrap_realisation_percent}%` : null
-                  )}
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Density (g/cm³)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.density || '-'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Gross Weight (kg)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.primary }}>
+                    {item.gross_weight_kg?.toFixed(3) || item.calculated_weight_kg?.toFixed(3) || '-'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Net Weight (kg)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.net_weight_kg?.toFixed(3) || '-'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>Dimensions (Formatted)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.dimensions_formatted || `${item.thickness || '?'}mm × ${item.width || '?'}mm × ${item.length || '?'}mm`}
+                  </Typography>
                 </Grid>
               </Grid>
             </Paper>
 
             {/* System Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                <AccountBalanceWallet sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} /> System Information
-              </Typography>
-              
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <InfoIcon sx={{ fontSize: 16 }} />, 
-                    'Created At', 
-                    formatDate(item.createdAt)
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <HistoryIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  System Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Created At</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {formatDateTime(item.createdAt)}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Last Updated</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {formatDateTime(item.updatedAt)}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Item Role</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.item_role || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Item Type</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.item_type || 'N/A'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1:
+        return (
+          <Stack spacing={2}>
+            {/* Material Information */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <CategoryIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Material Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Material Name</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                    {item.material_name || item.material || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Material Grade</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.material_grade || item.rm_grade || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography sx={labelStyle}>Material Code</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.material_code || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography sx={labelStyle}>Material Standard</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.material_standard || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography sx={labelStyle}>Material Color</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.material_color || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>RM Source</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.rm_source || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>RM Type</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.rm_type || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={labelStyle}>RM Specification</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.rm_spec || 'N/A'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Drawing Information */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <DescriptionIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Drawing Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Drawing Number</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                    {item.drawing_no || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Revision Number</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.revision_no || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Strip Size (mm)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.strip_size || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Drawing File</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.drawing_file_path ? 'Available' : 'Not Available'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Current Rate Information */}
+            {item.current_rate && (
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <AccountBalanceIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    Current Rate Information
+                  </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, md: 3 }}>
+                    <Typography sx={labelStyle}>Rate per KG (₹)</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+                      ₹{item.current_rate?.toFixed(2)}
+                    </Typography>
+                  </Grid>
+                  {item.rate_history?.[0] && (
+                    <>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Typography sx={labelStyle}>Total RM Rate</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          ₹{item.rate_history[0].total_rm_rate?.toFixed(2) || '-'}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Typography sx={labelStyle}>Effective Rate</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          ₹{item.rate_history[0].effective_rate?.toFixed(2) || '-'}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, md: 3 }}>
+                        <Typography sx={labelStyle}>Rate Effective From</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {formatShortDate(item.rate_history[0].date_effective)}
+                        </Typography>
+                      </Grid>
+                    </>
                   )}
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <InfoIcon sx={{ fontSize: 16 }} />, 
-                    'Last Updated', 
-                    formatDate(item.updatedAt)
-                  )}
+              </Paper>
+            )}
+          </Stack>
+        );
+
+      case 2:
+        return (
+          <Stack spacing={2}>
+            {/* Production Parameters */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <FactoryIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Production Parameters
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Pitch (mm)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.pitch || '0'}
+                  </Typography>
                 </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Number of Cavities</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.no_of_cavity || '1'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>RM Rejection %</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.rm_rejection_percent ? `${item.rm_rejection_percent}%` : '0%'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Scrap Realisation %</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.scrap_realisation_percent ? `${item.scrap_realisation_percent}%` : '0%'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Stock & Inventory Settings */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <InventoryIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Stock & Inventory Settings
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Reorder Level</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.reorder_level || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Reorder Quantity</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.reorder_qty || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Safety Stock</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.safety_stock || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Minimum Stock</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.min_stock || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Maximum Stock</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.max_stock || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Lead Time (Days)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.lead_time_days || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Shelf Life (Days)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.shelf_life_days || '0'}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                  <Typography sx={labelStyle}>Part No Locked</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    {item.part_no_locked ? 'Yes' : 'No'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Weight Formula */}
+            {item.weight_formula && (
+              <Paper sx={{ 
+                p: 2, 
+                bgcolor: COLORS.background.white, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: 'none'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <StraightenIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                    Weight Calculation Formula
+                  </Typography>
+                </Box>
+                <Paper sx={{ 
+                  p: 1.5, 
+                  bgcolor: COLORS.background.light, 
+                  borderRadius: 1.5, 
+                  border: `1px solid ${COLORS.border}`
+                }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Formula: {item.weight_formula.formula}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                    Calculation: {item.weight_formula.calculation}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.primary }}>
+                    Result: {item.weight_formula.weight_kg?.toFixed(3)} kg
+                  </Typography>
+                </Paper>
+              </Paper>
+            )}
+
+            {/* Part No Lock Status */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.white, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: 'none'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <BadgeIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.text.primary }}>
+                  Additional Information
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={labelStyle}>Part No Locked</Typography>
+                  <Chip
+                    size="small"
+                    label={item.part_no_locked ? 'Locked' : 'Unlocked'}
+                    sx={{ 
+                      bgcolor: item.part_no_locked ? COLORS.status.warning : COLORS.status.success,
+                      color: item.part_no_locked ? '#92400E' : COLORS.primaryDark,
+                      fontWeight: 500,
+                      fontSize: '0.65rem',
+                      height: 24
+                    }}
+                  />
+                </Grid>
+                {item.note && (
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={labelStyle}>Notes</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                      {item.note}
+                    </Typography>
+                  </Grid>
+                )}
               </Grid>
             </Paper>
           </Stack>
@@ -431,141 +814,156 @@ const ViewItem = ({ open, onClose, item, onEdit }) => {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
+          borderRadius: 5,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
           overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          height: 'auto',
-          maxHeight: '620px'
+          maxHeight: '90vh'
         }
       }}
     >
-      {/* Header with Gradient */}
-      <Box sx={{ 
-        background: HEADER_GRADIENT,
-        py: 1,
-        px: 2
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Inventory sx={{ color: '#FFFFFF', fontSize: 18 }} />
-            <Typography variant="subtitle2" sx={{ 
-              fontWeight: 600, 
-              color: '#FFFFFF',
-              fontSize: '0.9rem'
-            }}>
-              Item Details
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InventoryIcon sx={{ fontSize: '1rem', color: COLORS.primary }} />
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+            Item Details
+          </Typography>
+          {item && item.part_no && (
+            <Chip
+              label={item.part_no}
+              size="small"
+              sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primaryDark, fontWeight: 500, fontSize: '0.65rem', height: 24 }}
+            />
+          )}
+        </Box>
+        <IconButton onClick={handleClose} size="small">
+          <CloseIcon sx={{ fontSize: '1rem', color: COLORS.text.secondary }} />
+        </IconButton>
+      </DialogTitle>
+
+      {item && (
+        <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+          <Stepper activeStep={activeStep} alternativeLabel connector={<ColorConnector />}>
+            {steps.map((label, index) => (
+              <Step key={label}>
+                <StepLabel StepIconComponent={(props) => <StepIcon {...props} icon={index + 1} />}>
+                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                    {label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+      )}
+
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.light, overflowY: 'auto' }}>
+        {item ? getStepContent(activeStep) : (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+            <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary }}>
+              No item data available
             </Typography>
-          </Stack>
-          <Chip
-            label={`Part No: ${item.part_no || '-'}`}
-            size="small"
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: '#FFFFFF',
-              fontWeight: 500,
-              fontSize: '10px',
-              height: '20px',
-              backdropFilter: 'blur(4px)',
-              '& .MuiChip-label': { px: 1 }
-            }}
-          />
-        </Stack>
-
-        {/* Stepper - 3 Steps */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<ColorConnector />}
-          sx={{ 
-            mt: 0.5,
-            '& .MuiStepLabel-label': {
-              color: '#FFFFFF !important',
-              opacity: 0.8,
-              '&.Mui-active': {
-                color: '#FFFFFF !important',
-                opacity: 1,
-                fontWeight: 600
-              },
-              '&.Mui-completed': {
-                color: '#FFFFFF !important',
-                opacity: 1
-              }
-            }
-          }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel StepIconComponent={CustomStepIcon}>
-                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Box>
-
-      <DialogContent sx={{ 
-        p: 1.5, 
-        overflow: 'hidden', 
-        height: '420px',
-        '&:last-child': {
-          pb: 1.5
-        }
-      }}>
-        {renderStepContent(activeStep)}
+          </Box>
+        )}
       </DialogContent>
 
-      {/* Footer Actions */}
-      <Box sx={{
-        px: 2,
-        py: 1,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
-      }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+      {item && (
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
           <Button
-            onClick={onClose}
-            startIcon={<CloseIcon />}
-            size="small"
-            sx={{ color: '#666', fontSize: '0.8rem' }}
+            onClick={handleBack}
+            disabled={activeStep === 0}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+            }}
           >
-            Close
+            Back
           </Button>
 
-          <Stack direction="row" spacing={1}>
-            {activeStep > 0 && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              onClick={handleClose}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}10` }
+              }}
+            >
+              Close
+            </Button>
+
+            {activeStep === steps.length - 1 ? (
               <Button
-                onClick={handleBack}
-                size="small"
-                startIcon={<NavigateBeforeIcon />}
-                sx={{ color: '#666', fontSize: '0.8rem' }}
+                variant="contained"
+                onClick={handleReset}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
               >
-                Back
+                View from Start
               </Button>
-            )}
-            
-            {activeStep < steps.length - 1 && (
+            ) : (
               <Button
                 variant="contained"
                 onClick={handleNext}
-                size="small"
-                endIcon={<NavigateNextIcon />}
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
                 sx={{
-                  backgroundColor: PRIMARY_BLUE,
-                  fontSize: '0.8rem',
-                  '&:hover': { backgroundColor: '#0e7490' }
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
                 }}
               >
                 Next
               </Button>
-            ) }
-          </Stack>
-        </Stack>
-      </Box>
+            )}
+          </Box>
+        </DialogActions>
+      )}
     </Dialog>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -37,7 +37,8 @@ import {
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
-   Block as BlockIcon
+  Block as BlockIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -247,15 +248,15 @@ const ActionMenu = ({ item, onView, onEdit, onDelete, onApprove, onBlacklist, an
 const VendorMaster = () => {
   // State for data
   const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection state
   const [selected, setSelected] = useState([]);
@@ -286,6 +287,10 @@ const VendorMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -344,24 +349,60 @@ const VendorMaster = () => {
   const canImport = checkPermission(ACTIONS.IMPORT);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debounce search to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch vendors from API with pagination - only if user has permission
   const fetchVendors = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage
       });
       
@@ -378,8 +419,7 @@ const VendorMaster = () => {
       if (response.data.success) {
         const { data: vendorsData, pagination } = response.data;
         setVendors(vendorsData || []);
-        setTotalItems(pagination.totalItems);
-        setTotalPages(pagination.totalPages);
+        setTotalItems(pagination.totalItems || pagination.total || 0);
       } else {
         showNotification('Failed to load vendors', 'error');
       }
@@ -393,13 +433,18 @@ const VendorMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchVendors();
     }
   }, [fetchVendors, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+  const handleRefresh = () => {
+    fetchVendors();
+    showNotification('Data refreshed', 'success');
+  };
 
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
@@ -445,6 +490,7 @@ const VendorMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -453,6 +499,7 @@ const VendorMaster = () => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
@@ -462,22 +509,33 @@ const VendorMaster = () => {
     
     if (selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${BASE_URL}/api/vendors/bulk`, {
+      await axios.post(`${BASE_URL}/api/vendors/bulk-delete`, {
+        ids: selected
+      }, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        data: { ids: selected }
+        }
       });
       
-      fetchVendors();
       setSelected([]);
+      
+      if (vendors.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchVendors();
+      }
+      
       showNotification(`${selected.length} vendors deleted successfully`, 'success');
     } catch (err) {
       console.error('Error bulk deleting vendors:', err);
       showNotification('Failed to delete vendors', 'error');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -716,7 +774,8 @@ const VendorMaster = () => {
               placeholder="Search vendors..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
                 '& .MuiOutlinedInput-root': {
@@ -733,6 +792,13 @@ const VendorMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
@@ -747,12 +813,28 @@ const VendorMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button

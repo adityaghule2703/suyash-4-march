@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -42,7 +42,8 @@ import {
   Send as SendIcon,
   Compare as CompareIcon,
   Close as CloseIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -238,12 +239,13 @@ const ActionMenu = ({ item, onView, onSend, onSubmitQuote, onCompare, onCloseRfq
 
 const RFQMaster = () => {
   const [rfqs, setRfqs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [selectedRfqForAction, setSelectedRfqForAction] = useState(null);
@@ -265,6 +267,10 @@ const RFQMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -328,37 +334,58 @@ const RFQMaster = () => {
   const canExport = checkPermission(ACTIONS.EXPORT);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debug: Log all permission values
-  useEffect(() => {
-    if (permissionsLoaded) {
-      console.log('RFQ Master Permission Values:', {
-        canViewPage,
-        canCreate,
-        canUpdate,
-        canDelete,
-        canReject,
-        canExport,
-        canPrint,
-        isSuperAdmin,
-        userPermissionsCount: userPermissions.length
-      });
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  }, [permissionsLoaded, canViewPage, canCreate, canUpdate, canDelete, canReject, canExport, canPrint, isSuperAdmin, userPermissions.length]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const fetchRFQs = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
-        page: page + 1,
+        page: currentPage,
         limit: rowsPerPage,
         sort_by: 'createdAt',
         sort_order: 'desc'
@@ -371,7 +398,7 @@ const RFQMaster = () => {
 
       if (response.data.success) {
         setRfqs(response.data.data || []);
-        setTotalItems(response.data.pagination.total);
+        setTotalItems(response.data.pagination?.total || 0);
       } else {
         showNotification('Failed to load RFQs', 'error');
       }
@@ -381,13 +408,18 @@ const RFQMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchRFQs();
     }
   }, [fetchRFQs, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+  const handleRefresh = () => {
+    fetchRFQs();
+    showNotification('Data refreshed', 'success');
+  };
 
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
@@ -402,8 +434,32 @@ const RFQMaster = () => {
 
   // Handle bulk delete
   const handleBulkDelete = async () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/rfqs/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      if (rfqs.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchRFQs();
+      }
+      
+      showNotification(`${selected.length} RFQ(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete RFQs', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVendorSelected = (data) => {
@@ -426,12 +482,14 @@ const RFQMaster = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
 
@@ -637,7 +695,8 @@ const RFQMaster = () => {
               placeholder="Search by RFQ number..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ width: { xs: '100%', sm: 320 } }}
               InputProps={{
                 startAdornment: (
@@ -645,13 +704,36 @@ const RFQMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { height: 36, bgcolor: COLORS.background.light }
               }}
-              disabled={loading}
             />
           </Stack>
           
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button

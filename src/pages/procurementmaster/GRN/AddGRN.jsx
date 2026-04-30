@@ -155,7 +155,7 @@ const AddGRN = ({ open, onClose, onAdd }) => {
       });
       if (response.data.success) {
         const eligiblePos = response.data.data.filter(po => 
-          po.status === 'Sent' || po.status === 'Acknowledged'
+          po.status === 'Sent' || po.status === 'Acknowledged' || po.status === 'Partially Received'
         );
         setPos(eligiblePos);
       }
