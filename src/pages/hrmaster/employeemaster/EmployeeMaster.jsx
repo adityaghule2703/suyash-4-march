@@ -305,29 +305,46 @@ const EmployeeMaster = () => {
     }
   }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/employees`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+ const fetchEmployees = async (showLoader = true) => {
+  try {
+    if (showLoader) setLoading(true);
 
-      if (response.data.success) {
-        setEmployees(response.data.data || []);
-        setFilteredEmployees(response.data.data || []);
-      } else {
-        showNotification('Failed to load employees', 'error');
+    const token = localStorage.getItem('token');
+
+    // ✅ Query Params
+    const params = new URLSearchParams();
+
+    params.append('page', page + 1);
+    params.append('limit', rowsPerPage);
+
+    if (searchTerm) params.append('search', searchTerm);
+
+    const response = await axios.get(
+      `${BASE_URL}/api/employees?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
-    } catch (err) {
-      console.error('Error fetching employees:', err);
-      showNotification('Failed to load employees. Please try again.', 'error');
-    } finally {
-      setLoading(false);
+    );
+
+    if (response.data.success) {
+      const data = response.data.data || [];
+
+      setEmployees(data);
+      setFilteredEmployees(data); // ✅ server-side filtering
+
+    } else {
+      showNotification('Failed to load employees', 'error');
     }
-  };
+
+  } catch (err) {
+    console.error('Error fetching employees:', err);
+    showNotification('Failed to load employees. Please try again.', 'error');
+  } finally {
+    if (showLoader) setLoading(false);
+  }
+};
 
   // Handle refresh
   const handleRefresh = () => {

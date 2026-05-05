@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
   Button,
   TextField,
   Stack,
@@ -20,13 +18,20 @@ import {
   Paper,
   IconButton,
   Divider,
-  CircularProgress
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled,
+  Grid
 } from '@mui/material';
 import { Edit as EditIcon, Delete, Add, Close, Person, Warehouse } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 
-// Color constants matching EditDesignations component
+// Color constants matching ViewWarehouseStock
 const COLORS = {
   primary: '#063C3F',
   primaryLight: '#E8F0F1',
@@ -35,36 +40,84 @@ const COLORS = {
     primary: '#151C26',
     secondary: '#4B5568',
     tertiary: '#94A3B8',
-    light: '#FFFFFF',
-    lightMuted: 'rgba(255, 255, 255, 0.9)'
+    light: '#FFFFFF'
   },
   background: {
     white: '#FFFFFF',
     light: '#F8FFFC',
-    hover: '#F0FDF9',
-    tableHeader: '#063C3F'
+    hover: '#F0FDF9'
   },
   border: '#E3E8EF',
-  status: {
-    success: '#9FE2BF',
-    warning: '#FEF3C7',
-    error: '#FEE2E2',
-    info: '#E0F2FE'
-  },
-  chips: {
-    active: '#9FE2BF',
-    inactive: '#F1F5F9',
-    suspended: '#FEF3C7',
-    locked: '#FEE2E2'
-  }
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6'
 };
 
+const HEADER_GRADIENT = 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)';
+const PRIMARY_DARK = '#063C3F';
+const PRIMARY_BLUE = '#00B4D8';
+
+// Modern Stepper Connector with Gradient
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? PRIMARY_BLUE : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: PRIMARY_BLUE,
+    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: PRIMARY_BLUE,
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
+const steps = ['Basic Information', 'Bins Configuration'];
+
 const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fetchingEmployees, setFetchingEmployees] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState('');
-  
+
   // State for Bin Management
   const [bins, setBins] = useState([]);
   const [isAddingBin, setIsAddingBin] = useState(false);
@@ -86,21 +139,10 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
     is_active: true
   });
 
-  const warehouseTypes = [
-    "Raw Material",
-    "Finished Goods",
-    "WIP",
-    "Consumable",
-    "Subcontract",
-    "Tool",
-    "Scrap",
-    "Quarantine"
-  ];
-
   // Helper function to get employee display name
   const getEmployeeDisplayName = (employee) => {
     if (!employee) return "Unknown Employee";
-    
+
     if (employee.FirstName && employee.LastName) {
       return `${employee.FirstName} ${employee.LastName}`;
     }
@@ -110,7 +152,7 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
     if (employee.employee_name) return employee.employee_name;
     if (employee.email) return employee.email.split('@')[0];
     if (employee.EmployeeID) return `Employee ${employee.EmployeeID}`;
-    
+
     return "Unknown Employee";
   };
 
@@ -124,7 +166,7 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
         manager_id: data.manager_id?._id || data.manager_id || '',
         is_active: data.is_active !== undefined ? data.is_active : true
       });
-      
+
       // Set bins from warehouse data
       if (data.bins && Array.isArray(data.bins)) {
         setBins(data.bins);
@@ -159,6 +201,7 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
       setError('');
       setIsAddingBin(false);
       setEditingBin(null);
+      setActiveStep(0);
     }
   }, [open]);
 
@@ -296,8 +339,8 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
     setError('');
   };
 
-  // Validate main form
-  const validateForm = () => {
+  // Validate basic info step
+  const validateBasicInfo = () => {
     if (!formData.warehouse_name.trim()) {
       setError('Warehouse name is required');
       return false;
@@ -309,16 +352,26 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
     return true;
   };
 
+  const handleNext = () => {
+    if (validateBasicInfo()) {
+      setActiveStep(1);
+      setError('');
+    }
+  };
+
+  const handleBack = () => {
+    setActiveStep(0);
+    setError('');
+  };
+
   // Submit update
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      
+
       const payload = {
         warehouse_name: formData.warehouse_name.trim(),
         location: formData.location.trim(),
@@ -355,691 +408,688 @@ const EditWareHouse = ({ open, onClose, data, onUpdate }) => {
     }
   };
 
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                Basic Information
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      WAREHOUSE NAME <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      name="warehouse_name"
+                      value={formData.warehouse_name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="Enter warehouse name"
+                      size="small"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem'
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      WAREHOUSE TYPE
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={formData.warehouse_type}
+                      disabled
+                      size="small"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          backgroundColor: COLORS.background.light
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem',
+                          color: COLORS.text.secondary
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      LOCATION <span style={{ color: '#EF4444' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="Enter location"
+                      size="small"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '&:hover fieldset': { borderColor: COLORS.primary },
+                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': {
+                          py: 1,
+                          px: 1.5,
+                          fontSize: '0.75rem'
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
+                      MANAGER
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        name="manager_id"
+                        value={formData.manager_id || ""}
+                        onChange={handleChange}
+                        disabled={loading || fetchingEmployees}
+                        displayEmpty
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          '& .MuiSelect-select': {
+                            py: 1,
+                            px: 1.5
+                          }
+                        }}
+                        renderValue={(selected) => {
+                          if (!selected) return <span style={{ color: COLORS.text.tertiary }}>Select manager</span>;
+                          const employee = employees.find(emp => emp._id === selected);
+                          return getEmployeeDisplayName(employee);
+                        }}
+                      >
+                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}>
+                          <em>None</em>
+                        </MenuItem>
+                        {fetchingEmployees ? (
+                          <MenuItem disabled sx={{ fontSize: '0.75rem' }}>
+                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                            Loading employees...
+                          </MenuItem>
+                        ) : (
+                          employees.map((emp) => (
+                            <MenuItem key={emp._id} value={emp._id} sx={{ fontSize: '0.75rem' }}>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Person sx={{ fontSize: '0.875rem', color: COLORS.text.tertiary }} />
+                                <span>{getEmployeeDisplayName(emp)}</span>
+                              </Stack>
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.is_active}
+                        onChange={handleSwitchChange}
+                        disabled={loading}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: COLORS.primary,
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: COLORS.primary,
+                          },
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                        Active Warehouse
+                      </Typography>
+                    }
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1:
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary }}>
+                  Bins Configuration
+                </Typography>
+                <Chip
+                  label={`${bins.length} bin(s)`}
+                  size="small"
+                  sx={{
+                    fontSize: "0.65rem",
+                    height: 22,
+                    bgcolor: COLORS.primaryLight,
+                    color: COLORS.primary
+                  }}
+                />
+              </Stack>
+
+              {/* Add/Edit Bin Form */}
+              {isAddingBin && (
+                <Paper
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    border: `1px solid ${COLORS.primary}`,
+                    bgcolor: COLORS.background.light
+                  }}
+                >
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                    {editingBin !== null ? "Edit Bin" : "Add New Bin"}
+                  </Typography>
+
+                  <Grid container spacing={1.5}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Bin ID"
+                        name="bin_id"
+                        size="small"
+                        value={binFormData.bin_id}
+                        onChange={handleBinFormChange}
+                        placeholder="e.g., BIN-001"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Bin Code"
+                        name="bin_code"
+                        size="small"
+                        value={binFormData.bin_code}
+                        onChange={handleBinFormChange}
+                        placeholder="e.g., A-1-1"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        fullWidth
+                        label="Rack"
+                        name="rack"
+                        size="small"
+                        value={binFormData.rack}
+                        onChange={handleBinFormChange}
+                        placeholder="e.g., A"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="Row"
+                        name="row"
+                        type="number"
+                        size="small"
+                        value={binFormData.row}
+                        onChange={handleBinFormChange}
+                        placeholder="1"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="Column"
+                        name="col"
+                        type="number"
+                        size="small"
+                        value={binFormData.col}
+                        onChange={handleBinFormChange}
+                        placeholder="1"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="Capacity (Units)"
+                        name="capacity"
+                        type="number"
+                        size="small"
+                        value={binFormData.capacity}
+                        onChange={handleBinFormChange}
+                        placeholder="5000"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            fontSize: '0.75rem',
+                            '&:hover fieldset': { borderColor: COLORS.primary },
+                            '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
+                          },
+                          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+                          '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      <Button
+                        onClick={cancelBinForm}
+                        size="small"
+                        sx={{
+                          textTransform: "none",
+                          fontSize: "0.7rem",
+                          height: 32,
+                          px: 2,
+                          borderRadius: 1.5,
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text.secondary,
+                          '&:hover': {
+                            borderColor: COLORS.primary,
+                            bgcolor: `${COLORS.primary}10`
+                          }
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={saveBin}
+                        variant="contained"
+                        size="small"
+                        sx={{
+                          textTransform: "none",
+                          fontSize: "0.7rem",
+                          height: 32,
+                          px: 2,
+                          borderRadius: 1.5,
+                          bgcolor: COLORS.primary,
+                          '&:hover': { bgcolor: COLORS.primaryDark }
+                        }}
+                      >
+                        {editingBin !== null ? "Update Bin" : "Add Bin"}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              )}
+
+              {/* Bins List */}
+              {bins.length === 0 && !isAddingBin ? (
+                <Paper
+                  sx={{
+                    p: 2,
+                    textAlign: "center",
+                    borderRadius: 2,
+                    border: `1px solid ${COLORS.border}`,
+                    bgcolor: COLORS.background.light
+                  }}
+                >
+                  <Warehouse sx={{ fontSize: 32, color: COLORS.text.tertiary, mb: 0.5 }} />
+                  <Typography sx={{ color: COLORS.text.secondary, fontSize: '0.7rem' }}>
+                    No bins configured. Click "Add Bin" to create one.
+                  </Typography>
+                </Paper>
+              ) : (
+                bins.map((bin, index) => (
+                  <Paper
+                    key={index}
+                    sx={{
+                      p: 1.5,
+                      mb: 1.5,
+                      borderRadius: 2,
+                      border: `1px solid ${COLORS.border}`,
+                      bgcolor: COLORS.background.white,
+                      '&:hover': {
+                        borderColor: COLORS.primary
+                      }
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Chip
+                          label={`Bin #${index + 1}`}
+                          size="small"
+                          sx={{
+                            fontSize: "0.6rem",
+                            height: 20,
+                            bgcolor: COLORS.primaryLight,
+                            color: COLORS.primary,
+                            fontWeight: 500
+                          }} 
+                        />
+                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                          {bin.bin_code}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditBin(bin, index)}
+                          sx={{ color: COLORS.primary, p: 0.5 }}
+                        >
+                          <EditIcon sx={{ fontSize: '0.875rem' }} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteBin(index)}
+                          sx={{ color: '#EF4444', p: 0.5 }}
+                        >
+                          <Delete sx={{ fontSize: '0.875rem' }} />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+
+                    <Divider sx={{ my: 0.75 }} />
+
+                    <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                      <Grid size={{ xs: 6, sm: 3 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Bin ID
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                          {bin.bin_id}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, sm: 3 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Rack
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                          {bin.rack}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, sm: 3 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Position
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                          {bin.row},{bin.col}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6, sm: 3 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: COLORS.text.tertiary }}>
+                          Capacity
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                          {bin.capacity.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ))
+              )}
+
+              {!isAddingBin && (
+                <Button
+                  startIcon={<Add sx={{ fontSize: '1rem' }} />}
+                  onClick={handleAddBinClick}
+                  size="small"
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "0.7rem",
+                    fontWeight: 500,
+                    color: COLORS.primary,
+                    mt: 1,
+                    '&:hover': { bgcolor: COLORS.primaryLight }
+                  }}
+                >
+                  Add Bin
+                </Button>
+              )}
+            </Paper>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
+          borderRadius: 3,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          height: 'auto',
+          maxHeight: '90vh'
         }
       }}
     >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
+      {/* Header with Gradient */}
+      <Box sx={{ background: HEADER_GRADIENT, py: 1.5, px: 2.5 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography sx={{ fontWeight: 600, color: '#FFFFFF', fontSize: '1rem' }}>
+              Edit Warehouse
+            </Typography>
+          </Stack>
+        </Stack>
+
+        {/* Stepper */}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{
+            mt: 0.5,
+            '& .MuiStepLabel-label': {
+              color: '#FFFFFF !important',
+              opacity: 0.8,
+              fontSize: '0.7rem !important',
+              '&.Mui-active': {
+                color: '#FFFFFF !important',
+                opacity: 1,
+                fontWeight: 600
+              },
+              '&.Mui-completed': {
+                color: '#FFFFFF !important',
+                opacity: 1
+              }
+            }
+          }}
+        >
+          {steps.map((label, index) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      <DialogContent sx={{
+        p: 2.5,
+        overflow: 'auto',
+        maxHeight: 'calc(90vh - 140px)',
+        backgroundColor: '#F8FFFC'
+      }}>
+        {error && (
+          <Alert
+            severity="error"
+            sx={{
+              borderRadius: 1.5,
+              mb: 2,
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        {renderStepContent(activeStep)}
+      </DialogContent>
+
+      {/* Footer Actions */}
+      <Box sx={{
         px: 2.5,
-        mb: 2,
-        bgcolor: COLORS.background.white,
+        py: 1.5,
+        borderTop: '1px solid #E3E8EF',
+        backgroundColor: '#FFFFFF',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <Typography
-          sx={{
-            fontSize: '1.2rem',
-            fontWeight: 700,
-            color: COLORS.text.primary
-          }}
-        >
-          Edit Warehouse
-        </Typography>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5 }}>
-        <Stack spacing={2}>
-          {/* Basic Information Section */}
-          <Box>
-            <Typography
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: COLORS.text.secondary,
-                letterSpacing: '0.5px',
-                mb: 1.5
-              }}
-            >
-              BASIC INFORMATION
-            </Typography>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-              {/* Warehouse Name - Column 1 Row 1 */}
-              <Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    WAREHOUSE NAME <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    name="warehouse_name"
-                    value={formData.warehouse_name}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="Enter warehouse name"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': {
-                          borderColor: COLORS.primary,
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: COLORS.primary,
-                          borderWidth: 1
-                        }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem',
-                        color: COLORS.text.primary,
-                        '&::placeholder': {
-                          color: COLORS.text.tertiary,
-                          fontSize: '0.75rem'
-                        }
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              {/* Warehouse Type (Read Only) - Column 2 Row 1 */}
-              <Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    WAREHOUSE TYPE
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    value={formData.warehouse_type}
-                    disabled
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        backgroundColor: COLORS.background.light
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem',
-                        color: COLORS.text.secondary
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              {/* Location - Column 1 Row 2 */}
-              <Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    LOCATION <span style={{ color: '#EF4444' }}>*</span>
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    disabled={loading}
-                    placeholder="Enter location"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '&:hover fieldset': {
-                          borderColor: COLORS.primary,
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: COLORS.primary,
-                          borderWidth: 1
-                        }
-                      },
-                      '& .MuiInputBase-input': {
-                        py: 1,
-                        px: 1.5,
-                        fontSize: '0.75rem',
-                        color: COLORS.text.primary,
-                        '&::placeholder': {
-                          color: COLORS.text.tertiary,
-                          fontSize: '0.75rem'
-                        }
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              {/* Manager - Column 2 Row 2 */}
-              <Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: COLORS.text.secondary,
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    MANAGER
-                  </Typography>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      name="manager_id"
-                      value={formData.manager_id || ""}
-                      onChange={handleChange}
-                      disabled={loading || fetchingEmployees}
-                      displayEmpty
-                      sx={{
-                        borderRadius: 1.5,
-                        fontSize: '0.75rem',
-                        '& .MuiSelect-select': {
-                          py: 1,
-                          px: 1.5
-                        }
-                      }}
-                      renderValue={(selected) => {
-                        if (!selected) return <span style={{ color: COLORS.text.tertiary }}>Select manager</span>;
-                        const employee = employees.find(emp => emp._id === selected);
-                        return getEmployeeDisplayName(employee);
-                      }}
-                    >
-                      <MenuItem value="" sx={{ fontSize: '0.75rem' }}>
-                        <em>None</em>
-                      </MenuItem>
-                      {fetchingEmployees ? (
-                        <MenuItem disabled sx={{ fontSize: '0.75rem' }}>
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                          Loading employees...
-                        </MenuItem>
-                      ) : (
-                        employees.map((emp) => (
-                          <MenuItem key={emp._id} value={emp._id} sx={{ fontSize: '0.75rem' }}>
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <Person sx={{ fontSize: '0.875rem', color: COLORS.text.tertiary }} />
-                              <span>{getEmployeeDisplayName(emp)}</span>
-                              {emp.EmployeeID && (
-                                <Typography component="span" variant="caption" sx={{ color: COLORS.text.tertiary }}>
-                                  ({emp.EmployeeID})
-                                </Typography>
-                              )}
-                            </Stack>
-                          </MenuItem>
-                        ))
-                      )}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-
-              {/* Active Status - Full Width Row 3 */}
-              <Box sx={{ gridColumn: 'span 2' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.is_active}
-                      onChange={handleSwitchChange}
-                      disabled={loading}
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: COLORS.primary,
-                        },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: COLORS.primary,
-                        },
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
-                      Active Warehouse
-                    </Typography>
-                  }
-                />
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Bins Section */}
-          <Box>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                BINS CONFIGURATION
-              </Typography>
-              <Button
-                startIcon={<Add sx={{ fontSize: '0.875rem' }} />}
-                onClick={handleAddBinClick}
-                disabled={loading}
-                size="small"
-                sx={{
-                  textTransform: "none",
-                  fontSize: "0.7rem",
-                  fontWeight: 500,
-                  color: COLORS.primary,
-                  '&:hover': {
-                    bgcolor: COLORS.primaryLight
-                  }
-                }}
-              >
-                Add Bin
-              </Button>
-            </Stack>
-
-            {/* Add/Edit Bin Form */}
-            {isAddingBin && (
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  mb: 2, 
-                  borderRadius: 2, 
-                  border: `1px solid ${COLORS.primary}`,
-                  boxShadow: "none",
-                  bgcolor: COLORS.background.light
-                }}
-              >
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                  {editingBin !== null ? "Edit Bin" : "Add New Bin"}
-                </Typography>
-                
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                  <Box sx={{ gridColumn: { xs: 'span 2', sm: 'span 1' } }}>
-                    <TextField
-                      fullWidth
-                      label="Bin ID"
-                      name="bin_id"
-                      size="small"
-                      value={binFormData.bin_id}
-                      onChange={handleBinFormChange}
-                      placeholder="e.g., BIN-001"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box sx={{ gridColumn: { xs: 'span 2', sm: 'span 1' } }}>
-                    <TextField
-                      fullWidth
-                      label="Bin Code"
-                      name="bin_code"
-                      size="small"
-                      value={binFormData.bin_code}
-                      onChange={handleBinFormChange}
-                      placeholder="e.g., A-1-1"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box sx={{ gridColumn: 'span 2' }}>
-                    <TextField
-                      fullWidth
-                      label="Rack"
-                      name="rack"
-                      size="small"
-                      value={binFormData.rack}
-                      onChange={handleBinFormChange}
-                      placeholder="e.g., A"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box>
-                    <TextField
-                      fullWidth
-                      label="Row"
-                      name="row"
-                      type="number"
-                      size="small"
-                      value={binFormData.row}
-                      onChange={handleBinFormChange}
-                      placeholder="1"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box>
-                    <TextField
-                      fullWidth
-                      label="Column"
-                      name="col"
-                      type="number"
-                      size="small"
-                      value={binFormData.col}
-                      onChange={handleBinFormChange}
-                      placeholder="1"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box sx={{ gridColumn: 'span 2' }}>
-                    <TextField
-                      fullWidth
-                      label="Capacity (Units)"
-                      name="capacity"
-                      type="number"
-                      size="small"
-                      value={binFormData.capacity}
-                      onChange={handleBinFormChange}
-                      placeholder="5000"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.75rem',
-                          '&:hover fieldset': { borderColor: COLORS.primary },
-                          '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 }
-                        },
-                        '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-                        '& .MuiInputBase-input': { py: 1, px: 1.5, fontSize: '0.75rem' }
-                      }}
-                    />
-                  </Box>
-
-                  <Box sx={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                    <Button
-                      onClick={cancelBinForm}
-                      size="small"
-                      sx={{
-                        textTransform: "none",
-                        fontSize: "0.7rem",
-                        height: 32,
-                        px: 2,
-                        borderRadius: 1.5,
-                        border: `1px solid ${COLORS.border}`,
-                        color: COLORS.text.secondary,
-                        '&:hover': {
-                          borderColor: COLORS.primary,
-                          bgcolor: `${COLORS.primary}10`
-                        }
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={saveBin}
-                      variant="contained"
-                      size="small"
-                      sx={{
-                        textTransform: "none",
-                        fontSize: "0.7rem",
-                        height: 32,
-                        px: 2,
-                        borderRadius: 1.5,
-                        bgcolor: COLORS.primary,
-                        '&:hover': { bgcolor: COLORS.primaryDark }
-                      }}
-                    >
-                      {editingBin !== null ? "Update Bin" : "Add Bin"}
-                    </Button>
-                  </Box>
-                </Box>
-              </Paper>
-            )}
-
-            {/* Bins List */}
-            {bins.length === 0 && !isAddingBin ? (
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  textAlign: "center", 
-                  borderRadius: 2, 
-                  border: `1px solid ${COLORS.border}`,
-                  bgcolor: COLORS.background.light
-                }}
-              >
-                <Warehouse sx={{ fontSize: 32, color: COLORS.text.tertiary, mb: 0.5 }} />
-                <Typography sx={{ color: COLORS.text.secondary, fontSize: '0.7rem' }}>
-                  No bins configured. Click "Add Bin" to create one.
-                </Typography>
-              </Paper>
-            ) : (
-              bins.map((bin, index) => (
-                <Paper 
-                  key={index} 
-                  sx={{ 
-                    p: 1.5, 
-                    mb: 1.5, 
-                    borderRadius: 2, 
-                    border: `1px solid ${COLORS.border}`, 
-                    boxShadow: "none",
-                    bgcolor: COLORS.background.white,
-                    '&:hover': {
-                      borderColor: COLORS.primary
-                    }
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Chip 
-                        label={`Bin #${index + 1}`} 
-                        size="small" 
-                        sx={{ 
-                          fontSize: "0.6rem", 
-                          height: 20,
-                          bgcolor: COLORS.primaryLight,
-                          color: COLORS.primary,
-                          fontWeight: 500
-                        }} 
-                      />
-                      <Typography variant="caption" sx={{ color: COLORS.text.tertiary, fontSize: '0.65rem' }}>
-                        {bin.bin_code}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={0.5}>
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleEditBin(bin, index)}
-                        sx={{ color: COLORS.primary, p: 0.5 }}
-                      >
-                        <EditIcon sx={{ fontSize: '0.875rem' }} />
-                      </IconButton>
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeleteBin(index)}
-                        sx={{ color: '#EF4444', p: 0.5 }}
-                      >
-                        <Delete sx={{ fontSize: '0.875rem' }} />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-                  
-                  <Divider sx={{ my: 0.75 }} />
-                  
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 1, mt: 1 }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: COLORS.text.tertiary, fontSize: '0.6rem', display: 'block' }}>
-                        Bin ID
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {bin.bin_id}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: COLORS.text.tertiary, fontSize: '0.6rem', display: 'block' }}>
-                        Rack
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {bin.rack}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: COLORS.text.tertiary, fontSize: '0.6rem', display: 'block' }}>
-                        Position
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {bin.row},{bin.col}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: COLORS.text.tertiary, fontSize: '0.6rem', display: 'block' }}>
-                        Capacity
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                        {bin.capacity.toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              ))
-            )}
-          </Box>
-
-          {error && (
-            <Alert
-              severity="error"
-              sx={{
-                borderRadius: 1.5,
-                mt: 1,
-                '& .MuiAlert-icon': {
-                  fontSize: '1.25rem',
-                  alignItems: 'center'
-                },
-                fontSize: '0.75rem',
-                py: 0.5
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{
-        px: 2.5,
-        py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 1
-      }}>
         <Button
           onClick={onClose}
-          disabled={loading}
+          size="small"
           sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
+            color: '#64748B',
+            fontSize: '0.75rem',
             textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
+            '&:hover': { bgcolor: '#F1F5F9' }
           }}
         >
           Cancel
         </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading || !formData.warehouse_name.trim() || !formData.location.trim()}
-          startIcon={loading ? null : <EditIcon sx={{ fontSize: '1rem' }} />}
-          sx={{
-            height: 32,
-            px: 2,
-            borderRadius: 1.5,
-            bgcolor: COLORS.primary,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            textTransform: 'none',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-            '&:hover': {
-              bgcolor: COLORS.primaryDark,
-            },
-            '&:disabled': {
-              bgcolor: COLORS.border,
-              color: COLORS.text.tertiary
-            }
-          }}
-        >
-          {loading ? 'Updating...' : 'Update Warehouse'}
-        </Button>
-      </DialogActions>
+
+        <Stack direction="row" spacing={1}>
+          {activeStep > 0 && (
+            <Button
+              onClick={handleBack}
+              size="small"
+              sx={{
+                color: '#64748B',
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#F1F5F9' }
+              }}
+            >
+              Back
+            </Button>
+          )}
+
+          {activeStep < steps.length - 1 && (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              sx={{
+                backgroundColor: PRIMARY_DARK,
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: '#05292B',
+                  boxShadow: 'none'
+                }
+              }}
+            >
+              Next
+            </Button>
+          )}
+
+          {activeStep === steps.length - 1 && (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading}
+              sx={{
+                backgroundColor: PRIMARY_DARK,
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: '#05292B',
+                  boxShadow: 'none'
+                }
+              }}
+            >
+              {loading ? <CircularProgress size={16} sx={{ color: '#FFFFFF' }} /> : 'Update Warehouse'}
+            </Button>
+          )}
+        </Stack>
+      </Box>
     </Dialog>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -26,7 +26,11 @@ import {
   ListItemText,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -36,7 +40,7 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
-  Business as BusinessIcon
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -202,14 +206,15 @@ const ActionMenu = ({ company, onView, onEdit, onDelete, anchorEl, onClose, onOp
 const CompanyMaster = () => {
   // State for data
   const [companies, setCompanies] = useState([]);
-  const [filteredCompanies, setFilteredCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState([]);
   
   // Menu state for action buttons
@@ -236,6 +241,10 @@ const CompanyMaster = () => {
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref to track if we're currently searching (typing)
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -292,28 +301,68 @@ const CompanyMaster = () => {
   const canImport = checkPermission(ACTIONS.IMPORT);
   const canPrint = checkPermission(ACTIONS.PRINT);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with proper debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setCurrentPage(1);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch companies from API - only if user has permission
-  useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchCompanies();
-    }
-  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
-
-  const fetchCompanies = async () => {
-    try {
+  const fetchCompanies = useCallback(async () => {
+    // Don't show loading indicator while typing search and only if user has permission
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/company`, {
+      
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: rowsPerPage
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await axios.get(`${BASE_URL}/api/company?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -332,7 +381,7 @@ const CompanyMaster = () => {
         }));
         
         setCompanies(formattedData);
-        setFilteredCompanies(formattedData);
+        setTotalItems(response.data.count || response.data.total || 0);
       } else {
         showNotification('Failed to load companies', 'error');
       }
@@ -342,7 +391,13 @@ const CompanyMaster = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
+
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchCompanies();
+    }
+  }, [fetchCompanies, permissionsLoaded, canViewPage, isSuperAdmin]);
   
   // Handle refresh
   const handleRefresh = () => {
@@ -350,36 +405,12 @@ const CompanyMaster = () => {
     showNotification('Data refreshed', 'success');
   };
   
-  // Handle search (client-side filtering since no server pagination)
-  const handleSearch = () => {
-    if (!searchTerm) {
-      setFilteredCompanies(companies);
-      return;
-    }
-    
-    const value = searchTerm.toLowerCase();
-    const filtered = companies.filter(company =>
-      company.company_name?.toLowerCase().includes(value) ||
-      (company.email && company.email.toLowerCase().includes(value)) ||
-      (company.gstin && company.gstin.toLowerCase().includes(value)) ||
-      (company.pan && company.pan.toLowerCase().includes(value)) ||
-      (company.state && company.state.toLowerCase().includes(value))
-    );
-    
-    setFilteredCompanies(filtered);
-  };
-
-  // Apply search when searchTerm changes
-  useEffect(() => {
-    handleSearch();
-  }, [searchTerm, companies]);
-  
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
     if (event.target.checked) {
-      setSelected(filteredCompanies.map(company => company._id));
+      setSelected(companies.map(company => company._id));
     } else {
       setSelected([]);
     }
@@ -404,6 +435,7 @@ const CompanyMaster = () => {
   // Handle page change
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setCurrentPage(newPage + 1);
     setSelected([]);
   };
   
@@ -411,59 +443,58 @@ const CompanyMaster = () => {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setCurrentPage(1);
     setSelected([]);
   };
   
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/company/bulk-delete`, 
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      setSelected([]);
+      
+      // If we deleted all items on the current page and we're not on the first page, go to previous page
+      if (companies.length === selected.length && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        setPage(prev => prev - 1);
+      } else {
+        fetchCompanies();
+      }
+      
+      showNotification(`${selected.length} company(ies) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete companies', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Handle add company
-  const handleAddCompany = (newCompany) => {
-    // Ensure the new company has all required fields and proper structure
-    const formattedCompany = {
-      ...newCompany,
-      _id: newCompany._id || newCompany.id || Date.now().toString(),
-      bank_details: newCompany.bank_details || {
-        bank_name: '',
-        account_no: '',
-        ifsc: '',
-        branch: ''
-      },
-      company_id: newCompany.company_id || '',
-      company_name: newCompany.company_name || '',
-      address: newCompany.address || '',
-      gstin: newCompany.gstin || '',
-      pan: newCompany.pan || '',
-      state: newCompany.state || '',
-      state_code: newCompany.state_code || '',
-      phone: newCompany.phone || '',
-      email: newCompany.email || '',
-      is_active: newCompany.is_active !== undefined ? newCompany.is_active : true
-    };
-
-    setCompanies(prev => [...prev, formattedCompany]);
+  const handleAddCompany = () => {
+    fetchCompanies();
     showNotification('Company added successfully!', 'success');
   };
   
   // Handle edit company
-  const handleEditCompany = (updatedCompany) => {
-    const updatedCompanies = companies.map(company =>
-      company._id === updatedCompany._id ? updatedCompany : company
-    );
-    
-    setCompanies(updatedCompanies);
+  const handleEditCompany = () => {
+    fetchCompanies();
     showNotification('Company updated successfully!', 'success');
   };
   
   // Handle delete company
-  const handleDeleteCompany = (companyId) => {
-    const updatedCompanies = companies.filter(company => company._id !== companyId);
-    setCompanies(updatedCompanies);
-    setSelected(selected.filter(id => id !== companyId));
+  const handleDeleteCompany = () => {
+    fetchCompanies();
+    setSelected([]);
     showNotification('Company deleted successfully!', 'success');
-  };
-  
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
   };
   
   // Action menu handlers
@@ -547,12 +578,6 @@ const CompanyMaster = () => {
     const charCode = companyName.charCodeAt(0) || 0;
     return colors[charCode % colors.length];
   };
-  
-  // Paginated companies
-  const paginatedCompanies = filteredCompanies.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
 
   // Show loading state while permissions are being fetched
   if (!permissionsLoaded) {
@@ -601,9 +626,10 @@ const CompanyMaster = () => {
               placeholder="Search by company name, GSTIN, PAN, or state..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
-                width: { xs: '100%', sm: 360 },
+                width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 1.5,
                   fontSize: '0.75rem',
@@ -616,6 +642,13 @@ const CompanyMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
@@ -632,12 +665,28 @@ const CompanyMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
             />
           </Stack>
 
           {/* Action Buttons - Conditionally rendered based on permissions */}
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button - Available to all users with view permission */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
             {/* Bulk Delete Button - Only show if user has delete permission */}
             {canDelete && selected.length > 0 && (
               <Button
@@ -714,8 +763,8 @@ const CompanyMaster = () => {
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
-                      indeterminate={selected.length > 0 && selected.length < filteredCompanies.length}
-                      checked={filteredCompanies.length > 0 && selected.length === filteredCompanies.length}
+                      indeterminate={selected.length > 0 && selected.length < companies.length}
+                      checked={companies.length > 0 && selected.length === companies.length}
                       onChange={handleSelectAll}
                       sx={{
                         color: COLORS.text.light,
@@ -729,7 +778,7 @@ const CompanyMaster = () => {
                           fontSize: '1.25rem'
                         }
                       }}
-                      disabled={loading || filteredCompanies.length === 0}
+                      disabled={loading || companies.length === 0}
                     />
                   </TableCell>
                 )}
@@ -786,7 +835,7 @@ const CompanyMaster = () => {
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : paginatedCompanies.length === 0 ? (
+              ) : companies.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canDelete ? 7 : 6} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
@@ -800,7 +849,7 @@ const CompanyMaster = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedCompanies.map((company, index) => {
+                companies.map((company, index) => {
                   const isSelected = selected.includes(company._id);
                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
                     selectedCompanyForAction?._id === company._id;
@@ -867,6 +916,11 @@ const CompanyMaster = () => {
                             <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
                               {company.state} {company.state_code && `(Code: ${company.state_code})`}
                             </Typography>
+                            {company.company_id && (
+                              <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                                ID: {company.company_id}
+                              </Typography>
+                            )}
                           </Box>
                         </Stack>
                       </TableCell>
@@ -922,7 +976,7 @@ const CompanyMaster = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={filteredCompanies.length}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

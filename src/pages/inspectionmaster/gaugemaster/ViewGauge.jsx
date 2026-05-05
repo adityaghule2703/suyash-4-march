@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -12,21 +12,30 @@ import {
   DialogActions,
   Chip,
   Divider,
-  FormControlLabel,
-  Checkbox
+  IconButton,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from '@mui/material';
 import {
   Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
   Straighten as GaugeIcon,
   Build as BuildIcon,
   Settings as SettingsIcon,
   People as PeopleIcon,
-  Verified as VerifiedIcon
+  Verified as VerifiedIcon,
+  AccessTime as AccessTimeIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 
 const COLORS = {
   primary: '#063C3F',
-  primaryLight: '#E8F0F1',
+  primaryDark: '#05292B',
   text: {
     primary: '#151C26',
     secondary: '#4B5568',
@@ -39,23 +48,98 @@ const COLORS = {
   border: '#E3E8EF'
 };
 
+const steps = ['Basic Info', 'Technical & Calibration', 'MSA & System'];
+
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? COLORS.primary : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: COLORS.primary,
+    boxShadow: '0 4px 10px 0 rgba(6,60,63,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: COLORS.primary,
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
 const ViewGauge = ({ open, onClose, gauge }) => {
+  const [activeStep, setActiveStep] = useState(0);
+
   if (!gauge) return null;
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
   const getStatusChip = (status) => {
     const colors = {
-      Calibrated: { bg: '#D1FAE5', color: '#065F46' },
+      'Calibrated': { bg: '#D1FAE5', color: '#065F46' },
       'Due for Calibration': { bg: '#FEF3C7', color: '#B45309' },
-      Overdue: { bg: '#FEE2E2', color: '#991B1B' }
+      'Overdue': { bg: '#FEE2E2', color: '#991B1B' }
     };
     const style = colors[status] || { bg: '#F1F5F9', color: '#475569' };
     return (
@@ -64,13 +148,309 @@ const ViewGauge = ({ open, onClose, gauge }) => {
         size="small"
         sx={{
           fontSize: '0.7rem',
-          fontWeight: 600,
-          height: 26,
+          fontWeight: 500,
+          height: 24,
           bgcolor: style.bg,
           color: style.color
         }}
       />
     );
+  };
+
+  // Helper function to render field
+  const renderField = (label, value, monospace = false, highlight = false) => (
+    <Box>
+      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ 
+        fontSize: '0.8rem', 
+        fontWeight: highlight ? 700 : 500, 
+        color: highlight ? COLORS.primary : COLORS.text.primary,
+        fontFamily: monospace ? 'monospace' : 'inherit',
+        wordBreak: 'break-word'
+      }}>
+        {value || '-'}
+      </Typography>
+    </Box>
+  );
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Basic Info
+        return (
+          <Stack spacing={2}>
+            {/* Header Section - Gauge Overview */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <GaugeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Gauge Overview
+              </Typography>
+              
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                    {gauge.gauge_name}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                    Code: {gauge.gauge_code || gauge.gauge_id}
+                  </Typography>
+                </Box>
+                {getStatusChip(gauge.status)}
+              </Stack>
+              
+              <Divider sx={{ my: 1.5 }} />
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Gauge Type', gauge.gauge_type, false, true)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Serial No', gauge.serial_no, true)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Basic Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Basic Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Gauge Name', gauge.gauge_name)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Make', gauge.make)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Model', gauge.model)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Gauge Code', gauge.gauge_code || gauge.gauge_id, true)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Location & Custodian */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <BuildIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Location & Custodian
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Location', gauge.location)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Department', gauge.department)}
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  {renderField('Custodian', gauge.custodian_id
+                    ? `${gauge.custodian_id.FirstName || ''} ${gauge.custodian_id.LastName || ''}`.trim()
+                    : 'Not assigned')}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1: // Technical & Calibration
+        return (
+          <Stack spacing={2}>
+            {/* Technical Details */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <SettingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Technical Details
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Range', gauge.range)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Least Count', gauge.least_count)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Accuracy', gauge.accuracy)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Calibration Details */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <VerifiedIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Calibration Details
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Last Calibration Date', formatDate(gauge.last_calibration_date))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Next Calibration Date', formatDate(gauge.next_calibration_date))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Calibration Frequency', gauge.calibration_frequency_days ? `${gauge.calibration_frequency_days} days` : '-')}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Calibration Agency', gauge.calibration_agency)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('NABL Accredited', gauge.nabl_accredited ? 'Yes' : 'No')}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 2: // MSA & System
+        return (
+          <Stack spacing={2}>
+            {/* MSA Details */}
+            {gauge.msa_required && (
+              <Paper sx={{ 
+                p: 2, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                bgcolor: COLORS.background.white
+              }}>
+                <Typography sx={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: 600, 
+                  color: COLORS.primary, 
+                  mb: 1.5 
+                }}>
+                  <PeopleIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  MSA (Measurement System Analysis)
+                </Typography>
+                
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    {renderField('Gage R&R (%)', gauge.gage_r_and_r_percent ? `${gauge.gage_r_and_r_percent}%` : '-')}
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    {renderField('Bias', gauge.bias)}
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    {renderField('Linearity', gauge.linearity)}
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+
+            {/* System Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <AccessTimeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                System Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Created At', formatDateTime(gauge.createdAt))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Last Updated', formatDateTime(gauge.updatedAt))}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Additional Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Additional Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('MSA Required', gauge.msa_required ? 'Yes' : 'No')}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
@@ -81,286 +461,148 @@ const ViewGauge = ({ open, onClose, gauge }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
           overflow: 'hidden'
         }
       }}
     >
       <DialogTitle sx={{
         borderBottom: `1px solid ${COLORS.border}`,
-        py: 2,
-        px: 3,
-        md: 1.5,
+        py: 1.5,
+        px: 2.5,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <Box>
-          <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
             Gauge Details
           </Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
             Code: {gauge.gauge_code || gauge.gauge_id}
           </Typography>
         </Box>
-        <Button
-          onClick={onClose}
-          sx={{
-            minWidth: 'auto',
-            p: 1,
-            color: COLORS.text.secondary,
-            '&:hover': {
-              bgcolor: `${COLORS.primary}10`
-            }
-          }}
-        >
-          <CloseIcon />
-        </Button>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </DialogTitle>
-
-      <DialogContent sx={{ p: 3, bgcolor: COLORS.background.white }}>
-        <Stack spacing={2.5}>
-          {/* Basic Info */}
-          <Paper sx={{ p: 2, bgcolor: COLORS.background.light, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              <GaugeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Basic Information
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Gauge Name
+      
+      {/* Stepper */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
                 </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.gauge_name}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Gauge Type
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.gauge_type}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Make
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.make}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Model
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.model}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Serial No
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.serial_no}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Technical Details */}
-          <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              <SettingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Technical Details
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Range
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.range}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Least Count
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.least_count}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Accuracy
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.accuracy}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Location
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.location}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Department
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.department}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Custodian
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.custodian_id
-                    ? `${gauge.custodian_id.FirstName} ${gauge.custodian_id.LastName}`
-                    : 'Not assigned'}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Calibration Details */}
-          <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-              <VerifiedIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Calibration Details
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Last Calibration Date
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {formatDate(gauge.last_calibration_date)}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Next Calibration Date
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {formatDate(gauge.next_calibration_date)}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Calibration Frequency
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.calibration_frequency_days} days
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Calibration Agency
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.calibration_agency}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  NABL Accredited
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                  {gauge.nabl_accredited ? 'Yes' : 'No'}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                  Status
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  {getStatusChip(gauge.status)}
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* MSA Details */}
-          {gauge.msa_required && (
-            <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
-                <PeopleIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                MSA (Measurement System Analysis)
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Gage R&R (%)
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                    {gauge.gage_r_and_r_percent ? `${gauge.gage_r_and_r_percent}%` : '-'}
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Bias
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                    {gauge.bias || '-'}
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-                    Linearity
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.85rem', color: COLORS.text.primary, mt: 0.5 }}>
-                    {gauge.linearity || '-'}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-          )}
-
-          {/* Audit Info */}
-          <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.light }}>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
-              Created At: {formatDate(gauge.createdAt)}
-            </Typography>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mt: 0.5 }}>
-              Last Updated: {formatDate(gauge.updatedAt)}
-            </Typography>
-          </Paper>
-        </Stack>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        {renderStepContent(activeStep)}
       </DialogContent>
-
+      
       <DialogActions sx={{
-        px: 3,
-        py: 2,
+        px: 2.5,
+        py: 1.5,
         borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white
+        bgcolor: COLORS.background.white,
+        justifyContent: 'space-between'
       }}>
         <Button
-          onClick={onClose}
+          onClick={handleBack}
+          disabled={activeStep === 0}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
           sx={{
-            height: 36,
-            px: 3,
+            height: 32,
+            px: 2,
             borderRadius: 1.5,
-            textTransform: 'none',
-            fontSize: '0.75rem',
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
             '&:hover': {
               borderColor: COLORS.primary,
               bgcolor: `${COLORS.primary}10`
             }
           }}
         >
-          Close
+          Back
         </Button>
+        <Box>
+          <Button
+            onClick={onClose}
+            size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Close
+          </Button>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
       </DialogActions>
     </Dialog>
   );

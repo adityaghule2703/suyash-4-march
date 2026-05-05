@@ -303,38 +303,49 @@ const DepartmentMaster = () => {
     }
   }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  const fetchDepartments = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/departments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+ const fetchDepartments = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
 
-      if (response.data.success) {
-        // Ensure each department has all required fields with consistent naming
-        const formattedData = (response.data.data || []).map(dept => ({
-          _id: dept._id || dept.id,
-          DepartmentName: dept.DepartmentName || dept.departmentName || dept.name || '',
-          Description: dept.Description || dept.description || '',
-          CreatedAt: dept.CreatedAt || dept.createdAt || dept.created_at || new Date().toISOString(),
-          UpdatedAt: dept.UpdatedAt || dept.updatedAt || dept.updated_at || new Date().toISOString()
-        }));
-        
-        setDepartments(formattedData);
-        setFilteredDepartments(formattedData);
-      } else {
-        showNotification('Failed to load departments', 'error');
+    // ✅ Query Params
+    const params = new URLSearchParams();
+
+    params.append('page', page + 1);
+    params.append('limit', rowsPerPage);
+
+    if (searchTerm) params.append('search', searchTerm);
+
+    const response = await axios.get(
+      `${BASE_URL}/api/departments?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
-    } catch (err) {
-      console.error('Error fetching departments:', err);
-      showNotification('Failed to load departments. Please try again.', 'error');
-    } finally {
-      setLoading(false);
+    );
+
+    if (response.data.success) {
+      const formattedData = (response.data.data || []).map(dept => ({
+        _id: dept._id || dept.id,
+        DepartmentName: dept.DepartmentName || dept.departmentName || dept.name || '',
+        Description: dept.Description || dept.description || '',
+        CreatedAt: dept.CreatedAt || dept.createdAt || new Date().toISOString(),
+        UpdatedAt: dept.UpdatedAt || dept.updatedAt || new Date().toISOString()
+      }));
+
+      setDepartments(formattedData);
+      setFilteredDepartments(formattedData);
+    } else {
+      showNotification('Failed to load departments', 'error');
     }
-  };
+  } catch (err) {
+    console.error('Error fetching departments:', err);
+    showNotification('Failed to load departments. Please try again.', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
   
   // Handle search (client-side filtering)
   const handleSearch = () => {

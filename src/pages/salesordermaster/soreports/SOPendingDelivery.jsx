@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -41,11 +41,12 @@ import {
   Business as BusinessIcon,
   Inventory as InventoryIcon,
   CalendarToday as CalendarIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  Close as CloseIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
-import { id } from 'date-fns/locale';
 
 const COLORS = {
   primary: '#074346',
@@ -69,8 +70,6 @@ const COLORS = {
   border: '#E3E8EF'
 };
 
-
-
 // Status Chip Component
 const StatusChip = ({ status }) => {
   const getStatusConfig = () => {
@@ -81,6 +80,10 @@ const StatusChip = ({ status }) => {
         return { bg: '#DBEAFE', color: '#1E40AF', label: 'In Production' };
       case 'ready':
         return { bg: '#D1FAE5', color: '#059669', label: 'Ready' };
+      case 'confirmed':
+        return { bg: '#DBEAFE', color: '#1E40AF', label: 'Confirmed' };
+      case 'ready for dispatch':
+        return { bg: '#D1FAE5', color: '#059669', label: 'Ready for Dispatch' };
       default:
         return { bg: '#F1F5F9', color: '#6B7280', label: status || 'Unknown' };
     }
@@ -228,30 +231,67 @@ const SOPendingDelivery = () => {
   const [selected, setSelected] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Ref for search timeout - CRITICAL for preventing focus loss
+  const searchTimeoutRef = useRef(null);
 
+  // Handle search input change - NO loading state changes here
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setPage(0); // Reset to first page when search changes
+      setSelected([]);
+    }, 500);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    setSelected([]);
+  };
+
+  // Cleanup timeout on unmount
   useEffect(() => {
-    fetchPendingDelivery();
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, []);
 
-  const fetchPendingDelivery = async () => {
+  // Fetch pending deliveries
+  const fetchPendingDelivery = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      
+      const params = new URLSearchParams({
+        page: page + 1,
+        limit: rowsPerPage
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
       const response = await axios.get(
-        `${BASE_URL}/api/sales-orders/reports/pending-delivery`,
+        `${BASE_URL}/api/sales-orders/reports/pending-delivery?${params.toString()}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       if (response.data.success) {
         setPendingData(response.data);
-        setTotalItems(response.data.count || 0);
+        setTotalItems(response.data.pagination?.total || response.data.count || 0);
       } else {
         showNotification('Failed to load pending deliveries', 'error');
       }
@@ -261,7 +301,12 @@ const SOPendingDelivery = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, searchTerm]);
+
+  // Fetch data when searchTerm, page, or rowsPerPage changes
+  useEffect(() => {
+    fetchPendingDelivery();
+  }, [fetchPendingDelivery]);
 
   const handleRefresh = () => {
     fetchPendingDelivery();
@@ -270,9 +315,12 @@ const SOPendingDelivery = () => {
 
   const handleSelectAll = (event) => {
     if (event.target.checked && pendingData?.data) {
-      const allOrders = pendingData.data.flatMap(customer => 
-        customer.orders.map(order => order.so_number)
-      );
+      const allOrders = [];
+      pendingData.data.forEach(customer => {
+        customer.orders.forEach(order => {
+          allOrders.push(order.so_number);
+        });
+      });
       setSelected(allOrders);
     } else {
       setSelected([]);
@@ -294,11 +342,13 @@ const SOPendingDelivery = () => {
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    setSelected([]);
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+    setSelected([]);
   };
 
   const showNotification = (message, severity) => {
@@ -314,27 +364,43 @@ const SOPendingDelivery = () => {
     }).format(amount || 0);
   };
 
-  // Flatten orders for table display
-  const getAllOrders = () => {
+  // Get paginated orders from current page data
+  const getPaginatedOrders = () => {
     if (!pendingData?.data) return [];
     const orders = [];
     pendingData.data.forEach(customer => {
       customer.orders.forEach(order => {
         orders.push({
           ...order,
-          customer_name: customer.customer_name,
-          total_pending_value: customer.total_pending_value
+          customer_name: customer.customer_name
         });
       });
     });
     return orders;
   };
 
-  const allOrders = getAllOrders();
-  const paginatedOrders = allOrders.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  const paginatedOrders = getPaginatedOrders();
+
+  // Calculate total summary from API response
+  const getTotalSummary = () => {
+    if (!pendingData?.data) return { totalPendingValue: 0, totalOrders: 0, totalCustomers: 0 };
+    
+    let totalPendingValue = 0;
+    let totalOrders = 0;
+    
+    pendingData.data.forEach(customer => {
+      totalPendingValue += customer.total_pending_value || 0;
+      totalOrders += customer.orders?.length || 0;
+    });
+    
+    return {
+      totalPendingValue,
+      totalOrders,
+      totalCustomers: pendingData.data.length
+    };
+  };
+
+  const summary = getTotalSummary();
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -358,9 +424,9 @@ const SOPendingDelivery = () => {
       </Box>
 
       {/* Stats Cards */}
-      {/* {!loading && pendingData && (
+      {!loading && pendingData && (
         <Grid container spacing={2.5} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.white }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box>
@@ -368,7 +434,7 @@ const SOPendingDelivery = () => {
                     Total Pending Value
                   </Typography>
                   <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.warning, mt: 0.5 }}>
-                    {formatCurrency(pendingData.data?.[0]?.total_pending_value || 0)}
+                    {formatCurrency(summary.totalPendingValue)}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: '#FEF3C7', width: 40, height: 40 }}>
@@ -377,7 +443,7 @@ const SOPendingDelivery = () => {
               </Stack>
             </Paper>
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.white }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box>
@@ -385,7 +451,7 @@ const SOPendingDelivery = () => {
                     Pending Orders
                   </Typography>
                   <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.primary, mt: 0.5 }}>
-                    {pendingData.count || 0}
+                    {summary.totalOrders}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: COLORS.primaryLight, width: 40, height: 40 }}>
@@ -394,7 +460,7 @@ const SOPendingDelivery = () => {
               </Stack>
             </Paper>
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${COLORS.border}`, bgcolor: COLORS.background.white }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box>
@@ -402,7 +468,7 @@ const SOPendingDelivery = () => {
                     Customers Affected
                   </Typography>
                   <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.success, mt: 0.5 }}>
-                    {pendingData.data?.length || 0}
+                    {summary.totalCustomers}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: '#D1FAE5', width: 40, height: 40 }}>
@@ -412,7 +478,7 @@ const SOPendingDelivery = () => {
             </Paper>
           </Grid>
         </Grid>
-      )} */}
+      )}
 
       {/* Action Bar */}
       <Paper sx={{ 
@@ -429,7 +495,8 @@ const SOPendingDelivery = () => {
               placeholder="Search by SO number or customer..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 350 },
                 '& .MuiOutlinedInput-root': {
@@ -446,42 +513,31 @@ const SOPendingDelivery = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <CloseIcon sx={{ fontSize: '0.875rem' }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
                   '& input': {
                     padding: '6px 12px',
                     fontSize: '0.75rem',
-                    color: COLORS.text.primary
+                    color: COLORS.text.primary,
+                    '&::placeholder': {
+                      color: COLORS.text.tertiary,
+                      fontSize: '0.75rem'
+                    }
                   }
                 }
               }}
-              disabled={loading}
             />
-          </Stack>
-
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
-                sx={{ 
-                  height: 36,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  fontSize: '0.75rem',
-                  fontWeight: 500
-                }}
-                disabled={loading}
-              >
-                Delete ({selected.length})
-              </Button>
-            )}
             <Tooltip title="Refresh">
               <IconButton
                 onClick={handleRefresh}
-                disabled={loading}
                 sx={{
                   color: COLORS.primary,
                   '&:hover': {
@@ -492,6 +548,12 @@ const SOPendingDelivery = () => {
                 <RefreshIcon sx={{ fontSize: '1rem' }} />
               </IconButton>
             </Tooltip>
+          </Stack>
+
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+              Showing {paginatedOrders.length} of {totalItems} orders
+            </Typography>
           </Stack>
         </Stack>
       </Paper>
@@ -571,27 +633,24 @@ const SOPendingDelivery = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedOrders.map((order, idx) => {
-                  const isSelected = selected.includes(order.so_number);
-                  return (
-                    <ExpandableRow
-                      key={idx}
-                      order={order}
-                      customerName={order.customer_name}
-                    />
-                  );
-                })
+                paginatedOrders.map((order, idx) => (
+                  <ExpandableRow
+                    key={order.so_number + idx}
+                    order={order}
+                    customerName={order.customer_name}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
         </TableContainer>
 
         {/* Pagination */}
-        {!loading && allOrders.length > 0 && (
+        {!loading && totalItems > 0 && (
           <TablePagination
             rowsPerPageOptions={[5, 10, 25, 50]}
             component="div"
-            count={allOrders.length}
+            count={totalItems}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -615,7 +674,12 @@ const SOPendingDelivery = () => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity={snackbar.severity} sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>

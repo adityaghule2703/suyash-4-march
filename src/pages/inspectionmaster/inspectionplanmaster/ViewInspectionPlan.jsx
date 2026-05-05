@@ -124,6 +124,7 @@ const ViewInspectionPlan = ({ open, onClose, plan }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 2,
         px: 3,
+        mb: 2,
         bgcolor: COLORS.background.white,
         display: 'flex',
         justifyContent: 'space-between',

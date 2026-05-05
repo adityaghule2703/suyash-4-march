@@ -119,7 +119,7 @@ const ALL_PAGES = [
   { module: 'TRAINING_RECORD_MASTER', page: 'Training Record Master', category: 'HR Master' },
   { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' },
   
-  // BOM Master - All BOM pages
+  // BOM Master - All BOM pages with unique identifiers
   { module: 'BOM_MASTER', page: 'BOM Master', category: 'BOM Master' },
   { module: 'BOM_MASTER', page: 'MRP Master', category: 'BOM Master' },
   { module: 'BOM_MASTER', page: 'Routing Master', category: 'BOM Master' },
@@ -140,7 +140,7 @@ const ALL_PAGES = [
   { module: 'PRODUCTION_CONFLICT', page: 'Production Conflict', category: 'Production Master' },
   { module: 'TOOL_MASTER', page: 'Tool Master', category: 'Production Master' },
   
-  // Inventory Management - All Inventory pages
+  // Inventory Management - All Inventory pages with unique identifiers
   { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management' },
   { module: 'INVENTORY_MANAGEMENT', page: 'Stock Ledger', category: 'Inventory Management' },
   { module: 'INVENTORY_MANAGEMENT', page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management' },
@@ -241,6 +241,11 @@ const AddUser = () => {
   const [permissions, setPermissions] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
 
+  // Helper function to generate unique permission key
+  const getPermissionKey = (module, page) => {
+    return `${module}_${page}`;
+  };
+
   // Fetch roles on mount
   useEffect(() => {
     fetchRoles();
@@ -267,12 +272,12 @@ const AddUser = () => {
     }
   };
 
-  // Initialize permissions when role is selected
+  // Initialize permissions when role is selected - FIXED: Use page-specific keys
   const initializePermissionsFromRole = (role) => {
     const initialPermissions = {};
     ALL_PAGES.forEach(page => {
       ALL_ACTIONS.forEach(action => {
-        const key = `${page.module}_${action}`;
+        const key = `${getPermissionKey(page.module, page.page)}_${action}`;
         initialPermissions[key] = false;
       });
     });
@@ -286,7 +291,7 @@ const AddUser = () => {
           Object.keys(modulePages).forEach(pageName => {
             const actions = modulePages[pageName] || [];
             actions.forEach(action => {
-              const key = `${module}_${action}`;
+              const key = `${getPermissionKey(module, pageName)}_${action}`;
               initialPermissions[key] = true;
             });
           });
@@ -324,7 +329,7 @@ const AddUser = () => {
       const emptyPermissions = {};
       ALL_PAGES.forEach(page => {
         ALL_ACTIONS.forEach(action => {
-          const key = `${page.module}_${action}`;
+          const key = `${getPermissionKey(page.module, page.page)}_${action}`;
           emptyPermissions[key] = false;
         });
       });
@@ -348,27 +353,30 @@ const AddUser = () => {
     }));
   };
 
-  const handlePermissionChange = (module, action, checked) => {
-    const key = `${module}_${action}`;
+  // FIXED: Now includes page parameter
+  const handlePermissionChange = (module, page, action, checked) => {
+    const key = `${getPermissionKey(module, page)}_${action}`;
     setPermissions(prev => ({
       ...prev,
       [key]: checked
     }));
   };
 
-  const handleSelectAllForPage = (module, checked) => {
+  // FIXED: Select all actions for a specific page only
+  const handleSelectAllForPage = (module, page, checked) => {
     const newPermissions = { ...permissions };
     ALL_ACTIONS.forEach(action => {
-      const key = `${module}_${action}`;
+      const key = `${getPermissionKey(module, page)}_${action}`;
       newPermissions[key] = checked;
     });
     setPermissions(newPermissions);
   };
 
-  const getPageSelectedCount = (module) => {
+  // FIXED: Get count for specific page
+  const getPageSelectedCount = (module, page) => {
     let count = 0;
     ALL_ACTIONS.forEach(action => {
-      const key = `${module}_${action}`;
+      const key = `${getPermissionKey(module, page)}_${action}`;
       if (permissions[key]) count++;
     });
     return count;
@@ -401,28 +409,30 @@ const AddUser = () => {
     setExpandedCategories(expanded);
   };
 
-  // Transform permissions to the format expected by the API
+  // Transform permissions to the format expected by the API - FIXED: Include page information
   const transformPermissionsToAPIFormat = () => {
     const moduleAccess = {};
     const pageAccess = {};
 
-    // Group permissions by module
+    // Group permissions by module and page
     ALL_PAGES.forEach(page => {
       const selectedActions = [];
       
       ALL_ACTIONS.forEach(action => {
-        const key = `${page.module}_${action}`;
+        const key = `${getPermissionKey(page.module, page.page)}_${action}`;
         if (permissions[key]) {
           selectedActions.push(action);
         }
       });
 
-      // Set moduleAccess (true if any permission exists for this module)
-      if (moduleAccess[page.module] !== false) {
-        moduleAccess[page.module] = selectedActions.length > 0;
+      // Set moduleAccess (true if any permission exists for any page in this module)
+      if (selectedActions.length > 0) {
+        moduleAccess[page.module] = true;
+      } else if (moduleAccess[page.module] !== true) {
+        moduleAccess[page.module] = false;
       }
       
-      // Set pageAccess (only if there are selected actions)
+      // Set pageAccess with specific page permissions
       if (selectedActions.length > 0) {
         if (!pageAccess[page.module]) {
           pageAccess[page.module] = {};
@@ -962,7 +972,7 @@ const AddUser = () => {
                         
                         {/* Pages Rows - Only show if category is expanded */}
                         {expandedCategories[category] && pages.map((page) => {
-                          const selectedCount = getPageSelectedCount(page.module);
+                          const selectedCount = getPageSelectedCount(page.module, page.page);
                           const allSelected = selectedCount === ALL_ACTIONS.length;
                           const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
                           
@@ -993,7 +1003,7 @@ const AddUser = () => {
                                     size="small"
                                     checked={allSelected}
                                     indeterminate={someSelected}
-                                    onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
+                                    onChange={(e) => handleSelectAllForPage(page.module, page.page, e.target.checked)}
                                     sx={{
                                       color: COLORS.primary,
                                       '&.Mui-checked': {
@@ -1007,12 +1017,13 @@ const AddUser = () => {
                                 </Box>
                               </TableCell>
                               {ALL_ACTIONS.map((action) => {
-                                const isChecked = permissions[`${page.module}_${action}`] || false;
+                                const key = `${page.module}_${page.page}_${action}`;
+                                const isChecked = permissions[key] || false;
                                 return (
                                   <TableCell key={action} align="center" sx={{ p: 1 }}>
                                     <Checkbox
                                       checked={isChecked}
-                                      onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
+                                      onChange={(e) => handlePermissionChange(page.module, page.page, action, e.target.checked)}
                                       size="small"
                                       sx={{
                                         color: COLORS.primary,

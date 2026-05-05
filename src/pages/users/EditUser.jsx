@@ -119,12 +119,12 @@ const ALL_PAGES = [
   { module: 'TRAINING_RECORD_MASTER', page: 'Training Record Master', category: 'HR Master' },
   { module: 'LEAVE_APPROVAL', page: 'Leave Approval', category: 'HR Master' },
   
-  // BOM Master - All BOM pages
-  { module: 'BOM_MASTER', page: 'BOM Master', category: 'BOM Master' },
-  { module: 'BOM_MASTER', page: 'MRP Master', category: 'BOM Master' },
-  { module: 'BOM_MASTER', page: 'Routing Master', category: 'BOM Master' },
-  { module: 'BOM_MASTER', page: 'Machine Master', category: 'BOM Master' },
-  { module: 'BOM_MASTER', page: 'OEE Master', category: 'BOM Master' },
+  // BOM Master - All BOM pages with explicit unique identifiers
+  { module: 'BOM_MASTER', page: 'BOM Master', category: 'BOM Master', uniqueId: 'BOM_MASTER_BOM' },
+  { module: 'BOM_MASTER', page: 'MRP Master', category: 'BOM Master', uniqueId: 'BOM_MASTER_MRP' },
+  { module: 'BOM_MASTER', page: 'Routing Master', category: 'BOM Master', uniqueId: 'BOM_MASTER_ROUTING' },
+  { module: 'BOM_MASTER', page: 'Machine Master', category: 'BOM Master', uniqueId: 'BOM_MASTER_MACHINE' },
+  { module: 'BOM_MASTER', page: 'OEE Master', category: 'BOM Master', uniqueId: 'BOM_MASTER_OEE' },
   
   // Sales Order Master - All Sales Order Pages
   { module: 'SALES_ORDER_MASTER', page: 'Sales Order Master', category: 'Sales Order Master' },
@@ -140,12 +140,12 @@ const ALL_PAGES = [
   { module: 'PRODUCTION_CONFLICT', page: 'Production Conflict', category: 'Production Master' },
   { module: 'TOOL_MASTER', page: 'Tool Master', category: 'Production Master' },
   
-  // Inventory Management - All Inventory pages
-  { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management' },
-  { module: 'INVENTORY_MANAGEMENT', page: 'Stock Ledger', category: 'Inventory Management' },
-  { module: 'INVENTORY_MANAGEMENT', page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management' },
-  { module: 'INVENTORY_MANAGEMENT', page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management' },
-  { module: 'INVENTORY_MANAGEMENT', page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
+  // Inventory Management - All Inventory pages with explicit unique identifiers
+  { module: 'INVENTORY_MANAGEMENT', page: 'Warehouse Master', category: 'Inventory Management', uniqueId: 'INVENTORY_WAREHOUSE' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'Stock Ledger', category: 'Inventory Management', uniqueId: 'INVENTORY_STOCK_LEDGER' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management', uniqueId: 'INVENTORY_MIV' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management', uniqueId: 'INVENTORY_MRV' },
+  { module: 'INVENTORY_MANAGEMENT', page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management', uniqueId: 'INVENTORY_PSV' },
   
   // Dispatch Master
   { module: 'DISPATCH_MASTER', page: 'Delivery Challan', category: 'Dispatch Master' },
@@ -229,6 +229,11 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
 
+  // Helper function to generate unique permission key
+  const getPermissionKey = (module, page) => {
+    return `${module}_${page}`;
+  };
+
   // Fetch roles
   useEffect(() => {
     if (open) {
@@ -275,7 +280,7 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
       const initialPermissions = {};
       ALL_PAGES.forEach(page => {
         ALL_ACTIONS.forEach(action => {
-          const key = `${page.module}_${action}`;
+          const key = `${getPermissionKey(page.module, page.page)}_${action}`;
           initialPermissions[key] = false;
         });
       });
@@ -285,8 +290,10 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
         user.permissions.forEach(perm => {
           const module = perm.permission?.module || perm.module;
           const action = perm.permission?.action || perm.action;
-          if (module && action) {
-            const key = `${module}_${action}`;
+          const pageName = perm.permission?.page || perm.page;
+          
+          if (module && action && pageName) {
+            const key = `${getPermissionKey(module, pageName)}_${action}`;
             initialPermissions[key] = true;
           }
         });
@@ -325,27 +332,27 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
     setSelectedRole(newValue);
   };
 
-  const handlePermissionChange = (module, action, checked) => {
-    const key = `${module}_${action}`;
+  const handlePermissionChange = (module, page, action, checked) => {
+    const key = `${getPermissionKey(module, page)}_${action}`;
     setPermissions(prev => ({
       ...prev,
       [key]: checked
     }));
   };
 
-  const handleSelectAllForPage = (module, checked) => {
+  const handleSelectAllForPage = (module, page, checked) => {
     const newPermissions = { ...permissions };
     ALL_ACTIONS.forEach(action => {
-      const key = `${module}_${action}`;
+      const key = `${getPermissionKey(module, page)}_${action}`;
       newPermissions[key] = checked;
     });
     setPermissions(newPermissions);
   };
 
-  const getPageSelectedCount = (module) => {
+  const getPageSelectedCount = (module, page) => {
     let count = 0;
     ALL_ACTIONS.forEach(action => {
-      const key = `${module}_${action}`;
+      const key = `${getPermissionKey(module, page)}_${action}`;
       if (permissions[key]) count++;
     });
     return count;
@@ -387,18 +394,20 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
       const selectedActions = [];
       
       ALL_ACTIONS.forEach(action => {
-        const key = `${page.module}_${action}`;
+        const key = `${getPermissionKey(page.module, page.page)}_${action}`;
         if (permissions[key]) {
           selectedActions.push(action);
         }
       });
 
-      // Set moduleAccess (true if any permission exists for this module)
-      if (moduleAccess[page.module] !== false) {
-        moduleAccess[page.module] = selectedActions.length > 0;
+      // Set moduleAccess (true if any permission exists for any page in this module)
+      if (selectedActions.length > 0) {
+        moduleAccess[page.module] = true;
+      } else if (moduleAccess[page.module] !== true) {
+        moduleAccess[page.module] = false;
       }
       
-      // Set pageAccess (only if there are selected actions)
+      // Set pageAccess with specific page permissions
       if (selectedActions.length > 0) {
         if (!pageAccess[page.module]) {
           pageAccess[page.module] = {};
@@ -821,7 +830,7 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
                           
                           {/* Pages Rows - Only show if category is expanded */}
                           {expandedCategories[category] && pages.map((page) => {
-                            const selectedCount = getPageSelectedCount(page.module);
+                            const selectedCount = getPageSelectedCount(page.module, page.page);
                             const allSelected = selectedCount === ALL_ACTIONS.length;
                             const someSelected = selectedCount > 0 && selectedCount < ALL_ACTIONS.length;
                             
@@ -852,7 +861,7 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
                                       size="small"
                                       checked={allSelected}
                                       indeterminate={someSelected}
-                                      onChange={(e) => handleSelectAllForPage(page.module, e.target.checked)}
+                                      onChange={(e) => handleSelectAllForPage(page.module, page.page, e.target.checked)}
                                       sx={{
                                         color: COLORS.primary,
                                         '&.Mui-checked': {
@@ -866,12 +875,13 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
                                   </Box>
                                 </TableCell>
                                 {ALL_ACTIONS.map((action) => {
-                                  const isChecked = permissions[`${page.module}_${action}`] || false;
+                                  const key = `${page.module}_${page.page}_${action}`;
+                                  const isChecked = permissions[key] || false;
                                   return (
                                     <TableCell key={action} align="center" sx={{ p: 1 }}>
                                       <Checkbox
                                         checked={isChecked}
-                                        onChange={(e) => handlePermissionChange(page.module, action, e.target.checked)}
+                                        onChange={(e) => handlePermissionChange(page.module, page.page, action, e.target.checked)}
                                         size="small"
                                         sx={{
                                           color: COLORS.primary,
@@ -955,4 +965,4 @@ const EditUser = ({ open, onClose, user, onUpdate }) => {
   );
 };
 
-export default EditUser
+export default EditUser;

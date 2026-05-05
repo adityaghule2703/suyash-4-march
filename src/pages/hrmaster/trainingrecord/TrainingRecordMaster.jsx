@@ -7476,7 +7476,7 @@ const TrainingRecordMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+              
             />
           </Stack>
 

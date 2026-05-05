@@ -1452,7 +1452,7 @@ const ProductionMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+              
             />
           </Stack>
 

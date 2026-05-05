@@ -1,3 +1,1090 @@
+// import React, { useState, useEffect, useCallback } from 'react';
+// import {
+//   Box,
+//   Paper,
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableContainer,
+//   TableHead,
+//   TableRow,
+//   IconButton,
+//   Button,
+//   TextField,
+//   InputAdornment,
+//   Tooltip,
+//   Typography,
+//   Snackbar,
+//   TablePagination,
+//   Checkbox,
+//   Stack,
+//   Chip,
+//   Avatar,
+//   Menu,
+//   MenuItem,
+//   ListItemIcon,
+//   ListItemText,
+//   Divider,
+//   Alert,
+//   CircularProgress,
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions
+// } from '@mui/material';
+// import {
+//   Search as SearchIcon,
+//   Add as AddIcon,
+//   Delete as DeleteIcon,
+//   Visibility as VisibilityIcon,
+//   Edit as EditIcon,
+//   MoreVert as MoreVertIcon,
+//   Refresh as RefreshIcon,
+//   LocalShipping as LocalShippingIcon,
+//   PictureAsPdf as PdfIcon,
+//   CheckCircle as CheckCircleIcon,
+//   Cancel as CancelIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+// import AddDeliverySchedule from './AddDeliverySchedule';
+// import ViewDeliverySchedule from './ViewDeliverySchedule';
+// import DeleteDeliverySchedule from './DeleteDeliverySchedule';
+
+// // Color constants
+// const COLORS = {
+//   primary: '#063C3F',
+//   primaryLight: '#E8F0F1',
+//   primaryDark: '#05292B',
+//   text: {
+//     primary: '#151C26',
+//     secondary: '#4B5568',
+//     tertiary: '#94A3B8',
+//     light: '#FFFFFF',
+//     lightMuted: 'rgba(255, 255, 255, 0.9)'
+//   },
+//   background: {
+//     white: '#FFFFFF',
+//     light: '#F8FFFC',
+//     hover: '#F0FDF9',
+//     tableHeader: '#063C3F'
+//   },
+//   border: '#E3E8EF',
+//   status: {
+//     Draft: { bg: '#FEF3C7', color: '#B45309', border: '#FDE68A' },
+//     Confirmed: { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
+//     'In Transit': { bg: '#E0F2FE', color: '#0369A1', border: '#BAE6FD' },
+//     Delivered: { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
+//     Cancelled: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA' }
+//   }
+// };
+
+// // Loading state component
+// const LoadingState = () => (
+//   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+//     <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+//   </Box>
+// );
+
+// // Action Menu Component
+// const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, onClose, onOpen }) => {
+//   const isConfirmed = schedule?.status === 'Confirmed';
+//   const isCancelled = schedule?.status === 'Cancelled';
+
+//   return (
+//     <>
+//       <Tooltip title="Actions">
+//         <IconButton
+//           size="small"
+//           onClick={onOpen}
+//           sx={{
+//             color: COLORS.text.secondary,
+//             '&:hover': {
+//               bgcolor: `${COLORS.primary}20`
+//             }
+//           }}
+//         >
+//           <MoreVertIcon fontSize="small" />
+//         </IconButton>
+//       </Tooltip>
+//       <Menu
+//         anchorEl={anchorEl}
+//         open={Boolean(anchorEl)}
+//         onClose={onClose}
+//         PaperProps={{
+//           elevation: 3,
+//           sx: {
+//             mt: 1,
+//             minWidth: 180,
+//             borderRadius: 2,
+//             border: `1px solid ${COLORS.border}`,
+//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+//           }
+//         }}
+//       >
+//         <MenuItem 
+//           onClick={() => {
+//             onView(schedule);
+//             onClose();
+//           }}
+//           sx={{ py: 1.5 }}
+//         >
+//           <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+//             <VisibilityIcon fontSize="small" />
+//           </ListItemIcon>
+//           <ListItemText>
+//             <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+//               View Details
+//             </Typography>
+//           </ListItemText>
+//         </MenuItem>
+        
+//         {!isConfirmed && !isCancelled && (
+//           <MenuItem 
+//             onClick={() => {
+//               onEdit(schedule);
+//               onClose();
+//             }}
+//             sx={{ py: 1.5 }}
+//           >
+//             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+//               <EditIcon fontSize="small" />
+//             </ListItemIcon>
+//             <ListItemText>
+//               <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+//                 Edit
+//               </Typography>
+//             </ListItemText>
+//           </MenuItem>
+//         )}
+
+//         {!isConfirmed && !isCancelled && (
+//           <MenuItem 
+//             onClick={() => {
+//               onConfirm(schedule);
+//               onClose();
+//             }}
+//             sx={{ py: 1.5 }}
+//           >
+//             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+//               <CheckCircleIcon fontSize="small" />
+//             </ListItemIcon>
+//             <ListItemText>
+//               <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+//                 Confirm Schedule
+//               </Typography>
+//             </ListItemText>
+//           </MenuItem>
+//         )}
+        
+//         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        
+//         <MenuItem 
+//           onClick={() => {
+//             onDelete(schedule);
+//             onClose();
+//           }}
+//           sx={{ py: 1.5 }}
+//         >
+//           <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+//             <DeleteIcon fontSize="small" />
+//           </ListItemIcon>
+//           <ListItemText>
+//             <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+//               Delete
+//             </Typography>
+//           </ListItemText>
+//         </MenuItem>
+//       </Menu>
+//     </>
+//   );
+// };
+
+// // Confirm Schedule Dialog
+// const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess }) => {
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState('');
+
+//   const handleConfirm = async () => {
+//     setLoading(true);
+//     setError('');
+
+//     try {
+//       const token = localStorage.getItem('token');
+//       const response = await axios.put(
+//         `${BASE_URL}/api/delivery-schedules/${schedule._id}/confirm`,
+//         {},
+//         {
+//           headers: {
+//             'Authorization': `Bearer ${token}`,
+//             'Content-Type': 'application/json'
+//           }
+//         }
+//       );
+
+//       if (response.data.success) {
+//         onSuccess();
+//         onClose();
+//       } else {
+//         setError(response.data.message || 'Failed to confirm schedule');
+//       }
+//     } catch (err) {
+//       console.error('Error confirming schedule:', err);
+//       setError(err.response?.data?.message || 'Failed to confirm schedule. Please try again.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   return (
+//     <Dialog
+//       open={open}
+//       onClose={onClose}
+//       maxWidth="sm"
+//       fullWidth
+//       PaperProps={{
+//         sx: {
+//           borderRadius: 3,
+//           overflow: 'hidden'
+//         }
+//       }}
+//     >
+//       <DialogTitle sx={{
+//         borderBottom: `1px solid ${COLORS.border}`,
+//         py: 2,
+//         px: 3,
+//         mb: 2,
+//         bgcolor: COLORS.background.white
+//       }}>
+//         <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: COLORS.text.primary }}>
+//           Confirm Delivery Schedule
+//         </Typography>
+//         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 0.5 }}>
+//           Schedule: {schedule?.schedule_id}
+//         </Typography>
+//       </DialogTitle>
+
+//       <DialogContent sx={{ p: 3 }}>
+//         <Alert severity="info" sx={{ borderRadius: 1.5, fontSize: '0.75rem', mb: 2 }}>
+//           Are you sure you want to confirm this delivery schedule? Once confirmed, it cannot be edited.
+//         </Alert>
+        
+//         {error && (
+//           <Alert severity="error" sx={{ borderRadius: 1.5, fontSize: '0.75rem', mt: 2 }}>
+//             {error}
+//           </Alert>
+//         )}
+//       </DialogContent>
+
+//       <DialogActions sx={{
+//         px: 3,
+//         py: 2,
+//         borderTop: `1px solid ${COLORS.border}`,
+//         bgcolor: COLORS.background.white,
+//         gap: 1
+//       }}>
+//         <Button
+//           onClick={onClose}
+//           disabled={loading}
+//           sx={{
+//             height: 36,
+//             px: 3,
+//             borderRadius: 1.5,
+//             textTransform: 'none',
+//             fontSize: '0.75rem'
+//           }}
+//         >
+//           Cancel
+//         </Button>
+//         <Button
+//           variant="contained"
+//           onClick={handleConfirm}
+//           disabled={loading}
+//           sx={{
+//             height: 36,
+//             px: 3,
+//             borderRadius: 1.5,
+//             bgcolor: '#10B981',
+//             textTransform: 'none',
+//             fontSize: '0.75rem',
+//             '&:hover': { bgcolor: '#059669' }
+//           }}
+//         >
+//           {loading ? 'Confirming...' : 'Confirm Schedule'}
+//         </Button>
+//       </DialogActions>
+//     </Dialog>
+//   );
+// };
+
+// const DeliveryScheduleMaster = () => {
+//   // State for data
+//   const [schedules, setSchedules] = useState([]);
+//   const [loading, setLoading] = useState(false);
+//   const [searchInput, setSearchInput] = useState('');
+//   const [searchTerm, setSearchTerm] = useState('');
+  
+//   // Table state
+//   const [page, setPage] = useState(0);
+//   const [rowsPerPage, setRowsPerPage] = useState(5); // Changed from 10 to 5
+//   const [selected, setSelected] = useState([]);
+  
+//   // Server-side pagination states
+//   const [totalCount, setTotalCount] = useState(0);
+//   const [currentPage, setCurrentPage] = useState(1);
+  
+//   // Menu state for action buttons
+//   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+//   const [selectedScheduleForAction, setSelectedScheduleForAction] = useState(null);
+  
+//   // Modal state
+//   const [openAddModal, setOpenAddModal] = useState(false);
+//   const [openViewModal, setOpenViewModal] = useState(false);
+//   const [openEditModal, setOpenEditModal] = useState(false);
+//   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+//   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+  
+//   // Selected schedule
+//   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  
+//   // Notification state
+//   const [snackbar, setSnackbar] = useState({
+//     open: false,
+//     message: '',
+//     severity: 'success'
+//   });
+
+//   // Debounce search
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       setSearchTerm(searchInput);
+//       setCurrentPage(1);
+//       setPage(0);
+//     }, 500);
+//     return () => clearTimeout(timer);
+//   }, [searchInput]);
+
+//   // Clear search
+//   const handleClearSearch = () => {
+//     setSearchInput('');
+//     setSearchTerm('');
+//     setCurrentPage(1);
+//     setPage(0);
+//   };
+
+//   // Fetch delivery schedules from API with server-side pagination and search
+//   const fetchDeliverySchedules = useCallback(async () => {
+//     setLoading(true);
+//     try {
+//       const token = localStorage.getItem('token');
+//       const params = {
+//         page: currentPage,
+//         limit: rowsPerPage
+//       };
+      
+//       if (searchTerm) {
+//         params.search = searchTerm;
+//       }
+      
+//       const response = await axios.get(`${BASE_URL}/api/delivery-schedules`, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`
+//         },
+//         params: params
+//       });
+
+//       if (response.data.success) {
+//         setSchedules(response.data.data || []);
+//         setTotalCount(response.data.pagination?.total || 0);
+//       } else {
+//         showNotification('Failed to load delivery schedules', 'error');
+//         setSchedules([]);
+//         setTotalCount(0);
+//       }
+//     } catch (err) {
+//       console.error('Error fetching delivery schedules:', err);
+//       showNotification(err.response?.data?.message || 'Failed to load delivery schedules', 'error');
+//       setSchedules([]);
+//       setTotalCount(0);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [currentPage, rowsPerPage, searchTerm]);
+
+//   // Load data when dependencies change
+//   useEffect(() => {
+//     fetchDeliverySchedules();
+//   }, [fetchDeliverySchedules]);
+
+//   // Handle refresh
+//   const handleRefresh = () => {
+//     fetchDeliverySchedules();
+//     showNotification('Data refreshed', 'success');
+//   };
+
+//   const handleSelectAll = (event) => {
+//     if (event.target.checked) {
+//       setSelected(schedules.map(schedule => schedule._id));
+//     } else {
+//       setSelected([]);
+//     }
+//   };
+
+//   const handleSelect = (id) => {
+//     const selectedIndex = selected.indexOf(id);
+//     let newSelected = [];
+    
+//     if (selectedIndex === -1) {
+//       newSelected = newSelected.concat(selected, id);
+//     } else {
+//       newSelected = selected.filter(item => item !== id);
+//     }
+    
+//     setSelected(newSelected);
+//   };
+
+//   const handleChangePage = (event, newPage) => {
+//     setPage(newPage);
+//     setCurrentPage(newPage + 1);
+//     setSelected([]);
+//   };
+
+//   const handleChangeRowsPerPage = (event) => {
+//     const newRowsPerPage = parseInt(event.target.value, 10);
+//     setRowsPerPage(newRowsPerPage);
+//     setPage(0);
+//     setCurrentPage(1);
+//     setSelected([]);
+//   };
+
+//   const handleActionMenuOpen = (event, schedule) => {
+//     setActionMenuAnchor(event.currentTarget);
+//     setSelectedScheduleForAction(schedule);
+//   };
+
+//   const handleActionMenuClose = () => {
+//     setActionMenuAnchor(null);
+//     setSelectedScheduleForAction(null);
+//   };
+
+//   const openViewModalHandler = (schedule) => {
+//     setSelectedSchedule(schedule);
+//     setOpenViewModal(true);
+//     handleActionMenuClose();
+//   };
+
+//   const openEditModalHandler = (schedule) => {
+//     setSelectedSchedule(schedule);
+//     setOpenEditModal(true);
+//     handleActionMenuClose();
+//   };
+
+//   const openDeleteDialogHandler = (schedule) => {
+//     setSelectedSchedule(schedule);
+//     setOpenDeleteDialog(true);
+//     handleActionMenuClose();
+//   };
+
+//   const openConfirmDialogHandler = (schedule) => {
+//     setSelectedSchedule(schedule);
+//     setOpenConfirmDialog(true);
+//     handleActionMenuClose();
+//   };
+
+//   const handleAddSuccess = () => {
+//     setOpenAddModal(false);
+//     fetchDeliverySchedules();
+//     showNotification('Delivery schedule created successfully!', 'success');
+//   };
+
+//   const handleEditSuccess = () => {
+//     setOpenEditModal(false);
+//     setSelectedSchedule(null);
+//     fetchDeliverySchedules();
+//     showNotification('Delivery schedule updated successfully!', 'success');
+//   };
+
+//   const handleDeleteSuccess = () => {
+//     setOpenDeleteDialog(false);
+//     setSelectedSchedule(null);
+//     fetchDeliverySchedules();
+//     showNotification('Delivery schedule deleted successfully!', 'success');
+//   };
+
+//   const handleConfirmSuccess = () => {
+//     setOpenConfirmDialog(false);
+//     setSelectedSchedule(null);
+//     fetchDeliverySchedules();
+//     showNotification('Delivery schedule confirmed successfully!', 'success');
+//   };
+
+//   const handleBulkDelete = async () => {
+//     if (selected.length === 0) return;
+    
+//     setLoading(true);
+//     try {
+//       const token = localStorage.getItem('token');
+//       await axios.post(`${BASE_URL}/api/delivery-schedules/bulk-delete`, 
+//         { ids: selected },
+//         { headers: { 'Authorization': `Bearer ${token}` } }
+//       );
+      
+//       setSelected([]);
+      
+//       if (schedules.length === selected.length && currentPage > 1) {
+//         setCurrentPage(prev => prev - 1);
+//         setPage(prev => prev - 1);
+//       } else {
+//         fetchDeliverySchedules();
+//       }
+      
+//       showNotification(`${selected.length} schedule(s) deleted successfully!`, 'success');
+//     } catch (err) {
+//       console.error('Bulk delete error:', err);
+//       showNotification('Failed to delete schedules', 'error');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const showNotification = (message, severity) => {
+//     setSnackbar({
+//       open: true,
+//       message,
+//       severity
+//     });
+//   };
+
+//   const formatDate = (dateString) => {
+//     if (!dateString) return '-';
+//     return new Date(dateString).toLocaleDateString('en-IN', {
+//       year: 'numeric',
+//       month: 'short',
+//       day: 'numeric'
+//     });
+//   };
+
+//   const getStatusChip = (status) => {
+//     const colors = COLORS.status[status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+//     return (
+//       <Chip
+//         label={status}
+//         size="small"
+//         sx={{
+//           fontSize: '0.65rem',
+//           fontWeight: 500,
+//           height: 24,
+//           bgcolor: colors.bg,
+//           color: colors.color,
+//           border: `1px solid ${colors.border}`
+//         }}
+//       />
+//     );
+//   };
+
+//   const getVehicleTypeChip = (vehicleType) => {
+//     const colors = {
+//       'Regular': { bg: '#E0F2FE', color: '#0369A1' },
+//       'Over Dimensional Cargo (ODC)': { bg: '#FEF3C7', color: '#B45309' },
+//       'Water Vessel': { bg: '#D1FAE5', color: '#065F46' },
+//       'Air Cargo': { bg: '#F3E8FF', color: '#7E22CE' }
+//     };
+//     const style = colors[vehicleType] || { bg: '#F1F5F9', color: '#475569' };
+//     return (
+//       <Chip
+//         label={vehicleType}
+//         size="small"
+//         sx={{
+//           fontSize: '0.65rem',
+//           fontWeight: 500,
+//           height: 24,
+//           bgcolor: style.bg,
+//           color: style.color
+//         }}
+//       />
+//     );
+//   };
+
+//   return (
+//     <Box sx={{ p: 2.5 }}>
+//       {/* Page Header */}
+//       <Box sx={{ mb: 2.5 }}>
+//         <Typography 
+//           variant="h5" 
+//           component="h1" 
+//           sx={{ 
+//             fontSize: '1.25rem',
+//             fontWeight: 700,
+//             color: COLORS.text.primary,
+//             mb: 0.5
+//           }}
+//         >
+//           Delivery Schedule Master
+//         </Typography>
+//         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+//           Manage delivery schedules, track shipments, and monitor dispatch status
+//         </Typography>
+//       </Box>
+
+//       {/* Filter and Action Bar */}
+//       <Paper sx={{ 
+//         p: 1.5, 
+//         mb: 2.5, 
+//         borderRadius: 2,
+//         bgcolor: COLORS.background.white,
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+//           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+//             <TextField
+//               placeholder="Search by schedule ID, SO number, transporter..."
+//               size="small"
+//               value={searchInput}
+//               onChange={(e) => setSearchInput(e.target.value)}
+//               autoComplete="off"
+//               sx={{ 
+//                 width: { xs: '100%', sm: 320 },
+//                 '& .MuiOutlinedInput-root': {
+//                   borderRadius: 1.5,
+//                   fontSize: '0.75rem',
+//                   '&:hover fieldset': {
+//                     borderColor: COLORS.primary,
+//                   },
+//                 }
+//               }}
+//               InputProps={{
+//                 startAdornment: (
+//                   <InputAdornment position="start">
+//                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+//                   </InputAdornment>
+//                 ),
+//                 sx: { 
+//                   height: 36,
+//                   bgcolor: COLORS.background.light,
+//                   '& input': {
+//                     padding: '6px 12px',
+//                     fontSize: '0.75rem',
+//                     color: COLORS.text.primary,
+//                     '&::placeholder': {
+//                       color: COLORS.text.tertiary,
+//                       fontSize: '0.75rem'
+//                     }
+//                   }
+//                 }
+//               }}
+//             />
+//           </Stack>
+
+//           <Stack direction="row" spacing={1.5} alignItems="center">
+//             <Tooltip title="Refresh">
+//               <IconButton
+//                 size="small"
+//                 onClick={handleRefresh}
+//                 disabled={loading}
+//                 sx={{
+//                   color: COLORS.text.secondary,
+//                   '&:hover': {
+//                     bgcolor: `${COLORS.primary}20`
+//                   }
+//                 }}
+//               >
+//                 <RefreshIcon fontSize="small" />
+//               </IconButton>
+//             </Tooltip>
+            
+//             {selected.length > 0 && (
+//               <Button
+//                 variant="outlined"
+//                 color="error"
+//                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+//                 onClick={handleBulkDelete}
+//                 sx={{ 
+//                   height: 36,
+//                   borderRadius: 1.5,
+//                   textTransform: 'none',
+//                   fontSize: '0.75rem',
+//                   fontWeight: 500,
+//                   borderColor: '#fee2e2',
+//                   color: '#991b1b',
+//                   '&:hover': {
+//                     borderColor: '#fecaca',
+//                     bgcolor: '#fee2e2'
+//                   }
+//                 }}
+//                 disabled={loading}
+//               >
+//                 Delete ({selected.length})
+//               </Button>
+//             )}
+            
+//             <Button
+//               variant="contained"
+//               startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+//               onClick={() => setOpenAddModal(true)}
+//               sx={{
+//                 height: 36,
+//                 borderRadius: 1.5,
+//                 bgcolor: COLORS.primary,
+//                 fontSize: '0.75rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+//                 '&:hover': {
+//                   bgcolor: COLORS.primaryDark,
+//                 }
+//               }}
+//               disabled={loading}
+//             >
+//               Create Schedule
+//             </Button>
+//           </Stack>
+//         </Stack>
+//       </Paper>
+
+//       {/* Delivery Schedules Table */}
+//       <Paper sx={{ 
+//         width: '100%', 
+//         borderRadius: 2, 
+//         overflow: 'hidden',
+//         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//         border: `1px solid ${COLORS.border}`
+//       }}>
+//         <TableContainer>
+//           <Table size="small">
+//             <TableHead>
+//               <TableRow sx={{ 
+//                 bgcolor: COLORS.background.tableHeader,
+//                 '& .MuiTableCell-root': {
+//                   borderBottom: 'none',
+//                   color: COLORS.text.light,
+//                   py: 1.5
+//                 }
+//               }}>
+//                 <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                   <Checkbox
+//                     indeterminate={selected.length > 0 && selected.length < schedules.length}
+//                     checked={schedules.length > 0 && selected.length === schedules.length}
+//                     onChange={handleSelectAll}
+//                     sx={{
+//                       color: COLORS.text.light,
+//                       '&.Mui-checked': {
+//                         color: COLORS.text.light,
+//                       },
+//                       '&.MuiCheckbox-indeterminate': {
+//                         color: COLORS.text.light,
+//                       },
+//                       '& .MuiSvgIcon-root': {
+//                         fontSize: '1.25rem'
+//                       }
+//                     }}
+//                     disabled={loading || schedules.length === 0}
+//                   />
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Schedule ID
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Dispatch Date
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   SO Number
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Transporter
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Vehicle Type
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Total Qty
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   color: COLORS.text.light
+//                 }}>
+//                   Status
+//                 </TableCell>
+//                 <TableCell sx={{ 
+//                   fontWeight: 600, 
+//                   fontSize: '0.7rem',
+//                   letterSpacing: '0.5px',
+//                   width: 60,
+//                   color: COLORS.text.light
+//                 }} align="center">
+//                   Actions
+//                 </TableCell>
+//               </TableRow>
+//             </TableHead>
+//             <TableBody>
+//               {loading ? (
+//                 <TableRow>
+//                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+//                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+//                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
+//                       Loading delivery schedules...
+//                     </Typography>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : schedules.length === 0 ? (
+//                 <TableRow>
+//                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+//                     <Box sx={{ textAlign: 'center' }}>
+//                       <LocalShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
+//                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+//                         {searchTerm ? 'No delivery schedules found' : 'No delivery schedules available'}
+//                       </Typography>
+//                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+//                         {searchTerm ? 'Try adjusting your search terms' : 'Create your first delivery schedule'}
+//                       </Typography>
+//                     </Box>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : (
+//                 schedules.map((schedule, index) => {
+//                   const isSelected = selected.includes(schedule._id);
+//                   const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+//                     selectedScheduleForAction?._id === schedule._id;
+
+//                   return (
+//                     <TableRow
+//                       key={schedule._id || index}
+//                       hover
+//                       selected={isSelected}
+//                       sx={{ 
+//                         bgcolor: COLORS.background.white,
+//                         '&:hover': {
+//                           bgcolor: COLORS.background.hover
+//                         },
+//                         '&.Mui-selected': {
+//                           bgcolor: `${COLORS.primary}10`,
+//                           '&:hover': {
+//                             bgcolor: `${COLORS.primary}20`
+//                           }
+//                         },
+//                         '& .MuiTableCell-root': {
+//                           py: 1.5,
+//                           fontSize: '0.75rem',
+//                           borderColor: COLORS.border
+//                         }
+//                       }}
+//                     >
+//                       <TableCell padding="checkbox" sx={{ width: 40 }}>
+//                         <Checkbox
+//                           checked={isSelected}
+//                           onChange={() => handleSelect(schedule._id)}
+//                           disabled={schedule.status === 'Confirmed' || schedule.status === 'In Transit'}
+//                           sx={{
+//                             color: COLORS.primary,
+//                             '&.Mui-checked': {
+//                               color: COLORS.primary,
+//                             },
+//                             '& .MuiSvgIcon-root': {
+//                               fontSize: '1.25rem'
+//                             }
+//                           }}
+//                         />
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
+//                           {schedule.schedule_id}
+//                         </Typography>
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
+//                           {formatDate(schedule.dispatch_date)}
+//                         </Typography>
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+//                           {schedule.so_number}
+//                         </Typography>
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+//                           {schedule.transporter_preference || '-'}
+//                         </Typography>
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         {getVehicleTypeChip(schedule.vehicle_type)}
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+//                           {schedule.total_scheduled_qty || 0}
+//                         </Typography>
+//                       </TableCell>
+                      
+//                       <TableCell>
+//                         {getStatusChip(schedule.status)}
+//                       </TableCell>
+                      
+//                       <TableCell align="center" sx={{ width: 60 }}>
+//                         <ActionMenu 
+//                           schedule={schedule}
+//                           onView={openViewModalHandler}
+//                           onEdit={openEditModalHandler}
+//                           onDelete={openDeleteDialogHandler}
+//                           onConfirm={openConfirmDialogHandler}
+//                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+//                           onClose={handleActionMenuClose}
+//                           onOpen={(e) => handleActionMenuOpen(e, schedule)}
+//                         />
+//                       </TableCell>
+//                     </TableRow>
+//                   );
+//                 })
+//               )}
+//             </TableBody>
+//           </Table>
+//         </TableContainer>
+
+//         <TablePagination
+//           rowsPerPageOptions={[5, 10, 25, 50]}
+//           component="div"
+//           count={totalCount}
+//           rowsPerPage={rowsPerPage}
+//           page={page}
+//           onPageChange={handleChangePage}
+//           onRowsPerPageChange={handleChangeRowsPerPage}
+//           sx={{
+//             borderTop: `1px solid ${COLORS.border}`,
+//             '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+//               fontSize: '0.7rem',
+//               color: COLORS.text.secondary
+//             },
+//             '& .MuiTablePagination-select': {
+//               fontSize: '0.7rem'
+//             },
+//             '& .MuiTablePagination-actions button': {
+//               color: COLORS.primary,
+//             }
+//           }}
+//         />
+//       </Paper>
+
+//       {/* Modal Components */}
+//       <AddDeliverySchedule 
+//         open={openAddModal}
+//         onClose={() => setOpenAddModal(false)}
+//         onSuccess={handleAddSuccess}
+//       />
+
+//       {selectedSchedule && (
+//         <>
+//           <AddDeliverySchedule 
+//             open={openEditModal}
+//             onClose={() => {
+//               setOpenEditModal(false);
+//               setSelectedSchedule(null);
+//             }}
+//             onSuccess={handleEditSuccess}
+//             initialData={selectedSchedule}
+//             isEditMode={true}
+//           />
+
+//           <ViewDeliverySchedule 
+//             open={openViewModal}
+//             onClose={() => {
+//               setOpenViewModal(false);
+//               setSelectedSchedule(null);
+//             }}
+//             schedule={selectedSchedule}
+//           />
+
+//           <DeleteDeliverySchedule 
+//             open={openDeleteDialog}
+//             onClose={() => {
+//               setOpenDeleteDialog(false);
+//               setSelectedSchedule(null);
+//             }}
+//             schedule={selectedSchedule}
+//             onDelete={handleDeleteSuccess}
+//           />
+
+//           <ConfirmScheduleDialog
+//             open={openConfirmDialog}
+//             onClose={() => {
+//               setOpenConfirmDialog(false);
+//               setSelectedSchedule(null);
+//             }}
+//             schedule={selectedSchedule}
+//             onSuccess={handleConfirmSuccess}
+//           />
+//         </>
+//       )}
+
+//       <Snackbar
+//         open={snackbar.open}
+//         autoHideDuration={3000}
+//         onClose={() => setSnackbar({...snackbar, open: false})}
+//         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+//       >
+//         <Alert 
+//           onClose={() => setSnackbar({...snackbar, open: false})} 
+//           severity={snackbar.severity}
+//           variant="filled"
+//           sx={{ 
+//             width: '100%',
+//             borderRadius: 1.5,
+//             fontSize: '0.75rem',
+//             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+//             '& .MuiAlert-icon': {
+//               fontSize: '1.25rem'
+//             }
+//           }}
+//         >
+//           {snackbar.message}
+//         </Alert>
+//       </Snackbar>
+//     </Box>
+//   );
+// };
+
+// export default DeliveryScheduleMaster;
+
+
+
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -43,10 +1130,12 @@ import {
   LocalShipping as LocalShippingIcon,
   PictureAsPdf as PdfIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddDeliverySchedule from './AddDeliverySchedule';
 import ViewDeliverySchedule from './ViewDeliverySchedule';
 import DeleteDeliverySchedule from './DeleteDeliverySchedule';
@@ -86,10 +1175,28 @@ const LoadingState = () => (
   </Box>
 );
 
-// Action Menu Component
-const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, onClose, onOpen }) => {
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component - WITH PERMISSIONS
+const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
   const isConfirmed = schedule?.status === 'Confirmed';
   const isCancelled = schedule?.status === 'Cancelled';
+  
+  // Permission checks - USING CORRECT MODULE AND PAGE
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.DELIVERY_SCHEDULE, PAGES.DELIVERY_SCHEDULE, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.DELIVERY_SCHEDULE, PAGES.DELIVERY_SCHEDULE, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.DELIVERY_SCHEDULE, PAGES.DELIVERY_SCHEDULE, ACTIONS.DELETE);
+  const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.DELIVERY_SCHEDULE, PAGES.DELIVERY_SCHEDULE, ACTIONS.APPROVE);
 
   return (
     <>
@@ -122,24 +1229,28 @@ const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, o
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(schedule);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <VisibilityIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* View Details - VIEW permission */}
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(schedule);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <VisibilityIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {!isConfirmed && !isCancelled && (
+        {/* Edit - UPDATE permission (only for Draft) */}
+        {canUpdate && !isConfirmed && !isCancelled && (
           <MenuItem 
             onClick={() => {
               onEdit(schedule);
@@ -158,7 +1269,8 @@ const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, o
           </MenuItem>
         )}
 
-        {!isConfirmed && !isCancelled && (
+        {/* Confirm Schedule - APPROVE permission (only for Draft) */}
+        {canApprove && !isConfirmed && !isCancelled && (
           <MenuItem 
             onClick={() => {
               onConfirm(schedule);
@@ -179,33 +1291,43 @@ const ActionMenu = ({ schedule, onView, onEdit, onDelete, onConfirm, anchorEl, o
         
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         
-        <MenuItem 
-          onClick={() => {
-            onDelete(schedule);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Delete - DELETE permission (only for Draft) */}
+        {canDelete && !isConfirmed && !isCancelled && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(schedule);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
 };
 
-// Confirm Schedule Dialog
-const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess }) => {
+// Confirm Schedule Dialog - APPROVE permission
+const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess, permissions, isSuperAdmin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.DELIVERY_SCHEDULE, PAGES.DELIVERY_SCHEDULE, ACTIONS.APPROVE);
 
   const handleConfirm = async () => {
+    if (!canApprove) {
+      setError('You don\'t have permission to confirm schedules');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
@@ -299,7 +1421,7 @@ const ConfirmScheduleDialog = ({ open, onClose, schedule, onSuccess }) => {
         <Button
           variant="contained"
           onClick={handleConfirm}
-          disabled={loading}
+          disabled={loading || !canApprove}
           sx={{
             height: 36,
             px: 3,
@@ -326,7 +1448,7 @@ const DeliveryScheduleMaster = () => {
   
   // Table state
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5); // Changed from 10 to 5
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selected, setSelected] = useState([]);
   
   // Server-side pagination states
@@ -354,15 +1476,82 @@ const DeliveryScheduleMaster = () => {
     severity: 'success'
   });
 
-  // Debounce search
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
+
+  // Fetch user permissions
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper - USING CORRECT MODULE AND PAGE
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(
+      userPermissions,
+      MODULES.DELIVERY_SCHEDULE,
+      PAGES.DELIVERY_SCHEDULE,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setCurrentPage(1);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
 
   // Clear search
   const handleClearSearch = () => {
@@ -370,11 +1559,26 @@ const DeliveryScheduleMaster = () => {
     setSearchTerm('');
     setCurrentPage(1);
     setPage(0);
+    isSearchingRef.current = false;
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch delivery schedules from API with server-side pagination and search
   const fetchDeliverySchedules = useCallback(async () => {
-    setLoading(true);
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem('token');
       const params = {
@@ -409,12 +1613,14 @@ const DeliveryScheduleMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Load data when dependencies change
   useEffect(() => {
-    fetchDeliverySchedules();
-  }, [fetchDeliverySchedules]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDeliverySchedules();
+    }
+  }, [fetchDeliverySchedules, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -423,6 +1629,7 @@ const DeliveryScheduleMaster = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(schedules.map(schedule => schedule._id));
     } else {
@@ -431,6 +1638,7 @@ const DeliveryScheduleMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -468,24 +1676,40 @@ const DeliveryScheduleMaster = () => {
   };
 
   const openViewModalHandler = (schedule) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view schedule details', 'error');
+      return;
+    }
     setSelectedSchedule(schedule);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditModalHandler = (schedule) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit schedules', 'error');
+      return;
+    }
     setSelectedSchedule(schedule);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteDialogHandler = (schedule) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete schedules', 'error');
+      return;
+    }
     setSelectedSchedule(schedule);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openConfirmDialogHandler = (schedule) => {
+    if (!canApprove) {
+      showNotification('You don\'t have permission to confirm schedules', 'error');
+      return;
+    }
     setSelectedSchedule(schedule);
     setOpenConfirmDialog(true);
     handleActionMenuClose();
@@ -519,7 +1743,7 @@ const DeliveryScheduleMaster = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
     setLoading(true);
     try {
@@ -605,6 +1829,14 @@ const DeliveryScheduleMaster = () => {
     );
   };
 
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -641,7 +1873,7 @@ const DeliveryScheduleMaster = () => {
               placeholder="Search by schedule ID, SO number, transporter..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
               autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 320 },
@@ -657,6 +1889,13 @@ const DeliveryScheduleMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
@@ -693,7 +1932,8 @@ const DeliveryScheduleMaster = () => {
               </IconButton>
             </Tooltip>
             
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -718,26 +1958,29 @@ const DeliveryScheduleMaster = () => {
               </Button>
             )}
             
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Create Schedule
-            </Button>
+            {/* Create Schedule Button - CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Create Schedule
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -761,26 +2004,29 @@ const DeliveryScheduleMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < schedules.length}
-                    checked={schedules.length > 0 && selected.length === schedules.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < schedules.length}
+                      checked={schedules.length > 0 && selected.length === schedules.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || schedules.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || schedules.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -851,7 +2097,7 @@ const DeliveryScheduleMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading delivery schedules...
@@ -860,7 +2106,7 @@ const DeliveryScheduleMaster = () => {
                 </TableRow>
               ) : schedules.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <LocalShippingIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -901,22 +2147,25 @@ const DeliveryScheduleMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(schedule._id)}
-                          disabled={schedule.status === 'Confirmed' || schedule.status === 'In Transit'}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - DELETE permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(schedule._id)}
+                            disabled={schedule.status === 'Confirmed' || schedule.status === 'In Transit'}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary }}>
@@ -966,6 +2215,8 @@ const DeliveryScheduleMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, schedule)}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1000,54 +2251,70 @@ const DeliveryScheduleMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddDeliverySchedule 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddDeliverySchedule 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedSchedule && (
         <>
-          <AddDeliverySchedule 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedSchedule(null);
-            }}
-            onSuccess={handleEditSuccess}
-            initialData={selectedSchedule}
-            isEditMode={true}
-          />
+          {/* Edit Modal - UPDATE permission */}
+          {canUpdate && (
+            <AddDeliverySchedule 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedSchedule(null);
+              }}
+              onSuccess={handleEditSuccess}
+              initialData={selectedSchedule}
+              isEditMode={true}
+            />
+          )}
 
-          <ViewDeliverySchedule 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedSchedule(null);
-            }}
-            schedule={selectedSchedule}
-          />
+          {/* View Modal - VIEW permission */}
+          {canViewPage && (
+            <ViewDeliverySchedule 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedSchedule(null);
+              }}
+              schedule={selectedSchedule}
+            />
+          )}
 
-          <DeleteDeliverySchedule 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedSchedule(null);
-            }}
-            schedule={selectedSchedule}
-            onDelete={handleDeleteSuccess}
-          />
+          {/* Delete Dialog - DELETE permission */}
+          {canDelete && (
+            <DeleteDeliverySchedule 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedSchedule(null);
+              }}
+              schedule={selectedSchedule}
+              onDelete={handleDeleteSuccess}
+            />
+          )}
 
-          <ConfirmScheduleDialog
-            open={openConfirmDialog}
-            onClose={() => {
-              setOpenConfirmDialog(false);
-              setSelectedSchedule(null);
-            }}
-            schedule={selectedSchedule}
-            onSuccess={handleConfirmSuccess}
-          />
+          {/* Confirm Schedule Dialog - APPROVE permission */}
+          {canApprove && (
+            <ConfirmScheduleDialog
+              open={openConfirmDialog}
+              onClose={() => {
+                setOpenConfirmDialog(false);
+                setSelectedSchedule(null);
+              }}
+              schedule={selectedSchedule}
+              onSuccess={handleConfirmSuccess}
+              permissions={userPermissions}
+              isSuperAdmin={isSuperAdmin}
+            />
+          )}
         </>
       )}
 

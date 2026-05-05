@@ -35,7 +35,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Grid
+  Grid,
+ 
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -51,18 +52,43 @@ import {
   TrendingUp as TrendingUpIcon,
   Pending as PendingIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddMachine from './AddMachine';
 import ViewMachine from './ViewMachine';
 import EditMachine from './EditMachine';
 import DeleteMachine from './DeleteMachine';
 import { COLORS, MACHINE_TYPE_COLORS, MACHINE_STATUS_COLORS, MACHINE_STATUS_OPTIONS } from './constants';
 
-// Action Menu Component
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onCapacityReport, onStatusUpdate }) => {
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component - WITH PERMISSION CHECKS
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onCapacityReport, onStatusUpdate, permissions, isSuperAdmin }) => {
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.MACHINE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.MACHINE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.MACHINE_MASTER, ACTIONS.DELETE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -94,69 +120,84 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* View Details - VIEW permission */}
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Edit - UPDATE permission */}
+        {canUpdate && (
+          <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem onClick={() => { onStatusUpdate(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
-              Update Status
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Update Status - UPDATE permission */}
+        {canUpdate && (
+          <MenuItem onClick={() => { onStatusUpdate(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+                Update Status
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem onClick={() => { onCapacityReport(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
-            <AssessmentIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
-              Capacity Report
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Capacity Report - VIEW permission */}
+        {canView && (
+          <MenuItem onClick={() => { onCapacityReport(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
+              <AssessmentIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#10B981', fontSize: '0.75rem' }}>
+                Capacity Report
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         
-        <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Delete - DELETE permission */}
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
 };
 
 // Capacity Report Modal
-const CapacityReportModal = ({ open, onClose, machine, reportData, loading, fromDate, toDate, onFromDateChange, onToDateChange, onGenerateReport }) => {
+const CapacityReportModal = ({ open, onClose, machine, reportData, loading, fromDate, toDate, onFromDateChange, onToDateChange, onGenerateReport, canView }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -297,7 +338,7 @@ const CapacityReportModal = ({ open, onClose, machine, reportData, loading, from
             <Button
               variant="contained"
               onClick={onGenerateReport}
-              disabled={!fromDate || !toDate || loading}
+              disabled={!fromDate || !toDate || loading || !canView}
               sx={{
                 mt: 2,
                 height: 32,
@@ -407,7 +448,7 @@ const CapacityReportModal = ({ open, onClose, machine, reportData, loading, from
 };
 
 // Status Update Modal
-const StatusUpdateModal = ({ open, onClose, machine, onStatusUpdate, loading }) => {
+const StatusUpdateModal = ({ open, onClose, machine, onStatusUpdate, loading, canUpdate }) => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [error, setError] = useState('');
   
@@ -419,6 +460,10 @@ const StatusUpdateModal = ({ open, onClose, machine, onStatusUpdate, loading }) 
   }, [open, machine]);
   
   const handleSubmit = () => {
+    if (!canUpdate) {
+      setError('You don\'t have permission to update status');
+      return;
+    }
     if (!selectedStatus) {
       setError('Please select a status');
       return;
@@ -545,7 +590,7 @@ const StatusUpdateModal = ({ open, onClose, machine, onStatusUpdate, loading }) 
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={!selectedStatus || loading}
+          disabled={!selectedStatus || loading || !canUpdate}
           sx={{
             height: 32,
             px: 2,
@@ -563,8 +608,6 @@ const StatusUpdateModal = ({ open, onClose, machine, onStatusUpdate, loading }) 
     </Dialog>
   );
 };
-
-import CloseIcon from '@mui/icons-material/Close';
 
 const MachineMaster = () => {
   const [machines, setMachines] = useState([]);
@@ -599,19 +642,105 @@ const MachineMaster = () => {
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [statusLoading, setStatusLoading] = useState(false);
 
-  // Debounce search
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
+
+  // Fetch user permissions
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper - USING CORRECT MODULE AND PAGE
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(
+      userPermissions,
+      MODULES.BOM_MASTER,
+      PAGES.MACHINE_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch Machines from API
   const fetchMachines = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
@@ -639,13 +768,23 @@ const MachineMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [page, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchMachines();
-  }, [fetchMachines]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchMachines();
+    }
+  }, [fetchMachines, permissionsLoaded, canViewPage, isSuperAdmin]);
 
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchMachines();
+    showNotification('Data refreshed', 'success');
+  };
+
+  // Handle selection - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(machines.map(machine => machine._id));
     } else {
@@ -654,6 +793,7 @@ const MachineMaster = () => {
   };
   
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -757,24 +897,40 @@ const MachineMaster = () => {
   };
 
   const openViewMachineModal = (machine) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view machine details', 'error');
+      return;
+    }
     setSelectedMachine(machine);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
   const openEditMachineModal = (machine) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit machines', 'error');
+      return;
+    }
     setSelectedMachine(machine);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
   const openDeleteMachineDialog = (machine) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete machines', 'error');
+      return;
+    }
     setSelectedMachine(machine);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
   
   const openCapacityReportModalFunc = (machine) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view capacity report', 'error');
+      return;
+    }
     setSelectedMachine(machine);
     setReportData(null);
     setOpenCapacityReportModal(true);
@@ -782,9 +938,39 @@ const MachineMaster = () => {
   };
   
   const openStatusUpdateModalFunc = (machine) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to update status', 'error');
+      return;
+    }
     setSelectedMachine(machine);
     setOpenStatusUpdateModal(true);
     handleActionMenuClose();
+  };
+  
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/machines/bulk-delete`,
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      setSelected([]);
+
+      if (machines.length === selected.length && page > 0) {
+        setPage(prev => prev - 1);
+      }
+      fetchMachines();
+      showNotification(`${selected.length} machine(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete machines', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   const showNotification = (message, severity) => {
@@ -861,6 +1047,16 @@ const MachineMaster = () => {
     return colors[type] || { bg: '#F1F5F9', color: '#475569' };
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -898,7 +1094,8 @@ const MachineMaster = () => {
               placeholder="Search by Machine Name, Code, or Work Centre..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 450 },
                 '& .MuiOutlinedInput-root': {
@@ -913,6 +1110,13 @@ const MachineMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
@@ -935,11 +1139,30 @@ const MachineMaster = () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleBulkDelete}
                 sx={{ 
                   height: 36,
                   borderRadius: 1.5,
@@ -958,26 +1181,30 @@ const MachineMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Machine
-            </Button>
+
+            {/* Add Machine Button - CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Machine
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -1001,26 +1228,29 @@ const MachineMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < machines.length}
-                    checked={machines.length > 0 && selected.length === machines.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < machines.length}
+                      checked={machines.length > 0 && selected.length === machines.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || machines.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || machines.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Machine Name / Code
                 </TableCell>
@@ -1050,7 +1280,7 @@ const MachineMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading machines...
@@ -1059,7 +1289,7 @@ const MachineMaster = () => {
                 </TableRow>
               ) : machines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <InventoryIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1103,21 +1333,23 @@ const MachineMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(machine._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(machine._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
@@ -1204,6 +1436,8 @@ const MachineMaster = () => {
                           onDelete={openDeleteMachineDialog}
                           onCapacityReport={openCapacityReportModalFunc}
                           onStatusUpdate={openStatusUpdateModalFunc}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1239,71 +1473,90 @@ const MachineMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddMachine 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddMachine}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddMachine 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddMachine}
+        />
+      )}
 
       {selectedMachine && (
         <>
-          <ViewMachine 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedMachine(null);
-            }}
-            machine={selectedMachine}
-          />
+          {/* View Modal - VIEW permission */}
+          {canViewPage && (
+            <ViewMachine 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedMachine(null);
+              }}
+              machine={selectedMachine}
+            />
+          )}
 
-          <EditMachine 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedMachine(null);
-            }}
-            machine={selectedMachine}
-            onUpdate={handleEditMachine}
-          />
+          {/* Edit Modal - UPDATE permission */}
+          {canUpdate && (
+            <EditMachine 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedMachine(null);
+              }}
+              machine={selectedMachine}
+              onUpdate={handleEditMachine}
+            />
+          )}
 
-          <DeleteMachine 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedMachine(null);
-            }}
-            machine={selectedMachine}
-            onDelete={handleDeleteMachine}
-          />
+          {/* Delete Modal - DELETE permission */}
+          {canDelete && (
+            <DeleteMachine 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedMachine(null);
+              }}
+              machine={selectedMachine}
+              onDelete={handleDeleteMachine}
+            />
+          )}
 
-          <CapacityReportModal
-            open={openCapacityReportModal}
-            onClose={() => {
-              setOpenCapacityReportModal(false);
-              setSelectedMachine(null);
-              setReportData(null);
-            }}
-            machine={selectedMachine}
-            reportData={reportData}
-            loading={reportLoading}
-            fromDate={fromDate}
-            toDate={toDate}
-            onFromDateChange={setFromDate}
-            onToDateChange={setToDate}
-            onGenerateReport={handleCapacityReport}
-          />
+          {/* Capacity Report Modal - VIEW permission */}
+          {canViewPage && (
+            <CapacityReportModal
+              open={openCapacityReportModal}
+              onClose={() => {
+                setOpenCapacityReportModal(false);
+                setSelectedMachine(null);
+                setReportData(null);
+              }}
+              machine={selectedMachine}
+              reportData={reportData}
+              loading={reportLoading}
+              fromDate={fromDate}
+              toDate={toDate}
+              onFromDateChange={setFromDate}
+              onToDateChange={setToDate}
+              onGenerateReport={handleCapacityReport}
+              canView={canViewPage}
+            />
+          )}
 
-          <StatusUpdateModal
-            open={openStatusUpdateModal}
-            onClose={() => {
-              setOpenStatusUpdateModal(false);
-              setSelectedMachine(null);
-            }}
-            machine={selectedMachine}
-            onStatusUpdate={handleStatusUpdate}
-            loading={statusLoading}
-          />
+          {/* Status Update Modal - UPDATE permission */}
+          {canUpdate && (
+            <StatusUpdateModal
+              open={openStatusUpdateModal}
+              onClose={() => {
+                setOpenStatusUpdateModal(false);
+                setSelectedMachine(null);
+              }}
+              machine={selectedMachine}
+              onStatusUpdate={handleStatusUpdate}
+              loading={statusLoading}
+              canUpdate={canUpdate}
+            />
+          )}
         </>
       )}
 

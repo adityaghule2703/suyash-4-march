@@ -58,7 +58,8 @@ import {
     Verified as VerifiedIcon,
     Assessment as AssessmentIcon,
     LockOpen as LockOpenIcon,
-    Update as UpdateIcon
+    Update as UpdateIcon,
+    Refresh as RefreshIcon
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
@@ -196,13 +197,15 @@ const getActionTooltip = (capa, action) => {
     }
 };
 
-// Action Menu Component
-const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) => {
-    const canView = hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.VIEW);
-    const canUpdate = hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.UPDATE);
-    const canDelete = hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.DELETE);
+// Action Menu Component - WITH CORRECT PERMISSIONS
+const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+    // Check permissions
+    const canView = isSuperAdmin || hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.VIEW);
+    const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.CREATE);
+    const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.UPDATE);
+    const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.CAPA_MASTER, PAGES.CAPA_MASTER, ACTIONS.DELETE);
 
-    if (!canView && !canUpdate && !canDelete) {
+    if (!canView && !canCreate && !canUpdate && !canDelete) {
         return null;
     }
 
@@ -211,16 +214,16 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
             label: 'View Details',
             icon: <ViewIcon fontSize="small" />,
             action: 'view',
-            show: canView,
+            show: canView,  // VIEW permission
             allowed: true,
             tooltip: 'View CAPA details'
         },
-        { divider: true, show: canView && canUpdate },
+        { divider: true, show: (canView && (canUpdate || canCreate)) },
         {
             label: 'Update Fields',
             icon: <EditIcon fontSize="small" />,
             action: 'editFields',
-            show: canUpdate,
+            show: canUpdate,  // UPDATE permission
             allowed: isActionAllowed(capa, 'editFields'),
             tooltip: getActionTooltip(capa, 'editFields')
         },
@@ -228,7 +231,7 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
             label: 'Update Actions',
             icon: <UpdateIcon fontSize="small" />,
             action: 'updateActions',
-            show: canUpdate,
+            show: canUpdate,  // UPDATE permission
             allowed: isActionAllowed(capa, 'updateActions'),
             tooltip: getActionTooltip(capa, 'updateActions')
         },
@@ -236,7 +239,7 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
             label: 'Review Effectiveness',
             icon: <VerifiedIcon fontSize="small" />,
             action: 'reviewEffectiveness',
-            show: canUpdate && capa.status !== 'Closed' && capa.status !== 'Effectiveness Under Review',
+            show: canCreate && capa.status !== 'Closed' && capa.status !== 'Effectiveness Under Review',  // CREATE permission
             allowed: isActionAllowed(capa, 'reviewEffectiveness'),
             tooltip: getActionTooltip(capa, 'reviewEffectiveness')
         },
@@ -244,7 +247,7 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
             label: 'Close CAPA',
             icon: <LockOpenIcon fontSize="small" />,
             action: 'close',
-            show: canUpdate && capa.status !== 'Closed',
+            show: canCreate && capa.status !== 'Closed',  // CREATE permission
             allowed: isActionAllowed(capa, 'close'),
             tooltip: getActionTooltip(capa, 'close')
         },
@@ -253,7 +256,7 @@ const ActionMenu = ({ capa, onAction, anchorEl, onClose, onOpen, permissions }) 
         //     label: 'Delete',
         //     icon: <DeleteIcon fontSize="small" />,
         //     action: 'delete',
-        //     show: canDelete && capa.status !== 'Closed',
+        //     show: canDelete && capa.status !== 'Closed',  // DELETE permission
         //     allowed: isActionAllowed(capa, 'delete'),
         //     tooltip: getActionTooltip(capa, 'delete'),
         //     color: '#EF4444'
@@ -391,6 +394,10 @@ const CapaMaster = () => {
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+    // Ref for search debouncing
+    const isSearchingRef = React.useRef(false);
+    const searchTimeoutRef = React.useRef(null);
+
     // Update rows per page based on screen size
     useEffect(() => {
         setRowsPerPage(isMobile ? 5 : 10);
@@ -437,25 +444,51 @@ const CapaMaster = () => {
     const canUpdate = checkPermission(ACTIONS.UPDATE);
     const canDelete = checkPermission(ACTIONS.DELETE);
 
-    // Debounce search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setSearchTerm(searchInput);
+    // Handle search input change with debounce
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        setSearchInput(value);
+        isSearchingRef.current = true;
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        searchTimeoutRef.current = setTimeout(() => {
+            setSearchTerm(value);
             setPage(0);
+            setSelected([]);
+            isSearchingRef.current = false;
         }, 500);
-        return () => clearTimeout(timer);
-    }, [searchInput]);
+    };
+
+    // Clear search
+    const handleClearSearch = () => {
+        setSearchInput('');
+        setSearchTerm('');
+        setPage(0);
+        setSelected([]);
+        isSearchingRef.current = false;
+    };
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Fetch CAPAs from API
-    useEffect(() => {
-        if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-            fetchCapas();
-        }
-    }, [permissionsLoaded, canViewPage, isSuperAdmin]);
+    const fetchCapas = React.useCallback(async () => {
+        if (!canViewPage && !isSuperAdmin) return;
 
-    const fetchCapas = async () => {
-        try {
+        if (!isSearchingRef.current) {
             setLoading(true);
+        }
+
+        try {
             const token = localStorage.getItem('token');
             const response = await axios.get(`${BASE_URL}/api/capas`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -506,6 +539,19 @@ const CapaMaster = () => {
         } finally {
             setLoading(false);
         }
+    }, [canViewPage, isSuperAdmin]);
+
+    // Load data when dependencies change
+    useEffect(() => {
+        if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+            fetchCapas();
+        }
+    }, [fetchCapas, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+    // Handle refresh
+    const handleRefresh = () => {
+        fetchCapas();
+        showNotification('Data refreshed', 'success');
     };
 
     // Apply filters
@@ -549,8 +595,7 @@ const CapaMaster = () => {
         setCapaTypeFilter('All');
         setSourceFilter('All');
         setStatusFilter('All');
-        setSearchInput('');
-        setSearchTerm('');
+        handleClearSearch();
         if (isMobile) setFilterDrawerOpen(false);
     };
 
@@ -588,8 +633,22 @@ const CapaMaster = () => {
         setSelected([]);
     };
 
-    // Action handlers with validation
+    // Action handlers with validation and permission checks
     const handleAction = (action, capa) => {
+        // Permission checks
+        if (action === 'view' && !canViewPage) {
+            showNotification('You don\'t have permission to view CAPA details', 'error');
+            return;
+        }
+        if ((action === 'editFields' || action === 'updateActions') && !canUpdate) {
+            showNotification('You don\'t have permission to update CAPA fields', 'error');
+            return;
+        }
+        if ((action === 'reviewEffectiveness' || action === 'close') && !canCreate) {
+            showNotification('You don\'t have permission to perform this action', 'error');
+            return;
+        }
+
         if (!isActionAllowed(capa, action)) {
             showNotification(getActionTooltip(capa, action), 'warning');
             return;
@@ -633,42 +692,35 @@ const CapaMaster = () => {
 
     // CRUD Handlers
     const handleAddCapa = (newCapa) => {
-    let capaData = newCapa?.data || newCapa;
+        let capaData = newCapa?.data || newCapa;
 
-    if (!capaData) return;
+        if (!capaData) return;
 
-    const formattedCapa = {
-        _id: capaData._id || Date.now().toString(),
-        capa_id: capaData.capa_id || '',
-        capa_date: capaData.capa_date || new Date().toISOString(),
+        const formattedCapa = {
+            _id: capaData._id || Date.now().toString(),
+            capa_id: capaData.capa_id || '',
+            capa_date: capaData.capa_date || new Date().toISOString(),
+            capa_type: capaData.capa_type || capaData.type || '-',
+            source: capaData.source || capaData.capa_source || '-',
+            problem_statement: capaData.problem_statement || '',
+            status: capaData.status || 'Open',
+            corrective_actions: capaData.corrective_actions || [],
+            preventive_actions: capaData.preventive_actions || [],
+            corrective_actions_count: capaData.corrective_actions?.length || 0,
+            preventive_actions_count: capaData.preventive_actions?.length || 0,
+            createdAt: capaData.createdAt || new Date().toISOString(),
+            updatedAt: capaData.updatedAt || new Date().toISOString()
+        };
 
-        // ✅ MAIN FIX
-        capa_type: capaData.capa_type || capaData.type || '-',
-        source: capaData.source || capaData.capa_source || '-',
+        setCapas(prev => [formattedCapa, ...prev]);
+        setPage(0);
 
-        problem_statement: capaData.problem_statement || '',
-        status: capaData.status || 'Open',
+        setTimeout(() => {
+            fetchCapas();
+        }, 300);
 
-        corrective_actions: capaData.corrective_actions || [],
-        preventive_actions: capaData.preventive_actions || [],
-
-        corrective_actions_count: capaData.corrective_actions?.length || 0,
-        preventive_actions_count: capaData.preventive_actions?.length || 0,
-
-        createdAt: capaData.createdAt || new Date().toISOString(),
-        updatedAt: capaData.updatedAt || new Date().toISOString()
+        showNotification("CAPA created successfully!", "success");
     };
-
-    setCapas(prev => [formattedCapa, ...prev]);
-    setPage(0);
-
-    // 🔥 IMPORTANT (best fix)
-    setTimeout(() => {
-        fetchCapas();   // ensures correct backend data
-    }, 300);
-
-    showNotification("CAPA created successfully!", "success");
-};
 
     const handleUpdateFields = (updatedData) => {
         const updatedCapas = capas.map(capa =>
@@ -680,11 +732,10 @@ const CapaMaster = () => {
         showNotification('CAPA fields updated successfully!', 'success');
         setOpenEditFieldsModal(false);
         setSelectedCapa(null);
-        fetchCapas(); // Refresh to get latest data
+        fetchCapas();
     };
 
     const handleUpdateAction = (updatedAction) => {
-        // Refresh CAPA data to get latest action status
         fetchCapas();
         showNotification('Action updated successfully!', 'success');
         setOpenUpdateActionsModal(false);
@@ -710,7 +761,7 @@ const CapaMaster = () => {
         showNotification('Effectiveness review recorded successfully!', 'success');
         setOpenReviewEffectivenessModal(false);
         setSelectedCapa(null);
-        fetchCapas(); // Refresh to get latest data
+        fetchCapas();
     };
 
     const handleCloseCapa = (closedData) => {
@@ -723,7 +774,7 @@ const CapaMaster = () => {
         showNotification(`CAPA ${closedData.capa_id} closed successfully!`, 'success');
         setOpenCloseModal(false);
         setSelectedCapa(null);
-        fetchCapas(); // Refresh to get latest data
+        fetchCapas();
     };
 
     const handleDeleteCapa = async (capaId) => {
@@ -954,7 +1005,8 @@ const CapaMaster = () => {
                             placeholder={isMobile ? "Search..." : "Search by CAPA ID, problem statement..."}
                             size="small"
                             value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
+                            onChange={handleSearchChange}
+                            autoComplete="off"
                             fullWidth={isMobile}
                             sx={{
                                 flex: 1,
@@ -970,6 +1022,13 @@ const CapaMaster = () => {
                                 startAdornment: (
                                     <InputAdornment position="start">
                                         <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchInput && (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={handleClearSearch}>
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
                                     </InputAdornment>
                                 ),
                                 sx: {
@@ -1097,6 +1156,24 @@ const CapaMaster = () => {
 
                     {/* Action Buttons */}
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
+                        {/* Refresh Button */}
+                        <Tooltip title="Refresh">
+                            <IconButton
+                                size="small"
+                                onClick={handleRefresh}
+                                disabled={loading}
+                                sx={{
+                                    color: COLORS.text.secondary,
+                                    '&:hover': {
+                                        bgcolor: `${COLORS.primary}20`
+                                    }
+                                }}
+                            >
+                                <RefreshIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+
+                        {/* Bulk Delete Button - DELETE permission */}
                         {canDelete && selected.length > 0 && (
                             <Button
                                 variant="outlined"
@@ -1122,6 +1199,7 @@ const CapaMaster = () => {
                             </Button>
                         )}
 
+                        {/* Create CAPA Button - CREATE permission */}
                         {canCreate && (
                             <Button
                                 variant="contained"
@@ -1171,6 +1249,7 @@ const CapaMaster = () => {
                                     py: 1.5
                                 }
                             }}>
+                                {/* Checkbox Column - DELETE permission */}
                                 {canDelete && (
                                     <TableCell padding="checkbox" sx={{ width: 40 }}>
                                         <Checkbox
@@ -1201,7 +1280,6 @@ const CapaMaster = () => {
                                 }}>
                                     CAPA Number
                                 </TableCell>
-                                
                                 <TableCell sx={{
                                     fontWeight: 600,
                                     fontSize: '0.7rem',
@@ -1264,7 +1342,7 @@ const CapaMaster = () => {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                                         <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                                         <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                                             Loading CAPAs...
@@ -1273,7 +1351,7 @@ const CapaMaster = () => {
                                 </TableRow>
                             ) : paginatedCapas.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={canDelete ? 10 : 9} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ textAlign: 'center' }}>
                                             <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
                                                 {searchTerm || capaTypeFilter !== 'All' || sourceFilter !== 'All' || statusFilter !== 'All'
@@ -1341,7 +1419,6 @@ const CapaMaster = () => {
                                                     {capa.capa_id}
                                                 </Typography>
                                             </TableCell>
-                                          
                                             <TableCell>
                                                 <Chip
                                                     label={capa.capa_type}
@@ -1419,6 +1496,7 @@ const CapaMaster = () => {
                                                     onClose={handleActionMenuClose}
                                                     onOpen={(e) => handleActionMenuOpen(e, capa)}
                                                     permissions={userPermissions}
+                                                    isSuperAdmin={isSuperAdmin}
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -1454,7 +1532,8 @@ const CapaMaster = () => {
                 />
             </Paper>
 
-            {/* Modals */}
+            {/* Modals - With CORRECT permission checks */}
+            {/* Add CAPA Modal - CREATE permission */}
             {canCreate && (
                 <AddCapa
                     open={openAddModal}
@@ -1465,56 +1544,74 @@ const CapaMaster = () => {
 
             {selectedCapa && (
                 <>
-                    <ViewCapa
-                        open={openViewModal}
-                        onClose={() => { setOpenViewModal(false); setSelectedCapa(null); }}
-                        capaId={selectedCapa._id}
-                    />
+                    {/* View Modal - VIEW permission */}
+                    {canViewPage && (
+                        <ViewCapa
+                            open={openViewModal}
+                            onClose={() => { setOpenViewModal(false); setSelectedCapa(null); }}
+                            capaId={selectedCapa._id}
+                        />
+                    )}
 
-                    <UpdateFields
-                        open={openEditFieldsModal}
-                        onClose={() => { setOpenEditFieldsModal(false); setSelectedCapa(null); }}
-                        capaId={selectedCapa._id}
-                        capaNumber={selectedCapa.capa_id}
-                        onUpdated={handleUpdateFields}
-                    />
+                    {/* Update Fields Modal - UPDATE permission */}
+                    {canUpdate && (
+                        <UpdateFields
+                            open={openEditFieldsModal}
+                            onClose={() => { setOpenEditFieldsModal(false); setSelectedCapa(null); }}
+                            capaId={selectedCapa._id}
+                            capaNumber={selectedCapa.capa_id}
+                            onUpdated={handleUpdateFields}
+                        />
+                    )}
 
-                    <UpdateActions
-                        open={openUpdateActionsModal}
-                        onClose={() => { setOpenUpdateActionsModal(false); setSelectedCapa(null); }}
-                        capaId={selectedCapa._id}
-                        capaNumber={selectedCapa.capa_id}
-                        onActionUpdated={handleUpdateAction}
-                    />
+                    {/* Update Actions Modal - UPDATE permission */}
+                    {canUpdate && (
+                        <UpdateActions
+                            open={openUpdateActionsModal}
+                            onClose={() => { setOpenUpdateActionsModal(false); setSelectedCapa(null); }}
+                            capaId={selectedCapa._id}
+                            capaNumber={selectedCapa.capa_id}
+                            onActionUpdated={handleUpdateAction}
+                        />
+                    )}
 
-                    <ReviewCapa
-                        open={openReviewEffectivenessModal}
-                        onClose={() => { setOpenReviewEffectivenessModal(false); setSelectedCapa(null); }}
-                        capaId={selectedCapa._id}
-                        capaNumber={selectedCapa.capa_id}
-                        onEffectivenessRecorded={handleReviewEffectiveness}
-                    />
+                    {/* Review Effectiveness Modal - CREATE permission */}
+                    {canCreate && (
+                        <ReviewCapa
+                            open={openReviewEffectivenessModal}
+                            onClose={() => { setOpenReviewEffectivenessModal(false); setSelectedCapa(null); }}
+                            capaId={selectedCapa._id}
+                            capaNumber={selectedCapa.capa_id}
+                            onEffectivenessRecorded={handleReviewEffectiveness}
+                        />
+                    )}
 
-                    <CloseCapa
-                        open={openCloseModal}
-                        onClose={() => { setOpenCloseModal(false); setSelectedCapa(null); }}
-                        capaId={selectedCapa._id}
-                        capaNumber={selectedCapa.capa_id}
-                        onCapaClosed={handleCloseCapa}
-                    />
+                    {/* Close CAPA Modal - CREATE permission */}
+                    {canCreate && (
+                        <CloseCapa
+                            open={openCloseModal}
+                            onClose={() => { setOpenCloseModal(false); setSelectedCapa(null); }}
+                            capaId={selectedCapa._id}
+                            capaNumber={selectedCapa.capa_id}
+                            onCapaClosed={handleCloseCapa}
+                        />
+                    )}
 
-                    <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-                        <DialogTitle>Delete CAPA</DialogTitle>
-                        <DialogContent>
-                            <DialogContentText>
-                                Are you sure you want to delete CAPA {selectedCapa.capa_id}? This action cannot be undone.
-                            </DialogContentText>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-                            <Button onClick={() => handleDeleteCapa(selectedCapa._id)} color="error">Delete</Button>
-                        </DialogActions>
-                    </Dialog>
+                    {/* Delete Dialog - DELETE permission */}
+                    {canDelete && (
+                        <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+                            <DialogTitle>Delete CAPA</DialogTitle>
+                            <DialogContent>
+                                <DialogContentText>
+                                    Are you sure you want to delete CAPA {selectedCapa.capa_id}? This action cannot be undone.
+                                </DialogContentText>
+                            </DialogContent>
+                            <DialogActions>
+                                <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+                                <Button onClick={() => handleDeleteCapa(selectedCapa._id)} color="error">Delete</Button>
+                            </DialogActions>
+                        </Dialog>
+                    )}
                 </>
             )}
 
@@ -1529,7 +1626,7 @@ const CapaMaster = () => {
                 </Alert>
             </Snackbar>
         </Box>
-        );
+    );
 };
 
 export default CapaMaster;

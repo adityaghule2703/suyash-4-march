@@ -117,7 +117,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <BrowserRouter>
-      {/* //  <BrowserRouter basename="/suyashtest-front"> */}
+         {/* <BrowserRouter basename="/suyashtest-front">  */}
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />

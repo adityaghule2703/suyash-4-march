@@ -59,7 +59,8 @@ import {
   AttachMoney as AttachMoneyIcon,
   BugReport as BugReportIcon,
   LockOpen as LockOpenIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Refresh as RefreshIcon
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
@@ -150,7 +151,7 @@ const AccessDenied = () => (
   </Box>
 );
 
-// Helper function to check if action is allowed
+// Helper function to check if action is allowed based on NCR state
 const isActionAllowed = (ncr, action) => {
   const isClosed = ncr.status === 'Closed';
   
@@ -222,77 +223,87 @@ const getActionTooltip = (ncr, action) => {
   }
 };
 
-// Action Menu Component
-const ActionMenu = ({ ncr, onAction, anchorEl, onClose, onOpen, permissions }) => {
-  const canView = hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.VIEW);
-  const canUpdate = hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.UPDATE);
-  const canDelete = hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.DELETE);
+// Action Menu Component - WITH CORRECT PERMISSIONS
+const ActionMenu = ({ ncr, onAction, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  // Check permissions
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.VIEW);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.CREATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.NCR_MASTER, PAGES.NCR_MASTER, ACTIONS.DELETE);
 
-  if (!canView && !canUpdate && !canDelete) {
+  if (!canView && !canCreate && !canDelete) {
     return null;
   }
 
+  // Menu items
   const menuItems = [
     { 
       label: 'View Details', 
       icon: <ViewIcon fontSize="small" />, 
       action: 'view', 
-      show: canView,
+      show: canView,  // VIEW permission
       allowed: true,
-      // tooltip: 'View NCR details'
     },
     { 
       label: 'Set Disposition', 
       icon: <SwapHorizIcon fontSize="small" />, 
       action: 'disposition', 
-      show: canUpdate,
+      show: canCreate,  // CREATE permission
       allowed: isActionAllowed(ncr, 'disposition'),
-      // tooltip: getActionTooltip(ncr, 'disposition'),
+      tooltip: getActionTooltip(ncr, 'disposition'),
       completed: ncr.disposition ? true : false
     },
     { 
       label: 'Record Root Cause', 
       icon: <BugReportIcon fontSize="small" />, 
       action: 'rootCause', 
-      show: canUpdate,
+      show: canCreate,  // CREATE permission
       allowed: isActionAllowed(ncr, 'rootCause'),
-      // tooltip: getActionTooltip(ncr, 'rootCause'),
+      tooltip: getActionTooltip(ncr, 'rootCause'),
       completed: ncr.root_cause ? true : false
     },
     { 
       label: 'Add Action', 
       icon: <AssignmentIcon fontSize="small" />, 
       action: 'addAction', 
-      show: canUpdate,
+      show: canCreate,  // CREATE permission
       allowed: isActionAllowed(ncr, 'addAction'),
-      // tooltip: getActionTooltip(ncr, 'addAction')
+      tooltip: getActionTooltip(ncr, 'addAction')
     },
     { 
       label: 'Financial Details', 
       icon: <AttachMoneyIcon fontSize="small" />, 
       action: 'financial', 
-      show: canUpdate,
+      show: canCreate,  // CREATE permission
       allowed: isActionAllowed(ncr, 'financial'),
-      // tooltip: getActionTooltip(ncr, 'financial')
+      tooltip: getActionTooltip(ncr, 'financial')
     },
     { 
       label: 'Link CAPA', 
       icon: <LinkIcon fontSize="small" />, 
       action: 'linkCapa', 
-      show: canUpdate && ((ncr.severity === 'Critical' || ncr.severity === 'Major') && ncr.systemic_failure === true),
+      show: canCreate && ((ncr.severity === 'Critical' || ncr.severity === 'Major') && ncr.systemic_failure === true),  // CREATE permission
       allowed: isActionAllowed(ncr, 'linkCapa'),
-      // tooltip: getActionTooltip(ncr, 'linkCapa'),
+      tooltip: getActionTooltip(ncr, 'linkCapa'),
       completed: ncr.capa_id ? true : false
     },
     { 
       label: 'Close NCR', 
       icon: <LockOpenIcon fontSize="small" />, 
       action: 'close', 
-      show: canUpdate && ncr.status !== 'Closed',
+      show: canCreate && ncr.status !== 'Closed',  // CREATE permission
       allowed: isActionAllowed(ncr, 'close'),
-      // tooltip: getActionTooltip(ncr, 'close')
+      tooltip: getActionTooltip(ncr, 'close')
     },
     { divider: true, show: canDelete && ncr.status !== 'Closed' },
+    { 
+      label: 'Delete NCR', 
+      icon: <DeleteIcon fontSize="small" />, 
+      action: 'delete', 
+      show: canDelete && ncr.status !== 'Closed',  // DELETE permission
+      allowed: isActionAllowed(ncr, 'delete'),
+      tooltip: getActionTooltip(ncr, 'delete'),
+      color: '#EF4444'
+    },
   ];
 
   return (
@@ -358,7 +369,7 @@ const ActionMenu = ({ ncr, onAction, anchorEl, onClose, onOpen, permissions }) =
                         {item.label}
                       </Typography>
                       {item.completed && (
-                        <CheckCircleIcon sx={{ fontSize: '0.7rem', color: COLORS.success }} />
+                        <CheckCircleIcon sx={{ fontSize: '0.7rem', color: '#10B981' }} />
                       )}
                     </Stack>
                   </ListItemText>
@@ -471,7 +482,6 @@ const NcrMaster = () => {
   // Permission checks
   const canViewPage = checkPermission(ACTIONS.VIEW);
   const canCreate = checkPermission(ACTIONS.CREATE);
-  const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
 
   // Debounce search
@@ -540,6 +550,12 @@ const NcrMaster = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchNcrs();
+    showNotification('Data refreshed', 'success');
   };
   
   // Apply filters
@@ -628,8 +644,20 @@ const NcrMaster = () => {
     setSelected([]);
   };
   
-  // Action handlers with validation
+  // Action handlers - WITH CORRECT PERMISSION CHECKS
   const handleAction = (action, ncr) => {
+    // Permission check for actions
+    if (action !== 'view') {
+      if (action === 'delete' && !canDelete) {
+        showNotification('You don\'t have permission to delete NCRs', 'error');
+        return;
+      }
+      if (action !== 'delete' && !canCreate) {  // CHECK FOR CREATE PERMISSION
+        showNotification('You don\'t have permission to perform this action', 'error');
+        return;
+      }
+    }
+    
     if (!isActionAllowed(ncr, action)) {
       showNotification(getActionTooltip(ncr, action), 'warning');
       return;
@@ -1206,6 +1234,24 @@ const NcrMaster = () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - DELETE permission */}
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -1231,6 +1277,7 @@ const NcrMaster = () => {
               </Button>
             )}
             
+            {/* Create NCR Button - CREATE permission */}
             {canCreate && (
               <Button
                 variant="contained"
@@ -1280,6 +1327,7 @@ const NcrMaster = () => {
                   py: 1.5
                 }
               }}>
+                {/* Checkbox Column - DELETE permission */}
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
@@ -1561,6 +1609,7 @@ const NcrMaster = () => {
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, ncr)}
                           permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1596,28 +1645,65 @@ const NcrMaster = () => {
         />
       </Paper>
 
-      {/* Modals */}
-      <AddNCR open={openAddModal} onClose={() => setOpenAddModal(false)} onNcrAdded={handleAddNcr} />
+      {/* Modals - With CORRECT permission checks */}
+      {/* Add NCR Modal - CREATE permission */}
+      {canCreate && (
+        <AddNCR open={openAddModal} onClose={() => setOpenAddModal(false)} onNcrAdded={handleAddNcr} />
+      )}
       
       {selectedNcr && (
         <>
-          <ViewNcr open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} />
-          {/* <EditNcr open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} onUpdate={handleEditNcr} /> */}
-          <SetDisposition open={openDispositionModal} onClose={() => { setOpenDispositionModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onDispositionSet={handleDispositionSet} />
-          <RecordRootCause open={openRootCauseModal} onClose={() => { setOpenRootCauseModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} onRootCauseRecorded={handleRootCauseRecorded} />
-          <AddAction open={openAddActionModal} onClose={() => { setOpenAddActionModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} onActionAdded={handleActionAdded} />
-          <NcrFinancialDetails open={openFinancialModal} onClose={() => { setOpenFinancialModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onFinancialUpdated={handleFinancialUpdated} />
-          <LinkCapa open={openLinkCapaModal} onClose={() => { setOpenLinkCapaModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} systemicFailure={selectedNcr.systemic_failure} onCapaLinked={handleCapaLinked} />
-          <CloseNcr open={openCloseModal} onClose={() => { setOpenCloseModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onNcrClosed={handleNcrClosed} />
+          {/* View Modal - VIEW permission */}
+          {canViewPage && (
+            <ViewNcr open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} />
+          )}
           
-          <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-            <DialogTitle>Delete NCR</DialogTitle>
-            <DialogContent><DialogContentText>Are you sure you want to delete NCR {selectedNcr.ncr_number}?</DialogContentText></DialogContent>
-            <DialogActions>
-              <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-              <Button onClick={() => handleDeleteNcr(selectedNcr._id)} color="error">Delete</Button>
-            </DialogActions>
-          </Dialog>
+          {/* Edit Modal - CREATE permission */}
+          {/* <EditNcr open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} onUpdate={handleEditNcr} /> */}
+          
+          {/* Set Disposition Modal - CREATE permission */}
+          {canCreate && (
+            <SetDisposition open={openDispositionModal} onClose={() => { setOpenDispositionModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onDispositionSet={handleDispositionSet} />
+          )}
+          
+          {/* Record Root Cause Modal - CREATE permission */}
+          {canCreate && (
+            <RecordRootCause open={openRootCauseModal} onClose={() => { setOpenRootCauseModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} onRootCauseRecorded={handleRootCauseRecorded} />
+          )}
+          
+          {/* Add Action Modal - CREATE permission */}
+          {canCreate && (
+            <AddAction open={openAddActionModal} onClose={() => { setOpenAddActionModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} onActionAdded={handleActionAdded} />
+          )}
+          
+          {/* Financial Details Modal - CREATE permission */}
+          {canCreate && (
+            <NcrFinancialDetails open={openFinancialModal} onClose={() => { setOpenFinancialModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onFinancialUpdated={handleFinancialUpdated} />
+          )}
+          
+          {/* Link CAPA Modal - CREATE permission */}
+          {canCreate && (
+            <LinkCapa open={openLinkCapaModal} onClose={() => { setOpenLinkCapaModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} severity={selectedNcr.severity} systemicFailure={selectedNcr.systemic_failure} onCapaLinked={handleCapaLinked} />
+          )}
+          
+          {/* Close NCR Modal - CREATE permission */}
+          {canCreate && (
+            <CloseNcr open={openCloseModal} onClose={() => { setOpenCloseModal(false); setSelectedNcr(null); }} ncrId={selectedNcr._id} ncrNumber={selectedNcr.ncr_number} onNcrClosed={handleNcrClosed} />
+          )}
+          
+          {/* Delete Dialog - DELETE permission */}
+          {canDelete && (
+            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+              <DialogTitle>Delete NCR</DialogTitle>
+              <DialogContent>
+                <DialogContentText>Are you sure you want to delete NCR {selectedNcr.ncr_number}?</DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+                <Button onClick={() => handleDeleteNcr(selectedNcr._id)} color="error">Delete</Button>
+              </DialogActions>
+            </Dialog>
+          )}
         </>
       )}
       
@@ -1627,7 +1713,7 @@ const NcrMaster = () => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 1.5 }}>
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 1.5, fontSize: '0.75rem' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

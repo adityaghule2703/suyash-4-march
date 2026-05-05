@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
   Typography,
   Button,
   Stack,
@@ -21,20 +19,26 @@ import {
   CircularProgress,
   Alert,
   LinearProgress,
-  Divider
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from "@mui/material";
 import { 
   Close, 
   Warehouse as WarehouseIcon, 
-  LocationOn, 
   Person, 
-  Category,
-  TrendingUp,
-  CheckCircle,
-  Cancel,
   ProductionQuantityLimits,
   AttachMoney,
-  QrCode
+  CheckCircle,
+  Cancel,
+  TrendingUp,
+  QrCode,
+  Assessment,
+  LocationOn,
+  Category
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
@@ -48,31 +52,79 @@ const COLORS = {
     primary: '#151C26',
     secondary: '#4B5568',
     tertiary: '#94A3B8',
-    light: '#FFFFFF',
-    lightMuted: 'rgba(255, 255, 255, 0.9)'
+    light: '#FFFFFF'
   },
   background: {
     white: '#FFFFFF',
     light: '#F8FFFC',
-    hover: '#F0FDF9',
-    tableHeader: '#063C3F'
+    hover: '#F0FDF9'
   },
   border: '#E3E8EF',
-  status: {
-    success: '#9FE2BF',
-    warning: '#FEF3C7',
-    error: '#FEE2E2',
-    info: '#E0F2FE'
-  },
-  chips: {
-    active: '#9FE2BF',
-    inactive: '#F1F5F9',
-    suspended: '#FEF3C7',
-    locked: '#FEE2E2'
-  }
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6'
 };
 
+const HEADER_GRADIENT = 'linear-gradient(135deg, #063C3F 0%, #00B4D8 50%, #05292B 100%)';
+const PRIMARY_DARK = '#063C3F';
+const PRIMARY_BLUE = '#00B4D8';
+
+// Modern Stepper Connector with Gradient
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundImage: HEADER_GRADIENT,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? PRIMARY_BLUE : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: PRIMARY_BLUE,
+    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: PRIMARY_BLUE,
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
+const steps = ['Overview', 'Stock Summary', 'Bin Details'];
+
 const ViewWareHouse = ({ open, onClose, data }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [warehouse, setWarehouse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -137,142 +189,59 @@ const ViewWareHouse = ({ open, onClose, data }) => {
   // Calculate utilization percentage color
   const getUtilizationColor = (percentage) => {
     const num = parseFloat(percentage);
-    if (num >= 80) return '#EF4444';
-    if (num >= 60) return '#F59E0B';
-    return '#10B981';
+    if (num >= 80) return COLORS.error;
+    if (num >= 60) return COLORS.warning;
+    return COLORS.success;
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 5,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-          border: `1px solid ${COLORS.border}`,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        mb: 1.5,
-        bgcolor: COLORS.background.white,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <WarehouseIcon sx={{ color: COLORS.primary, fontSize: '1.3rem' }} />
-          <Typography
-            sx={{
-              fontSize: '1.2rem',
-              fontWeight: 700,
-              color: COLORS.text.primary
-            }}
-          >
-            Warehouse Details
-          </Typography>
-        </Stack>
-        <IconButton onClick={onClose} size="small">
-          <Close fontSize="small" sx={{ color: COLORS.text.tertiary }} />
-        </IconButton>
-      </DialogTitle>
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
 
-      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <CircularProgress sx={{ color: COLORS.primary }} />
-          </Box>
-        ) : error ? (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              borderRadius: 1.5,
-              '& .MuiAlert-icon': {
-                fontSize: '1.25rem',
-                alignItems: 'center'
-              },
-              fontSize: '0.75rem',
-              py: 0.5
-            }}
-          >
-            {error}
-          </Alert>
-        ) : warehouse ? (
-          <Stack spacing={2.5}>
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Overview
+        return (
+          <Stack spacing={2}>
             {/* Basic Information Card */}
-            <Paper 
-              sx={{ 
-                p: 2.5, 
-                borderRadius: 2, 
-                border: `1px solid ${COLORS.border}`,
-                boxShadow: 'none'
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px',
-                  mb: 2,
-                  pb: 0.5,
-                  borderBottom: `1px solid ${COLORS.border}`
-                }}
-              >
-                BASIC INFORMATION
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <WarehouseIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Basic Information
               </Typography>
 
-              {/* Header Row with Warehouse ID and Status */}
-              <Grid container spacing={2} sx={{ mb: 2.5 }}>
-                <Grid item xs={12} sm={6}>
-                  <Box>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 600, 
-                        color: COLORS.text.secondary,
-                        letterSpacing: '0.5px',
-                        mb: 0.5
-                      }}
-                    >
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       WAREHOUSE ID
                     </Typography>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.85rem', 
-                        fontWeight: 600, 
-                        color: COLORS.primary,
-                        fontFamily: 'monospace'
-                      }}
-                    >
-                      {warehouse.warehouse_id || 'N/A'}
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: COLORS.primary, fontFamily: 'monospace' }}>
+                      {warehouse?.warehouse_id || 'N/A'}
                     </Typography>
                   </Box>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     <Chip
-                      icon={warehouse.is_active ? <CheckCircle sx={{ fontSize: '0.8rem' }} /> : <Cancel sx={{ fontSize: '0.8rem' }} />}
-                      label={warehouse.is_active ? "Active" : "Inactive"}
+                      icon={warehouse?.is_active ? <CheckCircle sx={{ fontSize: '0.8rem' }} /> : <Cancel sx={{ fontSize: '0.8rem' }} />}
+                      label={warehouse?.is_active ? "Active" : "Inactive"}
                       size="small"
                       sx={{ 
                         fontSize: '0.7rem', 
                         height: 26,
-                        bgcolor: warehouse.is_active ? COLORS.chips.active : COLORS.chips.inactive,
-                        color: warehouse.is_active ? COLORS.primary : COLORS.text.secondary,
+                        bgcolor: warehouse?.is_active ? '#D1FAE5' : '#F1F5F9',
+                        color: warehouse?.is_active ? '#065F46' : COLORS.text.secondary,
                         fontWeight: 600
                       }}
                     />
                     <Chip
-                      label={`${warehouse.active_bins || 0}/${warehouse.total_bins || 0} Bins`}
+                      label={`${warehouse?.active_bins || 0}/${warehouse?.total_bins || 0} Bins`}
                       size="small"
                       sx={{ 
                         fontSize: '0.7rem', 
@@ -284,78 +253,43 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                     />
                   </Box>
                 </Grid>
-              </Grid>
 
-              {/* Basic Info Fields */}
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Box>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 600, 
-                        color: COLORS.text.secondary,
-                        letterSpacing: '0.5px',
-                        mb: 0.5
-                      }}
-                    >
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       WAREHOUSE NAME
                     </Typography>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: COLORS.text.primary }}>
-                      {warehouse.warehouse_name || 'N/A'}
+                      {warehouse?.warehouse_name || 'N/A'}
                     </Typography>
                   </Box>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <Box>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 600, 
-                        color: COLORS.text.secondary,
-                        letterSpacing: '0.5px',
-                        mb: 0.5
-                      }}
-                    >
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       WAREHOUSE TYPE
                     </Typography>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: COLORS.text.primary }}>
-                      {warehouse.warehouse_type || 'N/A'}
+                      {warehouse?.warehouse_type || 'N/A'}
                     </Typography>
                   </Box>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <Box>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 600, 
-                        color: COLORS.text.secondary,
-                        letterSpacing: '0.5px',
-                        mb: 0.5
-                      }}
-                    >
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       LOCATION
                     </Typography>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: COLORS.text.primary }}>
-                      {warehouse.location || 'N/A'}
+                      {warehouse?.location || 'N/A'}
                     </Typography>
                   </Box>
                 </Grid>
 
-                <Grid item xs={12}>
-                  <Box>
-                    <Typography 
-                      sx={{ 
-                        fontSize: '0.6rem', 
-                        fontWeight: 600, 
-                        color: COLORS.text.secondary,
-                        letterSpacing: '0.5px',
-                        mb: 0.5
-                      }}
-                    >
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       MANAGER
                     </Typography>
                     <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: COLORS.text.primary }}>
@@ -365,105 +299,83 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                 </Grid>
               </Grid>
             </Paper>
+          </Stack>
+        );
 
-            {/* Stock Summary Card */}
-            <Paper 
-              sx={{ 
-                p: 2.5, 
-                borderRadius: 2, 
-                border: `1px solid ${COLORS.border}`,
-                boxShadow: 'none'
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px',
-                  mb: 2,
-                  pb: 0.5,
-                  borderBottom: `1px solid ${COLORS.border}`
-                }}
-              >
-                STOCK SUMMARY
+      case 1: // Stock Summary
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary, mb: 1.5 }}>
+                <Assessment sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Stock Summary
               </Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: COLORS.background.light, borderRadius: 2 }}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 2 }}>
                     <ProductionQuantityLimits sx={{ fontSize: '1.5rem', color: COLORS.primary, mb: 0.5 }} />
                     <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       TOTAL QUANTITY
                     </Typography>
                     <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.primary }}>
-                      {warehouse.total_stock_quantity?.toLocaleString() || 0}
+                      {warehouse?.total_stock_quantity?.toLocaleString() || 0}
                     </Typography>
-                  </Box>
+                  </Paper>
                 </Grid>
 
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: COLORS.background.light, borderRadius: 2 }}>
-                    <AttachMoney sx={{ fontSize: '1.5rem', color: COLORS.primary, mb: 0.5 }} />
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 2 }}>
+                    <AttachMoney sx={{ fontSize: '1.5rem', color: COLORS.success, mb: 0.5 }} />
                     <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       TOTAL VALUE
                     </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.primary }}>
-                      ₹ {warehouse.total_stock_value?.toLocaleString() || 0}
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.success }}>
+                      ₹ {warehouse?.total_stock_value?.toLocaleString() || 0}
                     </Typography>
-                  </Box>
+                  </Paper>
                 </Grid>
 
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: COLORS.background.light, borderRadius: 2 }}>
-                    <WarehouseIcon sx={{ fontSize: '1.5rem', color: COLORS.primary, mb: 0.5 }} />
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 2 }}>
+                    <WarehouseIcon sx={{ fontSize: '1.5rem', color: COLORS.info, mb: 0.5 }} />
                     <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       TOTAL BINS
                     </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.primary }}>
-                      {warehouse.total_bins || 0}
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.info }}>
+                      {warehouse?.total_bins || 0}
                     </Typography>
-                  </Box>
+                  </Paper>
                 </Grid>
 
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: COLORS.background.light, borderRadius: 2 }}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: COLORS.background.light, borderRadius: 2 }}>
                     <TrendingUp sx={{ fontSize: '1.5rem', color: '#10B981', mb: 0.5 }} />
                     <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: COLORS.text.secondary }}>
                       ACTIVE BINS
                     </Typography>
                     <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#10B981' }}>
-                      {warehouse.active_bins || 0}
+                      {warehouse?.active_bins || 0}
                     </Typography>
-                  </Box>
+                  </Paper>
                 </Grid>
               </Grid>
             </Paper>
+          </Stack>
+        );
 
-            {/* Bins Table Card */}
-            <Paper 
-              sx={{ 
-                p: 2.5, 
-                borderRadius: 2, 
-                border: `1px solid ${COLORS.border}`,
-                boxShadow: 'none'
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: COLORS.text.secondary,
-                  letterSpacing: '0.5px',
-                  mb: 2,
-                  pb: 0.5,
-                  borderBottom: `1px solid ${COLORS.border}`
-                }}
-              >
-                BINS ({warehouse.bins?.length || 0})
-              </Typography>
+      case 2: // Bin Details
+        return (
+          <Stack spacing={2}>
+            <Paper sx={{ p: 2, bgcolor: COLORS.background.white, borderRadius: 2, border: `1px solid ${COLORS.border}` }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: COLORS.primary }}>
+                  <QrCode sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Bin Details ({warehouse?.bins?.length || 0})
+                </Typography>
+              </Stack>
 
-              {warehouse.bins && warehouse.bins.length > 0 ? (
+              {warehouse?.bins && warehouse.bins.length > 0 ? (
                 <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
@@ -480,7 +392,8 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                     </TableHead>
                     <TableBody>
                       {warehouse.bins.map((bin, index) => {
-                        const utilization = parseFloat(bin.utilization_percentage || 0);
+                        const utilization = parseFloat(bin.utilization_percentage || 
+                          (bin.current_stock?.quantity && bin.capacity ? (bin.current_stock.quantity / bin.capacity) * 100 : 0));
                         return (
                           <TableRow 
                             key={bin._id || index} 
@@ -508,7 +421,7 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                               {bin.row},{bin.col}
                             </TableCell>
                             <TableCell sx={{ fontSize: '0.75rem' }} align="right">
-                              {bin.capacity?.toLocaleString()}
+                              {bin.capacity?.toLocaleString() || '-'}
                             </TableCell>
                             <TableCell sx={{ fontSize: '0.75rem' }} align="right">
                               <Typography sx={{ fontWeight: 600, color: COLORS.primary }}>
@@ -519,7 +432,7 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                               <Box sx={{ minWidth: 70 }}>
                                 <LinearProgress 
                                   variant="determinate" 
-                                  value={utilization}
+                                  value={Math.min(utilization, 100)}
                                   sx={{
                                     height: 4,
                                     borderRadius: 2,
@@ -543,8 +456,8 @@ const ViewWareHouse = ({ open, onClose, data }) => {
                                 sx={{ 
                                   fontSize: '0.6rem', 
                                   height: 22,
-                                  bgcolor: bin.is_active ? COLORS.chips.active : COLORS.chips.inactive,
-                                  color: bin.is_active ? COLORS.primary : COLORS.text.secondary,
+                                  bgcolor: bin.is_active ? '#D1FAE5' : '#F1F5F9',
+                                  color: bin.is_active ? '#065F46' : COLORS.text.secondary,
                                   fontWeight: 500
                                 }}
                               />
@@ -565,35 +478,172 @@ const ViewWareHouse = ({ open, onClose, data }) => {
               )}
             </Paper>
           </Stack>
-        ) : null}
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <CircularProgress sx={{ color: COLORS.primary }} />
+          <Typography sx={{ mt: 2, color: COLORS.text.secondary }}>
+            Loading warehouse details...
+          </Typography>
+        </Box>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          height: 'auto',
+          maxHeight: '90vh'
+        }
+      }}
+    >
+      {/* Header with Gradient */}
+      <Box sx={{ background: HEADER_GRADIENT, py: 1.5, px: 2.5 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <WarehouseIcon sx={{ color: '#FFFFFF', fontSize: 20 }} />
+            <Typography sx={{ fontWeight: 600, color: '#FFFFFF', fontSize: '1rem' }}>
+              Warehouse Details
+            </Typography>
+          </Stack>
+          <IconButton onClick={onClose} size="small" sx={{ color: '#FFFFFF' }}>
+            <Close fontSize="small" />
+          </IconButton>
+        </Stack>
+
+        {/* Stepper */}
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
+          sx={{ 
+            mt: 0.5,
+            '& .MuiStepLabel-label': {
+              color: '#FFFFFF !important',
+              opacity: 0.8,
+              fontSize: '0.7rem !important',
+              '&.Mui-active': {
+                color: '#FFFFFF !important',
+                opacity: 1,
+                fontWeight: 600
+              },
+              '&.Mui-completed': {
+                color: '#FFFFFF !important',
+                opacity: 1
+              }
+            }
+          }}
+        >
+          {steps.map((label, index) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+
+      <DialogContent sx={{ 
+        p: 2.5, 
+        overflow: 'auto', 
+        maxHeight: 'calc(90vh - 140px)',
+        backgroundColor: '#F8FFFC'
+      }}>
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              borderRadius: 1.5, 
+              mb: 2,
+              fontSize: '0.75rem',
+              py: 0.5
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        {warehouse && renderStepContent(activeStep)}
       </DialogContent>
 
-      <DialogActions sx={{
+      {/* Footer Actions */}
+      <Box sx={{
         px: 2.5,
         py: 1.5,
-        borderTop: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.background.white
+        borderTop: '1px solid #E3E8EF',
+        backgroundColor: '#FFFFFF',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
         <Button
           onClick={onClose}
-          sx={{
-            height: 34,
-            px: 3,
-            borderRadius: 1.5,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text.secondary,
+          size="small"
+          sx={{ 
+            color: '#64748B', 
             fontSize: '0.75rem',
-            fontWeight: 500,
             textTransform: 'none',
-            '&:hover': {
-              borderColor: COLORS.primary,
-              bgcolor: `${COLORS.primary}10`
-            }
+            '&:hover': { bgcolor: '#F1F5F9' }
           }}
         >
           Close
         </Button>
-      </DialogActions>
+
+        <Stack direction="row" spacing={1}>
+          {activeStep > 0 && (
+            <Button
+              onClick={handleBack}
+              size="small"
+              sx={{ 
+                color: '#64748B', 
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#F1F5F9' }
+              }}
+            >
+              Back
+            </Button>
+          )}
+          
+          {activeStep < steps.length - 1 && (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              sx={{
+                backgroundColor: PRIMARY_DARK,
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': { 
+                  backgroundColor: '#05292B',
+                  boxShadow: 'none'
+                }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Stack>
+      </Box>
     </Dialog>
   );
 };

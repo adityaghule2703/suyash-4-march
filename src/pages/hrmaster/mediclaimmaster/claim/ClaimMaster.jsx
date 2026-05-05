@@ -936,7 +936,7 @@ const ClaimMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+              
             />
 
             {isFilterActive && (

@@ -35,7 +35,8 @@ import {
   InputLabel,
   Select,
   Grid,
-  LinearProgress
+  LinearProgress,
+  
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -48,9 +49,10 @@ import {
   Settings as SettingsIcon,
   Warehouse as WarehouseIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Inventory as InventoryIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
-import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
@@ -59,6 +61,7 @@ import ViewWareHouse from './ViewWareHouse';
 import EditWareHouse from './EditWareHouse';
 import DeleteWareHouse from './DeleteWareHouse';
 import WareHouseReport from './WareHouseReport';
+import ViewWarehouseStock from './ViewWarehouseStock';
 
 // ==================== COLORS ====================
 const COLORS = {
@@ -121,15 +124,15 @@ const AccessDenied = () => (
   </Box>
 );
 
-// ==================== ACTION MENU COMPONENT ====================
-const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate, permissions }) => {
-  const canView = hasPermission(permissions, MODULES.WAREHOUSE_MASTER, PAGES.WAREHOUSE_MASTER, ACTIONS.VIEW);
-  const canUpdate = hasPermission(permissions, MODULES.WAREHOUSE_MASTER, PAGES.WAREHOUSE_MASTER, ACTIONS.UPDATE);
-  const canDelete = hasPermission(permissions, MODULES.WAREHOUSE_MASTER, PAGES.WAREHOUSE_MASTER, ACTIONS.DELETE);
-  const canUpdateStatus = hasPermission(permissions, MODULES.WAREHOUSE_MASTER, PAGES.WAREHOUSE_MASTER, ACTIONS.UPDATE);
+// ==================== ACTION MENU COMPONENT - WITH CORRECT MODULE CONSTANTS ====================
+const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onStatusUpdate, onViewStock, permissions, isSuperAdmin }) => {
+  // ✅ FIXED: Use MODULES.INVENTORY_MANAGEMENT and PAGES.WAREHOUSE_MASTER
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.INVENTORY_MANAGEMENT, PAGES.WAREHOUSE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.INVENTORY_MANAGEMENT, PAGES.WAREHOUSE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.INVENTORY_MANAGEMENT, PAGES.WAREHOUSE_MASTER, ACTIONS.DELETE);
 
   // If no actions available, don't render the menu
-  if (!canView && !canUpdate && !canDelete && !canUpdateStatus) {
+  if (!canView && !canUpdate && !canDelete) {
     return null;
   }
 
@@ -163,6 +166,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
+        {/* View Details - VIEW permission */}
         {canView && (
           <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -176,6 +180,21 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
         
+        {/* View Stock Option - VIEW permission */}
+        {canView && (
+          <MenuItem onClick={() => { onViewStock(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.info, minWidth: 36 }}>
+              <InventoryIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.info }}>
+                View Stock
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+        
+        {/* Edit - UPDATE permission */}
         {canUpdate && (
           <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -189,7 +208,8 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
         
-        {canUpdateStatus && (
+        {/* Update Status - UPDATE permission */}
+        {canUpdate && (
           <MenuItem onClick={() => { onStatusUpdate(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
               <SettingsIcon fontSize="small" />
@@ -202,8 +222,9 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
         
-        {(canView || canUpdate || canUpdateStatus) && canDelete && <Divider sx={{ my: 0.5 }} />}
+        {(canView || canUpdate) && canDelete && <Divider sx={{ my: 0.5 }} />}
         
+        {/* Delete - DELETE permission */}
         {canDelete && (
           <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
@@ -222,9 +243,11 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
 };
 
 // ==================== STATUS UPDATE MODAL ====================
-const StatusUpdateModal = ({ open, onClose, warehouse, onStatusUpdate, loading }) => {
+const StatusUpdateModal = ({ open, onClose, warehouse, onStatusUpdate, loading, permissions, isSuperAdmin }) => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [error, setError] = useState('');
+  
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.INVENTORY_MANAGEMENT, PAGES.WAREHOUSE_MASTER, ACTIONS.UPDATE);
   
   useEffect(() => {
     if (open && warehouse) {
@@ -234,6 +257,10 @@ const StatusUpdateModal = ({ open, onClose, warehouse, onStatusUpdate, loading }
   }, [open, warehouse]);
   
   const handleSubmit = () => {
+    if (!canUpdate) {
+      setError('You don\'t have permission to update status');
+      return;
+    }
     if (!selectedStatus) {
       setError('Please select a status');
       return;
@@ -267,9 +294,7 @@ const StatusUpdateModal = ({ open, onClose, warehouse, onStatusUpdate, loading }
         <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
           Update Warehouse Status
         </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" sx={{ color: COLORS.text.tertiary }} />
-        </IconButton>
+       
       </DialogTitle>
       
       <DialogContent sx={{ p: 2.5 }}>
@@ -346,7 +371,7 @@ const StatusUpdateModal = ({ open, onClose, warehouse, onStatusUpdate, loading }
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={!selectedStatus || loading}
+          disabled={!selectedStatus || loading || !canUpdate}
           sx={{ 
             height: 32, 
             px: 2, 
@@ -386,12 +411,17 @@ const WareHouseMaster = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openReportModal, setOpenReportModal] = useState(false);
   const [openStatusUpdateModal, setOpenStatusUpdateModal] = useState(false);
+  const [openStockModal, setOpenStockModal] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
 
   // User permissions state
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -425,12 +455,12 @@ const WareHouseMaster = () => {
     fetchUserPermissions();
   }, []);
 
-  // Check permission helper
+  // Check permission helper - ✅ FIXED: Use MODULES.INVENTORY_MANAGEMENT and PAGES.WAREHOUSE_MASTER
   const checkPermission = (action) => {
     if (isSuperAdmin) return true;
     return hasPermission(
       userPermissions,
-      MODULES.WAREHOUSE_MASTER,
+      MODULES.INVENTORY_MANAGEMENT,
       PAGES.WAREHOUSE_MASTER,
       action
     );
@@ -442,19 +472,49 @@ const WareHouseMaster = () => {
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch Warehouses
   const fetchWarehouses = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
@@ -480,13 +540,19 @@ const WareHouseMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm]);
+  }, [page, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
       fetchWarehouses();
     }
   }, [fetchWarehouses, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchWarehouses();
+    showNotification('Data refreshed', 'success');
+  };
 
   const handleSelectAll = (event) => {
     if (!canDelete) return;
@@ -584,21 +650,30 @@ const WareHouseMaster = () => {
   };
 
   const openViewWarehouseModal = (warehouse) => {
-    if (!canViewPage) return;
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view warehouse details', 'error');
+      return;
+    }
     setSelectedWarehouse(warehouse);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
   
   const openEditWarehouseModal = (warehouse) => {
-    if (!canUpdate) return;
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit warehouses', 'error');
+      return;
+    }
     setSelectedWarehouse(warehouse);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
   
   const openDeleteWarehouseDialog = (warehouse) => {
-    if (!canDelete) return;
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete warehouses', 'error');
+      return;
+    }
     setSelectedWarehouse(warehouse);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
@@ -609,9 +684,22 @@ const WareHouseMaster = () => {
   };
   
   const openStatusUpdateModalFunc = (warehouse) => {
-    if (!canUpdate) return;
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to update status', 'error');
+      return;
+    }
     setSelectedWarehouse(warehouse);
     setOpenStatusUpdateModal(true);
+    handleActionMenuClose();
+  };
+  
+  const openStockLedgerModal = (warehouse) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view stock', 'error');
+      return;
+    }
+    setSelectedWarehouse(warehouse);
+    setOpenStockModal(true);
     handleActionMenuClose();
   };
   
@@ -667,7 +755,8 @@ const WareHouseMaster = () => {
             placeholder="Search by Warehouse Name, ID, or Location..."
             size="small"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={handleSearchChange}
+            autoComplete="off"
             sx={{ 
               width: { xs: '100%', sm: 450 },
               '& .MuiOutlinedInput-root': {
@@ -682,6 +771,13 @@ const WareHouseMaster = () => {
               startAdornment: (
                 <InputAdornment position="start">
                   <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={handleClearSearch}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
                 </InputAdornment>
               ),
               sx: { 
@@ -702,6 +798,24 @@ const WareHouseMaster = () => {
           />
 
           <Stack direction="row" spacing={1.5}>
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - DELETE permission */}
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -724,26 +838,32 @@ const WareHouseMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="outlined"
-              startIcon={<AssessmentIcon sx={{ fontSize: '1rem' }} />}
-              onClick={openReportModalFunc}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                borderColor: COLORS.primary,
-                color: COLORS.primary,
-                '&:hover': {
-                  borderColor: COLORS.primaryDark,
-                  bgcolor: COLORS.primaryLight
-                }
-              }}
-            >
-              Capacity Report
-            </Button>
+            
+            {/* Capacity Report Button - VIEW permission */}
+            {canViewPage && (
+              <Button
+                variant="outlined"
+                startIcon={<AssessmentIcon sx={{ fontSize: '1rem' }} />}
+                onClick={openReportModalFunc}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  borderColor: COLORS.primary,
+                  color: COLORS.primary,
+                  '&:hover': {
+                    borderColor: COLORS.primaryDark,
+                    bgcolor: COLORS.primaryLight
+                  }
+                }}
+              >
+                Capacity Report
+              </Button>
+            )}
+            
+            {/* Add Warehouse Button - CREATE permission */}
             {canCreate && (
               <Button
                 variant="contained"
@@ -789,8 +909,9 @@ const WareHouseMaster = () => {
                   py: 1.5,
                 }
               }}>
+                {/* Checkbox Column - DELETE permission */}
                 {canDelete && (
-                  <TableCell padding="checkbox" sx={{ width: 40, p:20 }}>
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
                       indeterminate={selected.length > 0 && selected.length < warehouses.length}
                       checked={warehouses.length > 0 && selected.length === warehouses.length}
@@ -926,7 +1047,9 @@ const WareHouseMaster = () => {
                           onEdit={openEditWarehouseModal}
                           onDelete={openDeleteWarehouseDialog}
                           onStatusUpdate={openStatusUpdateModalFunc}
+                          onViewStock={openStockLedgerModal}
                           permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -963,12 +1086,22 @@ const WareHouseMaster = () => {
       {selectedWarehouse && (
         <>
           {canViewPage && (
-            <ViewWareHouse open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedWarehouse(null); }} data={selectedWarehouse} />
+            <>
+              <ViewWareHouse open={openViewModal} onClose={() => { setOpenViewModal(false); setSelectedWarehouse(null); }} data={selectedWarehouse} />
+              
+              {/* Stock Ledger Modal */}
+              <ViewWarehouseStock 
+                open={openStockModal}
+                onClose={() => { setOpenStockModal(false); setSelectedWarehouse(null); }}
+                warehouseId={selectedWarehouse._id}
+                warehouseName={selectedWarehouse.warehouse_name}
+              />
+            </>
           )}
           {canUpdate && (
             <>
               <EditWareHouse open={openEditModal} onClose={() => { setOpenEditModal(false); setSelectedWarehouse(null); }} data={selectedWarehouse} onUpdate={handleEditWarehouse} />
-              <StatusUpdateModal open={openStatusUpdateModal} onClose={() => { setOpenStatusUpdateModal(false); setSelectedWarehouse(null); }} warehouse={selectedWarehouse} onStatusUpdate={handleStatusUpdate} loading={statusLoading} />
+              <StatusUpdateModal open={openStatusUpdateModal} onClose={() => { setOpenStatusUpdateModal(false); setSelectedWarehouse(null); }} warehouse={selectedWarehouse} onStatusUpdate={handleStatusUpdate} loading={statusLoading} permissions={userPermissions} isSuperAdmin={isSuperAdmin} />
             </>
           )}
           {canDelete && (

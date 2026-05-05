@@ -1,35 +1,115 @@
 import React, { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
   Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Typography,
   Button,
   Stack,
-  Chip,
   Paper,
   Grid,
-  styled,
+  Chip,
+  IconButton,
+  Divider,
   CircularProgress,
-  Alert
+  Alert,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from "@mui/material";
 import {
   Gavel as GavelIcon,
   Description as DescriptionIcon,
-  Edit as EditIcon,
   Close as CloseIcon,
   FormatListNumbered as FormatListNumberedIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  Info as InfoIcon,
+  Badge as BadgeIcon,
+  AccessTime as AccessTimeIcon
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
+// Color constants matching the consistent style
+const COLORS = {
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC'
+  },
+  border: '#E3E8EF'
+};
 
-const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
+const steps = ['Basic Info', 'Content & System Info'];
+
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? COLORS.primary : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: COLORS.primary,
+    boxShadow: '0 4px 10px 0 rgba(6,60,63,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: COLORS.primary,
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
+const ViewTermsAndConditions = ({ open, onClose, term }) => {
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [termData, setTermData] = useState(null);
@@ -75,40 +155,209 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
     }
   };
 
-  // Helper function to render field with icon
-  const renderField = (icon, label, value, color = '#0f172a') => (
-    <Stack direction="row" spacing={1} alignItems="flex-start">
-      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#64748B', 
-            display: 'block', 
-            fontSize: '10px',
-            fontWeight: 500,
-            lineHeight: 1.2,
-            mb: 0.2
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '13px',
-            color: color,
-            wordBreak: 'break-word'
-          }}
-        >
-          {value || '-'}
-        </Typography>
-      </Box>
-    </Stack>
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
+  // Helper function to render field
+  const renderField = (label, value, monospace = false, highlight = false) => (
+    <Box>
+      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ 
+        fontSize: '0.8rem', 
+        fontWeight: highlight ? 700 : 500, 
+        color: highlight ? COLORS.primary : COLORS.text.primary,
+        fontFamily: monospace ? 'monospace' : 'inherit',
+        wordBreak: 'break-word'
+      }}>
+        {value || '-'}
+      </Typography>
+    </Box>
   );
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Basic Info
+        return (
+          <Stack spacing={2}>
+            {/* Header Section - Term Overview */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <GavelIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Term Overview
+              </Typography>
+              
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                    {termData?.Title || 'Untitled Term'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                    Term ID: {termData?._id || 'N/A'}
+                  </Typography>
+                </Box>
+                {termData?.IsActive ? (
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
+                    label="Active"
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: '#DCFCE7', 
+                      color: '#166534'
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    icon={<CancelIcon sx={{ fontSize: 14 }} />}
+                    label="Inactive"
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: '#FEE2E2', 
+                      color: '#991B1B'
+                    }}
+                  />
+                )}
+              </Stack>
+              
+              <Divider sx={{ my: 1.5 }} />
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Sequence Number', termData?.Sequence, true)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Title', termData?.Title, false, true)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Basic Information Card */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Basic Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Sequence Number', termData?.Sequence, true)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Status', termData?.IsActive ? 'Active' : 'Inactive')}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      case 1: // Content & System Info
+        return (
+          <Stack spacing={2}>
+            {/* Description */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <DescriptionIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Term Content
+              </Typography>
+              
+              <Box sx={{ 
+                bgcolor: COLORS.background.light, 
+                p: 1.5, 
+                borderRadius: 1,
+                border: `1px solid ${COLORS.border}`,
+                maxHeight: '280px',
+                overflow: 'auto'
+              }}>
+                <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary, whiteSpace: 'pre-wrap' }}>
+                  {termData?.Description || 'No description provided'}
+                </Typography>
+              </Box>
+            </Paper>
+
+            {/* System Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <AccessTimeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                System Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Created At', formatDate(termData?.createdAt))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Last Updated', formatDate(termData?.updatedAt))}
+                </Grid>
+              </Grid>
+            </Paper>
+
+           
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   if (!term) return null;
 
@@ -120,162 +369,178 @@ const ViewTermsAndConditions = ({ open, onClose, term, onEdit }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          height: 'auto',
-          maxHeight: '500px'
+          borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
-      {/* Header with Gradient */}
-      <Box sx={{ 
-        background: HEADER_GRADIENT,
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
-        px: 2
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <GavelIcon sx={{ color: '#FFFFFF', fontSize: 20 }} />
-            <Typography variant="subtitle1" sx={{ 
-              fontWeight: 600, 
-              color: '#FFFFFF',
-              fontSize: '1rem'
-            }}>
-              Terms & Conditions Details
-            </Typography>
-          </Stack>
-          {/* {termData && (
-            <Chip
-              icon={termData?.IsActive ? <CheckCircleIcon sx={{ fontSize: 12 }} /> : <CancelIcon sx={{ fontSize: 12 }} />}
-              label={termData?.IsActive ? 'Active' : 'Inactive'}
-              size="small"
-              sx={{
-                bgcolor: termData?.IsActive ? 'rgba(220,252,231,0.9)' : 'rgba(254,226,226,0.9)',
-                color: termData?.IsActive ? '#166534' : '#991b1b',
-                fontWeight: 600,
-                fontSize: '11px',
-                height: '22px',
-                '& .MuiChip-icon': { fontSize: 12 }
-              }}
-            />
-          )} */}
-        </Stack>
-      </Box>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Terms & Conditions Details
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      {/* Loading State */}
+      {loading && (
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <CircularProgress sx={{ color: COLORS.primary }} />
+          <Typography sx={{ mt: 2, fontSize: '0.8rem', color: COLORS.text.secondary }}>
+            Loading term details...
+          </Typography>
+        </Box>
+      )}
 
-      <DialogContent sx={{ 
-        p: 2,
-        '&:last-child': {
-          pb: 2
-        }
-      }}>
-        {loading && (
-          <Stack alignItems="center" justifyContent="center" sx={{ height: '200px' }}>
-            <CircularProgress sx={{ color: PRIMARY_BLUE }} />
-          </Stack>
-        )}
-
-        {error && (
+      {/* Error State */}
+      {error && !loading && (
+        <Box sx={{ p: 2.5 }}>
           <Alert 
             severity="error" 
             sx={{ 
-              mb: 2,
-              '& .MuiAlert-message': { fontSize: '0.875rem' }
+              borderRadius: 1.5,
+              '& .MuiAlert-message': { fontSize: '0.8rem' }
             }}
           >
             {error}
           </Alert>
-        )}
+        </Box>
+      )}
 
-        {!loading && !error && termData && (
-          <Stack spacing={2}>
-            {/* Basic Information */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
-                Basic Information
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <FormatListNumberedIcon sx={{ fontSize: 16 }} />, 
-                    'Sequence Number', 
-                    termData?.Sequence
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <GavelIcon sx={{ fontSize: 16 }} />, 
-                    'Title', 
-                    termData?.Title,
-                    PRIMARY_BLUE
-                  )}
-                </Grid>
-              </Grid>
-            </Paper>
+      {/* Content */}
+      {!loading && !error && termData && (
+        <>
+          {/* Stepper */}
+          <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+            <Stepper
+              activeStep={activeStep}
+              alternativeLabel
+              connector={<ColorConnector />}
+            >
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel StepIconComponent={CustomStepIcon}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                      {label}
+                    </Typography>
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
+          
+          <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+            {renderStepContent(activeStep)}
+          </DialogContent>
+        </>
+      )}
 
-            {/* Description */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
-                Description
-              </Typography>
-              
-              <Box sx={{ 
-                backgroundColor: '#F8FAFC', 
-                p: 1.5, 
-                borderRadius: 1,
-                border: '1px solid #E0E0E0',
-                maxHeight: '180px',
-                overflow: 'auto'
-              }}>
-                <Typography variant="body2" sx={{ fontSize: '13px', color: '#0f172a', whiteSpace: 'pre-wrap' }}>
-                  {termData?.Description || 'No description provided'}
-                </Typography>
-              </Box>
-            </Paper>
-          </Stack>
-        )}
-      </DialogContent>
-
-      {/* Footer Actions */}
-      <Box sx={{
-        px: 2,
-        py: 1.5,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
-      }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+      {/* Footer Actions - Only show when not loading */}
+      {!loading && (
+        <DialogActions sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.background.white,
+          justifyContent: 'space-between'
+        }}>
           <Button
-            onClick={onClose}
-            startIcon={<CloseIcon />}
+            onClick={handleBack}
+            disabled={activeStep === 0 || !termData}
             size="small"
-            sx={{ color: '#666', fontSize: '0.8rem' }}
-          >
-            Close
-          </Button>
-
-          {/* <Button
-            variant="contained"
-            onClick={() => {
-              onClose();
-              onEdit && onEdit(termData);
-            }}
-            startIcon={<EditIcon />}
-            size="small"
-            disabled={loading || !!error || !termData}
+            startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
             sx={{
-              backgroundColor: PRIMARY_BLUE,
-              fontSize: '0.8rem',
-              '&:hover': { backgroundColor: '#0e7490' },
-              '&.Mui-disabled': {
-                backgroundColor: '#e0e0e0'
+              height: 32,
+              px: 2,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
               }
             }}
           >
-            Edit Term
-          </Button> */}
-        </Stack>
-      </Box>
+            Back
+          </Button>
+          <Box>
+            <Button
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                mr: 1,
+                borderRadius: 1.5,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text.secondary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: COLORS.primary,
+                  bgcolor: `${COLORS.primary}10`
+                }
+              }}
+            >
+              Close
+            </Button>
+            {activeStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={onClose}
+                size="small"
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Done
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={!termData}
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+                sx={{
+                  height: 32,
+                  px: 2,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </DialogActions>
+      )}
     </Dialog>
   );
 };

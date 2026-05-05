@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
   Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Typography,
   Button,
   Stack,
-  Chip,
   Paper,
   Grid,
+  Chip,
+  IconButton,
+  Divider,
   Stepper,
   Step,
   StepLabel,
@@ -17,34 +21,48 @@ import {
   styled
 } from '@mui/material';
 import {
-  Edit as EditIcon,
+  Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
   Percent as PercentIcon,
   Receipt as ReceiptIcon,
   Description as DescriptionIcon,
   Info as InfoIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  Close as CloseIcon,
-  NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon,
   Badge as BadgeIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
 
-// Color constants (matching ViewCompanies)
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
+// Color constants matching the ViewBom style
+const COLORS = {
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC'
+  },
+  border: '#E3E8EF'
+};
 
-// Modern Stepper Connector with Gradient
+const steps = ['Tax Information', 'Rates & System Info'];
+
+// Modern Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
@@ -55,9 +73,9 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Custom Step Icon styling to make numbers white
+// Custom Step Icon styling
 const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
-  backgroundColor: ownerState.active || ownerState.completed ? '#00B4D8' : '#ccc',
+  backgroundColor: ownerState.active || ownerState.completed ? COLORS.primary : '#ccc',
   zIndex: 1,
   color: '#fff',
   width: 24,
@@ -69,11 +87,11 @@ const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
   fontSize: '0.75rem',
   fontWeight: 600,
   ...(ownerState.active && {
-    backgroundColor: '#00B4D8',
-    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
+    backgroundColor: COLORS.primary,
+    boxShadow: '0 4px 10px 0 rgba(6,60,63,0.3)',
   }),
   ...(ownerState.completed && {
-    backgroundColor: '#00B4D8',
+    backgroundColor: COLORS.primary,
   }),
 }));
 
@@ -87,9 +105,7 @@ function CustomStepIcon(props) {
   );
 }
 
-const steps = ['Tax Information', 'Rates & System Info'];
-
-const ViewTax = ({ open, onClose, tax, onEdit }) => {
+const ViewTax = ({ open, onClose, tax }) => {
   const [activeStep, setActiveStep] = useState(0);
 
   if (!tax) return null;
@@ -98,10 +114,8 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -117,41 +131,6 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
 
   const taxPercentages = calculateTaxPercentages(tax.GSTPercentage);
 
-  // Helper function to render field with icon
-  const renderField = (icon, label, value, color = '#0f172a') => (
-    <Stack direction="row" spacing={1} alignItems="flex-start">
-      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#64748B', 
-            display: 'block', 
-            fontSize: '10px',
-            fontWeight: 500,
-            lineHeight: 1.2,
-            mb: 0.2
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '13px',
-            color: color,
-            wordBreak: 'break-word'
-          }}
-        >
-          {value || '-'}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
   };
@@ -160,30 +139,65 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
     setActiveStep((prevStep) => prevStep - 1);
   };
 
+  // Helper function to render field
+  const renderField = (label, value, monospace = false, highlight = false) => (
+    <Box>
+      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ 
+        fontSize: '0.8rem', 
+        fontWeight: highlight ? 700 : 500, 
+        color: highlight ? COLORS.primary : COLORS.text.primary,
+        fontFamily: monospace ? 'monospace' : 'inherit',
+        wordBreak: 'break-word'
+      }}>
+        {value || '-'}
+      </Typography>
+    </Box>
+  );
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0: // Tax Information
         return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}>
-            {/* Basic Tax Info */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, fontWeight: 600, fontSize: '0.8rem' }}>
-                  Basic Information
-                </Typography>
+          <Stack spacing={2}>
+            {/* Header Section - Tax Overview */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <ReceiptIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Tax Overview
+              </Typography>
+              
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                    HSN Code: {tax.HSNCode || '-'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                    Tax ID: {tax._id || 'N/A'}
+                  </Typography>
+                </Box>
                 {tax.IsActive ? (
                   <Chip
                     icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
                     label="Active"
                     size="small"
-                    sx={{
-                      bgcolor: '#dcfce7',
-                      color: '#166534',
-                      border: '1px solid #86efac',
-                      fontWeight: 600,
-                      fontSize: '11px',
-                      height: '22px',
-                      '& .MuiChip-icon': { fontSize: 14 }
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: '#DCFCE7', 
+                      color: '#166534'
                     }}
                   />
                 ) : (
@@ -191,50 +205,52 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
                     icon={<CancelIcon sx={{ fontSize: 14 }} />}
                     label="Inactive"
                     size="small"
-                    sx={{
-                      bgcolor: '#fee2e2',
-                      color: '#991b1b',
-                      border: '1px solid #fca5a5',
-                      fontWeight: 600,
-                      fontSize: '11px',
-                      height: '22px',
-                      '& .MuiChip-icon': { fontSize: 14 }
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: '#FEE2E2', 
+                      color: '#991B1B'
                     }}
                   />
                 )}
               </Stack>
               
-              <Grid container spacing={1}>
+              <Divider sx={{ my: 1.5 }} />
+              
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <ReceiptIcon sx={{ fontSize: 16 }} />, 
-                    'HSN Code', 
-                    tax.HSNCode
-                  )}
+                  {renderField('HSN Code', tax.HSNCode, true)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <PercentIcon sx={{ fontSize: 16 }} />, 
-                    'GST Percentage', 
-                    `${tax.GSTPercentage}%`
-                  )}
+                  {renderField('GST Percentage', `${tax.GSTPercentage}%`, false, true)}
                 </Grid>
               </Grid>
             </Paper>
 
             {/* Description */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <DescriptionIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Description
               </Typography>
               
               <Box sx={{ 
-                backgroundColor: '#F8FAFC', 
+                bgcolor: COLORS.background.light, 
                 p: 1.5, 
                 borderRadius: 1,
-                border: '1px solid #E0E0E0'
+                border: `1px solid ${COLORS.border}`
               }}>
-                <Typography variant="body2" sx={{ fontSize: '13px', color: '#0f172a' }}>
+                <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary }}>
                   {tax.Description || 'No description provided'}
                 </Typography>
               </Box>
@@ -244,85 +260,108 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
 
       case 1: // Rates & System Info
         return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}>
+          <Stack spacing={2}>
             {/* GST Tax Rates */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <PercentIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 GST Tax Rates
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 6, sm: 3 }}>
-                  {renderField(
-                    <PercentIcon sx={{ fontSize: 16 }} />, 
-                    'CGST', 
-                    `${tax.CGSTPercentage || taxPercentages.cgst}%`
-                  )}
+                  {renderField('CGST', `${tax.CGSTPercentage || taxPercentages.cgst}%`)}
                 </Grid>
                 <Grid size={{ xs: 6, sm: 3 }}>
-                  {renderField(
-                    <PercentIcon sx={{ fontSize: 16 }} />, 
-                    'SGST', 
-                    `${tax.SGSTPercentage || taxPercentages.sgst}%`
-                  )}
+                  {renderField('SGST / UTGST', `${tax.SGSTPercentage || taxPercentages.sgst}%`)}
                 </Grid>
                 <Grid size={{ xs: 6, sm: 3 }}>
-                  {renderField(
-                    <PercentIcon sx={{ fontSize: 16 }} />, 
-                    'IGST', 
-                    `${tax.IGSTPercentage || taxPercentages.igst}%`
-                  )}
+                  {renderField('IGST', `${tax.IGSTPercentage || taxPercentages.igst}%`)}
                 </Grid>
                 <Grid size={{ xs: 6, sm: 3 }}>
-                  {renderField(
-                    <PercentIcon sx={{ fontSize: 16 }} />, 
-                    'Total GST', 
-                    `${tax.GSTPercentage}%`,
-                    PRIMARY_BLUE
-                  )}
+                  {renderField('Total GST', `${tax.GSTPercentage}%`, false, true)}
                 </Grid>
               </Grid>
             </Paper>
 
             {/* System Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <AccessTimeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 System Information
               </Typography>
               
-              <Grid container spacing={1}>
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <AccessTimeIcon sx={{ fontSize: 16 }} />, 
-                    'Created At', 
-                    formatDate(tax.CreatedAt)
-                  )}
+                  {renderField('Created At', formatDate(tax.CreatedAt))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField(
-                    <AccessTimeIcon sx={{ fontSize: 16 }} />, 
-                    'Last Updated', 
-                    formatDate(tax.UpdatedAt)
-                  )}
+                  {renderField('Last Updated', formatDate(tax.UpdatedAt))}
                 </Grid>
               </Grid>
             </Paper>
 
-            {/* Additional Info */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
-                Additional Information
+            {/* Tax Calculation Info */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <BadgeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Tax Calculation Information
               </Typography>
               
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 12 }}>
-                  {renderField(
-                    <InfoIcon sx={{ fontSize: 16 }} />, 
-                    'Tax ID', 
-                    tax._id || 'N/A'
-                  )}
-                </Grid>
-              </Grid>
+              <Box sx={{ 
+                bgcolor: COLORS.background.light, 
+                p: 1.5, 
+                borderRadius: 1,
+                border: `1px solid ${COLORS.border}`
+              }}>
+                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mb: 1 }}>
+                  For a transaction of ₹100:
+                </Typography>
+                <Stack spacing={0.5}>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    • CGST: ₹{(tax.GSTPercentage / 2).toFixed(2)}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    • SGST/UTGST: ₹{(tax.GSTPercentage / 2).toFixed(2)}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                    • IGST: ₹{tax.GSTPercentage.toFixed(2)} (for interstate transactions)
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mt: 0.5 }}>
+                    Total Tax: ₹{tax.GSTPercentage.toFixed(2)}
+                  </Typography>
+                </Stack>
+              </Box>
             </Paper>
           </Stack>
         );
@@ -340,136 +379,144 @@ const ViewTax = ({ open, onClose, tax, onEdit }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          height: 'auto',
-          maxHeight: '580px'
+          borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
-      {/* Header with Gradient */}
-      <Box sx={{ 
-        background: HEADER_GRADIENT,
-        py: 1,
-        px: 2
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <ReceiptIcon sx={{ color: '#FFFFFF', fontSize: 18 }} />
-            <Typography variant="subtitle2" sx={{ 
-              fontWeight: 600, 
-              color: '#FFFFFF',
-              fontSize: '0.9rem'
-            }}>
-              Tax Details
-            </Typography>
-          </Stack>
-          <Chip
-            label={`HSN: ${tax.HSNCode || '-'}`}
-            size="small"
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: '#FFFFFF',
-              fontWeight: 500,
-              fontSize: '10px',
-              height: '20px',
-              backdropFilter: 'blur(4px)',
-              '& .MuiChip-label': { px: 1 }
-            }}
-          />
-        </Stack>
-
-        {/* Stepper */}
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Tax Details
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      {/* Stepper */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ 
-            mt: 0.5,
-            '& .MuiStepLabel-label': {
-              color: '#FFFFFF !important',
-              opacity: 0.8,
-              '&.Mui-active': {
-                color: '#FFFFFF !important',
-                opacity: 1,
-                fontWeight: 600
-              },
-              '&.Mui-completed': {
-                color: '#FFFFFF !important',
-                opacity: 1
-              }
-            }
-          }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel StepIconComponent={CustomStepIcon}>
-                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
       </Box>
-
-      <DialogContent sx={{ 
-        p: 1.5, 
-        overflow: 'hidden', 
-        height: '360px',
-        '&:last-child': {
-          pb: 1.5
-        }
-      }}>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {renderStepContent(activeStep)}
       </DialogContent>
-
-      {/* Footer Actions */}
-      <Box sx={{
-        px: 2,
-        py: 1,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'space-between'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
+        </Button>
+        <Box>
           <Button
             onClick={onClose}
-            startIcon={<CloseIcon />}
             size="small"
-            sx={{ color: '#666', fontSize: '0.8rem' }}
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Close
           </Button>
-
-          <Stack direction="row" spacing={1}>
-            {activeStep === 1 && (
-              <Button
-                onClick={handleBack}
-                size="small"
-                startIcon={<NavigateBeforeIcon />}
-                sx={{ color: '#666', fontSize: '0.8rem' }}
-              >
-                Back
-              </Button>
-            )}
-            
-            {activeStep === 0 && (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                size="small"
-                endIcon={<NavigateNextIcon />}
-                sx={{
-                  backgroundColor: PRIMARY_BLUE,
-                  fontSize: '0.8rem',
-                  '&:hover': { backgroundColor: '#0e7490' }
-                }}
-              >
-                Next
-              </Button>
-            ) }
-          </Stack>
-        </Stack>
-      </Box>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
     </Dialog>
   );
 };

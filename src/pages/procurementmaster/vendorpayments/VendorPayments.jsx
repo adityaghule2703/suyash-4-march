@@ -30,6 +30,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -39,9 +40,11 @@ import {
   MoreVert as MoreVertIcon,
   CheckCircle as CheckCircleIcon,
   Print as PrintIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Lazy load modals
 const AddVendorPayment = lazy(() => import('./AddVendorPayment'));
@@ -76,9 +79,22 @@ const COLORS = {
   }
 };
 
+// Loading state component
 const LoadingState = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
     <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
   </Box>
 );
 
@@ -122,7 +138,12 @@ const StatusChip = React.memo(({ status }) => {
 
 StatusChip.displayName = 'StatusChip';
 
-const ActionMenu = React.memo(({ item, onView, onApprove, onPrint, anchorEl, onClose, onOpen }) => {
+// Action Menu Component - WITH PERMISSION CHECKS
+const ActionMenu = React.memo(({ item, onView, onApprove, onPrint, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.VENDOR_PAYMENTS, PAGES.VENDOR_PAYMENTS, ACTIONS.VIEW);
+  const canPrint = isSuperAdmin || hasPermission(permissions, MODULES.VENDOR_PAYMENTS, PAGES.VENDOR_PAYMENTS, ACTIONS.PRINT);
+  const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.VENDOR_PAYMENTS, PAGES.VENDOR_PAYMENTS, ACTIONS.APPROVE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -151,25 +172,32 @@ const ActionMenu = React.memo(({ item, onView, onApprove, onPrint, anchorEl, onC
           }
         }}
       >
-        <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <ViewIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>View Details</Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* View Details - VIEW permission */}
+        {canView && (
+          <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <ViewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>View Details</Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem onClick={() => { onPrint(item); onClose(); }} sx={{ py: 1.5 }}>
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <PrintIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Print Receipt</Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Print Receipt - PRINT permission */}
+        {canPrint && (
+          <MenuItem onClick={() => { onPrint(item); onClose(); }} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <PrintIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Print Receipt</Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {item.status === 'Pending' && (
+        {/* Approve Payment - APPROVE permission (only for Pending status) */}
+        {item.status === 'Pending' && canApprove && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
               <CheckCircleIcon fontSize="small" />
@@ -218,21 +246,99 @@ const VendorPayments = () => {
     severity: 'success'
   });
 
-  // Debounce search
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
+
+  // Fetch user permissions
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          setUserPermissions(userData.permissions || []);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(
+      userPermissions,
+      MODULES.VENDOR_PAYMENTS,
+      PAGES.VENDOR_PAYMENTS,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch payments
   const fetchPayments = useCallback(async () => {
-    const abortController = new AbortController();
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
+      setLoading(true);
+    }
     
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
@@ -244,8 +350,7 @@ const VendorPayments = () => {
       if (statusFilter !== 'all') params.append('status', statusFilter);
       
       const response = await axios.get(`${BASE_URL}/api/vendor-payments?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        signal: abortController.signal
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
@@ -260,31 +365,39 @@ const VendorPayments = () => {
     } finally {
       setLoading(false);
     }
-    
-    return () => abortController.abort();
-  }, [page, rowsPerPage, searchTerm, statusFilter]);
+  }, [page, rowsPerPage, searchTerm, statusFilter, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPayments();
+    }
+  }, [fetchPayments, permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  // Selection handlers
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchPayments();
+    showNotification('Data refreshed', 'success');
+  };
+
+  // Selection handlers - only if user has delete permission
   const handleSelectAll = useCallback((event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(payments.map(p => p._id));
     } else {
       setSelected([]);
     }
-  }, [payments]);
+  }, [payments, canDelete]);
 
   const handleSelect = useCallback((id) => {
+    if (!canDelete) return;
     setSelected(prev => {
       if (prev.includes(id)) {
         return prev.filter(item => item !== id);
       }
       return [...prev, id];
     });
-  }, []);
+  }, [canDelete]);
 
   // Pagination handlers
   const handleChangePage = useCallback((event, newPage) => {
@@ -300,7 +413,7 @@ const VendorPayments = () => {
 
   // Bulk delete handler
   const handleBulkDelete = useCallback(async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
     try {
       const token = localStorage.getItem('token');
@@ -316,7 +429,7 @@ const VendorPayments = () => {
       console.error('Error bulk deleting payments:', err);
       showNotification('Failed to delete payments', 'error');
     }
-  }, [selected, fetchPayments]);
+  }, [selected, fetchPayments, canDelete]);
 
   // Action menu handlers
   const handleActionMenuOpen = useCallback((event, payment) => {
@@ -330,10 +443,14 @@ const VendorPayments = () => {
 
   // Modal handlers
   const openViewModal = useCallback((payment) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view payment details', 'error');
+      return;
+    }
     setSelectedPayment(payment);
     setModalState(prev => ({ ...prev, view: true }));
     handleActionMenuClose();
-  }, [handleActionMenuClose]);
+  }, [handleActionMenuClose, canViewPage]);
 
   const openApproveModal = useCallback((payment) => {
     setSelectedPayment(payment);
@@ -416,13 +533,15 @@ const VendorPayments = () => {
 
       return (
         <TableRow key={payment._id} hover selected={isSelected} sx={{ '&:hover': { bgcolor: COLORS.background.hover } }}>
-          <TableCell padding="checkbox">
-            <Checkbox
-              checked={isSelected}
-              onChange={() => handleSelect(payment._id)}
-              sx={{ color: COLORS.primary, '&.Mui-checked': { color: COLORS.primary } }}
-            />
-          </TableCell>
+          {canDelete && (
+            <TableCell padding="checkbox">
+              <Checkbox
+                checked={isSelected}
+                onChange={() => handleSelect(payment._id)}
+                sx={{ color: COLORS.primary, '&.Mui-checked': { color: COLORS.primary } }}
+              />
+            </TableCell>
+          )}
           <TableCell>
             <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
               {payment.vendor_payment_number}
@@ -482,14 +601,24 @@ const VendorPayments = () => {
               anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
               onClose={handleActionMenuClose}
               onOpen={(e) => handleActionMenuOpen(e, payment)}
+              permissions={userPermissions}
+              isSuperAdmin={isSuperAdmin}
             />
           </TableCell>
         </TableRow>
       );
     });
-  }, [payments, selected, actionMenuAnchor, selectedPayment, formatDate, formatCurrency, handleSelect, openViewModal, openApproveModal, openReceiptModal, handleActionMenuClose, handleActionMenuOpen]);
+  }, [payments, selected, actionMenuAnchor, selectedPayment, formatDate, formatCurrency, handleSelect, openViewModal, openApproveModal, openReceiptModal, handleActionMenuClose, handleActionMenuOpen, canDelete]);
 
-  if (loading && payments.length === 0) return <LoadingState />;
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -509,12 +638,20 @@ const VendorPayments = () => {
               placeholder="Search by payment number, vendor, reference..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ width: { xs: '100%', sm: 320 } }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { height: 36, bgcolor: COLORS.background.light }
@@ -540,7 +677,25 @@ const VendorPayments = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            {selected.length > 0 && (
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -552,21 +707,24 @@ const VendorPayments = () => {
               </Button>
             )}
             
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setModalState(prev => ({ ...prev, add: true }))}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                textTransform: 'none',
-                '&:hover': { bgcolor: COLORS.primaryDark }
-              }}
-            >
-              Create Payment
-            </Button>
+            {/* Create Payment Button - CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setModalState(prev => ({ ...prev, add: true }))}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: COLORS.primaryDark }
+                }}
+              >
+                Create Payment
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -576,14 +734,17 @@ const VendorPayments = () => {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < payments.length}
-                    checked={payments.length > 0 && selected.length === payments.length}
-                    onChange={handleSelectAll}
-                    sx={{ color: COLORS.text.light, '&.Mui-checked': { color: COLORS.text.light } }}
-                  />
-                </TableCell>
+                {/* Checkbox Column - DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < payments.length}
+                      checked={payments.length > 0 && selected.length === payments.length}
+                      onChange={handleSelectAll}
+                      sx={{ color: COLORS.text.light, '&.Mui-checked': { color: COLORS.text.light } }}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', color: COLORS.text.light }}>
                   Payment No.
                 </TableCell>
@@ -619,14 +780,14 @@ const VendorPayments = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', mt: 1 }}>Loading payments...</Typography>
                   </TableCell>
                 </TableRow>
               ) : payments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 11 : 10} align="center" sx={{ py: 6 }}>
                     <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary }}>
                       {searchTerm || statusFilter !== 'all' ? 'No payments found' : 'No payments available'}
                     </Typography>
@@ -658,29 +819,30 @@ const VendorPayments = () => {
 
       {/* Modals - Always rendered but conditionally opened */}
       <Suspense fallback={null}>
-        <AddVendorPayment
-          open={modalState.add}
-          onClose={closeAddModal}
-          onAdd={handlePaymentAdded}
-        />
+        {/* Add Payment Modal - CREATE permission */}
+        {canCreate && (
+          <AddVendorPayment
+            open={modalState.add}
+            onClose={closeAddModal}
+            onAdd={handlePaymentAdded}
+          />
+        )}
 
-        {selectedPayment && (
-          <>
-            <ViewVendorPayment
-              open={modalState.view}
-              onClose={closeViewModal}
-              payment={selectedPayment}
-            />
+        {selectedPayment && canViewPage && (
+          <ViewVendorPayment
+            open={modalState.view}
+            onClose={closeViewModal}
+            payment={selectedPayment}
+          />
+        )}
 
-            {selectedPayment.status === 'Pending' && (
-              <ApproveVendorPayment
-                open={modalState.approve}
-                onClose={closeApproveModal}
-                payment={selectedPayment}
-                onApprove={handlePaymentApproved}
-              />
-            )}
-          </>
+        {selectedPayment && selectedPayment.status === 'Pending' && (
+          <ApproveVendorPayment
+            open={modalState.approve}
+            onClose={closeApproveModal}
+            payment={selectedPayment}
+            onApprove={handlePaymentApproved}
+          />
         )}
 
         {receiptPaymentData && (

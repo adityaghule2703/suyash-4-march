@@ -1102,7 +1102,7 @@ const RegularizationMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+             
             />
           </Stack>
 

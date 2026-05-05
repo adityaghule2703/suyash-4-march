@@ -1166,47 +1166,46 @@ const DesignationMaster = () => {
     }
   }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  const fetchDesignations = async (showLoader = true) => {
-    try {
-      if (showLoader) setLoading(true);
+ const fetchDesignations = async (showLoader = true) => {
+  try {
+    if (showLoader) setLoading(true);
 
-      const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token');
 
-      const response = await axios.get(`${BASE_URL}/api/designations`, {
+    // ✅ Query Params
+    const params = new URLSearchParams();
+
+    params.append('page', page + 1);
+    params.append('limit', rowsPerPage);
+
+    if (searchTerm) params.append('search', searchTerm);
+
+    const response = await axios.get(
+      `${BASE_URL}/api/designations?${params.toString()}`,
+      {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      });
-
-      if (response.data?.success) {
-        const data = response.data.data || [];
-
-        // Always sync both states
-        setDesignations(data);
-
-        // Apply search filter properly
-        if (!searchTerm) {
-          setFilteredDesignations(data);
-        } else {
-          const value = searchTerm.toLowerCase();
-          const filtered = data.filter(d =>
-            d.DesignationName?.toLowerCase().includes(value) ||
-            d.Description?.toLowerCase().includes(value)
-          );
-          setFilteredDesignations(filtered);
-        }
-
-      } else {
-        showNotification('Failed to load designations', 'error');
       }
+    );
 
-    } catch (err) {
-      console.error('Error fetching designations:', err);
-      showNotification('Failed to load designations. Please try again.', 'error');
-    } finally {
-      if (showLoader) setLoading(false);
+    if (response.data?.success) {
+      const data = response.data.data || [];
+
+      setDesignations(data);
+      setFilteredDesignations(data); // server-side filtering use kartoy ata
+
+    } else {
+      showNotification('Failed to load designations', 'error');
     }
-  };
+
+  } catch (err) {
+    console.error('Error fetching designations:', err);
+    showNotification('Failed to load designations. Please try again.', 'error');
+  } finally {
+    if (showLoader) setLoading(false);
+  }
+};
   
   // Handle refresh
   const handleRefresh = () => {

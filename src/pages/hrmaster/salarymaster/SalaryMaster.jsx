@@ -2487,8 +2487,8 @@ const SalaryMaster = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('');
@@ -2518,6 +2518,8 @@ const SalaryMaster = () => {
     message: "",
     severity: "success",
   });
+
+  
 
   // User permissions state
   const [userPermissions, setUserPermissions] = useState([]);
@@ -2616,42 +2618,36 @@ const SalaryMaster = () => {
     }
   };
 
-  const fetchSalaries = async () => {
-    // Only fetch if user has view permission
-    if (!canViewPage && !isSuperAdmin) return;
-    
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
+ const fetchSalaries = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token");
 
-      const params = {
-        page: page + 1,
-        limit: rowsPerPage,
-      };
-      
-      if (employeeFilter) params.employeeId = employeeFilter;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (monthFilter) params.month = monthFilter;
-      if (yearFilter) params.year = yearFilter;
-      if (searchTerm) params.search = searchTerm;
+    const params = {
+      page: page + 1,
+      limit: rowsPerPage,
+    };
 
-      const response = await axios.get(`${BASE_URL}/api/salaries`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+    if (employeeFilter) params.employeeId = employeeFilter;
 
-      if (response.data.success) {
-        setSalaries(response.data.data || []);
-        setTotalRecords(response.data.total || 0);
-      }
-    } catch (error) {
-      console.error("Error fetching salaries:", error);
-      showNotification("Failed to load salaries", "error");
-    } finally {
-      setLoading(false);
+    // ✅ IMPORTANT
+    if (searchTerm) params.search = searchTerm;
+
+    const response = await axios.get(`${BASE_URL}/api/salaries`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params,
+    });
+
+    if (response.data.success) {
+      setSalaries(response.data.data);
+      setTotalRecords(response.data.total);
     }
-  };
-
+  } catch {
+    showNotification("Failed to load salaries", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const showNotification = (message, severity) => {
     setSnackbar({ open: true, message, severity });
   };
@@ -2965,7 +2961,7 @@ const SalaryMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+            
             />
 
             {isFilterActive && (

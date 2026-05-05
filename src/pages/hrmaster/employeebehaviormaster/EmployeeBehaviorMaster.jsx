@@ -1584,7 +1584,7 @@ const EmployeeBehaviorMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+              
             />
           </Stack>
 

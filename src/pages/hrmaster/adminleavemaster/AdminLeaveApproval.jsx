@@ -1943,7 +1943,7 @@ const AdminLeaveApproval = () => {
                   }
                 }
               }}
-              disabled={loading}
+              
             />
 
             <FormControl size="small" sx={{ minWidth: 120 }}>

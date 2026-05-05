@@ -2163,54 +2163,55 @@ const InterviewMaster = () => {
   const canApprove = checkPermission(ACTIONS.APPROVE);
 
   // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+useEffect(() => {
+  fetchInterviews();
+}, [page, rowsPerPage, orderBy, order, filters, searchTerm]);
 
   // Fetch interviews - only if user has view permission
-  const fetchInterviews = useCallback(async () => {
-    // Only fetch if user has view permission
-    if (!canViewPage && !isSuperAdmin) return;
-    
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
+const fetchInterviews = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
 
-      const params = new URLSearchParams({
-        page: page + 1,
-        limit: rowsPerPage,
-        search: searchTerm,
-        sortBy: orderBy,
-        sortOrder: order,
-      });
+    const params = new URLSearchParams({
+      page: page + 1,
+      limit: rowsPerPage,
+      sortBy: orderBy,
+      sortOrder: order
+    });
 
-      if (filters.status) params.append("status", filters.status);
-      if (filters.type) params.append("type", filters.type);
-      if (filters.round) params.append("round", filters.round);
-      if (filters.dateFrom) params.append("dateFrom", filters.dateFrom);
-      if (filters.dateTo) params.append("dateTo", filters.dateTo);
+    // ✅ only add search if exists
+    if (searchTerm) params.append('search', searchTerm);
 
-      const response = await axios.get(`${BASE_URL}/api/interviews?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    if (filters.status) params.append('status', filters.status);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.round) params.append('round', filters.round);
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
 
-      if (response.data.success) {
-        setInterviews(response.data.data || []);
-        setTotalItems(response.data.pagination?.totalItems || 0);
-      } else {
-        showNotification("Failed to load interviews", "error");
+    const response = await axios.get(
+      `${BASE_URL}/api/interviews?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
       }
-    } catch (err) {
-      console.error("Error fetching interviews:", err);
-      showNotification("Failed to load interviews. Please try again.", "error");
-    } finally {
-      setLoading(false);
+    );
+
+    if (response.data.success) {
+      setInterviews(response.data.data || []);
+      setTotalItems(response.data.pagination?.totalItems || 0);
+      setTotalPages(response.data.pagination?.totalPages || 1);
+      setError('');
+    } else {
+      setError('Failed to load interviews');
     }
-  }, [page, rowsPerPage, searchTerm, orderBy, order, filters, canViewPage, isSuperAdmin]);
+
+  } catch (err) {
+    console.error(err);
+    setError('Error fetching interviews');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
@@ -2545,7 +2546,7 @@ const InterviewMaster = () => {
                   },
                 },
               }}
-              disabled={loading}
+              
             />
 
             <FilterBar

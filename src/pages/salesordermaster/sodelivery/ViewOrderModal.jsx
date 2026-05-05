@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Paper,
-  Grid,
-  Typography,
-  Button,
-  Stack,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Tabs,
+  Tab,
+  Grid,
+  Paper,
+  Stack,
+  Typography,
   Chip,
-  Divider,
+  IconButton,
+  Button,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
+  Divider,
   Stepper,
   Step,
   StepLabel,
@@ -30,38 +32,35 @@ import {
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
-  LocalShipping as LocalShippingIcon,
-  Business as BusinessIcon,
+  Receipt as ReceiptIcon,
   Description as DescriptionIcon,
   Inventory as InventoryIcon,
-  LocationOn as LocationIcon,
-  AccessTime as AccessTimeIcon,
-  Info as InfoIcon
+  History as HistoryIcon,
+  Business as BusinessIcon,
+  LocalShipping as ShippingIcon,
+  MonetizationOn as MoneyIcon,
+  Person as PersonIcon,
+  AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 
+// Professional Color Scheme (consistent with other components)
 const COLORS = {
   primary: '#063C3F',
   primaryDark: '#05292B',
   text: {
     primary: '#151C26',
     secondary: '#4B5568',
-    tertiary: '#94A3B8'
+    tertiary: '#94A3B8',
+    light: '#FFFFFF'
   },
   background: {
     white: '#FFFFFF',
-    light: '#F8FFFC'
+    light: '#F8FFFC',
+    hover: '#F0FDF9',
+    tableHeader: '#063C3F'
   },
-  border: '#E3E8EF',
-  status: {
-    Draft: { bg: '#FEF3C7', color: '#B45309' },
-    Confirmed: { bg: '#D1FAE5', color: '#065F46' },
-    'In Transit': { bg: '#E0F2FE', color: '#0369A1' },
-    Delivered: { bg: '#D1FAE5', color: '#065F46' },
-    Cancelled: { bg: '#FEE2E2', color: '#991B1B' }
-  }
+  border: '#E3E8EF'
 };
-
-const steps = ['Overview', 'Items', 'Details'];
 
 // Modern Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
@@ -115,14 +114,25 @@ function CustomStepIcon(props) {
   );
 }
 
-const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
+const steps = ['Overview', 'Items', 'History'];
+
+const ViewOrderModal = ({ open, onClose, order }) => {
   const [activeStep, setActiveStep] = useState(0);
 
-  if (!schedule) return null;
+  if (!order) return null;
+
+  const formatCurrency = (amount, currency = 'INR') => {
+    if (!amount && amount !== 0) return '-';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2
+    }).format(amount || 0);
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-IN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -131,7 +141,7 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
 
   const formatDateTime = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('en-IN', {
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -140,52 +150,20 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
     });
   };
 
+  const statusColors = {
+    'confirmed': { bg: '#D1FAE5', color: '#059669' },
+    'draft': { bg: '#F1F5F9', color: '#475569' },
+    'cancelled': { bg: '#FEE2E2', color: '#DC2626' },
+    'pending': { bg: '#FEF3C7', color: '#D97706' },
+    'completed': { bg: '#DBEAFE', color: '#1E40AF' }
+  }[order.status?.toLowerCase()] || { bg: '#F1F5F9', color: '#475569' };
+
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
   };
 
   const handleBack = () => {
     setActiveStep((prevStep) => prevStep - 1);
-  };
-
-  const getStatusChip = (status) => {
-    const colors = COLORS.status[status] || { bg: '#F1F5F9', color: '#475569' };
-    return (
-      <Chip
-        label={status}
-        size="small"
-        sx={{
-          fontSize: '0.7rem',
-          fontWeight: 500,
-          height: 24,
-          bgcolor: colors.bg,
-          color: colors.color
-        }}
-      />
-    );
-  };
-
-  const getVehicleTypeChip = (vehicleType) => {
-    const colors = {
-      'Regular': { bg: '#E0F2FE', color: '#0369A1' },
-      'Over Dimensional Cargo (ODC)': { bg: '#FEF3C7', color: '#B45309' },
-      'Water Vessel': { bg: '#D1FAE5', color: '#065F46' },
-      'Air Cargo': { bg: '#F3E8FF', color: '#7E22CE' }
-    };
-    const style = colors[vehicleType] || { bg: '#F1F5F9', color: '#475569' };
-    return (
-      <Chip
-        label={vehicleType}
-        size="small"
-        sx={{
-          fontSize: '0.65rem',
-          fontWeight: 500,
-          height: 24,
-          bgcolor: style.bg,
-          color: style.color
-        }}
-      />
-    );
   };
 
   // Helper function to render field
@@ -211,7 +189,7 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
       case 0: // Overview
         return (
           <Stack spacing={2}>
-            {/* Header Section - Schedule Overview */}
+            {/* Header Section - Order Overview */}
             <Paper sx={{ 
               p: 2, 
               bgcolor: COLORS.background.light, 
@@ -224,30 +202,39 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
                 color: COLORS.primary, 
                 mb: 1.5 
               }}>
-                <LocalShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Delivery Schedule Overview
+                <ReceiptIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Order Overview
               </Typography>
               
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
                 <Box>
                   <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
-                    {schedule.schedule_id}
+                    {order.so_number}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                    {order.customer_name}
                   </Typography>
                 </Box>
-                {getStatusChip(schedule.status)}
+                <Chip
+                  label={order.status}
+                  size="small"
+                  sx={{ 
+                    fontSize: '0.7rem', 
+                    fontWeight: 500,
+                    bgcolor: statusColors.bg, 
+                    color: statusColors.color
+                  }}
+                />
               </Stack>
               
               <Divider sx={{ my: 1.5 }} />
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Dispatch Date', formatDate(schedule.dispatch_date), false, true)}
+                  {renderField('SO Date', formatDate(order.so_date))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('SO Number', schedule.so_number)}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Total Scheduled Qty', schedule.total_scheduled_qty?.toLocaleString() || '0')}
+                  {renderField('Currency', order.currency)}
                 </Grid>
               </Grid>
             </Paper>
@@ -270,14 +257,21 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
               </Typography>
               
               <Grid container spacing={1.5}>
-                
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Shipping Address ID', schedule.shipping_address_id, true)}
+                  {renderField('Customer Name', order.customer_name, false, true)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('GSTIN', order.customer_gstin, true)}
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  {renderField('Billing Address', 
+                    `${order.billing_address?.line1 || ''} ${order.billing_address?.line2 || ''}, ${order.billing_address?.city || ''}, ${order.billing_address?.state || ''} - ${order.billing_address?.pincode || ''}`
+                  )}
                 </Grid>
               </Grid>
             </Paper>
 
-            {/* Transport Information */}
+            {/* Order Information */}
             <Paper sx={{ 
               p: 2, 
               borderRadius: 1.5, 
@@ -290,41 +284,69 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
                 color: COLORS.primary, 
                 mb: 1.5 
               }}>
-                <LocalShippingIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Transport Information
+                <DescriptionIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Order Information
               </Typography>
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Transporter', schedule.transporter_preference)}
+                  {renderField('Quotation Number', order.quotation_no)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
-                      Vehicle Type
-                    </Typography>
-                    {getVehicleTypeChip(schedule.vehicle_type)}
-                  </Box>
+                  {renderField('PO Number', order.customer_po_number)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('PO Date', formatDate(order.customer_po_date))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('GST Type', order.gst_type)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Delivery Terms', order.delivery_terms)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Delivery Mode', order.delivery_mode)}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Expected Delivery', formatDate(order.expected_delivery_date))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Payment Terms', order.payment_terms)}
                 </Grid>
               </Grid>
+            </Paper>
+
+            {/* Financial Summary */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <MoneyIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Financial Summary
+              </Typography>
               
-              {schedule.special_instructions && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, mb: 0.5 }}>
-                    Special Instructions
-                  </Typography>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: COLORS.background.light, 
-                    borderRadius: 1,
-                    border: `1px solid ${COLORS.border}`
-                  }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary, fontStyle: 'italic' }}>
-                      {schedule.special_instructions}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  {renderField('Sub Total', formatCurrency(order.sub_total, order.currency))}
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  {renderField('Discount', formatCurrency(order.discount_total, order.currency))}
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  {renderField('GST Total', formatCurrency(order.gst_total, order.currency))}
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  {renderField('Grand Total', formatCurrency(order.grand_total, order.currency), false, true)}
+                </Grid>
+              </Grid>
             </Paper>
           </Stack>
         );
@@ -345,36 +367,36 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
                 mb: 1.5 
               }}>
                 <InventoryIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Items ({schedule.items?.length || 0})
+                Order Items ({order.items?.length || 0})
               </Typography>
               
               <TableContainer component={Paper} sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
                 <Table size="small">
-                  <TableHead sx={{ bgcolor: COLORS.background.light }}>
+                  <TableHead sx={{ bgcolor: COLORS.background.tableHeader }}>
                     <TableRow>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part No</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Part Name</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, align: 'right' }}>Scheduled Qty</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, align: 'right' }}>Available FG Qty</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Remarks</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Part No.</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Part Name</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light, align: 'right' }}>Qty</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light, align: 'right' }}>Unit</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light, align: 'right' }}>Unit Price</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light, align: 'right' }}>Total</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {schedule.items?.map((item, index) => (
-                      <TableRow key={item._id || index} hover>
+                    {order.items?.map((item, idx) => (
+                      <TableRow key={idx} hover>
                         <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{item.part_no}</TableCell>
                         <TableCell sx={{ fontSize: '0.75rem' }}>{item.part_name}</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right' }}>{item.scheduled_qty || 0}</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right' }}>{item.available_fg_qty || 0}</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>{item.remarks || '-'}</TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right' }}>{item.ordered_qty}</TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right' }}>{item.unit}</TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right' }}>{formatCurrency(item.unit_price, order.currency)}</TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total_amount, order.currency)}</TableCell>
                       </TableRow>
                     ))}
-                    {(!schedule.items || schedule.items.length === 0) && (
+                    {(!order.items || order.items.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>
-                            No items found
-                          </Typography>
+                        <TableCell colSpan={6} align="center" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>
+                          No items found
                         </TableCell>
                       </TableRow>
                     )}
@@ -385,9 +407,65 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
           </Stack>
         );
 
-      case 2: // Details
+      case 2: // History
         return (
           <Stack spacing={2}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <AccessTimeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Activity Log
+              </Typography>
+              
+              <TableContainer component={Paper} sx={{ borderRadius: 1.5, border: `1px solid ${COLORS.border}` }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: COLORS.background.tableHeader }}>
+                    <TableRow>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Date & Time</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Action</TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.light }}>Notes</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {order.audit_log?.map((log, idx) => (
+                      <TableRow key={idx} hover>
+                        <TableCell sx={{ fontSize: '0.7rem' }}>{formatDateTime(log.changed_at)}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={log.action} 
+                            size="small" 
+                            sx={{ 
+                              fontSize: '0.6rem', 
+                              height: 22,
+                              bgcolor: COLORS.background.light,
+                              color: COLORS.primary
+                            }} 
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem' }}>{log.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!order.audit_log || order.audit_log.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary }}>
+                          No activity logs found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+
             {/* System Information */}
             <Paper sx={{ 
               p: 2, 
@@ -407,40 +485,10 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
               
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Created At', formatDateTime(schedule.createdAt))}
+                  {renderField('Created At', formatDateTime(order.createdAt))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Last Updated', formatDateTime(schedule.updatedAt))}
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Additional Information */}
-            <Paper sx={{ 
-              p: 2, 
-              borderRadius: 1.5, 
-              border: `1px solid ${COLORS.border}`,
-              bgcolor: COLORS.background.white
-            }}>
-              <Typography sx={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 600, 
-                color: COLORS.primary, 
-                mb: 1.5 
-              }}>
-                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Additional Information
-              </Typography>
-              
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Schedule ID', schedule.schedule_id, true)}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('SO Number', schedule.so_number, true)}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  {renderField('Status', schedule.status)}
+                  {renderField('Last Updated', formatDateTime(order.updatedAt))}
                 </Grid>
               </Grid>
             </Paper>
@@ -456,7 +504,7 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
@@ -471,20 +519,15 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
         borderBottom: `1px solid ${COLORS.border}`,
         py: 1.5,
         px: 2.5,
-        bgcolor: COLORS.background.white,
+        bgcolor: COLORS.background.tableHeader,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <Box>
-          <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
-            Delivery Schedule Details
-          </Typography>
-          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
-            Schedule ID: {schedule.schedule_id}
-          </Typography>
-        </Box>
-        <IconButton onClick={onClose} size="small">
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.light }}>
+          Order Details
+        </Typography>
+        <IconButton onClick={onClose} size="small" sx={{ color: COLORS.text.light }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
@@ -607,4 +650,4 @@ const ViewDeliverySchedule = ({ open, onClose, schedule }) => {
   );
 };
 
-export default ViewDeliverySchedule;
+export default ViewOrderModal;

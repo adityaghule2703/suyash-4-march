@@ -24,16 +24,12 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Divider,
   Alert,
   CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  Tabs,
-  Tab,
-  Grid
+  DialogActions
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -42,17 +38,12 @@ import {
   MoreVert as MoreVertIcon,
   Receipt as ReceiptIcon,
   Delete as DeleteIcon,
-  Close as CloseIcon,
-  Description as DescriptionIcon,
-  Inventory as InventoryIcon,
-  History as HistoryIcon,
-  Print as PrintIcon,
-  FileDownload as ExportIcon,
-  Edit as EditIcon
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
+import ViewOrderModal from './ViewOrderModal'; // Import the new modal component
 
 // Professional Color Scheme
 const COLORS = {
@@ -128,19 +119,12 @@ const StatusChip = ({ status }) => {
   );
 };
 
-// Action Menu Component with permission checks
-const ActionMenu = ({ order, anchorEl, onOpen, onClose, onView, onEdit, onDelete, permissions, isSuperAdmin }) => {
+// Action Menu Component - Only View button
+const ActionMenu = ({ order, anchorEl, onOpen, onClose, onView, permissions, isSuperAdmin }) => {
   // Check permissions for Order Book module
   const canView = isSuperAdmin || hasPermission(permissions, MODULES.ORDER_BOOK, PAGES.ORDER_BOOK, ACTIONS.VIEW);
-  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.ORDER_BOOK, PAGES.ORDER_BOOK, ACTIONS.UPDATE);
-  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.ORDER_BOOK, PAGES.ORDER_BOOK, ACTIONS.DELETE);
-  const canExport = isSuperAdmin || hasPermission(permissions, MODULES.ORDER_BOOK, PAGES.ORDER_BOOK, ACTIONS.EXPORT);
-  const canPrint = isSuperAdmin || hasPermission(permissions, MODULES.ORDER_BOOK, PAGES.ORDER_BOOK, ACTIONS.PRINT);
-
-  // Count how many actions are available
-  const hasAnyActions = canView || canUpdate || canDelete || canExport || canPrint;
   
-  if (!hasAnyActions) {
+  if (!canView) {
     return null;
   }
 
@@ -175,393 +159,24 @@ const ActionMenu = ({ order, anchorEl, onOpen, onClose, onView, onEdit, onDelete
           }
         }}
       >
-        {canView && (
-          <MenuItem 
-            onClick={() => {
-              onView(order);
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-              <ViewIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                View Details
-              </Typography>
-            </ListItemText>
-          </MenuItem>
-        )}
-        
-        {canUpdate && (
-          <MenuItem 
-            onClick={() => {
-              onEdit(order);
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-              <EditIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-                Edit
-              </Typography>
-            </ListItemText>
-          </MenuItem>
-        )}
-        
-        {canExport && (
-          <MenuItem 
-            onClick={() => {
-              // Handle export
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-              <ExportIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-                Export
-              </Typography>
-            </ListItemText>
-          </MenuItem>
-        )}
-        
-        {canPrint && (
-          <MenuItem 
-            onClick={() => {
-              // Handle print
-              onClose();
-            }}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: '#06B6D4', minWidth: 36 }}>
-              <PrintIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>
-              <Typography variant="body2" fontWeight={500} sx={{ color: '#06B6D4', fontSize: '0.75rem' }}>
-                Print
-              </Typography>
-            </ListItemText>
-          </MenuItem>
-        )}
-        
-        {canDelete && (
-          <>
-            {(canView || canUpdate || canExport || canPrint) && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
-            <MenuItem 
-              onClick={() => {
-                onDelete(order);
-                onClose();
-              }}
-              sx={{ py: 1.5 }}
-            >
-              <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-                <DeleteIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-                  Delete
-                </Typography>
-              </ListItemText>
-            </MenuItem>
-          </>
-        )}
+        <MenuItem 
+          onClick={() => {
+            onView(order);
+            onClose();
+          }}
+          sx={{ py: 1.5 }}
+        >
+          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+            <ViewIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+              View Details
+            </Typography>
+          </ListItemText>
+        </MenuItem>
       </Menu>
     </>
-  );
-};
-
-// View Order Modal
-const ViewOrderModal = ({ open, onClose, order }) => {
-  const [activeTab, setActiveTab] = useState(0);
-
-  if (!order) return null;
-
-  const formatCurrency = (amount, currency = 'INR') => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2
-    }).format(amount || 0);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const statusColors = {
-    confirmed: { bg: '#D1FAE5', color: '#059669' },
-    draft: { bg: '#F1F5F9', color: '#475569' },
-    cancelled: { bg: '#FEE2E2', color: '#DC2626' }
-  }[order.status?.toLowerCase()] || { bg: '#F1F5F9', color: '#475569' };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          maxHeight: '85vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        py: 1.5,
-        px: 2.5,
-        bgcolor: COLORS.background.tableHeader,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <ReceiptIcon sx={{ color: COLORS.text.light }} />
-          <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: COLORS.text.light }}>
-              Order Details
-            </Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)' }}>
-              {order.so_number} • {order.customer_name}
-            </Typography>
-          </Box>
-        </Stack>
-        <IconButton onClick={onClose} size="small" sx={{ color: COLORS.text.light }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-
-      <Tabs
-        value={activeTab}
-        onChange={(e, v) => setActiveTab(v)}
-        sx={{
-          borderBottom: `1px solid ${COLORS.border}`,
-          px: 2,
-          '& .MuiTab-root': {
-            textTransform: 'none',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            minHeight: 44
-          },
-          '& .MuiTabs-indicator': {
-            backgroundColor: COLORS.primary
-          }
-        }}
-      >
-        <Tab label="Order Details" icon={<DescriptionIcon sx={{ fontSize: '1rem' }} />} iconPosition="start" />
-        <Tab label="Items" icon={<InventoryIcon sx={{ fontSize: '1rem' }} />} iconPosition="start" />
-        <Tab label="History" icon={<HistoryIcon sx={{ fontSize: '1rem' }} />} iconPosition="start" />
-      </Tabs>
-
-      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.light }}>
-        {/* Order Details Tab */}
-        {activeTab === 0 && (
-          <Stack spacing={2.5}>
-            {/* Basic Info */}
-            <Paper sx={{ p: 2, borderRadius: 1.5 }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5, textTransform: 'uppercase' }}>
-                Basic Information
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>SO Number</Typography>
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, mt: 0.5 }}>{order.so_number}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>SO Date</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{formatDate(order.so_date)}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Status</Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip
-                      label={order.status}
-                      size="small"
-                      sx={{ bgcolor: statusColors.bg, color: statusColors.color, fontSize: '0.7rem' }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Currency</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.currency}</Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Customer Info */}
-            <Paper sx={{ p: 2, borderRadius: 1.5 }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5, textTransform: 'uppercase' }}>
-                Customer Information
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{order.customer_name}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
-                    GSTIN: {order.customer_gstin || '-'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography sx={{ fontSize: '0.7rem', fontWeight: 500, mb: 0.5 }}>Billing Address</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                    {order.billing_address?.line1 && `${order.billing_address.line1}, `}
-                    {order.billing_address?.city && `${order.billing_address.city}, `}
-                    {order.billing_address?.state && `${order.billing_address.state} - `}
-                    {order.billing_address?.pincode}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Order Details */}
-            <Paper sx={{ p: 2, borderRadius: 1.5 }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5, textTransform: 'uppercase' }}>
-                Order Information
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Quotation No.</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.quotation_no || '-'}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>PO Number</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.customer_po_number || '-'}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>PO Date</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{formatDate(order.customer_po_date)}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>GST Type</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.gst_type || '-'}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Delivery Terms</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.delivery_terms || '-'}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Delivery Mode</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.delivery_mode || '-'}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Expected Delivery</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{formatDate(order.expected_delivery_date)}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Payment Terms</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{order.payment_terms || '-'}</Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Financial Summary */}
-            <Paper sx={{ p: 2, borderRadius: 1.5 }}>
-              <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.primary, mb: 1.5, textTransform: 'uppercase' }}>
-                Financial Summary
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Sub Total</Typography>
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, mt: 0.5 }}>{formatCurrency(order.sub_total, order.currency)}</Typography>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Discount</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{formatCurrency(order.discount_total, order.currency)}</Typography>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>GST Total</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', mt: 0.5 }}>{formatCurrency(order.gst_total, order.currency)}</Typography>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.secondary }}>Grand Total</Typography>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: COLORS.primary, mt: 0.5 }}>{formatCurrency(order.grand_total, order.currency)}</Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-          </Stack>
-        )}
-
-        {/* Items Tab */}
-        {activeTab === 1 && (
-          <Paper sx={{ borderRadius: 1.5, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }}>Part No.</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }}>Part Name</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }} align="right">Qty</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }} align="right">Unit Price</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }} align="right">Total</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {order.items?.map((item, idx) => (
-                    <TableRow key={idx} hover>
-                      <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_no}</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem' }}>{item.part_name}</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem' }} align="right">{item.ordered_qty} {item.unit}</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem' }} align="right">{formatCurrency(item.unit_price, order.currency)}</TableCell>
-                      <TableCell sx={{ fontSize: '0.7rem', fontWeight: 600 }} align="right">{formatCurrency(item.total_amount, order.currency)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
-
-        {/* History Tab */}
-        {activeTab === 2 && (
-          <Paper sx={{ borderRadius: 1.5, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: COLORS.background.tableHeader }}>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }}>Date & Time</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }}>Action</TableCell>
-                    <TableCell sx={{ fontSize: '0.7rem', fontWeight: 700, color: COLORS.text.light }}>Notes</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {order.audit_log?.map((log, idx) => (
-                    <TableRow key={idx} hover>
-                      <TableCell sx={{ fontSize: '0.65rem' }}>{formatDate(log.changed_at)}</TableCell>
-                      <TableCell sx={{ fontSize: '0.65rem' }}>
-                        <Chip 
-                          label={log.action} 
-                          size="small" 
-                          sx={{ fontSize: '0.6rem', height: 22 }} 
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontSize: '0.65rem' }}>{log.notes}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}` }}>
-        <Button onClick={onClose} sx={{ fontSize: '0.7rem', textTransform: 'none' }}>
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
   );
 };
 
@@ -579,8 +194,6 @@ const OrderBook = () => {
   const [selectedOrderForMenu, setSelectedOrderForMenu] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [openViewModal, setOpenViewModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // User permissions state
@@ -640,11 +253,7 @@ const OrderBook = () => {
 
   // Permission checks
   const canViewPage = checkPermission(ACTIONS.VIEW);
-  const canCreate = checkPermission(ACTIONS.CREATE);
-  const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
-  const canExport = checkPermission(ACTIONS.EXPORT);
-  const canPrint = checkPermission(ACTIONS.PRINT);
 
   // Handle search input change with proper debounce
   const handleSearchChange = (e) => {
@@ -737,6 +346,8 @@ const OrderBook = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(orders.map(order => order._id));
     } else {
@@ -745,6 +356,8 @@ const OrderBook = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -771,7 +384,7 @@ const OrderBook = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
     setLoading(true);
     try {
@@ -810,22 +423,9 @@ const OrderBook = () => {
   };
 
   const openViewOrderModal = (order) => {
+    if (!canViewPage) return;
     setSelectedOrder(order);
     setOpenViewModal(true);
-    handleActionMenuClose();
-  };
-  
-  const openEditOrderModal = (order) => {
-    if (!canUpdate) return;
-    setSelectedOrder(order);
-    setOpenEditModal(true);
-    handleActionMenuClose();
-  };
-  
-  const openDeleteOrderDialog = (order) => {
-    if (!canDelete) return;
-    setSelectedOrder(order);
-    setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
@@ -946,7 +546,7 @@ const OrderBook = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {/* Refresh Button */}
+            {/* Refresh Button - Available to all users with view permission */}
             <Tooltip title="Refresh">
               <IconButton
                 size="small"
@@ -964,7 +564,7 @@ const OrderBook = () => {
             </Tooltip>
             
             {/* Delete Button - Only show if user has DELETE permission AND items are selected */}
-            {selected.length > 0 && canDelete && (
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -974,7 +574,13 @@ const OrderBook = () => {
                   borderRadius: 1.5,
                   textTransform: 'none',
                   fontSize: '0.75rem',
-                  fontWeight: 500
+                  fontWeight: 500,
+                  borderColor: '#fee2e2',
+                  color: '#991b1b',
+                  '&:hover': {
+                    borderColor: '#fecaca',
+                    bgcolor: '#fee2e2'
+                  }
                 }}
                 disabled={loading}
                 onClick={handleBulkDelete}
@@ -1162,8 +768,6 @@ const OrderBook = () => {
                           onOpen={(e) => handleActionMenuOpen(e, order)}
                           onClose={handleActionMenuClose}
                           onView={openViewOrderModal}
-                          onEdit={openEditOrderModal}
-                          onDelete={openDeleteOrderDialog}
                           permissions={userPermissions}
                           isSuperAdmin={isSuperAdmin}
                         />
@@ -1206,32 +810,6 @@ const OrderBook = () => {
         }}
         order={selectedOrder}
       />
-
-      {/* Edit Order Modal - Placeholder */}
-      <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)}>
-        <DialogTitle>Edit Order</DialogTitle>
-        <DialogContent>
-          <Typography>Edit functionality coming soon...</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEditModal(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog - Placeholder */}
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Delete Order</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this order?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={() => {
-            setOpenDeleteDialog(false);
-            showNotification('Order deleted successfully!', 'success');
-          }} color="error">Delete</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Snackbar Notification */}
       <Snackbar

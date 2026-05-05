@@ -1,5 +1,5 @@
 // DefectCodeMaster.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Paper,
@@ -48,7 +48,8 @@ import {
   CheckCircle as ActiveIcon,
   Cancel as InactiveIcon,
   FilterList as FilterIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Refresh as RefreshIcon
 } from "@mui/icons-material";
 import axios from "axios";
 import BASE_URL from "../../../config/Config";
@@ -126,10 +127,10 @@ const AccessDenied = () => (
 );
 
 // Action Menu Component with permission checks
-const ActionMenu = ({ defectCode, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions }) => {
-  const canView = hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.VIEW);
-  const canUpdate = hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.UPDATE);
-  const canDelete = hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.DELETE);
+const ActionMenu = ({ defectCode, onView, onEdit, onDelete, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.DEFECT_CODE_MASTER, PAGES.DEFECT_CODE_MASTER, ACTIONS.DELETE);
 
   if (!canView && !canUpdate && !canDelete) {
     return null;
@@ -204,7 +205,7 @@ const ActionMenu = ({ defectCode, onView, onEdit, onDelete, anchorEl, onClose, o
           </MenuItem>
         )}
         
-        {(canView || canUpdate) && canDelete &&  defectCode?.is_active && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
+        {(canView || canUpdate) && canDelete && defectCode?.is_active && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
         {canDelete && defectCode?.is_active && (
           <MenuItem 
@@ -277,6 +278,10 @@ const DefectCodeMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Ref to track if we're currently searching
+  const isSearchingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
+
   // Update rows per page based on screen size
   useEffect(() => {
     setRowsPerPage(isMobile ? 5 : 10);
@@ -332,26 +337,54 @@ const DefectCodeMaster = () => {
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setPage(0);
+      setSelected([]);
+      isSearchingRef.current = false;
     }, 500);
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    setSelected([]);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch defect codes from API
-  useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchDefectCodes();
-    }
-  }, [permissionsLoaded, canViewPage, isSuperAdmin]);
-
-  const fetchDefectCodes = async () => {
-    try {
+  const fetchDefectCodes = useCallback(async () => {
+    if (!canViewPage && !isSuperAdmin) return;
+    
+    // Don't show loading indicator while typing search
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+    
+    try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/defect-codes`, {
         headers: {
@@ -387,6 +420,19 @@ const DefectCodeMaster = () => {
     } finally {
       setLoading(false);
     }
+  }, [canViewPage, isSuperAdmin]);
+
+  // Load data when dependencies change
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchDefectCodes();
+    }
+  }, [fetchDefectCodes, permissionsLoaded, canViewPage, isSuperAdmin]);
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchDefectCodes();
+    showNotification('Data refreshed', 'success');
   };
   
   // Apply filters
@@ -436,14 +482,13 @@ const DefectCodeMaster = () => {
     setSeverityFilter('All');
     setCategoryFilter('All');
     setStatusFilter('All');
-    setSearchInput('');
-    setSearchTerm('');
+    handleClearSearch();
     if (isMobile) {
       setFilterDrawerOpen(false);
     }
   };
   
-  // Handle select all
+  // Handle select all - Only if user has delete permission
   const handleSelectAll = (event) => {
     if (!canDelete) return;
     
@@ -454,7 +499,7 @@ const DefectCodeMaster = () => {
     }
   };
   
-  // Handle single selection
+  // Handle single selection - Only if user has delete permission
   const handleSelect = (id) => {
     if (!canDelete) return;
     
@@ -507,8 +552,7 @@ const DefectCodeMaster = () => {
     };
     
     setDefectCodes(prev => [formattedDefectCode, ...prev]);
-    setSearchInput("");
-    setSearchTerm("");
+    handleClearSearch();
     setPage(0);
     
     showNotification("Defect code added successfully!", "success");
@@ -524,18 +568,70 @@ const DefectCodeMaster = () => {
     showNotification('Defect code updated successfully!', 'success');
   };
   
-  // Handle delete defect code
-  const handleDeleteDefectCode = (defectCodeId) => {
-    const updatedDefectCodes = defectCodes.filter(dc => dc._id !== defectCodeId);
-    setDefectCodes(updatedDefectCodes);
-    setSelected(selected.filter(id => id !== defectCodeId));
-    showNotification('Defect code deleted successfully!', 'success');
+  // Handle delete defect code (mark inactive)
+  const handleDeleteDefectCode = async (defectCodeId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `${BASE_URL}/api/defect-codes/${defectCodeId}/toggle-status`,
+        {},
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        // Update local state
+        const updatedDefectCodes = defectCodes.map(dc =>
+          dc._id === defectCodeId ? { ...dc, is_active: false } : dc
+        );
+        setDefectCodes(updatedDefectCodes);
+        setSelected(selected.filter(id => id !== defectCodeId));
+        showNotification('Defect code marked as inactive successfully!', 'success');
+      } else {
+        showNotification(response.data.message || 'Failed to update defect code', 'error');
+      }
+    } catch (err) {
+      console.error('Error deleting defect code:', err);
+      showNotification(err.response?.data?.message || 'Failed to update defect code', 'error');
+    }
   };
   
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (!canDelete) return;
-    showNotification('Bulk delete requires API implementation', 'warning');
+  // Handle bulk delete (mark multiple as inactive)
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${BASE_URL}/api/defect-codes/bulk-delete`,
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        // Update local state - mark selected as inactive
+        const updatedDefectCodes = defectCodes.map(dc =>
+          selected.includes(dc._id) ? { ...dc, is_active: false } : dc
+        );
+        setDefectCodes(updatedDefectCodes);
+        setSelected([]);
+        
+        // If current page becomes empty, go to previous page
+        const remainingActive = updatedDefectCodes.filter(dc => dc.is_active).length;
+        if (remainingActive === 0 && page > 0) {
+          setPage(prev => prev - 1);
+        }
+        
+        showNotification(`${selected.length} defect code(s) marked as inactive!`, 'success');
+      } else {
+        showNotification(response.data.message || 'Failed to update defect codes', 'error');
+      }
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification(err.response?.data?.message || 'Failed to update defect codes', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Action menu handlers
@@ -821,7 +917,8 @@ const DefectCodeMaster = () => {
               placeholder={isMobile ? "Search..." : "Search by defect code, name or category..."}
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               fullWidth={isMobile}
               sx={{ 
                 flex: 1,
@@ -837,6 +934,13 @@ const DefectCodeMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
@@ -963,6 +1067,24 @@ const DefectCodeMaster = () => {
 
           {/* Action Buttons - Responsive */}
           <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
+            {/* Refresh Button - Available to all users with view permission */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - Only show if user has DELETE permission */}
             {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
@@ -988,6 +1110,7 @@ const DefectCodeMaster = () => {
               </Button>
             )}
             
+            {/* Add Defect Code Button - Only show if user has CREATE permission */}
             {canCreate && (
               <Button
                 variant="contained"
@@ -1037,6 +1160,7 @@ const DefectCodeMaster = () => {
                   py: 1.5
                 }
               }}>
+                {/* Checkbox Column - Only show if user has DELETE permission */}
                 {canDelete && (
                   <TableCell padding="checkbox" sx={{ width: 40 }}>
                     <Checkbox
@@ -1177,6 +1301,7 @@ const DefectCodeMaster = () => {
                         }
                       }}
                     >
+                      {/* Checkbox Column - Only show if user has DELETE permission */}
                       {canDelete && (
                         <TableCell padding="checkbox" sx={{ width: 40 }}>
                           <Checkbox
@@ -1286,6 +1411,7 @@ const DefectCodeMaster = () => {
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, defectCode)}
                           permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1322,7 +1448,7 @@ const DefectCodeMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
+      {/* Modal Components - Only render if user has appropriate permissions */}
       {canCreate && (
         <AddDefectCode 
           open={openAddModal}
@@ -1333,6 +1459,7 @@ const DefectCodeMaster = () => {
 
       {selectedDefectCode && (
         <>
+          {/* Edit Modal - Requires UPDATE permission */}
           {canUpdate && (
             <EditDefectCode 
               open={openEditModal}
@@ -1345,6 +1472,7 @@ const DefectCodeMaster = () => {
             />
           )}
 
+          {/* View Modal - Requires VIEW permission */}
           {canViewPage && (
             <ViewDefectCode 
               open={openViewModal}
@@ -1362,6 +1490,7 @@ const DefectCodeMaster = () => {
             />
           )}
 
+          {/* Delete Dialog - Requires DELETE permission */}
           {canDelete && (
             <DeleteDefectCode 
               open={openDeleteDialog}
@@ -1378,16 +1507,11 @@ const DefectCodeMaster = () => {
 
       {/* Snackbar Notification */}
       <Snackbar
-  open={snackbar.open}
-  autoHideDuration={3000}
-  onClose={() => setSnackbar({...snackbar, open: false})}
-  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-  sx={{
-    '& .MuiSnackbar-root': {
-      position: 'fixed'
-    }
-  }}
->
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
         <Alert 
           onClose={() => setSnackbar({...snackbar, open: false})} 
           severity={snackbar.severity}

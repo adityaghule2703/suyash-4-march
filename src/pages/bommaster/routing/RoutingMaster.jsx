@@ -34,7 +34,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Grid
+  Grid,
+ 
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -48,18 +49,18 @@ import {
   Pending as PendingIcon,
   Cancel as CancelIcon,
   Verified as VerifiedIcon,
-  Close as CloseIcon,
   PlayArrow as PlayArrowIcon,
-  Block as BlockIcon
+  Block as BlockIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddRouting from './AddRouting';
 import ViewRouting from './ViewRouting';
 import EditRouting from './EditRouting';
 import ApproveRouting from './ApproveRouting';
 import DeleteRouting from './DeleteRouting';
-import { hasPermission, MODULES, PAGES, ACTIONS } from '../../../utils/modulePermissions';
 import RejectRouting from './RejectRouting';
 import ActivateRouting from './ActivateRouting';
 
@@ -85,23 +86,42 @@ const COLORS = {
   border: '#E3E8EF',
 };
 
-
 const ROUTING_TYPE_OPTIONS = ['All', 'Stamping', 'Busbar', 'Gasket', 'Assembly', 'Toolroom', 'General'];
 const STATUS_OPTIONS = ['All', 'Planned', 'In Progress', 'Completed', 'Postponed', 'Cancelled'];
 
-// Action Menu Component - Matches MachineMaster style exactly
+// Loading state component
+const LoadingState = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+    <CircularProgress size={40} sx={{ color: COLORS.primary }} />
+  </Box>
+);
+
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component - WITH CORRECT PERMISSIONS
 const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete, onApprove, onActivate, onReject, permissions, isSuperAdmin }) => {
   const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.VIEW);
   const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.UPDATE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.CREATE);
   const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.DELETE);
   const canApprovePermission = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.APPROVE);
+  const canRejectPermission = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.ROUTING_MASTER, ACTIONS.REJECT);
 
   const status = item?.status;
 
-  // FINAL RULES
-  const showActivate = status === 'Draft' || status === 'Rejected';
-  const showApprove = status === 'Active';
-  const showReject = status === 'Active' || status === 'Approved';
+  const showActivate = (status === 'Draft' || status === 'Rejected') && canCreate;
+  const showApprove = status === 'Active' && canApprovePermission;
+  const showReject = (status === 'Active' || status === 'Approved') && canRejectPermission;
 
   // No actions for Inactive
   if (status === 'Inactive') return null;
@@ -137,6 +157,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           }
         }}
       >
+        {/* View Details - VIEW permission */}
         {canView && (
           <MenuItem onClick={() => { onView(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -150,6 +171,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
+        {/* Edit - UPDATE permission (only for Draft) */}
         {canUpdate && status === 'Draft' && (
           <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -163,7 +185,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {/* Activate */}
+        {/* Activate - CREATE permission */}
         {showActivate && (
           <MenuItem onClick={() => { onActivate(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
@@ -177,8 +199,8 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {/* Approve */}
-        {showApprove && canApprovePermission && (
+        {/* Approve - APPROVE permission */}
+        {showApprove && (
           <MenuItem onClick={() => { onApprove(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#059669', minWidth: 36 }}>
               <VerifiedIcon fontSize="small" />
@@ -191,7 +213,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
           </MenuItem>
         )}
 
-        {/* Reject */}
+        {/* Reject - REJECT permission */}
         {showReject && (
           <MenuItem onClick={() => { onReject(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
@@ -207,6 +229,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
 
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
 
+        {/* Delete - DELETE permission */}
         {canDelete && (
           <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
@@ -224,7 +247,7 @@ const ActionMenu = ({ item, anchorEl, onOpen, onClose, onView, onEdit, onDelete,
   );
 };
 
-// Delete Confirmation Dialog - Matches MachineMaster style
+// Delete Confirmation Dialog
 const DeleteRoutingDialog = ({ open, onClose, routing, onConfirm, loading }) => {
   return (
     <Dialog
@@ -354,14 +377,9 @@ const RoutingMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
 
   // Fetch user permissions
   useEffect(() => {
@@ -393,10 +411,68 @@ const RoutingMaster = () => {
     fetchUserPermissions();
   }, []);
 
+  // Check permission helper - USING CORRECT MODULE AND PAGE
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(
+      userPermissions,
+      MODULES.BOM_MASTER,
+      PAGES.ROUTING_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
+  const canReject = checkPermission(ACTIONS.REJECT);
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setPage(0);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Fetch Routings from API
   const fetchRoutings = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams({
@@ -432,13 +508,23 @@ const RoutingMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchTerm, routingTypeFilter, statusFilter]);
+  }, [page, rowsPerPage, searchTerm, routingTypeFilter, statusFilter, canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchRoutings();
-  }, [fetchRoutings]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchRoutings();
+    }
+  }, [fetchRoutings, permissionsLoaded, canViewPage, isSuperAdmin]);
 
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchRoutings();
+    showNotification('Data refreshed', 'success');
+  };
+
+  // Handle selection - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(routings.map(routing => routing._id));
     } else {
@@ -447,6 +533,7 @@ const RoutingMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
 
@@ -502,36 +589,60 @@ const RoutingMaster = () => {
   };
 
   const openViewRoutingModal = (routing) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view routing details', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditRoutingModal = (routing) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit routings', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openApproveRoutingModal = (routing) => {
+    if (!canApprove) {
+      showNotification('You don\'t have permission to approve routings', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenApproveModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteRoutingDialog = (routing) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete routings', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openActivateRoutingModal = (routing) => {
+    if (!canCreate) {
+      showNotification('You don\'t have permission to activate routings', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenActivateModal(true);
     handleActionMenuClose();
   };
 
   const openRejectRoutingModal = (routing) => {
+    if (!canReject) {
+      showNotification('You don\'t have permission to reject routings', 'error');
+      return;
+    }
     setSelectedRouting(routing);
     setOpenRejectModal(true);
     handleActionMenuClose();
@@ -584,6 +695,32 @@ const RoutingMaster = () => {
       showNotification(errorMessage, 'error');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/routings/bulk-delete`,
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      setSelected([]);
+
+      if (routings.length === selected.length && page > 0) {
+        setPage(prev => prev - 1);
+      }
+      fetchRoutings();
+      showNotification(`${selected.length} routing(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete routings', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -667,7 +804,18 @@ const RoutingMaster = () => {
     setRoutingTypeFilter('All');
     setStatusFilter('All');
     setPage(0);
+    isSearchingRef.current = false;
   };
+
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -706,7 +854,8 @@ const RoutingMaster = () => {
               placeholder="Search by routing name, type..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{
                 width: { xs: '100%', sm: 300 },
                 '& .MuiOutlinedInput-root': {
@@ -721,6 +870,13 @@ const RoutingMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: {
@@ -789,11 +945,30 @@ const RoutingMaster = () => {
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {selected.length > 0 && (
+            {/* Refresh Button */}
+            <Tooltip title="Refresh">
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={loading}
+                sx={{
+                  color: COLORS.text.secondary,
+                  '&:hover': {
+                    bgcolor: `${COLORS.primary}20`
+                  }
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Bulk Delete Button - DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon sx={{ fontSize: '1rem' }} />}
+                onClick={handleBulkDelete}
                 sx={{
                   height: 36,
                   borderRadius: 1.5,
@@ -812,26 +987,30 @@ const RoutingMaster = () => {
                 Delete ({selected.length})
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primaryDark,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
+
+            {/* Add Routing Button - CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
                   bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Routing
-            </Button>
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Routing
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -855,20 +1034,23 @@ const RoutingMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < routings.length}
-                    checked={routings.length > 0 && selected.length === routings.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || routings.length === 0}
-                  />
-                </TableCell>
+                {/* Checkbox Column - DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < routings.length}
+                      checked={routings.length > 0 && selected.length === routings.length}
+                      onChange={handleSelectAll}
+                      sx={{
+                        color: COLORS.text.light,
+                        '&.Mui-checked': { color: COLORS.text.light },
+                        '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                        '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                      }}
+                      disabled={loading || routings.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Routing ID / Name
                 </TableCell>
@@ -898,7 +1080,7 @@ const RoutingMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading routings...
@@ -907,7 +1089,7 @@ const RoutingMaster = () => {
                 </TableRow>
               ) : routings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <RouteIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -916,14 +1098,6 @@ const RoutingMaster = () => {
                       <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
                         {searchTerm ? 'Try adjusting your search terms' : 'Add your first routing to get started'}
                       </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => setOpenAddModal(true)}
-                        sx={{ mt: 2 }}
-                      >
-                        Add Routing
-                      </Button>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -959,17 +1133,19 @@ const RoutingMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(routing._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(routing._id)}
+                            sx={{
+                              color: COLORS.primary,
+                              '&.Mui-checked': { color: COLORS.primary },
+                              '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Avatar sx={{ width: 32, height: 32, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
@@ -1088,74 +1264,88 @@ const RoutingMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddRouting
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onAdd={handleAddSuccess}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddRouting
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={handleAddSuccess}
+        />
+      )}
 
       {selectedRouting && (
         <>
-          <ViewRouting
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-          />
+          {canViewPage && (
+            <ViewRouting
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+            />
+          )}
 
-          <EditRouting
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-            onUpdate={handleEditSuccess}
-          />
+          {canUpdate && (
+            <EditRouting
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+              onUpdate={handleEditSuccess}
+            />
+          )}
 
-          <ApproveRouting
-            open={openApproveModal}
-            onClose={() => {
-              setOpenApproveModal(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-            onApprove={handleApproveSuccess}
-          />
+          {canApprove && (
+            <ApproveRouting
+              open={openApproveModal}
+              onClose={() => {
+                setOpenApproveModal(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+              onApprove={handleApproveSuccess}
+            />
+          )}
 
-          <ActivateRouting
-            open={openActivateModal}
-            onClose={() => {
-              setOpenActivateModal(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-            onActivate={handleActivateSuccess}
-          />
+          {canCreate && (
+            <ActivateRouting
+              open={openActivateModal}
+              onClose={() => {
+                setOpenActivateModal(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+              onActivate={handleActivateSuccess}
+            />
+          )}
 
-          <RejectRouting
-            open={openRejectModal}
-            onClose={() => {
-              setOpenRejectModal(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-            onReject={handleRejectSuccess}
-          />
+          {canReject && (
+            <RejectRouting
+              open={openRejectModal}
+              onClose={() => {
+                setOpenRejectModal(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+              onReject={handleRejectSuccess}
+            />
+          )}
 
-          <DeleteRoutingDialog
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedRouting(null);
-            }}
-            routing={selectedRouting}
-            onConfirm={handleDeleteConfirm}
-            loading={deleteLoading}
-          />
+          {canDelete && (
+            <DeleteRoutingDialog
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedRouting(null);
+              }}
+              routing={selectedRouting}
+              onConfirm={handleDeleteConfirm}
+              loading={deleteLoading}
+            />
+          )}
         </>
       )}
 

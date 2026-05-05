@@ -50,13 +50,15 @@ import {
   Pending as PendingIcon,
   ThumbUp as ApprovedIcon,
   Cancel as RejectedIcon,
-  ThumbUpAlt as ApproveIcon
+  ThumbUpAlt as ApproveIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import AddInspectionPlan from './AddInspectionPlan';
 import ViewInspectionPlan from './ViewInspectionPlan';
 import DeleteInspectionPlan from './DeleteInspectionPlan';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Color constants
 const COLORS = {
@@ -99,13 +101,30 @@ const LoadingState = () => (
   </Box>
 );
 
-// Approve Dialog Component
-const ApproveDialog = ({ open, onClose, plan, onSuccess }) => {
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Approve Dialog Component with permission check
+const ApproveDialog = ({ open, onClose, plan, onSuccess, canApprove }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().split('T')[0]);
 
   const handleApprove = async () => {
+    if (!canApprove) {
+      setError('You don\'t have permission to approve inspection plans');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
@@ -259,7 +278,7 @@ const ApproveDialog = ({ open, onClose, plan, onSuccess }) => {
         <Button
           variant="contained"
           onClick={handleApprove}
-          disabled={loading}
+          disabled={loading || !canApprove}
           startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <ApprovedIcon sx={{ fontSize: '1rem' }} />}
           sx={{
             height: 36,
@@ -278,11 +297,25 @@ const ApproveDialog = ({ open, onClose, plan, onSuccess }) => {
   );
 };
 
-// Action Menu Component
-const ActionMenu = ({ plan, onView, onEdit, onDelete, onApprove, anchorEl, onClose, onOpen }) => {
+// Action Menu Component with permission checks
+const ActionMenu = ({ plan, onView, onEdit, onDelete, onApprove, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  // Permission checks for Inspection Plan Master module
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.INSPECTION_PLAN_MASTER, PAGES.INSPECTION_PLAN_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.INSPECTION_PLAN_MASTER, PAGES.INSPECTION_PLAN_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.INSPECTION_PLAN_MASTER, PAGES.INSPECTION_PLAN_MASTER, ACTIONS.DELETE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.INSPECTION_PLAN_MASTER, PAGES.INSPECTION_PLAN_MASTER, ACTIONS.CREATE);
+  const canApprove = isSuperAdmin || hasPermission(permissions, MODULES.INSPECTION_PLAN_MASTER, PAGES.INSPECTION_PLAN_MASTER, ACTIONS.APPROVE);
+  
   const isApproved = plan?.approval_status === 'Approved';
   const isPending = plan?.approval_status === 'Pending';
   
+  // Count how many actions are available
+  const hasAnyActions = canView || canUpdate || canDelete || (isPending && canApprove);
+  
+  if (!hasAnyActions) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -314,24 +347,27 @@ const ActionMenu = ({ plan, onView, onEdit, onDelete, onApprove, anchorEl, onClo
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(plan);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <VisibilityIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(plan);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <VisibilityIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        {!isApproved && (
+        {/* Edit - Only show if not approved AND user has UPDATE permission */}
+        {!isApproved && canUpdate && (
           <MenuItem 
             onClick={() => {
               onEdit(plan);
@@ -350,8 +386,8 @@ const ActionMenu = ({ plan, onView, onEdit, onDelete, onApprove, anchorEl, onClo
           </MenuItem>
         )}
 
-        {/* Approve Button - Only show for Pending plans */}
-        {isPending && (
+        {/* Approve Button - Only show for Pending plans AND user has APPROVE permission */}
+        {isPending && canApprove && (
           <MenuItem 
             onClick={() => {
               onApprove(plan);
@@ -370,24 +406,27 @@ const ActionMenu = ({ plan, onView, onEdit, onDelete, onApprove, anchorEl, onClo
           </MenuItem>
         )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {(canView || canUpdate || (isPending && canApprove)) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
-        <MenuItem 
-          onClick={() => {
-            onDelete(plan);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Delete - Only show if not approved AND user has DELETE permission */}
+        {!isApproved && canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(plan);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -453,9 +492,67 @@ const InspectionPlanMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
   // Ref to track if we're currently searching
   const isSearchingRef = useRef(false);
   const searchTimeoutRef = useRef(null);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.INSPECTION_PLAN_MASTER,
+      PAGES.INSPECTION_PLAN_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  const canApprove = checkPermission(ACTIONS.APPROVE);
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -497,8 +594,10 @@ const InspectionPlanMaster = () => {
     isSearchingRef.current = false;
   };
 
-  // Fetch inspection plans from API with server-side pagination and search
+  // Fetch inspection plans from API with server-side pagination and search - only if user has permission
   const fetchPlans = useCallback(async () => {
+    if (!canViewPage && !isSuperAdmin) return;
+    
     // Don't show loading indicator while typing search
     if (!isSearchingRef.current) {
       setLoading(true);
@@ -538,12 +637,14 @@ const InspectionPlanMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Load data when dependencies change
   useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchPlans();
+    }
+  }, [fetchPlans, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -552,6 +653,8 @@ const InspectionPlanMaster = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(plans.map(plan => plan._id));
     } else {
@@ -560,6 +663,8 @@ const InspectionPlanMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -597,24 +702,45 @@ const InspectionPlanMaster = () => {
   };
 
   const openViewModalHandler = (plan) => {
+    if (!canViewPage) return;
     setSelectedPlan(plan);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditModalHandler = (plan) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit inspection plans', 'error');
+      return;
+    }
+    if (plan?.approval_status === 'Approved') {
+      showNotification('Approved plans cannot be edited', 'error');
+      return;
+    }
     setSelectedPlan(plan);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteDialogHandler = (plan) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete inspection plans', 'error');
+      return;
+    }
+    if (plan?.approval_status === 'Approved') {
+      showNotification('Approved plans cannot be deleted', 'error');
+      return;
+    }
     setSelectedPlan(plan);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openApproveDialogHandler = (plan) => {
+    if (!canApprove) {
+      showNotification('You don\'t have permission to approve inspection plans', 'error');
+      return;
+    }
     setSelectedPlan(plan);
     setOpenApproveDialog(true);
     handleActionMenuClose();
@@ -648,7 +774,7 @@ const InspectionPlanMaster = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
     // Filter out approved plans from bulk delete
     const approvedPlans = selected.filter(id => {
@@ -712,6 +838,16 @@ const InspectionPlanMaster = () => {
     );
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -766,6 +902,13 @@ const InspectionPlanMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
@@ -784,6 +927,7 @@ const InspectionPlanMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button - Available to all users with view permission */}
             <Tooltip title="Refresh">
               <IconButton
                 size="small"
@@ -800,7 +944,8 @@ const InspectionPlanMaster = () => {
               </IconButton>
             </Tooltip>
             
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -825,26 +970,29 @@ const InspectionPlanMaster = () => {
               </Button>
             )}
             
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Plan
-            </Button>
+            {/* Add Plan Button - Only show if user has CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Plan
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -868,26 +1016,29 @@ const InspectionPlanMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < plans.length}
-                    checked={plans.length > 0 && selected.length === plans.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < plans.length}
+                      checked={plans.length > 0 && selected.length === plans.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || plans.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || plans.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -958,7 +1109,7 @@ const InspectionPlanMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading inspection plans...
@@ -967,7 +1118,7 @@ const InspectionPlanMaster = () => {
                 </TableRow>
               ) : plans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <PlanIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -1009,22 +1160,25 @@ const InspectionPlanMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(plan._id)}
-                          disabled={isApproved}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has DELETE permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(plan._id)}
+                            disabled={isApproved}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       
                       <TableCell>
                         <Stack direction="row" alignItems="center" spacing={1}>
@@ -1088,6 +1242,8 @@ const InspectionPlanMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, plan)}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1122,54 +1278,69 @@ const InspectionPlanMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddInspectionPlan 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddInspectionPlan 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedPlan && (
         <>
-          <AddInspectionPlan 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedPlan(null);
-            }}
-            onSuccess={handleEditSuccess}
-            initialData={selectedPlan}
-            isEditMode={true}
-          />
+          {/* Edit Modal - Requires UPDATE permission and plan not approved */}
+          {canUpdate && selectedPlan.approval_status !== 'Approved' && (
+            <AddInspectionPlan 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedPlan(null);
+              }}
+              onSuccess={handleEditSuccess}
+              initialData={selectedPlan}
+              isEditMode={true}
+            />
+          )}
 
-          <ViewInspectionPlan 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedPlan(null);
-            }}
-            plan={selectedPlan}
-          />
+          {/* View Modal - Requires VIEW permission */}
+          {canViewPage && (
+            <ViewInspectionPlan 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedPlan(null);
+              }}
+              plan={selectedPlan}
+            />
+          )}
 
-          <DeleteInspectionPlan 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedPlan(null);
-            }}
-            plan={selectedPlan}
-            onDelete={handleDeleteSuccess}
-          />
+          {/* Delete Modal - Requires DELETE permission and plan not approved */}
+          {canDelete && selectedPlan.approval_status !== 'Approved' && (
+            <DeleteInspectionPlan 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedPlan(null);
+              }}
+              plan={selectedPlan}
+              onDelete={handleDeleteSuccess}
+            />
+          )}
 
-          <ApproveDialog
-            open={openApproveDialog}
-            onClose={() => {
-              setOpenApproveDialog(false);
-              setSelectedPlan(null);
-            }}
-            plan={selectedPlan}
-            onSuccess={handleApproveSuccess}
-          />
+          {/* Approve Dialog - Requires APPROVE permission and plan is pending */}
+          {canApprove && selectedPlan.approval_status === 'Pending' && (
+            <ApproveDialog
+              open={openApproveDialog}
+              onClose={() => {
+                setOpenApproveDialog(false);
+                setSelectedPlan(null);
+              }}
+              plan={selectedPlan}
+              onSuccess={handleApproveSuccess}
+              canApprove={canApprove}
+            />
+          )}
         </>
       )}
 

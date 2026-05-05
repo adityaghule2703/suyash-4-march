@@ -1,4 +1,4 @@
-// OeeMaster.jsx - UPDATED TABLE STYLING
+// OeeMaster.jsx - UPDATED WITH PERMISSION CHECKS
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -39,7 +39,8 @@ import {
   Card,
   CardContent,
   LinearProgress,
-  TableSortLabel
+  TableSortLabel,
+ 
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -57,7 +58,6 @@ import {
   TrendingDown as TrendingDownIcon,
   BarChart as BarChartIcon,
   Timeline as TimelineIcon,
-  Close as CloseIcon,
   Factory as FactoryIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
@@ -70,12 +70,12 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddOee from './AddOee';
 import EditOee from './EditOee';
 import MachineLoading from './MachineLoading';
 import MachineOEETrend from './MachineOEETrend';
 import AddDowntime from './AddDowntime';
-import { hasPermission, MODULES, PAGES, ACTIONS } from '../../../utils/modulePermissions';
 import DeleteOee from './DeleteOee';
 
 const COLORS = {
@@ -90,7 +90,7 @@ const COLORS = {
     primary: '#151C26',
     secondary: '#4B5568',
     tertiary: '#94A3B8',
-     light: '#FFFFFF',
+    light: '#FFFFFF',
   },
   background: {
     white: '#FFFFFF',
@@ -98,7 +98,6 @@ const COLORS = {
     hover: '#F0FDF9',
     tableHeader: '#063C3F'
   },
-  border: '#E3E8EF',
 };
 
 const SHIFT_OPTIONS = ['All', 'General', 'Morning', 'Afternoon', 'Night'];
@@ -122,7 +121,7 @@ const AccessDenied = () => (
   </Box>
 );
 
-// Action Menu Component
+// Action Menu Component - WITH PERMISSION CHECKS
 const ActionMenu = ({
   item,
   anchorEl,
@@ -137,10 +136,10 @@ const ActionMenu = ({
   permissions,
   isSuperAdmin
 }) => {
-  const canView = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.VIEW);
-  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.UPDATE);
-  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.DELETE);
-  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, ACTIONS.CREATE);
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.OEE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.OEE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.OEE_MASTER, ACTIONS.DELETE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.BOM_MASTER, PAGES.OEE_MASTER, ACTIONS.CREATE);
 
   const hasAnyActions = canView || canUpdate || canDelete || canCreate;
 
@@ -177,6 +176,7 @@ const ActionMenu = ({
           }
         }}
       >
+        {/* Edit Record - UPDATE permission */}
         {canUpdate && (
           <MenuItem onClick={() => { onEdit(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
@@ -190,6 +190,7 @@ const ActionMenu = ({
           </MenuItem>
         )}
 
+        {/* Loading Analysis - VIEW permission */}
         {canView && (
           <MenuItem onClick={() => { onLoadingAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#10B981', minWidth: 36 }}>
@@ -203,6 +204,7 @@ const ActionMenu = ({
           </MenuItem>
         )}
 
+        {/* OEE Trend Analysis - VIEW permission */}
         {canView && (
           <MenuItem onClick={() => { onTrendAnalysis(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
@@ -216,6 +218,7 @@ const ActionMenu = ({
           </MenuItem>
         )}
 
+        {/* Log Downtime - CREATE permission */}
         {canCreate && (
           <MenuItem onClick={() => {
             onAddDowntime(item);
@@ -234,6 +237,7 @@ const ActionMenu = ({
 
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
 
+        {/* Delete Record - DELETE permission */}
         {canDelete && (
           <MenuItem onClick={() => { onDelete(item); onClose(); }} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
@@ -301,6 +305,10 @@ const OeeMaster = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
+
   // Fetch user permissions
   useEffect(() => {
     const fetchUserPermissions = async () => {
@@ -331,10 +339,10 @@ const OeeMaster = () => {
     fetchUserPermissions();
   }, []);
 
-  // Check permission helper
+  // Check permission helper - USING CORRECT MODULE AND PAGE
   const checkPermission = (action) => {
     if (isSuperAdmin) return true;
-    return hasPermission(userPermissions, MODULES.MACHINE_MASTER, PAGES.OEE_MASTER, action);
+    return hasPermission(userPermissions, MODULES.BOM_MASTER, PAGES.OEE_MASTER, action);
   };
 
   // Permission checks
@@ -343,14 +351,44 @@ const OeeMaster = () => {
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
 
-  // Fetch machines on component mount
-  useEffect(() => {
-    if (permissionsLoaded && canViewPage) {
-      fetchMachines();
-    }
-  }, [permissionsLoaded, canViewPage]);
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
 
-  const fetchMachines = async () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+      setPage(0);
+      isSearchingRef.current = false;
+    }, 500);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Fetch machines on component mount
+  const fetchMachines = useCallback(async () => {
+    if (!canViewPage && !isSuperAdmin) return;
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/machines`, {
@@ -364,27 +402,23 @@ const OeeMaster = () => {
       console.error('Error fetching machines:', err);
       showNotification('Failed to load machines', 'error');
     }
-  };
+  }, [canViewPage, isSuperAdmin]);
 
-  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setPage(0);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchMachines();
+    }
+  }, [permissionsLoaded, canViewPage, isSuperAdmin, fetchMachines]);
 
   // Fetch records when dependencies change
-  useEffect(() => {
-    if (permissionsLoaded && canViewPage) {
-      fetchRecords();
-    }
-  }, [machineFilter, page, rowsPerPage, searchTerm, dateRange.from, dateRange.to, shiftFilter, permissionsLoaded, canViewPage]);
+  const fetchRecords = useCallback(async () => {
+    if (!canViewPage && !isSuperAdmin) return;
 
-  const fetchRecords = async () => {
-    try {
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams();
@@ -415,7 +449,13 @@ const OeeMaster = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [machineFilter, page, rowsPerPage, searchTerm, dateRange.from, dateRange.to, shiftFilter, canViewPage, isSuperAdmin]);
+
+  useEffect(() => {
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchRecords();
+    }
+  }, [fetchRecords, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   const calculateSummary = (data) => {
     if (!data || data.length === 0) {
@@ -464,7 +504,9 @@ const OeeMaster = () => {
     });
   };
 
+  // Handle selection - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(records.map(record => record._id));
     } else {
@@ -473,6 +515,7 @@ const OeeMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
 
@@ -497,6 +540,10 @@ const OeeMaster = () => {
   };
 
   const handleAddRecord = () => {
+    if (!canCreate) {
+      showNotification('You don\'t have permission to add OEE records', 'error');
+      return;
+    }
     setOpenAddModal(true);
   };
 
@@ -527,25 +574,40 @@ const OeeMaster = () => {
   };
 
   const openViewRecordModal = (record) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view OEE record details', 'error');
+      return;
+    }
     setSelectedRecord(record);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteRecordDialog = (record) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete OEE records', 'error');
+      return;
+    }
     setSelectedRecord(record);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openEditRecordModal = (record) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit OEE records', 'error');
+      return;
+    }
     setSelectedRecord(record);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openLoadingAnalysis = (record) => {
-    // Create a normalized copy of the record
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view loading analysis', 'error');
+      return;
+    }
     const normalizedRecord = {
       ...record,
       machine_id: record.machine_id?._id || record.machine_id
@@ -556,7 +618,10 @@ const OeeMaster = () => {
   };
 
   const openTrendAnalysis = (record) => {
-    // Normalize the record to ensure machine_id is a string
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view trend analysis', 'error');
+      return;
+    }
     const normalizedRecord = {
       ...record,
       machine_id: record.machine_id?._id || record.machine_id
@@ -567,9 +632,39 @@ const OeeMaster = () => {
   };
 
   const openDowntimeModalFunc = (record) => {
+    if (!canCreate) {
+      showNotification('You don\'t have permission to log downtime', 'error');
+      return;
+    }
     setSelectedRecordForDowntime(record);
     setOpenDowntimeModal(true);
     handleActionMenuClose();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!canDelete || selected.length === 0) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${BASE_URL}/api/oee-records/bulk-delete`,
+        { ids: selected },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      setSelected([]);
+
+      if (records.length === selected.length && page > 0) {
+        setPage(prev => prev - 1);
+      }
+      fetchRecords();
+      showNotification(`${selected.length} OEE record(s) deleted successfully!`, 'success');
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showNotification('Failed to delete OEE records', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const showNotification = (message, severity) => {
@@ -597,7 +692,6 @@ const OeeMaster = () => {
   };
 
   const getMachineName = (machineId) => {
-    // Handle both string ID and object with _id
     const id = machineId?._id || machineId;
     if (!id) return 'N/A';
     const machine = machines.find(m => m._id === id);
@@ -636,6 +730,7 @@ const OeeMaster = () => {
       to: null
     });
     setPage(0);
+    isSearchingRef.current = false;
   };
 
   // Show loading state while permissions are being fetched
@@ -686,7 +781,8 @@ const OeeMaster = () => {
                 placeholder="Search..."
                 size="small"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={handleSearchChange}
+                autoComplete="off"
                 sx={{ width: 300 }}
                 InputProps={{
                   startAdornment: (
@@ -694,11 +790,17 @@ const OeeMaster = () => {
                       <SearchIcon sx={{ fontSize: '0.8rem', color: COLORS.text.tertiary }} />
                     </InputAdornment>
                   ),
+                  endAdornment: searchInput && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleClearSearch}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
                   sx: { height: 32, bgcolor: COLORS.background.light, fontSize: '0.7rem' }
                 }}
               />
               <FormControl size="small" sx={{ minWidth: 130 }}>
-
                 <InputLabel sx={{ fontSize: '0.7rem' }}>Machine</InputLabel>
                 <Select
                   value={machineFilter}
@@ -728,8 +830,6 @@ const OeeMaster = () => {
                   ))}
                 </Select>
               </FormControl>
-
-
 
               <TextField
                 type="date"
@@ -784,6 +884,21 @@ const OeeMaster = () => {
                 Refresh
               </Button>
 
+              {/* Bulk Delete Button - DELETE permission */}
+              {canDelete && selected.length > 0 && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon sx={{ fontSize: '0.8rem' }} />}
+                  onClick={handleBulkDelete}
+                  sx={{ height: 32, borderRadius: 1.5, textTransform: 'none', fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1.5 }}
+                  disabled={loading}
+                >
+                  Delete ({selected.length})
+                </Button>
+              )}
+
+              {/* Add OEE Button - CREATE permission */}
               {canCreate && (
                 <Button
                   variant="contained"
@@ -798,7 +913,7 @@ const OeeMaster = () => {
           </Stack>
         </Paper>
 
-        {/* Records Table - UPDATED STYLING */}
+        {/* Records Table */}
         <Paper sx={{
           width: '100%',
           borderRadius: 2,
@@ -808,7 +923,6 @@ const OeeMaster = () => {
         }}>
           <TableContainer>
             <Table size="small">
-
               <TableHead>
                 <TableRow sx={{
                   bgcolor: COLORS.background.tableHeader,
@@ -818,6 +932,7 @@ const OeeMaster = () => {
                     py: 1.5
                   }
                 }}>
+                  {/* Checkbox Column - DELETE permission */}
                   {canDelete && (
                     <TableCell padding="checkbox" sx={{ width: 40 }}>
                       <Checkbox
@@ -919,14 +1034,12 @@ const OeeMaster = () => {
                             />
                           </TableCell>
                         )}
-                        {/* First Column - Avatar + Machine ID + Machine Name + Shift + Date */}
                         <TableCell>
                           <Stack direction="row" spacing={1.5} alignItems="center">
                             <Avatar sx={{ width: 36, height: 36, bgcolor: avatarColor, fontSize: '0.7rem', fontWeight: 600 }}>
                               {machineInitials}
                             </Avatar>
                             <Box>
-
                               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
                                 {getMachineName(record.machine_id)}
                               </Typography>
@@ -936,7 +1049,6 @@ const OeeMaster = () => {
                             </Box>
                           </Stack>
                         </TableCell>
-                        {/* OEE Metrics Column */}
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                             <Typography sx={{ fontWeight: 600, color: recordStatus.color }}>
@@ -950,7 +1062,6 @@ const OeeMaster = () => {
                             <Chip label={`Q:${record.quality}%`} size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
                           </Stack>
                         </TableCell>
-                        {/* Production Column */}
                         <TableCell>
                           <Typography sx={{ fontSize: '0.75rem' }}>
                             Good: {record.good_qty}
@@ -959,7 +1070,6 @@ const OeeMaster = () => {
                             Total: {record.total_qty} • Downtime: {record.total_downtime_min}min
                           </Typography>
                         </TableCell>
-                        {/* Status Column */}
                         <TableCell>
                           <Chip
                             label={recordStatus.label}
@@ -973,7 +1083,6 @@ const OeeMaster = () => {
                             }}
                           />
                         </TableCell>
-                        {/* Actions Column */}
                         <TableCell align="center" sx={{ width: 80 }}>
                           <ActionMenu
                             item={record}
@@ -1019,7 +1128,7 @@ const OeeMaster = () => {
           />
         </Paper>
 
-        {/* Modal Components */}
+        {/* Modal Components - Only render if user has appropriate permissions */}
         {canCreate && (
           <AddOee
             open={openAddModal}
@@ -1028,7 +1137,7 @@ const OeeMaster = () => {
           />
         )}
 
-        {/* View Record Dialog */}
+        {/* View Record Dialog - VIEW permission */}
         {canViewPage && selectedRecord && (
           <Dialog
             open={openViewModal}
@@ -1156,7 +1265,7 @@ const OeeMaster = () => {
           </Dialog>
         )}
 
-        {/* Edit OEE Dialog */}
+        {/* Edit OEE Dialog - UPDATE permission */}
         {canUpdate && selectedRecord && (
           <EditOee
             open={openEditModal}
@@ -1166,7 +1275,7 @@ const OeeMaster = () => {
           />
         )}
 
-        {/* Delete OEE Dialog */}
+        {/* Delete OEE Dialog - DELETE permission */}
         {canDelete && selectedRecord && (
           <DeleteOee
             open={openDeleteDialog}
@@ -1179,7 +1288,7 @@ const OeeMaster = () => {
           />
         )}
 
-        {/* Machine Loading Analysis Dialog */}
+        {/* Machine Loading Analysis Dialog - VIEW permission */}
         {canViewPage && (
           <MachineLoading
             open={openLoadingDialog}
@@ -1189,7 +1298,7 @@ const OeeMaster = () => {
           />
         )}
 
-        {/* OEE Trend Analysis Dialog */}
+        {/* OEE Trend Analysis Dialog - VIEW permission */}
         {canViewPage && (
           <MachineOEETrend
             open={openTrendDialog}
@@ -1198,7 +1307,7 @@ const OeeMaster = () => {
           />
         )}
 
-        {/* Add Downtime Dialog */}
+        {/* Add Downtime Dialog - CREATE permission */}
         {canCreate && (
           <AddDowntime
             open={openDowntimeModal}

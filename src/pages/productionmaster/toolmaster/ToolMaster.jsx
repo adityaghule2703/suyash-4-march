@@ -45,10 +45,12 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Engineering as EngineeringIcon,
-  Construction as MaintenanceIcon
+  Construction as MaintenanceIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 import AddTool from './AddTool';
 import ViewTool from './ViewTool';
 import DeleteTool from './DeleteTool';
@@ -89,8 +91,26 @@ const LoadingState = () => (
   </Box>
 );
 
-// Action Menu Component with Maintenance button
-const ActionMenu = ({ tool, onView, onEdit, onDelete, onMaintenance, anchorEl, onClose, onOpen }) => {
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with Maintenance button - WITH PERMISSION CHECKS
+const ActionMenu = ({ tool, onView, onEdit, onDelete, onMaintenance, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  // Permission checks
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.TOOL_MASTER, PAGES.TOOL_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.TOOL_MASTER, PAGES.TOOL_MASTER, ACTIONS.UPDATE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.TOOL_MASTER, PAGES.TOOL_MASTER, ACTIONS.CREATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.TOOL_MASTER, PAGES.TOOL_MASTER, ACTIONS.DELETE);
+
   return (
     <>
       <Tooltip title="Actions">
@@ -122,76 +142,87 @@ const ActionMenu = ({ tool, onView, onEdit, onDelete, onMaintenance, anchorEl, o
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(tool);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <VisibilityIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* View Details - VIEW permission */}
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(tool);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <VisibilityIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem 
-          onClick={() => {
-            onEdit(tool);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Edit - UPDATE permission */}
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(tool);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        {/* Maintenance Menu Item */}
-        <MenuItem 
-          onClick={() => {
-            onMaintenance(tool);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
-            <MaintenanceIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
-              Maintenance
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Maintenance - CREATE permission */}
+        {canCreate && (
+          <MenuItem 
+            onClick={() => {
+              onMaintenance(tool);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#F59E0B', minWidth: 36 }}>
+              <MaintenanceIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#F59E0B', fontSize: '0.75rem' }}>
+                Maintenance
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
         <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
         
-        <MenuItem 
-          onClick={() => {
-            onDelete(tool);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Delete - DELETE permission */}
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(tool);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -279,19 +310,105 @@ const ToolMaster = () => {
     severity: 'success'
   });
 
-  // Debounce search
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Ref for search debouncing
+  const isSearchingRef = React.useRef(false);
+  const searchTimeoutRef = React.useRef(null);
+
+  // Fetch user permissions
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    if (isSuperAdmin) return true;
+    return hasPermission(
+      userPermissions,
+      MODULES.TOOL_MASTER,
+      PAGES.TOOL_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+
+  // Handle search input change with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    isSearchingRef.current = true;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
       setPage(0);
+      isSearchingRef.current = false;
     }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+    isSearchingRef.current = false;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch tools from API
   const fetchTools = useCallback(async () => {
-    try {
+    if (!canViewPage && !isSuperAdmin) return;
+
+    if (!isSearchingRef.current) {
       setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${BASE_URL}/api/tool-master?limit=100`, {
         headers: {
@@ -312,11 +429,13 @@ const ToolMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewPage, isSuperAdmin]);
 
   useEffect(() => {
-    fetchTools();
-  }, [fetchTools]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchTools();
+    }
+  }, [fetchTools, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -349,7 +468,9 @@ const ToolMaster = () => {
     setFilteredTools(filtered);
   }, [searchTerm, statusFilter, toolTypeFilter, tools]);
 
+  // Handle selection - only if user has delete permission
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
     if (event.target.checked) {
       setSelected(filteredTools.map(tool => tool._id));
     } else {
@@ -358,6 +479,7 @@ const ToolMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -392,24 +514,40 @@ const ToolMaster = () => {
   };
 
   const openViewModalHandler = (tool) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to view tool details', 'error');
+      return;
+    }
     setSelectedTool(tool);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditModalHandler = (tool) => {
+    if (!canUpdate) {
+      showNotification('You don\'t have permission to edit tools', 'error');
+      return;
+    }
     setSelectedTool(tool);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteDialogHandler = (tool) => {
+    if (!canDelete) {
+      showNotification('You don\'t have permission to delete tools', 'error');
+      return;
+    }
     setSelectedTool(tool);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openMaintenanceDialogHandler = (tool) => {
+    if (!canCreate) {
+      showNotification('You don\'t have permission to add maintenance records', 'error');
+      return;
+    }
     setSelectedTool(tool);
     setOpenMaintenanceDialog(true);
     handleActionMenuClose();
@@ -443,8 +581,9 @@ const ToolMaster = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       // Delete each selected tool
@@ -459,6 +598,8 @@ const ToolMaster = () => {
     } catch (err) {
       console.error('Bulk delete error:', err);
       showNotification('Failed to delete some tools', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -521,6 +662,16 @@ const ToolMaster = () => {
     page * rowsPerPage + rowsPerPage
   );
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -557,7 +708,8 @@ const ToolMaster = () => {
               placeholder="Search by tool code, name, part no..."
               size="small"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
+              autoComplete="off"
               sx={{ 
                 width: { xs: '100%', sm: 280 },
                 '& .MuiOutlinedInput-root': {
@@ -572,6 +724,13 @@ const ToolMaster = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: { 
@@ -640,6 +799,7 @@ const ToolMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button */}
             <Tooltip title="Refresh">
               <IconButton
                 size="small"
@@ -656,7 +816,8 @@ const ToolMaster = () => {
               </IconButton>
             </Tooltip>
             
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -681,26 +842,29 @@ const ToolMaster = () => {
               </Button>
             )}
             
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Tool
-            </Button>
+            {/* Add Tool Button - CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Tool
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -724,26 +888,29 @@ const ToolMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < filteredTools.length}
-                    checked={filteredTools.length > 0 && selected.length === filteredTools.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < filteredTools.length}
+                      checked={filteredTools.length > 0 && selected.length === filteredTools.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || filteredTools.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || filteredTools.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -814,7 +981,7 @@ const ToolMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading tools...
@@ -823,7 +990,7 @@ const ToolMaster = () => {
                 </TableRow>
               ) : paginatedTools.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <BuildIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -866,21 +1033,23 @@ const ToolMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(tool._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(tool._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       
                       <TableCell>
                         <Stack direction="row" alignItems="center" spacing={1}>
@@ -975,6 +1144,8 @@ const ToolMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, tool)}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -1009,54 +1180,68 @@ const ToolMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddTool 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modal Components - With Permission Checks */}
+      {canCreate && (
+        <AddTool 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedTool && (
         <>
-          <AddTool 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedTool(null);
-            }}
-            onSuccess={handleEditSuccess}
-            initialData={selectedTool}
-            isEditMode={true}
-          />
+          {/* Edit Modal - UPDATE permission */}
+          {canUpdate && (
+            <AddTool 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedTool(null);
+              }}
+              onSuccess={handleEditSuccess}
+              initialData={selectedTool}
+              isEditMode={true}
+            />
+          )}
 
-          <ViewTool 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedTool(null);
-            }}
-            tool={selectedTool}
-          />
+          {/* View Modal - VIEW permission */}
+          {canViewPage && (
+            <ViewTool 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedTool(null);
+              }}
+              tool={selectedTool}
+            />
+          )}
 
-          <DeleteTool 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedTool(null);
-            }}
-            tool={selectedTool}
-            onDelete={handleDeleteSuccess}
-          />
+          {/* Delete Dialog - DELETE permission */}
+          {canDelete && (
+            <DeleteTool 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedTool(null);
+              }}
+              tool={selectedTool}
+              onDelete={handleDeleteSuccess}
+            />
+          )}
 
-          <MaintenanceDialog
-            open={openMaintenanceDialog}
-            onClose={() => {
-              setOpenMaintenanceDialog(false);
-              setSelectedTool(null);
-            }}
-            tool={selectedTool}
-            onSuccess={handleMaintenanceSuccess}
-          />
+          {/* Maintenance Dialog - CREATE permission */}
+          {canCreate && (
+            <MaintenanceDialog
+              open={openMaintenanceDialog}
+              onClose={() => {
+                setOpenMaintenanceDialog(false);
+                setSelectedTool(null);
+              }}
+              tool={selectedTool}
+              onSuccess={handleMaintenanceSuccess}
+            />
+          )}
         </>
       )}
 

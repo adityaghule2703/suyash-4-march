@@ -1605,7 +1605,7 @@ const PieceRateMaster = () => {
                   }
                 }
               }}
-              disabled={loading}
+         
             />
           </Stack>
 

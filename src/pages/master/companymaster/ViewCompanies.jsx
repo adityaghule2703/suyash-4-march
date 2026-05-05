@@ -1,52 +1,73 @@
 import React, { useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
   Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Typography,
   Button,
   Stack,
-  Chip,
   Paper,
   Grid,
-  Avatar,
+  Chip,
+  IconButton,
+  Divider,
   Stepper,
   Step,
   StepLabel,
   StepConnector,
   stepConnectorClasses,
-  styled
+  styled,
+  Avatar
 } from '@mui/material';
 import {
-  Edit as EditIcon,
-  Business,
-  LocationOn,
-  Email,
-  Phone,
-  AccountBalance,
-  Receipt,
-  AccountBalanceWallet,
-  Badge as BadgeIcon,
   Close as CloseIcon,
   NavigateNext as NavigateNextIcon,
-  NavigateBefore as NavigateBeforeIcon
+  NavigateBefore as NavigateBeforeIcon,
+  Business as BusinessIcon,
+  LocationOn as LocationOnIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  AccountBalance as AccountBalanceIcon,
+  Receipt as ReceiptIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
+  Badge as BadgeIcon,
+  Info as InfoIcon,
+  ContactPhone as ContactPhoneIcon,
+  Savings as SavingsIcon
 } from '@mui/icons-material';
 import BASE_URL from '../../../config/Config';
 
-// Color constants
-const HEADER_GRADIENT = 'linear-gradient(135deg, #164e63 0%, #00B4D8 50%, #0e7490 100%)';
-const PRIMARY_BLUE = '#00B4D8';
+// Color constants matching ViewBom style
+const COLORS = {
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  primaryLight: '#00B4D8',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC'
+  },
+  border: '#E3E8EF'
+};
 
-// 🔥 Modern Stepper Connector with Gradient
+const steps = ['Company Info', 'Bank & System Info'];
+
+// Modern Stepper Connector
 const ColorConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: HEADER_GRADIENT,
+      backgroundColor: COLORS.primary,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
@@ -57,9 +78,9 @@ const ColorConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Custom Step Icon styling to make numbers white
+// Custom Step Icon styling
 const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
-  backgroundColor: ownerState.active || ownerState.completed ? '#00B4D8' : '#ccc',
+  backgroundColor: ownerState.active || ownerState.completed ? COLORS.primary : '#ccc',
   zIndex: 1,
   color: '#fff',
   width: 24,
@@ -71,11 +92,11 @@ const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
   fontSize: '0.75rem',
   fontWeight: 600,
   ...(ownerState.active && {
-    backgroundColor: '#00B4D8',
-    boxShadow: '0 4px 10px 0 rgba(0,180,216,0.3)',
+    backgroundColor: COLORS.primary,
+    boxShadow: '0 4px 10px 0 rgba(6,60,63,0.3)',
   }),
   ...(ownerState.completed && {
-    backgroundColor: '#00B4D8',
+    backgroundColor: COLORS.primary,
   }),
 }));
 
@@ -89,8 +110,6 @@ function CustomStepIcon(props) {
   );
 }
 
-const steps = ['Company Info', 'Bank & System Info'];
-
 const ViewCompanies = ({ open, onClose, company, onEdit }) => {
   const [activeStep, setActiveStep] = useState(0);
 
@@ -100,10 +119,8 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -127,37 +144,14 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
 
   // Helper function to render field with icon
   const renderField = (icon, label, value) => (
-    <Stack direction="row" spacing={1} alignItems="flex-start">
-      <Box sx={{ color: PRIMARY_BLUE, mt: 0.3, minWidth: 20 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#64748B', 
-            display: 'block', 
-            fontSize: '10px',
-            fontWeight: 500,
-            lineHeight: 1.2,
-            mb: 0.2
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '13px',
-            color: '#0f172a',
-            wordBreak: 'break-word'
-          }}
-        >
-          {value || '-'}
-        </Typography>
-      </Box>
-    </Stack>
+    <Box>
+      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+        {icon} {label}
+      </Typography>
+      <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: COLORS.text.primary, wordBreak: 'break-word' }}>
+        {value || '-'}
+      </Typography>
+    </Box>
   );
 
   const handleNext = () => {
@@ -172,19 +166,33 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
     switch (step) {
       case 0: // Company Info
         return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}> {/* Added pb for bottom padding */}
-            {/* Company Profile with Bigger Logo */}
-            <Paper sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 2 }}>
+          <Stack spacing={2}>
+            {/* Header Section - Company Overview */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Company Overview
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                 <Avatar 
                   src={getFullLogoUrl(company.logo_path)}
                   sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    bgcolor: company.logo_path ? 'transparent' : PRIMARY_BLUE,
-                    fontSize: '2rem',
+                    width: 64, 
+                    height: 64, 
+                    bgcolor: company.logo_path ? 'transparent' : COLORS.primary,
+                    fontSize: '1.5rem',
                     fontWeight: 600,
-                    border: '2px solid #E0E0E0',
+                    border: `1px solid ${COLORS.border}`,
                     '& img': { 
                       objectFit: 'contain',
                       width: '100%',
@@ -194,84 +202,132 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
                 >
                   {!company.logo_path && getCompanyInitials(company.company_name)}
                 </Avatar>
-                <Box>
-                  <Typography variant="h6" fontWeight={600} color="#101010" sx={{ fontSize: '1.1rem' }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
                     {company.company_name}
                   </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                     <Chip
                       label={company.is_active ? 'Active' : 'Inactive'}
                       size="small"
-                      sx={{
+                      sx={{ 
+                        fontSize: '0.7rem', 
+                        fontWeight: 500,
                         bgcolor: company.is_active ? '#dcfce7' : '#F5F5F5',
-                        color: company.is_active ? '#166534' : '#616161',
-                        border: company.is_active ? '1px solid #86efac' : 'none',
-                        fontWeight: 600,
-                        fontSize: '11px',
-                        height: '22px',
-                        '& .MuiChip-label': { px: 1.5 }
+                        color: company.is_active ? '#166534' : COLORS.text.secondary,
+                        height: '22px'
                       }}
                     />
-                    <Typography variant="body2" color="#64748B" sx={{ fontSize: '12px' }}>
-                      {company.state} {company.state_code && `(Code: ${company.state_code})`}
-                    </Typography>
+                    <Chip
+                      label={`ID: ${company.company_id || '-'}`}
+                      size="small"
+                      sx={{ 
+                        fontSize: '0.7rem', 
+                        fontWeight: 500,
+                        bgcolor: COLORS.background.white,
+                        border: `1px solid ${COLORS.border}`,
+                        height: '22px'
+                      }}
+                    />
                   </Stack>
                 </Box>
               </Stack>
+              <Divider sx={{ my: 1.5 }} />
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                    State
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {company.state || '-'} {company.state_code && `(${company.state_code})`}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                    Country
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    {company.country || '-'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
 
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1.5, fontWeight: 600, fontSize: '0.8rem' }}>
+            {/* Basic Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Basic Information
               </Typography>
-              
-              <Grid container spacing={1}>
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   {renderField(
-                    <BadgeIcon sx={{ fontSize: 16 }} />, 
-                    'Company ID', 
-                    company.company_id
-                  )}
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  {renderField(
-                    <Receipt sx={{ fontSize: 16 }} />, 
+                    <ReceiptIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'GSTIN', 
                     company.gstin
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   {renderField(
-                    <Receipt sx={{ fontSize: 16 }} />, 
+                    <ReceiptIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'PAN', 
                     company.pan
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  {renderField(
+                    <BadgeIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
+                    'CIN', 
+                    company.cin
                   )}
                 </Grid>
               </Grid>
             </Paper>
 
             {/* Contact Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <ContactPhoneIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Contact Information
               </Typography>
-              
-              <Grid container spacing={1}>
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12 }}>
                   {renderField(
-                    <LocationOn sx={{ fontSize: 16 }} />, 
+                    <LocationOnIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Address', 
                     company.address
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <Email sx={{ fontSize: 16 }} />, 
+                    <EmailIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Email', 
                     company.email
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <Phone sx={{ fontSize: 16 }} />, 
+                    <PhoneIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Phone', 
                     company.phone
                   )}
@@ -283,38 +339,48 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
 
       case 1: // Bank & System Info
         return (
-          <Stack spacing={1.5} sx={{ pb: 1 }}> {/* Added pb for bottom padding */}
+          <Stack spacing={2}>
             {/* Bank Details */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <SavingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 Bank Details
               </Typography>
-              
-              <Grid container spacing={1}>
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <AccountBalance sx={{ fontSize: 16 }} />, 
+                    <AccountBalanceIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Bank Name', 
                     company.bank_details?.bank_name
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <LocationOn sx={{ fontSize: 16 }} />, 
+                    <LocationOnIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Branch', 
                     company.bank_details?.branch
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <AccountBalanceWallet sx={{ fontSize: 16 }} />, 
+                    <AccountBalanceWalletIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Account Number', 
                     company.bank_details?.account_no
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <BadgeIcon sx={{ fontSize: 16 }} />, 
+                    <BadgeIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'IFSC Code', 
                     company.bank_details?.ifsc
                   )}
@@ -323,22 +389,32 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
             </Paper>
 
             {/* System Information */}
-            <Paper sx={{ p: 1.5, backgroundColor: '#FFFFFF', borderRadius: 1, border: '1px solid #E0E0E0' }}>
-              <Typography variant="subtitle2" sx={{ color: PRIMARY_BLUE, mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
                 System Information
               </Typography>
-              
-              <Grid container spacing={1}>
+              <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <BadgeIcon sx={{ fontSize: 16 }} />, 
+                    <BadgeIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Created At', 
                     formatDate(company.createdAt)
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   {renderField(
-                    <BadgeIcon sx={{ fontSize: 16 }} />, 
+                    <BadgeIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.5 }} />, 
                     'Last Updated', 
                     formatDate(company.updatedAt)
                   )}
@@ -361,136 +437,144 @@ const ViewCompanies = ({ open, onClose, company, onEdit }) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          height: 'auto',
-          maxHeight: '580px' // Increased height for better spacing
+          borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
         }
       }}
     >
-      {/* Header with Gradient - Compact */}
-      <Box sx={{ 
-        background: HEADER_GRADIENT,
-        py: 1,
-        px: 2
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Business sx={{ color: '#FFFFFF', fontSize: 18 }} />
-            <Typography variant="subtitle2" sx={{ 
-              fontWeight: 600, 
-              color: '#FFFFFF',
-              fontSize: '0.9rem'
-            }}>
-              Company Details
-            </Typography>
-          </Stack>
-          <Chip
-            label={`ID: ${company.company_id || '-'}`}
-            size="small"
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: '#FFFFFF',
-              fontWeight: 500,
-              fontSize: '10px',
-              height: '20px',
-              backdropFilter: 'blur(4px)',
-              '& .MuiChip-label': { px: 1 }
-            }}
-          />
-        </Stack>
-
-        {/* Stepper - Compact with custom icons */}
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Company Details
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      {/* Stepper */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
         <Stepper
           activeStep={activeStep}
           alternativeLabel
           connector={<ColorConnector />}
-          sx={{ 
-            mt: 0.5,
-            '& .MuiStepLabel-label': {
-              color: '#FFFFFF !important',
-              opacity: 0.8,
-              '&.Mui-active': {
-                color: '#FFFFFF !important',
-                opacity: 1,
-                fontWeight: 600
-              },
-              '&.Mui-completed': {
-                color: '#FFFFFF !important',
-                opacity: 1
-              }
-            }
-          }}
         >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel StepIconComponent={CustomStepIcon}>
-                <Typography fontWeight={500} fontSize="0.7rem">{label}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
               </StepLabel>
             </Step>
           ))}
         </Stepper>
       </Box>
-
-      <DialogContent sx={{ 
-        p: 1.5, 
-        overflow: 'hidden', 
-        height: '360px', // Increased height
-        '&:last-child': {
-          pb: 1.5
-        }
-      }}>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
         {renderStepContent(activeStep)}
       </DialogContent>
-
-      {/* Footer Actions - Compact */}
-      <Box sx={{
-        px: 2,
-        py: 1,
-        borderTop: '1px solid #E0E0E0',
-        backgroundColor: '#F8FAFC'
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'space-between'
       }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
+        </Button>
+        <Box>
           <Button
             onClick={onClose}
-            startIcon={<CloseIcon />}
             size="small"
-            sx={{ color: '#666', fontSize: '0.8rem' }}
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
           >
             Close
           </Button>
-
-          <Stack direction="row" spacing={1}>
-            {activeStep === 1 && (
-              <Button
-                onClick={handleBack}
-                size="small"
-                startIcon={<NavigateBeforeIcon />}
-                sx={{ color: '#666', fontSize: '0.8rem' }}
-              >
-                Back
-              </Button>
-            )}
-            
-            {activeStep === 0 && (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                size="small"
-                endIcon={<NavigateNextIcon />}
-                sx={{
-                  backgroundColor: PRIMARY_BLUE,
-                  fontSize: '0.8rem',
-                  '&:hover': { backgroundColor: '#0e7490' }
-                }}
-              >
-                Next
-              </Button>
-            ) }
-          </Stack>
-        </Stack>
-      </Box>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </DialogActions>
     </Dialog>
   );
 };

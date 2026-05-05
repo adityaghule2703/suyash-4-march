@@ -46,7 +46,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Engineering as EngineeringIcon,
   Build as BuildIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -54,6 +55,7 @@ import AddGauge from './AddGauge';
 import ViewGauge from './ViewGauge';
 import DeleteGauge from './DeleteGauge';
 import CalibrationDialog from './CalibrationDialog';
+import { hasPermission, ACTIONS, MODULES, PAGES } from '../../../utils/modulePermissions';
 
 // Color constants
 const COLORS = {
@@ -90,8 +92,33 @@ const LoadingState = () => (
   </Box>
 );
 
-// Action Menu Component with Calibrate button
-const ActionMenu = ({ gauge, onView, onEdit, onDelete, onCalibrate, anchorEl, onClose, onOpen }) => {
+// Access Denied component
+const AccessDenied = () => (
+  <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+      Access Denied
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      You don't have permission to view this page. Please contact your administrator.
+    </Typography>
+  </Box>
+);
+
+// Action Menu Component with permission checks
+const ActionMenu = ({ gauge, onView, onEdit, onDelete, onCalibrate, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  // Permission checks for Gauge Master module
+  const canView = isSuperAdmin || hasPermission(permissions, MODULES.GAUGE_MASTER, PAGES.GAUGE_MASTER, ACTIONS.VIEW);
+  const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.GAUGE_MASTER, PAGES.GAUGE_MASTER, ACTIONS.UPDATE);
+  const canDelete = isSuperAdmin || hasPermission(permissions, MODULES.GAUGE_MASTER, PAGES.GAUGE_MASTER, ACTIONS.DELETE);
+  const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.GAUGE_MASTER, PAGES.GAUGE_MASTER, ACTIONS.CREATE);
+  
+  // Count how many actions are available
+  const hasAnyActions = canView || canUpdate || canDelete || canCreate;
+  
+  if (!hasAnyActions) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip title="Actions">
@@ -123,76 +150,84 @@ const ActionMenu = ({ gauge, onView, onEdit, onDelete, onCalibrate, anchorEl, on
           }
         }}
       >
-        <MenuItem 
-          onClick={() => {
-            onView(gauge);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <VisibilityIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              View Details
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canView && (
+          <MenuItem 
+            onClick={() => {
+              onView(gauge);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <VisibilityIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <MenuItem 
-          onClick={() => {
-            onEdit(gauge);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
-              Edit
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canUpdate && (
+          <MenuItem 
+            onClick={() => {
+              onEdit(gauge);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: COLORS.primary, minWidth: 36 }}>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
+                Edit
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
 
-        {/* Calibrate Menu Item */}
-        <MenuItem 
-          onClick={() => {
-            onCalibrate(gauge);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
-              Calibrate
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {/* Calibrate Menu Item - Requires CREATE permission (adds new calibration record) */}
+        {canCreate && (
+          <MenuItem 
+            onClick={() => {
+              onCalibrate(gauge);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#8B5CF6', minWidth: 36 }}>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#8B5CF6', fontSize: '0.75rem' }}>
+                Calibrate
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
         
-        <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />
+        {(canView || canUpdate || canCreate) && canDelete && <Divider sx={{ my: 0.5, borderColor: COLORS.border }} />}
         
-        <MenuItem 
-          onClick={() => {
-            onDelete(gauge);
-            onClose();
-          }}
-          sx={{ py: 1.5 }}
-        >
-          <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>
-            <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
-              Delete
-            </Typography>
-          </ListItemText>
-        </MenuItem>
+        {canDelete && (
+          <MenuItem 
+            onClick={() => {
+              onDelete(gauge);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#EF4444', minWidth: 36 }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} color="#EF4444" sx={{ fontSize: '0.75rem' }}>
+                Delete
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
@@ -278,9 +313,67 @@ const GaugeMaster = () => {
     severity: 'success'
   });
 
+  // User permissions state
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
   // Ref to track if we're currently searching
   const isSearchingRef = useRef(false);
   const searchTimeoutRef = useRef(null);
+
+  // Fetch user permissions
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data.success) {
+          const userData = response.data.data;
+          setIsSuperAdmin(userData.isSuperAdmin || false);
+          
+          // Set permissions array
+          if (userData.permissions && Array.isArray(userData.permissions)) {
+            setUserPermissions(userData.permissions);
+          } else {
+            setUserPermissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+        setUserPermissions([]);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    
+    fetchUserPermissions();
+  }, []);
+
+  // Check permission helper
+  const checkPermission = (action) => {
+    // Super admin has all permissions
+    if (isSuperAdmin) return true;
+    
+    return hasPermission(
+      userPermissions,
+      MODULES.GAUGE_MASTER,
+      PAGES.GAUGE_MASTER,
+      action
+    );
+  };
+
+  // Permission checks
+  const canViewPage = checkPermission(ACTIONS.VIEW);
+  const canCreate = checkPermission(ACTIONS.CREATE);
+  const canUpdate = checkPermission(ACTIONS.UPDATE);
+  const canDelete = checkPermission(ACTIONS.DELETE);
+  // Note: Calibrate uses CREATE permission since it adds a new calibration record
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -322,8 +415,10 @@ const GaugeMaster = () => {
     isSearchingRef.current = false;
   };
 
-  // Fetch gauges from API with server-side pagination and search
+  // Fetch gauges from API with server-side pagination and search - only if user has permission
   const fetchGauges = useCallback(async () => {
+    if (!canViewPage && !isSuperAdmin) return;
+    
     // Don't show loading indicator while typing search
     if (!isSearchingRef.current) {
       setLoading(true);
@@ -363,12 +458,14 @@ const GaugeMaster = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm]);
+  }, [currentPage, rowsPerPage, searchTerm, canViewPage, isSuperAdmin]);
 
   // Load data when dependencies change
   useEffect(() => {
-    fetchGauges();
-  }, [fetchGauges]);
+    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+      fetchGauges();
+    }
+  }, [fetchGauges, permissionsLoaded, canViewPage, isSuperAdmin]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -377,6 +474,8 @@ const GaugeMaster = () => {
   };
 
   const handleSelectAll = (event) => {
+    if (!canDelete) return;
+    
     if (event.target.checked) {
       setSelected(gauges.map(gauge => gauge._id));
     } else {
@@ -385,6 +484,8 @@ const GaugeMaster = () => {
   };
 
   const handleSelect = (id) => {
+    if (!canDelete) return;
+    
     const selectedIndex = selected.indexOf(id);
     let newSelected = [];
     
@@ -422,24 +523,32 @@ const GaugeMaster = () => {
   };
 
   const openViewModalHandler = (gauge) => {
+    if (!canViewPage) return;
     setSelectedGauge(gauge);
     setOpenViewModal(true);
     handleActionMenuClose();
   };
 
   const openEditModalHandler = (gauge) => {
+    if (!canUpdate) return;
     setSelectedGauge(gauge);
     setOpenEditModal(true);
     handleActionMenuClose();
   };
 
   const openDeleteDialogHandler = (gauge) => {
+    if (!canDelete) return;
     setSelectedGauge(gauge);
     setOpenDeleteDialog(true);
     handleActionMenuClose();
   };
 
   const openCalibrationDialogHandler = (gauge) => {
+    // Calibrate requires CREATE permission (adds new calibration record)
+    if (!canCreate) {
+      showNotification('You don\'t have permission to add calibration records', 'error');
+      return;
+    }
     setSelectedGauge(gauge);
     setOpenCalibrationDialog(true);
     handleActionMenuClose();
@@ -473,7 +582,7 @@ const GaugeMaster = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selected.length === 0) return;
+    if (!canDelete || selected.length === 0) return;
     
     setLoading(true);
     try {
@@ -560,6 +669,16 @@ const GaugeMaster = () => {
     );
   };
 
+  // Show loading state while permissions are being fetched
+  if (!permissionsLoaded) {
+    return <LoadingState />;
+  }
+
+  // If user doesn't have view permission, show access denied
+  if (!canViewPage && !isSuperAdmin) {
+    return <AccessDenied />;
+  }
+
   return (
     <Box sx={{ p: 2.5 }}>
       {/* Page Header */}
@@ -614,6 +733,13 @@ const GaugeMaster = () => {
                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
                   </InputAdornment>
                 ),
+                endAdornment: searchInput && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: { 
                   height: 36,
                   bgcolor: COLORS.background.light,
@@ -632,6 +758,7 @@ const GaugeMaster = () => {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Refresh Button - Available to all users with view permission */}
             <Tooltip title="Refresh">
               <IconButton
                 size="small"
@@ -648,7 +775,8 @@ const GaugeMaster = () => {
               </IconButton>
             </Tooltip>
             
-            {selected.length > 0 && (
+            {/* Bulk Delete Button - Only show if user has DELETE permission */}
+            {canDelete && selected.length > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -673,26 +801,29 @@ const GaugeMaster = () => {
               </Button>
             )}
             
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                height: 36,
-                borderRadius: 1.5,
-                bgcolor: COLORS.primary,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'none',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                '&:hover': {
-                  bgcolor: COLORS.primaryDark,
-                }
-              }}
-              disabled={loading}
-            >
-              Add Gauge
-            </Button>
+            {/* Add Gauge Button - Only show if user has CREATE permission */}
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+                onClick={() => setOpenAddModal(true)}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: COLORS.primary,
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: COLORS.primaryDark,
+                  }
+                }}
+                disabled={loading}
+              >
+                Add Gauge
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
@@ -716,26 +847,29 @@ const GaugeMaster = () => {
                   py: 1.5
                 }
               }}>
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < gauges.length}
-                    checked={gauges.length > 0 && selected.length === gauges.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': {
+                {/* Checkbox Column - Only show if user has DELETE permission */}
+                {canDelete && (
+                  <TableCell padding="checkbox" sx={{ width: 40 }}>
+                    <Checkbox
+                      indeterminate={selected.length > 0 && selected.length < gauges.length}
+                      checked={gauges.length > 0 && selected.length === gauges.length}
+                      onChange={handleSelectAll}
+                      sx={{
                         color: COLORS.text.light,
-                      },
-                      '&.MuiCheckbox-indeterminate': {
-                        color: COLORS.text.light,
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1.25rem'
-                      }
-                    }}
-                    disabled={loading || gauges.length === 0}
-                  />
-                </TableCell>
+                        '&.Mui-checked': {
+                          color: COLORS.text.light,
+                        },
+                        '&.MuiCheckbox-indeterminate': {
+                          color: COLORS.text.light,
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.25rem'
+                        }
+                      }}
+                      disabled={loading || gauges.length === 0}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ 
                   fontWeight: 600, 
                   fontSize: '0.7rem',
@@ -806,7 +940,7 @@ const GaugeMaster = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: COLORS.primary }} />
                     <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
                       Loading gauges...
@@ -815,7 +949,7 @@ const GaugeMaster = () => {
                 </TableRow>
               ) : gauges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={canDelete ? 9 : 8} align="center" sx={{ py: 6 }}>
                     <Box sx={{ textAlign: 'center' }}>
                       <GaugeIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 1 }} />
                       <Typography variant="body1" sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
@@ -856,21 +990,24 @@ const GaugeMaster = () => {
                         }
                       }}
                     >
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(gauge._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': {
+                      {/* Checkbox Column - Only show if user has DELETE permission */}
+                      {canDelete && (
+                        <TableCell padding="checkbox" sx={{ width: 40 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleSelect(gauge._id)}
+                            sx={{
                               color: COLORS.primary,
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: '1.25rem'
-                            }
-                          }}
-                        />
-                      </TableCell>
+                              '&.Mui-checked': {
+                                color: COLORS.primary,
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1.25rem'
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       
                       <TableCell>
                         <Stack direction="row" alignItems="center" spacing={1}>
@@ -935,6 +1072,8 @@ const GaugeMaster = () => {
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, gauge)}
+                          permissions={userPermissions}
+                          isSuperAdmin={isSuperAdmin}
                         />
                       </TableCell>
                     </TableRow>
@@ -969,54 +1108,68 @@ const GaugeMaster = () => {
         />
       </Paper>
 
-      {/* Modal Components */}
-      <AddGauge 
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onSuccess={handleAddSuccess}
-      />
+      {/* Modal Components - Only render if user has appropriate permissions */}
+      {canCreate && (
+        <AddGauge 
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
 
       {selectedGauge && (
         <>
-          <AddGauge 
-            open={openEditModal}
-            onClose={() => {
-              setOpenEditModal(false);
-              setSelectedGauge(null);
-            }}
-            onSuccess={handleEditSuccess}
-            initialData={selectedGauge}
-            isEditMode={true}
-          />
+          {/* Edit Modal - Requires UPDATE permission */}
+          {canUpdate && (
+            <AddGauge 
+              open={openEditModal}
+              onClose={() => {
+                setOpenEditModal(false);
+                setSelectedGauge(null);
+              }}
+              onSuccess={handleEditSuccess}
+              initialData={selectedGauge}
+              isEditMode={true}
+            />
+          )}
 
-          <ViewGauge 
-            open={openViewModal}
-            onClose={() => {
-              setOpenViewModal(false);
-              setSelectedGauge(null);
-            }}
-            gauge={selectedGauge}
-          />
+          {/* View Modal - Requires VIEW permission */}
+          {canViewPage && (
+            <ViewGauge 
+              open={openViewModal}
+              onClose={() => {
+                setOpenViewModal(false);
+                setSelectedGauge(null);
+              }}
+              gauge={selectedGauge}
+            />
+          )}
 
-          <DeleteGauge 
-            open={openDeleteDialog}
-            onClose={() => {
-              setOpenDeleteDialog(false);
-              setSelectedGauge(null);
-            }}
-            gauge={selectedGauge}
-            onDelete={handleDeleteSuccess}
-          />
+          {/* Delete Modal - Requires DELETE permission */}
+          {canDelete && (
+            <DeleteGauge 
+              open={openDeleteDialog}
+              onClose={() => {
+                setOpenDeleteDialog(false);
+                setSelectedGauge(null);
+              }}
+              gauge={selectedGauge}
+              onDelete={handleDeleteSuccess}
+            />
+          )}
 
-          <CalibrationDialog
-            open={openCalibrationDialog}
-            onClose={() => {
-              setOpenCalibrationDialog(false);
-              setSelectedGauge(null);
-            }}
-            gauge={selectedGauge}
-            onSuccess={handleCalibrationSuccess}
-          />
+          {/* Calibration Dialog - Requires CREATE permission (adds new calibration record) */}
+          {canCreate && (
+            <CalibrationDialog
+              open={openCalibrationDialog}
+              onClose={() => {
+                setOpenCalibrationDialog(false);
+                setSelectedGauge(null);
+              }}
+              gauge={selectedGauge}
+              onSuccess={handleCalibrationSuccess}
+            />
+          )}
         </>
       )}
 

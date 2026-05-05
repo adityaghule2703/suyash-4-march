@@ -1570,29 +1570,43 @@ const AccidentMaster = () => {
     }
   }, [permissionsLoaded, canViewPage, isSuperAdmin]);
 
-  const fetchAccidents = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${BASE_URL}/api/safety/accidents`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+  const fetchAccidents = async (showLoader = true) => {
+  try {
+    if (showLoader) setLoading(true);
 
-      if (response.data.success) {
-        setAccidents(response.data.data || []);
-        setFilteredAccidents(response.data.data || []);
-      } else {
-        showNotification('Failed to load accidents', 'error');
+    const token = localStorage.getItem('token');
+
+    const params = new URLSearchParams();
+    params.append('page', page + 1);
+    params.append('limit', rowsPerPage);
+
+    if (searchTerm) params.append('search', searchTerm);
+
+    const response = await axios.get(
+      `${BASE_URL}/api/safety/accidents?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
-    } catch (err) {
-      console.error('Error fetching accidents:', err);
-      showNotification('Failed to load accidents. Please try again.', 'error');
-    } finally {
-      setLoading(false);
+    );
+
+    if (response.data.success) {
+      const data = response.data.data || [];
+
+      setAccidents(data);
+      setFilteredAccidents(data); // ✅ server-side
+    } else {
+      showNotification('Failed to load accidents', 'error');
     }
-  };
+
+  } catch (err) {
+    console.error('Error fetching accidents:', err);
+    showNotification('Failed to load accidents. Please try again.', 'error');
+  } finally {
+    if (showLoader) setLoading(false);
+  }
+};
 
   // Handle refresh
   const handleRefresh = () => {

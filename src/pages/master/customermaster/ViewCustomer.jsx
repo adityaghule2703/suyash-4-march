@@ -1,32 +1,115 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Box,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   Typography,
-  Box,
+  Button,
+  Stack,
+  Paper,
   Grid,
   Chip,
-  Paper,
-  Stack,
   IconButton,
-  Divider
+  Divider,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  styled
 } from '@mui/material';
 import {
   Close as CloseIcon,
+  NavigateNext as NavigateNextIcon,
+  NavigateBefore as NavigateBeforeIcon,
   Business as BusinessIcon,
   Person as PersonIcon,
   LocationOn as LocationIcon,
   CreditCard as CreditCardIcon,
   AccountBalance as AccountBalanceIcon,
   Email as EmailIcon,
-  Phone as PhoneIcon
+  Phone as PhoneIcon,
+  Info as InfoIcon,
+  ContactPhone as ContactPhoneIcon,
+  Savings as SavingsIcon,
+  Badge as BadgeIcon
 } from '@mui/icons-material';
-import { COLORS, CUSTOMER_TYPE_COLORS, PRIORITY_COLORS } from './constants';
 
-const ViewCustomer = ({ open, onClose, customer, onEdit }) => {
+// Color constants matching the ViewBom style
+const COLORS = {
+  primary: '#063C3F',
+  primaryDark: '#05292B',
+  text: {
+    primary: '#151C26',
+    secondary: '#4B5568',
+    tertiary: '#94A3B8'
+  },
+  background: {
+    white: '#FFFFFF',
+    light: '#F8FFFC'
+  },
+  border: '#E3E8EF'
+};
+
+const steps = ['Basic Info', 'Contact & Address', 'Financial & Bank'];
+
+// Modern Stepper Connector
+const ColorConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      backgroundColor: COLORS.primary,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    height: 2,
+    border: 0,
+    backgroundColor: '#eaeaf0',
+    borderRadius: 1,
+  },
+}));
+
+// Custom Step Icon styling
+const CustomStepIconRoot = styled('div')(({ theme, ownerState }) => ({
+  backgroundColor: ownerState.active || ownerState.completed ? COLORS.primary : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 24,
+  height: 24,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  ...(ownerState.active && {
+    backgroundColor: COLORS.primary,
+    boxShadow: '0 4px 10px 0 rgba(6,60,63,0.3)',
+  }),
+  ...(ownerState.completed && {
+    backgroundColor: COLORS.primary,
+  }),
+}));
+
+function CustomStepIcon(props) {
+  const { active, completed, className } = props;
+
+  return (
+    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
+      {completed ? '✓' : props.icon}
+    </CustomStepIconRoot>
+  );
+}
+
+const ViewCustomer = ({ open, onClose, customer }) => {
+  const [activeStep, setActiveStep] = useState(0);
+
   if (!customer) return null;
 
   const formatDate = (dateString) => {
@@ -43,156 +126,249 @@ const ViewCustomer = ({ open, onClose, customer, onEdit }) => {
     return `₹${amount.toLocaleString()}`;
   };
 
-  const customerTypeColors = CUSTOMER_TYPE_COLORS[customer.customer_type] || { bg: '#F1F5F9', color: '#475569' };
-  const priorityColors = PRIORITY_COLORS[customer.priority] || { bg: '#F1F5F9', color: '#475569' };
+  const customerTypeColors = {
+    'Premium': { bg: '#FEF3C7', color: '#B45309' },
+    'Regular': { bg: '#E0F2FE', color: '#0369A1' },
+    'Wholesale': { bg: '#DCFCE7', color: '#166534' },
+    'Retail': { bg: '#FCE7F3', color: '#BE185D' }
+  }[customer.customer_type] || { bg: '#F1F5F9', color: '#475569' };
+
+  const priorityColors = {
+    'High': { bg: '#FEE2E2', color: '#991B1B' },
+    'Medium': { bg: '#FEF3C7', color: '#B45309' },
+    'Low': { bg: '#DCFCE7', color: '#166534' }
+  }[customer.priority] || { bg: '#F1F5F9', color: '#475569' };
+
   const primaryContact = customer.contacts?.find(c => c.is_primary) || customer.contacts?.[0];
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ 
-        borderBottom: `1px solid ${COLORS.border}`, 
-        py: 1.5,
-        bgcolor: COLORS.background.tableHeader 
-      }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: COLORS.text.light }}>
-            Customer Details
-          </Typography>
-          <IconButton onClick={onClose} size="small" sx={{ color: COLORS.text.light }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-      <DialogContent sx={{ p: 2.5 }}>
-        {/* Header Section */}
-        <Box sx={{ mb: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                {customer.customer_name}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Code: {customer.customer_code} | ID: {customer.customer_id}
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1}>
-              <Chip
-                label={customer.customer_type}
-                size="small"
-                sx={{ bgcolor: customerTypeColors.bg, color: customerTypeColors.color, fontWeight: 500 }}
-              />
-              <Chip
-                label={customer.priority || 'Regular'}
-                size="small"
-                sx={{ bgcolor: priorityColors.bg, color: priorityColors.color, fontWeight: 500 }}
-              />
-              {customer.is_export && (
-                <Chip
-                  label="Export"
-                  size="small"
-                  sx={{ bgcolor: '#E0F2FE', color: '#0369A1', fontWeight: 500 }}
-                />
-              )}
-              {customer.is_sez && (
-                <Chip
-                  label="SEZ"
-                  size="small"
-                  sx={{ bgcolor: '#FEF3C7', color: '#B45309', fontWeight: 500 }}
-                />
-              )}
-            </Stack>
-          </Stack>
-        </Box>
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
 
-        <Grid container spacing={2}>
-          {/* Basic Information */}
-          <Grid size={{ xs: 12 }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-              <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Basic Information
-            </Typography>
-            <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1 }}>
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
+  // Helper function to render field
+  const renderField = (label, value, monospace = false) => (
+    <Box>
+      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ 
+        fontSize: '0.8rem', 
+        fontWeight: 500, 
+        color: COLORS.text.primary,
+        fontFamily: monospace ? 'monospace' : 'inherit',
+        wordBreak: 'break-word'
+      }}>
+        {value || '-'}
+      </Typography>
+    </Box>
+  );
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Basic Info
+        return (
+          <Stack spacing={2}>
+            {/* Header Section - Customer Overview */}
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: COLORS.background.light, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}` 
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <BusinessIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Customer Overview
+              </Typography>
+              
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.text.primary }}>
+                    {customer.customer_name}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mt: 0.5 }}>
+                    Code: {customer.customer_code} | ID: {customer.customer_id}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Chip
+                    label={customer.customer_type}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: customerTypeColors.bg, 
+                      color: customerTypeColors.color 
+                    }}
+                  />
+                  <Chip
+                    label={customer.priority || 'Regular'}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 500,
+                      bgcolor: priorityColors.bg, 
+                      color: priorityColors.color 
+                    }}
+                  />
+                </Stack>
+              </Stack>
+              
+              <Divider sx={{ my: 1.5 }} />
+              
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {customer.is_export && (
+                  <Chip
+                    label="Export Customer"
+                    size="small"
+                    sx={{ fontSize: '0.65rem', bgcolor: '#E0F2FE', color: '#0369A1' }}
+                  />
+                )}
+                {customer.is_sez && (
+                  <Chip
+                    label="SEZ Customer"
+                    size="small"
+                    sx={{ fontSize: '0.65rem', bgcolor: '#FEF3C7', color: '#B45309' }}
+                  />
+                )}
+                {customer.is_credit_hold && (
+                  <Chip
+                    label="Credit Hold"
+                    size="small"
+                    sx={{ fontSize: '0.65rem', bgcolor: '#FEE2E2', color: '#991B1B' }}
+                  />
+                )}
+              </Stack>
+            </Paper>
+
+            {/* Basic Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <InfoIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Basic Information
+              </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Customer Name</Typography>
-                  <Typography variant="body2" fontWeight={500}>{customer.customer_name}</Typography>
+                  {renderField('Customer Name', customer.customer_name)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Customer Code</Typography>
-                  <Typography variant="body2">{customer.customer_code}</Typography>
+                  {renderField('Customer Code', customer.customer_code)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Industry Segment</Typography>
-                  <Typography variant="body2">{customer.industry_segment || '-'}</Typography>
+                  {renderField('Industry Segment', customer.industry_segment)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">GSTIN</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{customer.gstin || '-'}</Typography>
+                  {renderField('GSTIN', customer.gstin, true)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">PAN</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{customer.pan || '-'}</Typography>
+                  {renderField('PAN', customer.pan, true)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">MSME Number</Typography>
-                  <Typography variant="body2">{customer.msme_number || '-'}</Typography>
+                  {renderField('MSME Number', customer.msme_number)}
                 </Grid>
               </Grid>
             </Paper>
-          </Grid>
+          </Stack>
+        );
 
-          {/* Contact Information */}
-          <Grid size={{ xs: 12 }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-              <PersonIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Contact Information
-            </Typography>
-            <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1 }}>
+      case 1: // Contact & Address
+        return (
+          <Stack spacing={2}>
+            {/* Contact Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <ContactPhoneIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Primary Contact
+              </Typography>
+              
               {primaryContact ? (
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Contact Name</Typography>
-                    <Typography variant="body2" fontWeight={500}>{primaryContact.name}</Typography>
+                    {renderField('Contact Name', primaryContact.name)}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Designation</Typography>
-                    <Typography variant="body2">{primaryContact.designation || '-'}</Typography>
+                    {renderField('Designation', primaryContact.designation)}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Email</Typography>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <EmailIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                      <Typography variant="body2">{primaryContact.email || '-'}</Typography>
-                    </Stack>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                        Email
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <EmailIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                        <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary }}>
+                          {primaryContact.email || '-'}
+                        </Typography>
+                      </Stack>
+                    </Box>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Mobile</Typography>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <PhoneIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                      <Typography variant="body2">{primaryContact.mobile || '-'}</Typography>
-                    </Stack>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                        Mobile
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <PhoneIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                        <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary }}>
+                          {primaryContact.mobile || '-'}
+                        </Typography>
+                      </Stack>
+                    </Box>
                   </Grid>
                 </Grid>
               ) : (
-                <Typography variant="body2" color="textSecondary">No contact information available</Typography>
+                <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.secondary }}>
+                  No contact information available
+                </Typography>
               )}
               
               {customer.contacts && customer.contacts.length > 1 && (
                 <>
                   <Divider sx={{ my: 1.5 }} />
-                  <Typography variant="caption" color="textSecondary" sx={{ mb: 1, display: 'block' }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    fontWeight: 600, 
+                    color: COLORS.text.secondary, 
+                    mb: 1 
+                  }}>
                     Additional Contacts ({customer.contacts.length - 1})
                   </Typography>
                   {customer.contacts.filter(c => !c.is_primary).map((contact, idx) => (
                     <Box key={idx} sx={{ mt: 1, pt: 1, borderTop: `1px dashed ${COLORS.border}` }}>
                       <Grid container spacing={1}>
                         <Grid size={{ xs: 12, sm: 6 }}>
-                          <Typography variant="caption" color="textSecondary">Name</Typography>
-                          <Typography variant="body2">{contact.name}</Typography>
+                          {renderField('Name', contact.name)}
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
-                          <Typography variant="caption" color="textSecondary">Mobile</Typography>
-                          <Typography variant="body2">{contact.mobile || '-'}</Typography>
+                          {renderField('Mobile', contact.mobile)}
                         </Grid>
                       </Grid>
                     </Box>
@@ -200,122 +376,300 @@ const ViewCustomer = ({ open, onClose, customer, onEdit }) => {
                 </>
               )}
             </Paper>
-          </Grid>
 
-          {/* Address Information */}
-          <Grid size={{ xs: 12 }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-              <LocationIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Billing Address
-            </Typography>
-            <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1 }}>
-              <Typography variant="body2">
+            {/* Billing Address */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <LocationIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Billing Address
+              </Typography>
+              
+              <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary, mb: 0.5 }}>
                 {customer.billing_address?.line1}
                 {customer.billing_address?.line2 && `, ${customer.billing_address.line2}`}
               </Typography>
-              <Typography variant="body2">
+              <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary, mb: 0.5 }}>
                 {customer.billing_address?.city}, {customer.billing_address?.state} - {customer.billing_address?.pincode}
               </Typography>
-              <Typography variant="body2">
+              <Typography sx={{ fontSize: '0.8rem', color: COLORS.text.primary }}>
                 {customer.billing_address?.country}
               </Typography>
             </Paper>
-          </Grid>
+          </Stack>
+        );
 
-          {/* Financial Information */}
-          <Grid size={{ xs: 12 }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-              <CreditCardIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-              Financial Information
-            </Typography>
-            <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1 }}>
+      case 2: // Financial & Bank
+        return (
+          <Stack spacing={2}>
+            {/* Financial Information */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <CreditCardIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Financial Information
+              </Typography>
+              
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Credit Limit</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatCurrency(customer.credit_limit)}
-                  </Typography>
+                  {renderField('Credit Limit', formatCurrency(customer.credit_limit))}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Credit Days</Typography>
-                  <Typography variant="body2">{customer.credit_days || '-'} days</Typography>
+                  {renderField('Credit Days', customer.credit_days ? `${customer.credit_days} days` : '-')}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Payment Terms</Typography>
-                  <Typography variant="body2">{customer.payment_terms || '-'}</Typography>
+                  {renderField('Payment Terms', customer.payment_terms)}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="caption" color="textSecondary">Currency</Typography>
-                  <Typography variant="body2">{customer.currency || 'INR'}</Typography>
+                  {renderField('Currency', customer.currency || 'INR')}
                 </Grid>
                 {customer.credit_outstanding > 0 && (
                   <Grid size={{ xs: 12 }}>
-                    <Typography variant="caption" color="textSecondary">Credit Outstanding</Typography>
-                    <Typography variant="body2" color="error">
-                      {formatCurrency(customer.credit_outstanding)}
-                    </Typography>
-                  </Grid>
-                )}
-                {customer.is_credit_hold && (
-                  <Grid size={{ xs: 12 }}>
-                    <Chip
-                      label="Credit Hold"
-                      size="small"
-                      sx={{ bgcolor: '#FEE2E2', color: '#991B1B', fontSize: '0.7rem' }}
-                    />
+                    <Box>
+                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary, mb: 0.5 }}>
+                        Credit Outstanding
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: '#DC2626' }}>
+                        {formatCurrency(customer.credit_outstanding)}
+                      </Typography>
+                    </Box>
                   </Grid>
                 )}
               </Grid>
             </Paper>
-          </Grid>
 
-          {/* Bank Details */}
-          {(customer.bank_details?.bank_name || customer.bank_details?.account_no) && (
-            <Grid size={{ xs: 12 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.primary, mb: 1 }}>
-                <AccountBalanceIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
-                Bank Details
-              </Typography>
-              <Paper sx={{ p: 1.5, bgcolor: COLORS.background.light, borderRadius: 1 }}>
+            {/* Bank Details */}
+            {(customer.bank_details?.bank_name || customer.bank_details?.account_no) && (
+              <Paper sx={{ 
+                p: 2, 
+                borderRadius: 1.5, 
+                border: `1px solid ${COLORS.border}`,
+                bgcolor: COLORS.background.white
+              }}>
+                <Typography sx={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: 600, 
+                  color: COLORS.primary, 
+                  mb: 1.5 
+                }}>
+                  <SavingsIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                  Bank Details
+                </Typography>
+                
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Bank Name</Typography>
-                    <Typography variant="body2">{customer.bank_details.bank_name || '-'}</Typography>
+                    {renderField('Bank Name', customer.bank_details?.bank_name)}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Account Name</Typography>
-                    <Typography variant="body2">{customer.bank_details.account_name || '-'}</Typography>
+                    {renderField('Account Name', customer.bank_details?.account_name)}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">Account Number</Typography>
-                    <Typography variant="body2">{customer.bank_details.account_no || '-'}</Typography>
+                    {renderField('Account Number', customer.bank_details?.account_no, true)}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="textSecondary">IFSC Code</Typography>
-                    <Typography variant="body2">{customer.bank_details.ifsc || '-'}</Typography>
+                    {renderField('IFSC Code', customer.bank_details?.ifsc, true)}
                   </Grid>
                 </Grid>
               </Paper>
-            </Grid>
-          )}
+            )}
 
-          {/* Metadata */}
-          <Grid size={{ xs: 12 }}>
-            <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }}>
-              Created: {formatDate(customer.createdAt)} | Last Updated: {formatDate(customer.updatedAt)}
-            </Typography>
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${COLORS.border}` }}>
-        <Button onClick={onClose}>Close</Button>
-        <Button 
-          variant="contained" 
-          onClick={() => { onClose(); onEdit(); }} 
-          sx={{ bgcolor: COLORS.primary, '&:hover': { bgcolor: COLORS.primaryDark } }}
+            {/* Metadata */}
+            <Paper sx={{ 
+              p: 2, 
+              borderRadius: 1.5, 
+              border: `1px solid ${COLORS.border}`,
+              bgcolor: COLORS.background.white
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                color: COLORS.primary, 
+                mb: 1.5 
+              }}>
+                <BadgeIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                System Information
+              </Typography>
+              
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Created At', formatDate(customer.createdAt))}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  {renderField('Last Updated', formatDate(customer.updatedAt))}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          border: `1px solid ${COLORS.border}`,
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 1.5,
+        px: 2.5,
+        bgcolor: COLORS.background.white,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+          Customer Details
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      {/* Stepper */}
+      <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          connector={<ColorConnector />}
         >
-          Edit Customer
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={CustomStepIcon}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+                  {label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
+      
+      <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+        {renderStepContent(activeStep)}
+      </DialogContent>
+      
+      <DialogActions sx={{
+        px: 2.5,
+        py: 1.5,
+        borderTop: `1px solid ${COLORS.border}`,
+        bgcolor: COLORS.background.white,
+        justifyContent: 'space-between'
+      }}>
+        <Button
+          onClick={handleBack}
+          disabled={activeStep === 0}
+          size="small"
+          startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+          sx={{
+            height: 32,
+            px: 2,
+            borderRadius: 1.5,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text.secondary,
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: COLORS.primary,
+              bgcolor: `${COLORS.primary}10`
+            }
+          }}
+        >
+          Back
         </Button>
+        <Box>
+          <Button
+            onClick={onClose}
+            size="small"
+            sx={{
+              height: 32,
+              px: 2,
+              mr: 1,
+              borderRadius: 1.5,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text.secondary,
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              '&:hover': {
+                borderColor: COLORS.primary,
+                bgcolor: `${COLORS.primary}10`
+              }
+            }}
+          >
+            Close
+          </Button>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={onClose}
+              size="small"
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              size="small"
+              endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+              sx={{
+                height: 32,
+                px: 2,
+                borderRadius: 1.5,
+                bgcolor: COLORS.primary,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { bgcolor: COLORS.primaryDark }
+              }}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
       </DialogActions>
     </Dialog>
   );

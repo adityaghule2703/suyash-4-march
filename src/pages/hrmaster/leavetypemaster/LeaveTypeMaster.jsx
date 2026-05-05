@@ -301,6 +301,9 @@ const LeaveTypeMaster = () => {
   const canCreate = checkPermission(ACTIONS.CREATE);
   const canUpdate = checkPermission(ACTIONS.UPDATE);
   const canDelete = checkPermission(ACTIONS.DELETE);
+useEffect(() => {
+  handleSearch();
+}, [searchTerm, data]);
 
   // Debounce search
   useEffect(() => {
@@ -314,53 +317,76 @@ const LeaveTypeMaster = () => {
 
   // Fetch data when mode changes - only if user has permission
   useEffect(() => {
-    if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
-      fetchData();
-    }
-    // Reset selections when mode changes
-    setSelected([]);
-    setPage(0);
-    setSearchInput('');
-    setSearchTerm('');
-  }, [mode, permissionsLoaded, canViewPage, isSuperAdmin]);
+  if (permissionsLoaded && (canViewPage || isSuperAdmin)) {
+    fetchData();   // ✅ only once
+  }
+}, [permissionsLoaded, canViewPage, isSuperAdmin, mode]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const endpoint = mode === 'leave' 
+ const fetchData = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+
+    const params = new URLSearchParams();
+    params.append('page', page + 1);
+    params.append('limit', rowsPerPage);
+
+    if (searchTerm) params.append('search', searchTerm);
+
+    const endpoint =
+      mode === 'leave'
         ? `${BASE_URL}/api/leavetypes`
         : `${BASE_URL}/api/holidays`;
 
-      const response = await axios.get(endpoint, {
+    const response = await axios.get(
+      `${endpoint}?${params.toString()}`,
+      {
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
-      });
-
-      if (response.data.success) {
-        const formattedData = (response.data.data || []).map(item => ({
-          ...item,
-          name: item.name || item.Name || item.title || item.Title || '',
-          description: item.description || item.Description || '',
-          max_days: item.max_days || item.MaxDaysPerYear || item.maxDays || 0,
-          date: item.date || item.Date || '',
-          is_active: item.is_active !== undefined ? item.is_active : true
-        }));
-        
-        setData(formattedData);
-        setFilteredData(formattedData);
-      } else {
-        showNotification(`Failed to load ${mode === 'leave' ? 'leave types' : 'holidays'}`, 'error');
       }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      showNotification(`Failed to load ${mode === 'leave' ? 'leave types' : 'holidays'}. Please try again.`, 'error');
-    } finally {
-      setLoading(false);
+    );
+
+    if (response.data.success) {
+      const formattedData = (response.data.data || []).map(item => ({
+        ...item,
+        name: item.name || item.Name || item.title || '',
+        description: item.description || item.Description || '',
+        max_days: item.max_days || item.MaxDaysPerYear || 0,
+        date: item.date || item.Date || '',
+        is_active: item.is_active ?? true
+      }));
+
+      setData(formattedData);
+      setFilteredData(formattedData); // ✅ server-side filtering
+
+    } else {
+      showNotification('Failed to load data', 'error');
     }
-  };
+
+  } catch (err) {
+    console.error('Error fetching data:', err);
+    showNotification('Failed to load data. Please try again.', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleSearch = () => {
+  if (!searchTerm) {
+    setFilteredData(data);
+    return;
+  }
+
+  const value = searchTerm.toLowerCase();
+
+  const filtered = data.filter(item =>
+    item.name?.toLowerCase().includes(value) ||
+    item.description?.toLowerCase().includes(value)
+  );
+
+  setFilteredData(filtered);
+};
   
   // Handle refresh
   const handleRefresh = () => {
@@ -374,36 +400,7 @@ const LeaveTypeMaster = () => {
       setMode(newMode);
     }
   };
-  
-  // Handle search (client-side filtering)
-  const handleSearch = () => {
-    if (!searchTerm) {
-      setFilteredData(data);
-      return;
-    }
-    
-    const value = searchTerm.toLowerCase();
-    const filtered = data.filter(item => {
-      if (mode === 'leave') {
-        return (
-          (item.name?.toLowerCase().includes(value)) ||
-          (item.description?.toLowerCase().includes(value))
-        );
-      } else {
-        return (
-          (item.name?.toLowerCase().includes(value)) ||
-          (item.description?.toLowerCase().includes(value))
-        );
-      }
-    });
-    
-    setFilteredData(filtered);
-  };
 
-  // Apply search when searchTerm or data changes
-  useEffect(() => {
-    handleSearch();
-  }, [searchTerm, data]);
   
   // Handle select all - only if user has delete permission
   const handleSelectAll = (event) => {
@@ -1186,5 +1183,4 @@ const LeaveTypeMaster = () => {
     </Box>
   );
 };
-
 export default LeaveTypeMaster;
