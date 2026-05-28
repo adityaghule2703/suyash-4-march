@@ -617,7 +617,7 @@ const EmployeeMaster = () => {
             mb: 0.5
           }}
         >
-          Employee Registery
+          Employee Registry
         </Typography>
         <Typography variant="body2" sx={{ fontSize: '0.75rem', color: COLORS.text.secondary }}>
           Manage and organize employee information and details

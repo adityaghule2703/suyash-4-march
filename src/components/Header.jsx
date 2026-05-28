@@ -338,10 +338,13 @@ const salesOrderMasterItems = [
   // Inventory Management items with CORRECT page names
   const inventoryManagementItems = [
     { name: 'Warehouse Master', path: '/inventorymanagement/warehousemaster', icon: 'M20 7h-4.18A3 3 0 0016 5.18V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v1.18A3 3 0 008.18 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-8-3h4v2h-4V4zm0 4h4v2h-4V8zm-2 2H6V8h4v2zm-2-4h4v2h-4V4zm0 4H6V8h4v2z', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'Warehouse Master', category: 'Inventory Management' },
+     { name: 'MRV Master (Material Return Voucher)', path: '/inventorymanagement/mrvmaster', icon: 'M5 13l4 4L19 7', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'MRV Master (Material Return Voucher)', category: 'Inventory Management' },
+     { name: 'MIV Master (Material Issue Voucher)', path: '/inventorymanagement/mivmaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management' },
+     { name: 'PSV Master (Physical Stock Verification)', path: '/inventorymanagement/psvmaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
     { name: 'Stock Ledger', path: '/inventorymanagement/stockledger', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'Stock Ledger', category: 'Inventory Management' },
-    { name: 'MIV Master (Material Issue Voucher)', path: '/inventorymanagement/mivmaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'MIV Master (Material Issue Voucher)', category: 'Inventory Management' },
-    { name: 'MRV Master (Material Receipt Voucher)', path: '/inventorymanagement/mrvmaster', icon: 'M5 13l4 4L19 7', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'MRV Master (Material Receipt Voucher)', category: 'Inventory Management' },
-    { name: 'PSV Master (Physical Stock Verification)', path: '/inventorymanagement/psvmaster', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', moduleKey: MODULES.INVENTORY_MANAGEMENT, page: 'PSV Master (Physical Stock Verification)', category: 'Inventory Management' },
+    
+   
+    
   ];
 
   // Dispatch Master items with CORRECT page names

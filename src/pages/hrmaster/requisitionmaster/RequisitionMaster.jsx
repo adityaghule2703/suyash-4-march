@@ -1869,6 +1869,10 @@ const RequisitionMaster = () => {
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+    // ⬇️ ADD THESE MISSING STATE DECLARATIONS:
+  const [error, setError] = useState(null);        // Missing this
+  const [totalPages, setTotalPages] = useState(0); // Missing this
+
   // User permissions state
   const [userPermissions, setUserPermissions] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -2193,265 +2197,265 @@ const RequisitionMaster = () => {
   const paginatedRequisitions = requisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const isFilterActive = searchTerm || filters.department || filters.priority;
 
-  const renderTable = () => (
-    <Paper sx={{ 
-      width: '100%', 
-      borderRadius: 2, 
-      overflow: 'hidden',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-      border: `1px solid ${COLORS.border}`
-    }}>
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ 
-              bgcolor: COLORS.background.tableHeader,
-              '& .MuiTableCell-root': {
-                borderBottom: 'none',
-                color: COLORS.text.light,
-                py: 1.5
-              }
-            }}>
-              {/* Checkbox Column - Only show if user has delete permission */}
-              {(canDelete || isSuperAdmin) && (
-                <TableCell padding="checkbox" sx={{ width: 40 }}>
-                  <Checkbox
-                    indeterminate={selected.length > 0 && selected.length < paginatedRequisitions.length}
-                    checked={paginatedRequisitions.length > 0 && selected.length === paginatedRequisitions.length}
-                    onChange={handleSelectAll}
-                    sx={{
-                      color: COLORS.text.light,
-                      '&.Mui-checked': { color: COLORS.text.light },
-                      '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
-                      '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                    }}
-                    disabled={loading || paginatedRequisitions.length === 0}
-                  />
-                </TableCell>
-              )}
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Requisition ID
+const renderTable = () => (
+  <Paper sx={{ 
+    width: '100%', 
+    borderRadius: 2, 
+    overflow: 'hidden',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+    border: `1px solid ${COLORS.border}`
+  }}>
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ 
+            bgcolor: COLORS.background.tableHeader,
+            '& .MuiTableCell-root': {
+              borderBottom: 'none',
+              color: COLORS.text.light,
+              py: 1.5
+            }
+          }}>
+            {/* Checkbox Column - Only show if user has delete permission */}
+            {(canDelete || isSuperAdmin) && (
+              <TableCell padding="checkbox" sx={{ width: 40 }}>
+                <Checkbox
+                  indeterminate={selected.length > 0 && selected.length < requisitions.length}
+                  checked={requisitions.length > 0 && selected.length === requisitions.length}
+                  onChange={handleSelectAll}
+                  sx={{
+                    color: COLORS.text.light,
+                    '&.Mui-checked': { color: COLORS.text.light },
+                    '&.MuiCheckbox-indeterminate': { color: COLORS.text.light },
+                    '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
+                  }}
+                  disabled={loading || requisitions.length === 0}
+                />
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Position Details
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Department/Location
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Status
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Priority
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Budget
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
-                Created
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
-                Actions
+            )}
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Requisition ID
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Position Details
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Department/Location
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Status
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Priority
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Budget
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+              Created
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.5px', width: 60 }} align="center">
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
+                <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
+                  Loading requisitions...
+                </Typography>
               </TableCell>
             </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
-                  <CircularProgress size={32} sx={{ color: COLORS.primary }} />
-                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.secondary, mt: 1 }}>
-                    Loading requisitions...
+          ) : requisitions.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <AssignmentIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
+                  <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
+                    {isFilterActive ? 'No requisitions match your filters' : 'No requisitions available'}
                   </Typography>
-                </TableCell>
-              </TableRow>
-            ) : paginatedRequisitions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={(canDelete || isSuperAdmin) ? 9 : 8} align="center" sx={{ py: 6 }}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <AssignmentIcon sx={{ fontSize: 48, color: COLORS.text.tertiary, mb: 2 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: COLORS.text.secondary, fontWeight: 500 }}>
-                      {isFilterActive ? 'No requisitions match your filters' : 'No requisitions available'}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
-                      {isFilterActive ? 'Try adjusting your search or filters' : 'Create your first requisition to get started'}
-                    </Typography>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedRequisitions.map((requisition, index) => {
-                const isSelected = selected.includes(requisition._id);
-                const isActionMenuOpen = Boolean(actionMenuAnchor) && 
-                  selectedRequisitionForAction?._id === requisition._id;
-                const statusStyle = STATUS_COLORS[requisition.status] || STATUS_COLORS.draft;
-                const priorityColor = PRIORITY_COLORS[requisition.priority?.toLowerCase()] || COLORS.text.secondary;
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.tertiary, mt: 0.5 }}>
+                    {isFilterActive ? 'Try adjusting your search or filters' : 'Create your first requisition to get started'}
+                  </Typography>
+                </Box>
+              </TableCell>
+            </TableRow>
+          ) : (
+            requisitions.map((requisition, index) => {
+              const isSelected = selected.includes(requisition._id);
+              const isActionMenuOpen = Boolean(actionMenuAnchor) && 
+                selectedRequisitionForAction?._id === requisition._id;
+              const statusStyle = STATUS_COLORS[requisition.status] || STATUS_COLORS.draft;
+              const priorityColor = PRIORITY_COLORS[requisition.priority?.toLowerCase()] || COLORS.text.secondary;
 
-                return (
-                  <TableRow
-                    key={requisition._id}
-                    hover
-                    selected={isSelected}
-                    sx={{ 
-                      bgcolor: COLORS.background.white,
-                      '&:hover': { bgcolor: COLORS.background.hover },
-                      '&.Mui-selected': {
-                        bgcolor: `${COLORS.primary}10`,
-                        '&:hover': { bgcolor: `${COLORS.primary}20` }
-                      },
-                      '& .MuiTableCell-root': {
-                        py: 1.5,
-                        fontSize: '0.75rem',
-                        borderColor: COLORS.border
-                      }
-                    }}
-                  >
-                    {/* Checkbox Column - Only show if user has delete permission */}
-                    {(canDelete || isSuperAdmin) && (
-                      <TableCell padding="checkbox" sx={{ width: 40 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleSelect(requisition._id)}
-                          sx={{
-                            color: COLORS.primary,
-                            '&.Mui-checked': { color: COLORS.primary },
-                            '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
-                          }}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
-                        {requisition.requisitionId}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                        {requisition._id.slice(-6)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                        {requisition.positionTitle}
-                      </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                        <Chip
-                          label={`${requisition.noOfPositions} Position${requisition.noOfPositions > 1 ? 's' : ''}`}
-                          size="small"
-                          sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primaryDark, fontSize: '0.6rem', height: 20 }}
-                        />
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {requisition.employmentType}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Stack spacing={0.5}>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <BusinessIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                          <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
-                            {requisition.department}
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <LocationIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
-                          <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                            {requisition.location}
-                          </Typography>
-                        </Stack>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={statusStyle.icon}
-                        label={statusStyle.label}
-                        size="small"
+              return (
+                <TableRow
+                  key={requisition._id}
+                  hover
+                  selected={isSelected}
+                  sx={{ 
+                    bgcolor: COLORS.background.white,
+                    '&:hover': { bgcolor: COLORS.background.hover },
+                    '&.Mui-selected': {
+                      bgcolor: `${COLORS.primary}10`,
+                      '&:hover': { bgcolor: `${COLORS.primary}20` }
+                    },
+                    '& .MuiTableCell-root': {
+                      py: 1.5,
+                      fontSize: '0.75rem',
+                      borderColor: COLORS.border
+                    }
+                  }}
+                >
+                  {/* Checkbox Column - Only show if user has delete permission */}
+                  {(canDelete || isSuperAdmin) && (
+                    <TableCell padding="checkbox" sx={{ width: 40 }}>
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => handleSelect(requisition._id)}
                         sx={{
-                          bgcolor: statusStyle.bg,
-                          color: statusStyle.color,
-                          fontWeight: 500,
-                          fontSize: '0.65rem',
-                          height: 24,
-                          '& .MuiChip-icon': { fontSize: '0.7rem', color: statusStyle.color },
-                          '& .MuiChip-label': { px: 1, fontSize: '0.65rem' }
+                          color: COLORS.primary,
+                          '&.Mui-checked': { color: COLORS.primary },
+                          '& .MuiSvgIcon-root': { fontSize: '1.25rem' }
                         }}
                       />
                     </TableCell>
-                    <TableCell>
+                  )}
+                  <TableCell>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: COLORS.text.primary }}>
+                      {requisition.requisitionId}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      {requisition._id.slice(-6)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {requisition.positionTitle}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                       <Chip
-                        label={requisition.priority || 'Medium'}
+                        label={`${requisition.noOfPositions} Position${requisition.noOfPositions > 1 ? 's' : ''}`}
                         size="small"
-                        sx={{
-                          bgcolor: `${priorityColor}20`,
-                          color: priorityColor,
-                          fontWeight: 500,
-                          fontSize: '0.65rem',
-                          height: 24
-                        }}
+                        sx={{ bgcolor: COLORS.primaryLight, color: COLORS.primaryDark, fontSize: '0.6rem', height: 20 }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
-                        {formatCurrency(requisition.budgetMin)} - {formatCurrency(requisition.budgetMax)}
-                      </Typography>
                       <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                        Grade: {requisition.grade}
+                        {requisition.employmentType}
                       </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
-                        {formatDate(requisition.createdAt)}
-                      </Typography>
-                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
-                        <PersonIcon sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }} />
-                        <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
-                          {requisition.createdByName}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Stack spacing={0.5}>
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <BusinessIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                        <Typography sx={{ fontSize: '0.75rem', color: COLORS.text.primary }}>
+                          {requisition.department}
                         </Typography>
                       </Stack>
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 60 }}>
-                      <ActionMenu 
-                        requisition={requisition}
-                        onView={handleViewRequisition}
-                        onEdit={handleEditRequisition}
-                        onSubmit={handleSubmitRequisition}
-                        onApprove={handleApproveRequisition}
-                        onReject={handleRejectRequisition}
-                        onComment={handleCommentRequisition}
-                        onDelete={handleDeleteRequisition}
-                        anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
-                        onClose={handleActionMenuClose}
-                        onOpen={(e) => handleActionMenuOpen(e, requisition)}
-                        userPermissions={userPermissions}
-                        isSuperAdmin={isSuperAdmin}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <LocationIcon sx={{ fontSize: '0.7rem', color: COLORS.text.tertiary }} />
+                        <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                          {requisition.location}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      icon={statusStyle.icon}
+                      label={statusStyle.label}
+                      size="small"
+                      sx={{
+                        bgcolor: statusStyle.bg,
+                        color: statusStyle.color,
+                        fontWeight: 500,
+                        fontSize: '0.65rem',
+                        height: 24,
+                        '& .MuiChip-icon': { fontSize: '0.7rem', color: statusStyle.color },
+                        '& .MuiChip-label': { px: 1, fontSize: '0.65rem' }
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={requisition.priority || 'Medium'}
+                      size="small"
+                      sx={{
+                        bgcolor: `${priorityColor}20`,
+                        color: priorityColor,
+                        fontWeight: 500,
+                        fontSize: '0.65rem',
+                        height: 24
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.primary }}>
+                      {formatCurrency(requisition.budgetMin)} - {formatCurrency(requisition.budgetMax)}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                      Grade: {requisition.grade}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.text.secondary }}>
+                      {formatDate(requisition.createdAt)}
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
+                      <PersonIcon sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+                        {requisition.createdByName}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell align="center" sx={{ width: 60 }}>
+                    <ActionMenu 
+                      requisition={requisition}
+                      onView={handleViewRequisition}
+                      onEdit={handleEditRequisition}
+                      onSubmit={handleSubmitRequisition}
+                      onApprove={handleApproveRequisition}
+                      onReject={handleRejectRequisition}
+                      onComment={handleCommentRequisition}
+                      onDelete={handleDeleteRequisition}
+                      anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
+                      onClose={handleActionMenuClose}
+                      onOpen={(e) => handleActionMenuOpen(e, requisition)}
+                      userPermissions={userPermissions}
+                      isSuperAdmin={isSuperAdmin}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
 
-      <TablePagination
-        rowsPerPageOptions={[5, 10, 25, 50]}
-        component="div"
-        count={totalItems}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        sx={{
-          borderTop: `1px solid ${COLORS.border}`,
-          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-            fontSize: '0.7rem',
-            color: COLORS.text.secondary
-          },
-          '& .MuiTablePagination-select': { fontSize: '0.7rem' },
-          '& .MuiTablePagination-actions button': { color: COLORS.primary }
-        }}
-      />
-    </Paper>
-  );
+    <TablePagination
+      rowsPerPageOptions={[5, 10, 25, 50]}
+      component="div"
+      count={totalItems}
+      rowsPerPage={rowsPerPage}
+      page={page}
+      onPageChange={handleChangePage}
+      onRowsPerPageChange={handleChangeRowsPerPage}
+      sx={{
+        borderTop: `1px solid ${COLORS.border}`,
+        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+          fontSize: '0.7rem',
+          color: COLORS.text.secondary
+        },
+        '& .MuiTablePagination-select': { fontSize: '0.7rem' },
+        '& .MuiTablePagination-actions button': { color: COLORS.primary }
+      }}
+    />
+  </Paper>
+);
 
   // Show loading state while permissions are being fetched
   if (!permissionsLoaded) {
