@@ -1296,7 +1296,6 @@
 // export default DeliveryChallanMaster;
 
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
@@ -1352,7 +1351,8 @@ import {
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   Cancel as CancelIcon,
   LocalActivity as LocalActivityIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import BASE_URL from '../../../config/Config';
@@ -1369,6 +1369,7 @@ import RejectDeliveryDialog from './RejectDeliveryDialog';
 import PackingListDialog from './PackingListDialog';
 import EditPackingListDialog from './EditPackingListDialog';
 import DispatchDialog from './DispatchDialog';
+import PrintDeliveryChallan from './PrintDeliveryChallan';
 
 // Color constants
 const COLORS = {
@@ -1418,9 +1419,9 @@ const AccessDenied = () => (
   </Box>
 );
 
-// Action Menu Component - WITH CORRECT PERMISSIONS
-const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB, onPOD, onRejectDelivery, onPackingList, onEditPackingList, onDispatch, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
-  // Permission checks - USING CORRECT MODULE AND PAGE
+// Action Menu Component - WITH PRINT CHALLAN BUTTON
+const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB, onPOD, onRejectDelivery, onPackingList, onEditPackingList, onDispatch, onPrintChallan, anchorEl, onClose, onOpen, permissions, isSuperAdmin }) => {
+  // Permission checks
   const canView = isSuperAdmin || hasPermission(permissions, MODULES.DISPATCH_MASTER, PAGES.DELIVERY_CHALLAN, ACTIONS.VIEW);
   const canCreate = isSuperAdmin || hasPermission(permissions, MODULES.DISPATCH_MASTER, PAGES.DELIVERY_CHALLAN, ACTIONS.CREATE);
   const canUpdate = isSuperAdmin || hasPermission(permissions, MODULES.DISPATCH_MASTER, PAGES.DELIVERY_CHALLAN, ACTIONS.UPDATE);
@@ -1433,6 +1434,7 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
   const showDispatch = deliveryChallan.status === 'EWB Generated';
   const showPOD = deliveryChallan.status === 'Dispatched';
   const showRejectDelivery = deliveryChallan.status === 'Dispatched';
+  const showPrintChallan = deliveryChallan.status === 'Delivered';
 
   return (
     <>
@@ -1480,6 +1482,26 @@ const ActionMenu = ({ deliveryChallan, onView, onDelete, onPrint, onGenerateEWB,
             <ListItemText>
               <Typography variant="body2" fontWeight={500} sx={{ color: COLORS.text.primary, fontSize: '0.75rem' }}>
                 View Details
+              </Typography>
+            </ListItemText>
+          </MenuItem>
+        )}
+
+        {/* Print Challan - Visible only for Delivered status */}
+        {showPrintChallan && canView && (
+          <MenuItem 
+            onClick={() => {
+              onPrintChallan(deliveryChallan);
+              onClose();
+            }}
+            sx={{ py: 1.5 }}
+          >
+            <ListItemIcon sx={{ color: '#0D696C', minWidth: 36 }}>
+              <PrintIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              <Typography variant="body2" fontWeight={500} sx={{ color: '#0D696C', fontSize: '0.75rem' }}>
+                Print Challan
               </Typography>
             </ListItemText>
           </MenuItem>
@@ -1640,6 +1662,7 @@ const DeliveryChallanMaster = () => {
   const [openPackingListDialog, setOpenPackingListDialog] = useState(false);
   const [openEditPackingListDialog, setOpenEditPackingListDialog] = useState(false);
   const [openDispatchDialog, setOpenDispatchDialog] = useState(false);
+  const [openPrintModal, setOpenPrintModal] = useState(false);
   const [pendingDispatchDCs, setPendingDispatchDCs] = useState([]);
   
   // Selected delivery challan
@@ -1693,7 +1716,7 @@ const DeliveryChallanMaster = () => {
     fetchUserPermissions();
   }, []);
 
-  // Check permission helper - USING CORRECT MODULE AND PAGE
+  // Check permission helper
   const checkPermission = (action) => {
     if (isSuperAdmin) return true;
     return hasPermission(
@@ -1968,6 +1991,17 @@ const DeliveryChallanMaster = () => {
       return;
     }
     window.open(`${BASE_URL}/api/delivery-challans/${dc._id}/print`, '_blank');
+  };
+  
+  // Handle Print Challan
+  const handlePrintChallan = (dc) => {
+    if (!canViewPage) {
+      showNotification('You don\'t have permission to print delivery challan', 'error');
+      return;
+    }
+    setSelectedDC(dc);
+    setOpenPrintModal(true);
+    handleActionMenuClose();
   };
   
   const handleAddSuccess = () => {
@@ -2490,6 +2524,7 @@ const DeliveryChallanMaster = () => {
                           onPackingList={handlePackingList}
                           onEditPackingList={handleEditPackingList}
                           onDispatch={handleDispatch}
+                          onPrintChallan={handlePrintChallan}
                           anchorEl={isActionMenuOpen ? actionMenuAnchor : null}
                           onClose={handleActionMenuClose}
                           onOpen={(e) => handleActionMenuOpen(e, dc)}
@@ -2550,7 +2585,7 @@ const DeliveryChallanMaster = () => {
         />
       )}
 
-      {selectedDC && canDelete && (
+      {/* {selectedDC && canDelete && (
         <DeleteDeliveryChallan 
           open={openDeleteDialog}
           onClose={() => {
@@ -2560,7 +2595,7 @@ const DeliveryChallanMaster = () => {
           deliveryChallan={selectedDC}
           onDelete={handleDeleteSuccess}
         />
-      )}
+      )} */}
 
       {/* Pending Dispatch Dialog - No permission check needed as it's a view */}
       <PendingDispatchDialog
@@ -2644,6 +2679,18 @@ const DeliveryChallanMaster = () => {
           }}
           deliveryChallan={selectedDC}
           onSuccess={handleEWBSuccess}
+        />
+      )}
+
+      {/* Print Delivery Challan Dialog */}
+      {selectedDC && canViewPage && (
+        <PrintDeliveryChallan
+          open={openPrintModal}
+          onClose={() => {
+            setOpenPrintModal(false);
+            setSelectedDC(null);
+          }}
+          deliveryChallan={selectedDC}
         />
       )}
 

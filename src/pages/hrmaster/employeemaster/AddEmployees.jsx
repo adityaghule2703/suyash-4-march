@@ -2100,6 +2100,2408 @@
 
 // export default AddEmployees;
 
+// import React, { useState, useEffect } from 'react';
+// import {
+//   Box,
+//   Paper,
+//   Grid,
+//   Stepper,
+//   Step,
+//   StepLabel,
+//   StepConnector,
+//   stepConnectorClasses,
+//   TextField,
+//   Typography,
+//   Button,
+//   Stack,
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Alert,
+//   FormControl,
+//   InputLabel,
+//   Select,
+//   MenuItem,
+//   Autocomplete,
+//   InputAdornment,
+//   styled,
+//   IconButton
+// } from '@mui/material';
+// import {
+//   Add as AddIcon,
+//   NavigateNext as NavigateNextIcon,
+//   NavigateBefore as NavigateBeforeIcon,
+//   Search as SearchIcon
+// } from '@mui/icons-material';
+// import axios from 'axios';
+// import BASE_URL from '../../../config/Config';
+// import AddDepartments from '../departmentmaster/AddDepartments';
+// import AddDesignations from '../designationmaster/AddDesignations';
+// // Color constants matching Companies component
+// const COLORS = {
+//   primary: '#063C3F',
+//   primaryLight: '#E8F0F1',
+//   primaryDark: '#05292B',
+//   text: {
+//     primary: '#151C26',
+//     secondary: '#4B5568',
+//     tertiary: '#94A3B8',
+//     light: '#FFFFFF',
+//     lightMuted: 'rgba(255, 255, 255, 0.9)'
+//   },
+//   background: {
+//     white: '#FFFFFF',
+//     light: '#F8FFFC',
+//     hover: '#F0FDF9',
+//     tableHeader: '#063C3F'
+//   },
+//   border: '#E3E8EF',
+//   status: {
+//     success: '#9FE2BF',
+//     warning: '#FEF3C7',
+//     error: '#FEE2E2',
+//     info: '#E0F2FE'
+//   },
+//   chips: {
+//     active: '#9FE2BF',
+//     inactive: '#F1F5F9',
+//     suspended: '#FEF3C7',
+//     locked: '#FEE2E2'
+//   }
+// };
+
+// // Modern Stepper Connector with Primary Color
+// const ColorConnector = styled(StepConnector)(({ theme }) => ({
+//   [`&.${stepConnectorClasses.active}`]: {
+//     [`& .${stepConnectorClasses.line}`]: {
+//       backgroundColor: COLORS.primary,
+//     },
+//   },
+//   [`&.${stepConnectorClasses.completed}`]: {
+//     [`& .${stepConnectorClasses.line}`]: {
+//       backgroundColor: COLORS.primary,
+//     },
+//   },
+//   [`& .${stepConnectorClasses.line}`]: {
+//     height: 2,
+//     border: 0,
+//     backgroundColor: '#eaeaf0',
+//     borderRadius: 1,
+//   },
+// }));
+
+// // Custom styled Paper for dropdowns
+// const CustomPaper = styled(Paper)({
+//   maxHeight: 200,
+//   overflow: 'auto',
+//   '&::-webkit-scrollbar': {
+//     display: 'none'
+//   },
+//   scrollbarWidth: 'none',
+//   '-ms-overflow-style': 'none'
+// });
+
+// const steps = ['Personal Info', 'Employment', 'Pay & Work', 'Bank & Emergency'];
+
+// // Validation helper functions
+// const validateEmail = (email) => {
+//   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+//   return emailRegex.test(email);
+// };
+
+// const validatePhone = (phone) => {
+//   const cleanPhone = phone.replace(/[\s\-]/g, '').replace(/^\+91/, '');
+//   const phoneRegex = /^[6-9]\d{9}$/;
+//   return cleanPhone === '' || phoneRegex.test(cleanPhone);
+// };
+
+// const validatePAN = (pan) => {
+//   const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+//   return pan === '' || panRegex.test(pan);
+// };
+
+// const validateAadhar = (aadhar) => {
+//   const aadharRegex = /^\d{12}$/;
+//   return aadhar === '' || aadharRegex.test(aadhar);
+// };
+
+// const validateIFSC = (ifsc) => {
+//   const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+//   return ifsc === '' || ifscRegex.test(ifsc);
+// };
+
+// const validateAccountNumber = (accNo) => {
+//   const accountRegex = /^\d{9,18}$/;
+//   return accNo === '' || accountRegex.test(accNo);
+// };
+
+// const validatePIN = (pin) => {
+//   const pinRegex = /^\d{6}$/;
+//   return pin === '' || pinRegex.test(pin);
+// };
+
+// const validatePFNumber = (pf) => {
+//   const pfRegex = /^[A-Z]{2}\/\d{5}\/\d{7}$/;
+//   return pf === '' || pfRegex.test(pf);
+// };
+
+// const validateUAN = (uan) => {
+//   const uanRegex = /^\d{12}$/;
+//   return uan === '' || uanRegex.test(uan);
+// };
+
+// const validateESINumber = (esi) => {
+//   const esiRegex = /^\d{17}$/;
+//   return esi === '' || esiRegex.test(esi);
+// };
+
+// const validateName = (name) => {
+//   const nameRegex = /^[A-Za-z\s.'-]+$/;
+//   return name === '' || nameRegex.test(name);
+// };
+
+// const validateAddress = (address) => {
+//   const addressRegex = /^[A-Za-z0-9\s,.#\-/]+$/;
+//   return address === '' || addressRegex.test(address);
+// };
+
+// const validateBankName = (bankName) => {
+//   const bankNameRegex = /^[A-Za-z\s.'&-]+$/;
+//   return bankName === '' || bankNameRegex.test(bankName);
+// };
+
+// const validateBranchName = (branch) => {
+//   const branchRegex = /^[A-Za-z0-9\s.-]+$/;
+//   return branch === '' || branchRegex.test(branch);
+// };
+
+// const validateWorkStation = (station) => {
+//   const stationRegex = /^[A-Za-z0-9\s-]+$/;
+//   return station === '' || stationRegex.test(station);
+// };
+
+// const validateRelationship = (relationship) => {
+//   const relationshipRegex = /^[A-Za-z\s]+$/;
+//   return relationship === '' || relationshipRegex.test(relationship);
+// };
+
+// const AddEmployees = ({ open, onClose, onAdd }) => {
+//   const [activeStep, setActiveStep] = useState(0);
+//   const [formData, setFormData] = useState({
+//     // Personal Info
+//     FirstName: '',
+//     LastName: '',
+//     Gender: 'M',
+//     DateOfBirth: '',
+//     Email: '',
+//     Phone: '',
+//     Address: '',
+
+//     // Employment
+//     DepartmentID: '',
+//     DesignationID: '',
+//     DateOfJoining: '',
+//     EmploymentStatus: 'active',
+//     EmploymentType: 'Monthly',
+//     PayStructureType: 'Fixed',
+
+//     // Pay & Work
+//     BasicSalary: '',
+//     HourlyRate: '',
+//     OvertimeRateMultiplier: '1.5',
+//     SkillLevel: '',
+//     WorkStation: '',
+//     LineNumber: '',
+//     PAN: '',
+//     AadharNumber: '',
+//     PFNumber: '',
+//     UAN: '',
+//     ESINumber: '',
+
+//     // Bank & Emergency
+//     BankAccountNumber: '',
+//     BankAccountHolderName: '',
+//     BankName: '',
+//     BankBranch: '',
+//     BankIfscCode: '',
+//     BankAccountType: 'Savings',
+//     EmergencyContactName: '',
+//     EmergencyContactRelationship: '',
+//     EmergencyContactPhone: '',
+//     EmergencyContactAddress: '',
+//     EmergencyContactPIN: ''
+//   });
+
+//   const [fieldErrors, setFieldErrors] = useState({});
+//   const [touched, setTouched] = useState({});
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState('');
+//   const [departments, setDepartments] = useState([]);
+//   const [designations, setDesignations] = useState([]);
+//   const [loadingData, setLoadingData] = useState(true);
+//   const [addDepartmentOpen, setAddDepartmentOpen] = useState(false);
+//   const [addDesignationOpen, setAddDesignationOpen] = useState(false);
+
+//   // Gender options
+//   const genderOptions = [
+//     { value: 'M', label: 'Male' },
+//     { value: 'F', label: 'Female' },
+//     { value: 'O', label: 'Other' }
+//   ];
+
+//   // Employment Status options
+//   const employmentStatusOptions = [
+//     { value: 'active', label: 'Active' },
+//     { value: 'resigned', label: 'Resigned' },
+//     { value: 'terminated', label: 'Terminated' },
+//     { value: 'retired', label: 'Retired' }
+//   ];
+
+//   // Employment Type options
+//   const employmentTypeOptions = [
+//     { value: 'Monthly', label: 'Monthly' },
+//     { value: 'Hourly', label: 'Hourly' },
+//     { value: 'PieceRate', label: 'Piece Rate' }
+//   ];
+
+//   // Pay Structure Type options
+//   const payStructureOptions = [
+//     { value: 'Fixed', label: 'Fixed' },
+//     { value: 'Variable', label: 'Variable' },
+//     { value: 'Commission', label: 'Commission' },
+//     { value: 'PieceRate', label: 'Piece Rate' }
+//   ];
+
+//   // Skill Level options
+//   const skillLevelOptions = [
+//     { value: 'Unskilled', label: 'Unskilled' },
+//     { value: 'Semi-Skilled', label: 'Semi-Skilled' },
+//     { value: 'Skilled', label: 'Skilled' },
+//     { value: 'Highly Skilled', label: 'Highly Skilled' }
+//   ];
+
+//   // Account type options
+//   const accountTypeOptions = [
+//     { value: 'Savings', label: 'Savings' },
+//     { value: 'Current', label: 'Current' },
+//     { value: 'Salary', label: 'Salary' }
+//   ];
+
+//   // Fetch departments and designations
+//   useEffect(() => {
+//     if (open) {
+//       fetchDropdownData();
+//     }
+//   }, [open]);
+
+//   const fetchDropdownData = async () => {
+//     try {
+//       setLoadingData(true);
+//       const token = localStorage.getItem('token');
+
+//       const deptResponse = await axios.get(`${BASE_URL}/api/departments`, {
+//         headers: { 'Authorization': `Bearer ${token}` }
+//       });
+
+//       const desigResponse = await axios.get(`${BASE_URL}/api/designations`, {
+//         headers: { 'Authorization': `Bearer ${token}` }
+//       });
+
+//       if (deptResponse.data.success) {
+//         setDepartments(deptResponse.data.data || []);
+//       }
+
+//       if (desigResponse.data.success) {
+//         setDesignations(desigResponse.data.data || []);
+//       }
+//     } catch (err) {
+//       console.error('Error fetching dropdown data:', err);
+//       setError('Failed to load dropdown data');
+//     } finally {
+//       setLoadingData(false);
+//     }
+//   };
+
+//   // Handle department added from modal
+//   const handleDepartmentAdded = (newDepartment) => {
+//     // Add the new department to the departments list
+//     setDepartments(prev => [...prev, newDepartment]);
+//     // Automatically select the newly added department
+//     setFormData(prev => ({
+//       ...prev,
+//       DepartmentID: newDepartment._id
+//     }));
+//     // Clear any department-related error
+//     if (fieldErrors.DepartmentID) {
+//       setFieldErrors(prev => ({
+//         ...prev,
+//         DepartmentID: ''
+//       }));
+//     }
+//   };
+
+//   // Handle designation added from modal
+//   const handleDesignationAdded = (newDesignation) => {
+//     // Add the new designation to the designation list
+//     setDesignations(prev => [...prev, newDesignation]);
+//     // Automatically select the newly added designation
+//     setFormData(prev => ({
+//       ...prev,
+//       DesignationID: newDesignation._id
+//     }));
+//     // Clear any designation-related error
+//     if (fieldErrors.DesignationID) {
+//       setFieldErrors(prev => ({
+//         ...prev,
+//         DesignationID: ''
+//       }));
+//     }
+//   };
+
+//   const validateField = (name, value) => {
+//     switch (name) {
+//       case 'FirstName':
+//       case 'LastName':
+//       case 'BankAccountHolderName':
+//       case 'EmergencyContactName':
+//         if (value && !validateName(value)) {
+//           return 'Only letters, spaces, dots, and hyphens allowed';
+//         }
+//         break;
+
+//       case 'Email':
+//         if (value && !validateEmail(value)) {
+//           return 'Please enter a valid email address';
+//         }
+//         break;
+
+//       case 'Phone':
+//       case 'EmergencyContactPhone':
+//         if (value && !validatePhone(value)) {
+//           return 'Please enter a valid 10-digit mobile number starting with 6-9';
+//         }
+//         break;
+
+//       case 'Address':
+//       case 'EmergencyContactAddress':
+//         if (value && !validateAddress(value)) {
+//           return 'Address contains invalid characters';
+//         }
+//         break;
+
+//       case 'WorkStation':
+//       case 'LineNumber':
+//         if (value && !validateWorkStation(value)) {
+//           return 'Only letters, numbers, spaces, and hyphens allowed';
+//         }
+//         break;
+
+//       case 'PAN':
+//         if (value && !validatePAN(value)) {
+//           return 'PAN must be in format: ABCDE1234F';
+//         }
+//         break;
+
+//       case 'AadharNumber':
+//         if (value && !validateAadhar(value)) {
+//           return 'Aadhar number must be 12 digits';
+//         }
+//         break;
+
+//       case 'PFNumber':
+//         if (value && !validatePFNumber(value)) {
+//           return 'PF number must be in format: XX/12345/1234567';
+//         }
+//         break;
+
+//       case 'UAN':
+//         if (value && !validateUAN(value)) {
+//           return 'UAN must be 12 digits';
+//         }
+//         break;
+
+//       case 'ESINumber':
+//         if (value && !validateESINumber(value)) {
+//           return 'ESI number must be 17 digits';
+//         }
+//         break;
+
+//       case 'BankAccountNumber':
+//         if (value && !validateAccountNumber(value)) {
+//           return 'Account number must be 9-18 digits';
+//         }
+//         break;
+
+//       case 'BankName':
+//         if (value && !validateBankName(value)) {
+//           return 'Only letters, spaces, dots, and hyphens allowed';
+//         }
+//         break;
+
+//       case 'BankBranch':
+//         if (value && !validateBranchName(value)) {
+//           return 'Only letters, numbers, spaces, dots, and hyphens allowed';
+//         }
+//         break;
+
+//       case 'BankIfscCode':
+//         if (value && !validateIFSC(value)) {
+//           return 'IFSC code must be in format: ABCD0123456';
+//         }
+//         break;
+
+//       case 'EmergencyContactRelationship':
+//         if (value && !validateRelationship(value)) {
+//           return 'Only letters and spaces allowed';
+//         }
+//         break;
+
+//       case 'EmergencyContactPIN':
+//         if (value && !validatePIN(value)) {
+//           return 'PIN code must be 6 digits';
+//         }
+//         break;
+
+//       default:
+//         return '';
+//     }
+//     return '';
+//   };
+
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+
+//     let processedValue = value;
+
+//     // Apply field-specific formatting
+//     switch (name) {
+//       case 'FirstName':
+//       case 'LastName':
+//       case 'BankAccountHolderName':
+//       case 'EmergencyContactName':
+//       case 'EmergencyContactRelationship':
+//         processedValue = value.replace(/[^A-Za-z\s.'-]/g, '');
+//         break;
+
+//       case 'BankName':
+//         processedValue = value.replace(/[^A-Za-z\s.'&-]/g, '');
+//         break;
+
+//       case 'Address':
+//       case 'EmergencyContactAddress':
+//         processedValue = value.replace(/[^A-Za-z0-9\s,.#\-/]/g, '');
+//         break;
+
+//       case 'WorkStation':
+//       case 'LineNumber':
+//         processedValue = value.replace(/[^A-Za-z0-9\s-]/g, '');
+//         break;
+
+//       case 'BankBranch':
+//         processedValue = value.replace(/[^A-Za-z0-9\s.-]/g, '');
+//         break;
+
+//       case 'Phone':
+//       case 'EmergencyContactPhone':
+//       case 'BankAccountNumber':
+//       case 'AadharNumber':
+//       case 'UAN':
+//       case 'ESINumber':
+//       case 'EmergencyContactPIN':
+//         processedValue = value.replace(/\D/g, '');
+//         break;
+
+//       case 'PAN':
+//       case 'BankIfscCode':
+//         processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+//         break;
+
+//       case 'PFNumber':
+//         processedValue = value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+//         break;
+
+//       default:
+//         processedValue = value;
+//     }
+
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: processedValue
+//     }));
+
+//     if (touched[name] || value) {
+//       const errorMessage = validateField(name, processedValue);
+//       setFieldErrors(prev => ({
+//         ...prev,
+//         [name]: errorMessage
+//       }));
+//     }
+//   };
+
+//   const handleBlur = (e) => {
+//     const { name, value } = e.target;
+
+//     setTouched(prev => ({
+//       ...prev,
+//       [name]: true
+//     }));
+
+//     const errorMessage = validateField(name, value);
+//     setFieldErrors(prev => ({
+//       ...prev,
+//       [name]: errorMessage
+//     }));
+//   };
+
+//   const handleEmploymentTypeChange = (e) => {
+//     const employmentType = e.target.value;
+//     let defaultPayStructure = 'Fixed';
+
+//     if (employmentType === 'PieceRate') {
+//       defaultPayStructure = 'PieceRate';
+//     }
+
+//     setFormData(prev => ({
+//       ...prev,
+//       EmploymentType: employmentType,
+//       PayStructureType: defaultPayStructure
+//     }));
+//   };
+
+//   const validateStep = (step) => {
+//     const errors = {};
+//     let isValid = true;
+
+//     switch (step) {
+//       case 0:
+//         if (!formData.FirstName?.trim()) {
+//           errors.FirstName = 'First name is required';
+//           isValid = false;
+//         } else {
+//           const nameError = validateField('FirstName', formData.FirstName);
+//           if (nameError) {
+//             errors.FirstName = nameError;
+//             isValid = false;
+//           }
+//         }
+
+//         if (!formData.LastName?.trim()) {
+//           errors.LastName = 'Last name is required';
+//           isValid = false;
+//         } else {
+//           const nameError = validateField('LastName', formData.LastName);
+//           if (nameError) {
+//             errors.LastName = nameError;
+//             isValid = false;
+//           }
+//         }
+
+//         if (!formData.Email?.trim()) {
+//           errors.Email = 'Email is required';
+//           isValid = false;
+//         } else {
+//           const emailError = validateField('Email', formData.Email);
+//           if (emailError) {
+//             errors.Email = emailError;
+//             isValid = false;
+//           }
+//         }
+
+//         if (formData.Phone) {
+//           const phoneError = validateField('Phone', formData.Phone);
+//           if (phoneError) {
+//             errors.Phone = phoneError;
+//             isValid = false;
+//           }
+//         }
+
+//         if (formData.Address) {
+//           const addressError = validateField('Address', formData.Address);
+//           if (addressError) {
+//             errors.Address = addressError;
+//             isValid = false;
+//           }
+//         }
+//         break;
+
+//       case 1:
+//         if (!formData.DepartmentID) {
+//           errors.DepartmentID = 'Department is required';
+//           isValid = false;
+//         }
+//         if (!formData.DesignationID) {
+//           errors.DesignationID = 'Designation is required';
+//           isValid = false;
+//         }
+//         if (!formData.DateOfJoining) {
+//           errors.DateOfJoining = 'Date of joining is required';
+//           isValid = false;
+//         }
+//         break;
+
+//       case 2:
+//         if (formData.EmploymentType === 'Monthly' && !formData.BasicSalary) {
+//           errors.BasicSalary = 'Basic salary is required for monthly employees';
+//           isValid = false;
+//         }
+//         if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
+//           errors.HourlyRate = 'Hourly rate is required for hourly employees';
+//           isValid = false;
+//         }
+
+//         const taxFields = ['PAN', 'AadharNumber', 'PFNumber', 'UAN', 'ESINumber', 'WorkStation', 'LineNumber'];
+//         taxFields.forEach(field => {
+//           if (formData[field]) {
+//             const error = validateField(field, formData[field]);
+//             if (error) {
+//               errors[field] = error;
+//               isValid = false;
+//             }
+//           }
+//         });
+//         break;
+
+//       case 3:
+//         const bankFields = ['BankAccountNumber', 'BankAccountHolderName', 'BankName', 'BankBranch', 'BankIfscCode'];
+//         const hasAnyBankDetail = bankFields.some(field => formData[field]);
+
+//         if (hasAnyBankDetail) {
+//           bankFields.forEach(field => {
+//             if (!formData[field]) {
+//               errors[field] = `${field.replace(/([A-Z])/g, ' $1').trim()} is required when providing bank details`;
+//               isValid = false;
+//             } else {
+//               const error = validateField(field, formData[field]);
+//               if (error) {
+//                 errors[field] = error;
+//                 isValid = false;
+//               }
+//             }
+//           });
+//         }
+
+//         const emergencyFields = ['EmergencyContactName', 'EmergencyContactRelationship', 'EmergencyContactPhone', 'EmergencyContactAddress', 'EmergencyContactPIN'];
+//         const hasAnyEmergencyDetail = emergencyFields.some(field => formData[field]);
+
+//         if (hasAnyEmergencyDetail) {
+//           emergencyFields.forEach(field => {
+//             if (!formData[field]) {
+//               errors[field] = `${field.replace(/([A-Z])/g, ' $1').trim()} is required when providing emergency contact`;
+//               isValid = false;
+//             } else {
+//               const error = validateField(field, formData[field]);
+//               if (error) {
+//                 errors[field] = error;
+//                 isValid = false;
+//               }
+//             }
+//           });
+//         }
+//         break;
+//     }
+
+//     setFieldErrors(errors);
+//     if (!isValid) {
+//       setError('Please fix the errors in this section');
+//     }
+//     return isValid;
+//   };
+
+//   const validateAllFields = () => {
+//     const errors = {};
+//     let isValid = true;
+
+//     // Personal Info
+//     if (!formData.FirstName?.trim()) {
+//       errors.FirstName = 'First name is required';
+//       isValid = false;
+//     } else {
+//       const error = validateField('FirstName', formData.FirstName);
+//       if (error) errors.FirstName = error;
+//     }
+
+//     if (!formData.LastName?.trim()) {
+//       errors.LastName = 'Last name is required';
+//       isValid = false;
+//     } else {
+//       const error = validateField('LastName', formData.LastName);
+//       if (error) errors.LastName = error;
+//     }
+
+//     if (!formData.Email?.trim()) {
+//       errors.Email = 'Email is required';
+//       isValid = false;
+//     } else {
+//       const error = validateField('Email', formData.Email);
+//       if (error) errors.Email = error;
+//     }
+
+//     if (formData.Phone) {
+//       const error = validateField('Phone', formData.Phone);
+//       if (error) errors.Phone = error;
+//     }
+
+//     if (formData.Address) {
+//       const error = validateField('Address', formData.Address);
+//       if (error) errors.Address = error;
+//     }
+
+//     // Employment
+//     if (!formData.DepartmentID) {
+//       errors.DepartmentID = 'Department is required';
+//       isValid = false;
+//     }
+//     if (!formData.DesignationID) {
+//       errors.DesignationID = 'Designation is required';
+//       isValid = false;
+//     }
+//     if (!formData.DateOfJoining) {
+//       errors.DateOfJoining = 'Date of joining is required';
+//       isValid = false;
+//     }
+
+//     // Pay & Work
+//     if (formData.EmploymentType === 'Monthly' && !formData.BasicSalary) {
+//       errors.BasicSalary = 'Basic salary is required for monthly employees';
+//       isValid = false;
+//     }
+//     if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
+//       errors.HourlyRate = 'Hourly rate is required for hourly employees';
+//       isValid = false;
+//     }
+
+//     const taxFields = ['PAN', 'AadharNumber', 'PFNumber', 'UAN', 'ESINumber', 'WorkStation', 'LineNumber'];
+//     taxFields.forEach(field => {
+//       if (formData[field]) {
+//         const error = validateField(field, formData[field]);
+//         if (error) {
+//           errors[field] = error;
+//           isValid = false;
+//         }
+//       }
+//     });
+
+//     // Bank & Emergency
+//     const bankFields = ['BankAccountNumber', 'BankAccountHolderName', 'BankName', 'BankBranch', 'BankIfscCode'];
+//     const hasAnyBankDetail = bankFields.some(field => formData[field]);
+
+//     if (hasAnyBankDetail) {
+//       bankFields.forEach(field => {
+//         if (!formData[field]) {
+//           errors[field] = `${field.replace(/([A-Z])/g, ' $1').trim()} is required`;
+//           isValid = false;
+//         } else {
+//           const error = validateField(field, formData[field]);
+//           if (error) errors[field] = error;
+//         }
+//       });
+//     }
+
+//     const emergencyFields = ['EmergencyContactName', 'EmergencyContactRelationship', 'EmergencyContactPhone', 'EmergencyContactAddress', 'EmergencyContactPIN'];
+//     const hasAnyEmergencyDetail = emergencyFields.some(field => formData[field]);
+
+//     if (hasAnyEmergencyDetail) {
+//       emergencyFields.forEach(field => {
+//         if (!formData[field]) {
+//           errors[field] = `${field.replace(/([A-Z])/g, ' $1').trim()} is required`;
+//           isValid = false;
+//         } else {
+//           const error = validateField(field, formData[field]);
+//           if (error) errors[field] = error;
+//         }
+//       });
+//     }
+
+//     setFieldErrors(errors);
+//     if (!isValid) {
+//       setError('Please fix all validation errors');
+//     }
+//     return isValid;
+//   };
+
+//   const handleNext = () => {
+//     if (validateStep(activeStep)) {
+//       setError('');
+//       setActiveStep(prev => prev + 1);
+//     }
+//   };
+
+//   const handleBack = () => {
+//     setError('');
+//     setActiveStep(prev => prev - 1);
+//   };
+
+//   const handleSubmit = async () => {
+//     if (!validateAllFields()) {
+//       return;
+//     }
+
+//     setLoading(true);
+//     setError('');
+
+//     try {
+//       const token = localStorage.getItem('token');
+
+//       const payload = {
+//         FirstName: formData.FirstName,
+//         LastName: formData.LastName,
+//         Gender: formData.Gender,
+//         DateOfBirth: formData.DateOfBirth || undefined,
+//         Email: formData.Email,
+//         Phone: formData.Phone || undefined,
+//         Address: formData.Address || undefined,
+//         DepartmentID: formData.DepartmentID,
+//         DesignationID: formData.DesignationID,
+//         DateOfJoining: formData.DateOfJoining,
+//         EmploymentStatus: formData.EmploymentStatus,
+//         EmploymentType: formData.EmploymentType,
+//         PayStructureType: formData.PayStructureType,
+//         BasicSalary: formData.EmploymentType === 'Monthly' ? Number(formData.BasicSalary || 0) : 0,
+//         HourlyRate: formData.EmploymentType === 'Hourly' ? Number(formData.HourlyRate || 0) : 0,
+//         OvertimeRateMultiplier: Number(formData.OvertimeRateMultiplier || 1.5),
+//         SkillLevel: formData.SkillLevel || undefined,
+//         WorkStation: formData.WorkStation || undefined,
+//         LineNumber: formData.LineNumber || undefined,
+//         PAN: formData.PAN || undefined,
+//         AadharNumber: formData.AadharNumber || undefined,
+//         PFNumber: formData.PFNumber || undefined,
+//         UAN: formData.UAN || undefined,
+//         ESINumber: formData.ESINumber || undefined
+//       };
+
+//       // Add BankDetails if any field is provided
+//       if (formData.BankAccountNumber || formData.BankAccountHolderName ||
+//         formData.BankName || formData.BankBranch || formData.BankIfscCode) {
+//         payload.BankDetails = {
+//           accountNumber: formData.BankAccountNumber,
+//           accountHolderName: formData.BankAccountHolderName,
+//           bankName: formData.BankName,
+//           branch: formData.BankBranch,
+//           ifscCode: formData.BankIfscCode,
+//           accountType: formData.BankAccountType
+//         };
+//       }
+
+//       // Add EmergencyContact if any field is provided
+//       if (formData.EmergencyContactName || formData.EmergencyContactRelationship ||
+//         formData.EmergencyContactPhone || formData.EmergencyContactAddress || formData.EmergencyContactPIN) {
+//         payload.EmergencyContact = {
+//           name: formData.EmergencyContactName,
+//           relationship: formData.EmergencyContactRelationship,
+//           phone: formData.EmergencyContactPhone,
+//           address: formData.EmergencyContactAddress,
+//           pinCode: formData.EmergencyContactPIN
+//         };
+//       }
+
+//       // Remove undefined values
+//       Object.keys(payload).forEach(key =>
+//         payload[key] === undefined && delete payload[key]
+//       );
+
+//       const response = await axios.post(
+//         `${BASE_URL}/api/employees`,
+//         payload,
+//         {
+//           headers: {
+//             Authorization: `Bearer ${token}`,
+//             'Content-Type': 'application/json'
+//           }
+//         }
+//       );
+
+//       if (response.data.success) {
+//         onAdd(response.data.data);
+//         resetForm();
+//         onClose();
+//       } else {
+//         setError(response.data.message || 'Failed to add employee');
+//       }
+//     } catch (err) {
+//       console.error('Error adding employee:', err);
+//       setError(err.response?.data?.message || 'Failed to add employee. Please try again.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const resetForm = () => {
+//     setFormData({
+//       FirstName: '',
+//       LastName: '',
+//       Gender: 'M',
+//       DateOfBirth: '',
+//       Email: '',
+//       Phone: '',
+//       Address: '',
+//       DepartmentID: '',
+//       DesignationID: '',
+//       DateOfJoining: '',
+//       EmploymentStatus: 'active',
+//       EmploymentType: 'Monthly',
+//       PayStructureType: 'Fixed',
+//       BasicSalary: '',
+//       HourlyRate: '',
+//       OvertimeRateMultiplier: '1.5',
+//       SkillLevel: '',
+//       WorkStation: '',
+//       LineNumber: '',
+//       PAN: '',
+//       AadharNumber: '',
+//       PFNumber: '',
+//       UAN: '',
+//       ESINumber: '',
+//       BankAccountNumber: '',
+//       BankAccountHolderName: '',
+//       BankName: '',
+//       BankBranch: '',
+//       BankIfscCode: '',
+//       BankAccountType: 'Savings',
+//       EmergencyContactName: '',
+//       EmergencyContactRelationship: '',
+//       EmergencyContactPhone: '',
+//       EmergencyContactAddress: '',
+//       EmergencyContactPIN: ''
+//     });
+//     setFieldErrors({});
+//     setTouched({});
+//     setActiveStep(0);
+//     setError('');
+//   };
+
+//   const handleClose = () => {
+//     resetForm();
+//     onClose();
+//   };
+
+//   const renderStepContent = (step) => {
+//     switch (step) {
+//       case 0:
+//         return (
+//           <Stack spacing={2}>
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Personal Information
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       FIRST NAME <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="FirstName"
+//                       value={formData.FirstName}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="e.g., John"
+//                       error={!!fieldErrors.FirstName}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.FirstName && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.FirstName}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       LAST NAME <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="LastName"
+//                       value={formData.LastName}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="e.g., Doe"
+//                       error={!!fieldErrors.LastName}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.LastName && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.LastName}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       GENDER
+//                     </Typography>
+//                     <FormControl fullWidth size="small">
+//                       <Select
+//                         name="Gender"
+//                         value={formData.Gender}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         sx={selectStyles}
+//                       >
+//                         {genderOptions.map(option => (
+//                           <MenuItem key={option.value} value={option.value}>
+//                             {option.label}
+//                           </MenuItem>
+//                         ))}
+//                       </Select>
+//                     </FormControl>
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       DATE OF BIRTH
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="DateOfBirth"
+//                       type="date"
+//                       value={formData.DateOfBirth}
+//                       onChange={handleChange}
+//                       disabled={loading || loadingData}
+//                       InputLabelProps={{ shrink: true }}
+//                       sx={textFieldStyles}
+//                     />
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       EMAIL <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="Email"
+//                       type="email"
+//                       value={formData.Email}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="john.doe@company.com"
+//                       error={!!fieldErrors.Email}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       e.g., john.doe@company.com
+//                     </Typography>
+//                     {fieldErrors.Email && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.Email}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PHONE
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="Phone"
+//                       value={formData.Phone}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="9876543210"
+//                       error={!!fieldErrors.Phone}
+//                       inputProps={{ maxLength: 10 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       10-digit mobile number starting with 6-9
+//                     </Typography>
+//                     {fieldErrors.Phone && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.Phone}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ADDRESS
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="Address"
+//                       value={formData.Address}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       multiline
+//                       rows={2}
+//                       disabled={loading || loadingData}
+//                       placeholder="Enter complete address"
+//                       error={!!fieldErrors.Address}
+//                       sx={textFieldStyles}
+//                     />
+//                     {fieldErrors.Address && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.Address}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+//           </Stack>
+//         );
+
+//       case 1:
+//         return (
+//           <Stack spacing={2}>
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Employment Details
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       DEPARTMENT <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+
+//                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+//                       <Box sx={{ flex: 1 }}>
+//                         <Autocomplete
+//                           options={departments}
+//                           getOptionLabel={(option) => option?.DepartmentName || ''}
+//                           value={departments.find(dept => dept._id === formData.DepartmentID) || null}
+//                           onChange={(event, newValue) => {
+//                             setFormData(prev => ({
+//                               ...prev,
+//                               DepartmentID: newValue?._id || ''
+//                             }));
+//                           }}
+//                           loading={loadingData}
+//                           disabled={loading || loadingData}
+//                           renderInput={(params) => (
+//                             <TextField
+//                               {...params}
+//                               size="small"
+//                               placeholder="Select department"
+//                               error={!!fieldErrors.DepartmentID}
+//                               sx={textFieldStyles}
+//                               InputProps={{
+//                                 ...params.InputProps,
+//                                 startAdornment: (
+//                                   <InputAdornment position="start">
+//                                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+//                                   </InputAdornment>
+//                                 ),
+//                               }}
+//                             />
+//                           )}
+//                           PaperComponent={CustomPaper}
+//                           noOptionsText="No departments found"
+//                         />
+//                       </Box>
+
+//                       <Button
+//                         variant="outlined"
+//                         size="small"
+//                         onClick={() => setAddDepartmentOpen(true)}
+//                         disabled={loading || loadingData}
+//                         startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+//                         sx={{
+//                           height: 32,
+//                           minWidth: 'auto',
+//                           px: 1.5,
+//                           borderRadius: 1.5,
+//                           border: `1px solid ${COLORS.border}`,
+//                           color: COLORS.text.secondary,
+//                           fontSize: '0.7rem',
+//                           fontWeight: 500,
+//                           textTransform: 'none',
+//                           whiteSpace: 'nowrap',
+//                           '&:hover': {
+//                             borderColor: COLORS.primary,
+//                             bgcolor: `${COLORS.primary}10`,
+//                             color: COLORS.primary
+//                           }
+//                         }}
+//                       >
+//                         Add New
+//                       </Button>
+//                     </Box>
+
+//                     {fieldErrors.DepartmentID && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.DepartmentID}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       DESIGNATION <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+
+//                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+//                       <Box sx={{ flex: 1 }}>
+//                         <Autocomplete
+//                           options={designations}
+//                           getOptionLabel={(option) => option?.DesignationName || ''}
+//                           value={designations.find(desig => desig._id === formData.DesignationID) || null}
+//                           onChange={(event, newValue) => {
+//                             setFormData(prev => ({
+//                               ...prev,
+//                               DesignationID: newValue?._id || ''
+//                             }));
+//                           }}
+//                           loading={loadingData}
+//                           disabled={loading || loadingData}
+//                           renderInput={(params) => (
+//                             <TextField
+//                               {...params}
+//                               size="small"
+//                               placeholder="Select designation"
+//                               error={!!fieldErrors.DesignationID}
+//                               sx={textFieldStyles}
+//                               InputProps={{
+//                                 ...params.InputProps,
+//                                 startAdornment: (
+//                                   <InputAdornment position="start">
+//                                     <SearchIcon sx={{ fontSize: '1rem', color: COLORS.text.tertiary }} />
+//                                   </InputAdornment>
+//                                 ),
+//                               }}
+//                             />
+//                           )}
+//                           PaperComponent={CustomPaper}
+//                           noOptionsText="No designations found"
+//                         />
+//                       </Box>
+//                       <Button
+//                         variant="outlined"
+//                         size="small"
+//                         onClick={() => setAddDesignationOpen(true)}
+//                         disabled={loading || loadingData}
+//                         startIcon={<AddIcon sx={{ fontSize: '0.875rem' }} />}
+//                         sx={{
+//                           height: 32,
+//                           minWidth: 'auto',
+//                           px: 1.5,
+//                           borderRadius: 1.5,
+//                           border: `1px solid ${COLORS.border}`,
+//                           color: COLORS.text.secondary,
+//                           fontSize: '0.7rem',
+//                           fontWeight: 500,
+//                           textTransform: 'none',
+//                           whiteSpace: 'nowrap',
+//                           '&:hover': {
+//                             borderColor: COLORS.primary,
+//                             bgcolor: `${COLORS.primary}10`,
+//                             color: COLORS.primary
+//                           }
+//                         }}
+//                       >
+//                         Add New
+//                       </Button>
+//                     </Box>
+//                     {fieldErrors.DesignationID && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.DesignationID}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       DATE OF JOINING <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="DateOfJoining"
+//                       type="date"
+//                       value={formData.DateOfJoining}
+//                       onChange={handleChange}
+//                       disabled={loading || loadingData}
+//                       InputLabelProps={{ shrink: true }}
+//                       error={!!fieldErrors.DateOfJoining}
+//                       sx={textFieldStyles}
+//                     />
+//                     {fieldErrors.DateOfJoining && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.DateOfJoining}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 {/* <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       EMPLOYMENT STATUS
+//                     </Typography>
+//                     <FormControl fullWidth size="small">
+//                       <Select
+//                         name="EmploymentStatus"
+//                         value={formData.EmploymentStatus}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         sx={selectStyles}
+//                       >
+//                         {employmentStatusOptions.map(option => (
+//                           <MenuItem key={option.value} value={option.value}>
+//                             {option.label}
+//                           </MenuItem>
+//                         ))}
+//                       </Select>
+//                     </FormControl>
+//                   </Box>
+//                 </Grid> */}
+//               </Grid>
+//             </Paper>
+//           </Stack>
+//         );
+
+//       case 2:
+//         return (
+//           <Stack spacing={2}>
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Pay & Work Details
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       EMPLOYMENT TYPE <span style={{ color: '#EF4444' }}>*</span>
+//                     </Typography>
+//                     <FormControl fullWidth size="small">
+//                       <Select
+//                         name="EmploymentType"
+//                         value={formData.EmploymentType}
+//                         onChange={handleEmploymentTypeChange}
+//                         disabled={loading || loadingData}
+//                         sx={selectStyles}
+//                       >
+//                         {employmentTypeOptions.map(option => (
+//                           <MenuItem key={option.value} value={option.value}>
+//                             {option.label}
+//                           </MenuItem>
+//                         ))}
+//                       </Select>
+//                     </FormControl>
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PAY STRUCTURE TYPE
+//                     </Typography>
+//                     <FormControl fullWidth size="small">
+//                       <Select
+//                         name="PayStructureType"
+//                         value={formData.PayStructureType}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         sx={selectStyles}
+//                       >
+//                         {payStructureOptions.map(option => (
+//                           <MenuItem key={option.value} value={option.value}>
+//                             {option.label}
+//                           </MenuItem>
+//                         ))}
+//                       </Select>
+//                     </FormControl>
+//                   </Box>
+//                 </Grid>
+
+//                 {formData.EmploymentType === 'Monthly' && (
+//                   <Grid size={{ xs: 12, sm: 6 }}>
+//                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                         BASIC SALARY <span style={{ color: '#EF4444' }}>*</span>
+//                       </Typography>
+//                       <TextField
+//                         fullWidth
+//                         size="small"
+//                         name="BasicSalary"
+//                         type="number"
+//                         value={formData.BasicSalary}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         placeholder="e.g., 25000"
+//                         error={!!fieldErrors.BasicSalary}
+//                         inputProps={{ min: 0 }}
+//                         sx={textFieldStyles}
+//                       />
+//                       {fieldErrors.BasicSalary && (
+//                         <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                           {fieldErrors.BasicSalary}
+//                         </Typography>
+//                       )}
+//                     </Box>
+//                   </Grid>
+//                 )}
+
+//                 {formData.EmploymentType === 'Hourly' && (
+//                   <Grid size={{ xs: 12, sm: 6 }}>
+//                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                         HOURLY RATE <span style={{ color: '#EF4444' }}>*</span>
+//                       </Typography>
+//                       <TextField
+//                         fullWidth
+//                         size="small"
+//                         name="HourlyRate"
+//                         type="number"
+//                         value={formData.HourlyRate}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         placeholder="e.g., 150"
+//                         error={!!fieldErrors.HourlyRate}
+//                         inputProps={{ min: 0, step: 0.01 }}
+//                         sx={textFieldStyles}
+//                       />
+//                       {fieldErrors.HourlyRate && (
+//                         <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                           {fieldErrors.HourlyRate}
+//                         </Typography>
+//                       )}
+//                     </Box>
+//                   </Grid>
+//                 )}
+
+//                 {['Monthly', 'Hourly'].includes(formData.EmploymentType) && (
+//                   <>
+//                     <Grid size={{ xs: 12, sm: 6 }}>
+//                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                           OVERTIME MULTIPLIER
+//                         </Typography>
+//                         <TextField
+//                           fullWidth
+//                           size="small"
+//                           name="OvertimeRateMultiplier"
+//                           type="number"
+//                           value={formData.OvertimeRateMultiplier}
+//                           onChange={handleChange}
+//                           disabled={loading || loadingData}
+//                           inputProps={{ step: 0.25, min: 1, max: 3 }}
+//                           sx={textFieldStyles}
+//                         />
+//                       </Box>
+//                     </Grid>
+
+//                     <Grid size={{ xs: 12, sm: 6 }}>
+//                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                         <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                           SKILL LEVEL
+//                         </Typography>
+//                         <FormControl fullWidth size="small">
+//                           <Select
+//                             name="SkillLevel"
+//                             value={formData.SkillLevel}
+//                             onChange={handleChange}
+//                             disabled={loading || loadingData}
+//                             sx={selectStyles}
+//                           >
+//                             <MenuItem value="">None</MenuItem>
+//                             {skillLevelOptions.map(option => (
+//                               <MenuItem key={option.value} value={option.value}>
+//                                 {option.label}
+//                               </MenuItem>
+//                             ))}
+//                           </Select>
+//                         </FormControl>
+//                       </Box>
+//                     </Grid>
+//                   </>
+//                 )}
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       WORK STATION
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="WorkStation"
+//                       value={formData.WorkStation}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="e.g., Station A"
+//                       error={!!fieldErrors.WorkStation}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, numbers, spaces, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.WorkStation && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.WorkStation}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       LINE NUMBER
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="LineNumber"
+//                       value={formData.LineNumber}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="e.g., Line 1"
+//                       error={!!fieldErrors.LineNumber}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, numbers, spaces, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.LineNumber && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.LineNumber}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Tax & Identification (Optional)
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PAN
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="PAN"
+//                       value={formData.PAN}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="ABCDE1234F"
+//                       error={!!fieldErrors.PAN}
+//                       inputProps={{ maxLength: 10 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       5 letters + 4 numbers + 1 letter
+//                     </Typography>
+//                     {fieldErrors.PAN && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.PAN}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       AADHAR NUMBER
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="AadharNumber"
+//                       value={formData.AadharNumber}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="123456789012"
+//                       error={!!fieldErrors.AadharNumber}
+//                       inputProps={{ maxLength: 12 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       12 digits
+//                     </Typography>
+//                     {fieldErrors.AadharNumber && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.AadharNumber}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PF NUMBER
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="PFNumber"
+//                       value={formData.PFNumber}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="AB/12345/1234567"
+//                       error={!!fieldErrors.PFNumber}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Format: XX/12345/1234567
+//                     </Typography>
+//                     {fieldErrors.PFNumber && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.PFNumber}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       UAN
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="UAN"
+//                       value={formData.UAN}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="123456789012"
+//                       error={!!fieldErrors.UAN}
+//                       inputProps={{ maxLength: 12 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       12 digits
+//                     </Typography>
+//                     {fieldErrors.UAN && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.UAN}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ESI NUMBER
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="ESINumber"
+//                       value={formData.ESINumber}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="12345678901234567"
+//                       error={!!fieldErrors.ESINumber}
+//                       inputProps={{ maxLength: 17 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       17 digits
+//                     </Typography>
+//                     {fieldErrors.ESINumber && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.ESINumber}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+//           </Stack>
+//         );
+
+//       case 3:
+//         return (
+//           <Stack spacing={2}>
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Bank Details
+//                 <Typography component="span" sx={{ fontSize: '0.65rem', ml: 1, color: COLORS.text.tertiary, fontWeight: 'normal' }}>
+//                   (All fields optional, but if provided, all are required)
+//                 </Typography>
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ACCOUNT NUMBER
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="BankAccountNumber"
+//                       value={formData.BankAccountNumber}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="123456789"
+//                       error={!!fieldErrors.BankAccountNumber}
+//                       inputProps={{ maxLength: 18 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       9-18 digits only
+//                     </Typography>
+//                     {fieldErrors.BankAccountNumber && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.BankAccountNumber}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ACCOUNT HOLDER NAME
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="BankAccountHolderName"
+//                       value={formData.BankAccountHolderName}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="John Doe"
+//                       error={!!fieldErrors.BankAccountHolderName}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.BankAccountHolderName && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.BankAccountHolderName}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       BANK NAME
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="BankName"
+//                       value={formData.BankName}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="State Bank of India"
+//                       error={!!fieldErrors.BankName}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.BankName && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.BankName}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       BRANCH
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="BankBranch"
+//                       value={formData.BankBranch}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="Main Branch"
+//                       error={!!fieldErrors.BankBranch}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, numbers, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.BankBranch && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.BankBranch}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       IFSC CODE
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="BankIfscCode"
+//                       value={formData.BankIfscCode}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="SBIN0123456"
+//                       error={!!fieldErrors.BankIfscCode}
+//                       inputProps={{ maxLength: 11 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       4 letters + 0 + 6 alphanumeric
+//                     </Typography>
+//                     {fieldErrors.BankIfscCode && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.BankIfscCode}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ACCOUNT TYPE
+//                     </Typography>
+//                     <FormControl fullWidth size="small">
+//                       <Select
+//                         name="BankAccountType"
+//                         value={formData.BankAccountType}
+//                         onChange={handleChange}
+//                         disabled={loading || loadingData}
+//                         sx={selectStyles}
+//                       >
+//                         {accountTypeOptions.map(option => (
+//                           <MenuItem key={option.value} value={option.value}>
+//                             {option.label}
+//                           </MenuItem>
+//                         ))}
+//                       </Select>
+//                     </FormControl>
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+
+//             <Paper sx={{
+//               p: 2,
+//               bgcolor: COLORS.background.white,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               boxShadow: 'none'
+//             }}>
+//               <Typography sx={{
+//                 fontSize: '0.8rem',
+//                 fontWeight: 600,
+//                 color: COLORS.primary,
+//                 mb: 1.5
+//               }}>
+//                 Emergency Contact
+//                 <Typography component="span" sx={{ fontSize: '0.65rem', ml: 1, color: COLORS.text.tertiary, fontWeight: 'normal' }}>
+//                   (All fields optional, but if provided, all are required)
+//                 </Typography>
+//               </Typography>
+
+//               <Grid container spacing={1.5}>
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       CONTACT NAME
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="EmergencyContactName"
+//                       value={formData.EmergencyContactName}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="Jane Doe"
+//                       error={!!fieldErrors.EmergencyContactName}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters, spaces, dots, and hyphens only
+//                     </Typography>
+//                     {fieldErrors.EmergencyContactName && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.EmergencyContactName}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       RELATIONSHIP
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="EmergencyContactRelationship"
+//                       value={formData.EmergencyContactRelationship}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="Spouse"
+//                       error={!!fieldErrors.EmergencyContactRelationship}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       Letters and spaces only
+//                     </Typography>
+//                     {fieldErrors.EmergencyContactRelationship && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.EmergencyContactRelationship}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PHONE
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="EmergencyContactPhone"
+//                       value={formData.EmergencyContactPhone}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="9876543210"
+//                       error={!!fieldErrors.EmergencyContactPhone}
+//                       inputProps={{ maxLength: 10 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       10-digit mobile number starting with 6-9
+//                     </Typography>
+//                     {fieldErrors.EmergencyContactPhone && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.EmergencyContactPhone}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12, sm: 6 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       PIN CODE
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="EmergencyContactPIN"
+//                       value={formData.EmergencyContactPIN}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       disabled={loading || loadingData}
+//                       placeholder="400001"
+//                       error={!!fieldErrors.EmergencyContactPIN}
+//                       inputProps={{ maxLength: 6 }}
+//                       sx={textFieldStyles}
+//                     />
+//                     <Typography sx={{ fontSize: '0.65rem', color: COLORS.text.tertiary }}>
+//                       6 digits
+//                     </Typography>
+//                     {fieldErrors.EmergencyContactPIN && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.EmergencyContactPIN}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+
+//                 <Grid size={{ xs: 12 }}>
+//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+//                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+//                       ADDRESS
+//                     </Typography>
+//                     <TextField
+//                       fullWidth
+//                       size="small"
+//                       name="EmergencyContactAddress"
+//                       value={formData.EmergencyContactAddress}
+//                       onChange={handleChange}
+//                       onBlur={handleBlur}
+//                       multiline
+//                       rows={2}
+//                       disabled={loading || loadingData}
+//                       placeholder="Enter complete address"
+//                       error={!!fieldErrors.EmergencyContactAddress}
+//                       sx={textFieldStyles}
+//                     />
+//                     {fieldErrors.EmergencyContactAddress && (
+//                       <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+//                         {fieldErrors.EmergencyContactAddress}
+//                       </Typography>
+//                     )}
+//                   </Box>
+//                 </Grid>
+//               </Grid>
+//             </Paper>
+//           </Stack>
+//         );
+
+//       default:
+//         return null;
+//     }
+//   };
+
+//   // Shared styles
+//   const textFieldStyles = {
+//     '& .MuiOutlinedInput-root': {
+//       borderRadius: 1.5,
+//       fontSize: '0.75rem',
+//       '&:hover fieldset': { borderColor: COLORS.primary },
+//       '&.Mui-focused fieldset': { borderColor: COLORS.primary, borderWidth: 1 },
+//       '&.Mui-error fieldset': { borderColor: '#EF4444' }
+//     },
+//     '& .MuiInputBase-input': {
+//       py: 1,
+//       px: 1.5,
+//       fontSize: '0.75rem',
+//       color: COLORS.text.primary,
+//       '&::placeholder': {
+//         color: COLORS.text.tertiary,
+//         fontSize: '0.75rem'
+//       }
+//     },
+//     '& input[type=number]': {
+//       MozAppearance: 'textfield'
+//     },
+//     '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+//       WebkitAppearance: 'none',
+//       margin: 0
+//     }
+//   };
+
+//   const selectStyles = {
+//     borderRadius: 1.5,
+//     fontSize: '0.75rem',
+//     '& .MuiSelect-select': {
+//       py: 1,
+//       fontSize: '0.75rem'
+//     },
+//     '&:hover .MuiOutlinedInput-notchedOutline': {
+//       borderColor: COLORS.primary
+//     },
+//     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+//       borderColor: COLORS.primary,
+//       borderWidth: 1
+//     }
+//   };
+
+//   return (
+//     <Dialog
+//       open={open}
+//       onClose={handleClose}
+//       maxWidth="md"
+//       fullWidth
+//       PaperProps={{
+//         sx: {
+//           borderRadius: 5,
+//           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+//           border: `1px solid ${COLORS.border}`,
+//           overflow: 'hidden'
+//         }
+//       }}
+//     >
+//       <DialogTitle sx={{
+//         borderBottom: `1px solid ${COLORS.border}`,
+//         py: 1.5,
+//         px: 2.5,
+//         bgcolor: COLORS.background.white,
+//         display: 'flex',
+//         justifyContent: 'space-between',
+//         alignItems: 'center'
+//       }}>
+//         <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: COLORS.text.primary }}>
+//           Add New Employee
+//         </Typography>
+//       </DialogTitle>
+
+//       {/* Stepper */}
+//       <Box sx={{ px: 2.5, pt: 2, bgcolor: COLORS.background.white }}>
+//         <Stepper
+//           activeStep={activeStep}
+//           alternativeLabel
+//           connector={<ColorConnector />}
+//         >
+//           {steps.map((label) => (
+//             <Step key={label}>
+//               <StepLabel>
+//                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: COLORS.text.secondary }}>
+//                   {label}
+//                 </Typography>
+//               </StepLabel>
+//             </Step>
+//           ))}
+//         </Stepper>
+//       </Box>
+
+//       <DialogContent sx={{ p: 2.5, bgcolor: COLORS.background.white }}>
+//         {renderStepContent(activeStep)}
+
+//         {error && (
+//           <Alert
+//             severity="error"
+//             sx={{
+//               mt: 2,
+//               borderRadius: 1.5,
+//               fontSize: '0.75rem',
+//               py: 0.5,
+//               '& .MuiAlert-icon': { fontSize: '1.25rem' }
+//             }}
+//           >
+//             {error}
+//           </Alert>
+//         )}
+//       </DialogContent>
+
+//       <DialogActions sx={{
+//         px: 2.5,
+//         py: 1.5,
+//         borderTop: `1px solid ${COLORS.border}`,
+//         bgcolor: COLORS.background.white,
+//         justifyContent: 'space-between'
+//       }}>
+//         <Button
+//           onClick={handleBack}
+//           disabled={activeStep === 0 || loading}
+//           size="small"
+//           startIcon={<NavigateBeforeIcon sx={{ fontSize: '1rem' }} />}
+//           sx={{
+//             height: 32,
+//             px: 2,
+//             borderRadius: 1.5,
+//             border: `1px solid ${COLORS.border}`,
+//             color: COLORS.text.secondary,
+//             fontSize: '0.7rem',
+//             fontWeight: 500,
+//             textTransform: 'none',
+//             '&:hover': {
+//               borderColor: COLORS.primary,
+//               bgcolor: `${COLORS.primary}10`
+//             }
+//           }}
+//         >
+//           Back
+//         </Button>
+//         <Box>
+//           <Button
+//             onClick={handleClose}
+//             disabled={loading}
+//             size="small"
+//             sx={{
+//               height: 32,
+//               px: 2,
+//               mr: 1,
+//               borderRadius: 1.5,
+//               border: `1px solid ${COLORS.border}`,
+//               color: COLORS.text.secondary,
+//               fontSize: '0.7rem',
+//               fontWeight: 500,
+//               textTransform: 'none',
+//               '&:hover': {
+//                 borderColor: COLORS.primary,
+//                 bgcolor: `${COLORS.primary}10`
+//               }
+//             }}
+//           >
+//             Cancel
+//           </Button>
+//           {activeStep === steps.length - 1 ? (
+//             <Button
+//               variant="contained"
+//               onClick={handleSubmit}
+//               disabled={loading}
+//               size="small"
+//               startIcon={<AddIcon sx={{ fontSize: '1rem' }} />}
+//               sx={{
+//                 height: 32,
+//                 px: 2,
+//                 borderRadius: 1.5,
+//                 bgcolor: COLORS.primary,
+//                 fontSize: '0.7rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+//                 '&:hover': {
+//                   bgcolor: COLORS.primaryDark,
+//                 }
+//               }}
+//             >
+//               {loading ? 'Adding...' : 'Add Employee'}
+//             </Button>
+//           ) : (
+//             <Button
+//               variant="contained"
+//               onClick={handleNext}
+//               disabled={loading}
+//               size="small"
+//               endIcon={<NavigateNextIcon sx={{ fontSize: '1rem' }} />}
+//               sx={{
+//                 height: 32,
+//                 px: 2,
+//                 borderRadius: 1.5,
+//                 bgcolor: COLORS.primary,
+//                 fontSize: '0.7rem',
+//                 fontWeight: 500,
+//                 textTransform: 'none',
+//                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+//                 '&:hover': {
+//                   bgcolor: COLORS.primaryDark,
+//                 }
+//               }}
+//             >
+//               Next
+//             </Button>
+//           )}
+//         </Box>
+//       </DialogActions>
+
+//       {/* Add Department Modal */}
+//       <AddDepartments
+//         open={addDepartmentOpen}
+//         onClose={() => setAddDepartmentOpen(false)}
+//         onAdd={handleDepartmentAdded}
+//       />
+
+//       {/* Add Designation Modal */}
+//       <AddDesignations
+//         open={addDesignationOpen}
+//         onClose={() => setAddDesignationOpen(false)}
+//         onAdd={handleDesignationAdded}
+//       />
+
+//     </Dialog>
+//   );
+// };
+
+// export default AddEmployees;
+
+
+
+
+
+
+
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -2138,6 +4540,7 @@ import axios from 'axios';
 import BASE_URL from '../../../config/Config';
 import AddDepartments from '../departmentmaster/AddDepartments';
 import AddDesignations from '../designationmaster/AddDesignations';
+
 // Color constants matching Companies component
 const COLORS = {
   primary: '#063C3F',
@@ -2305,6 +4708,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
     EmploymentStatus: 'active',
     EmploymentType: 'Monthly',
     PayStructureType: 'Fixed',
+    ContractCompany: '',
 
     // Pay & Work
     BasicSalary: '',
@@ -2358,11 +4762,19 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
     { value: 'retired', label: 'Retired' }
   ];
 
-  // Employment Type options
+  // Employment Type options (using correct enum value 'contract-based')
   const employmentTypeOptions = [
     { value: 'Monthly', label: 'Monthly' },
     { value: 'Hourly', label: 'Hourly' },
-    { value: 'PieceRate', label: 'Piece Rate' }
+    { value: 'PieceRate', label: 'Piece Rate' },
+    { value: 'contract-based', label: 'Contract-Based' } // Correct enum value
+  ];
+
+  // Contract Company options
+  const contractCompanyOptions = [
+    { value: 'DISTIL', label: 'DISTIL' },
+    { value: 'AARADHYA', label: 'AARADHYA' },
+    { value: 'MAHI', label: 'MAHI' }
   ];
 
   // Pay Structure Type options
@@ -2425,14 +4837,11 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
 
   // Handle department added from modal
   const handleDepartmentAdded = (newDepartment) => {
-    // Add the new department to the departments list
     setDepartments(prev => [...prev, newDepartment]);
-    // Automatically select the newly added department
     setFormData(prev => ({
       ...prev,
       DepartmentID: newDepartment._id
     }));
-    // Clear any department-related error
     if (fieldErrors.DepartmentID) {
       setFieldErrors(prev => ({
         ...prev,
@@ -2443,14 +4852,11 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
 
   // Handle designation added from modal
   const handleDesignationAdded = (newDesignation) => {
-    // Add the new designation to the designation list
     setDesignations(prev => [...prev, newDesignation]);
-    // Automatically select the newly added designation
     setFormData(prev => ({
       ...prev,
       DesignationID: newDesignation._id
     }));
-    // Clear any designation-related error
     if (fieldErrors.DesignationID) {
       setFieldErrors(prev => ({
         ...prev,
@@ -2560,6 +4966,12 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
       case 'EmergencyContactPIN':
         if (value && !validatePIN(value)) {
           return 'PIN code must be 6 digits';
+        }
+        break;
+
+      case 'ContractCompany':
+        if (formData.EmploymentType === 'contract-based' && !value) {
+          return 'Contract company is required for contract-based employees';
         }
         break;
 
@@ -2738,11 +5150,15 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
           errors.DateOfJoining = 'Date of joining is required';
           isValid = false;
         }
+        if (formData.EmploymentType === 'contract-based' && !formData.ContractCompany) {
+          errors.ContractCompany = 'Contract company is required';
+          isValid = false;
+        }
         break;
 
       case 2:
-        if (formData.EmploymentType === 'Monthly' && !formData.BasicSalary) {
-          errors.BasicSalary = 'Basic salary is required for monthly employees';
+        if ((formData.EmploymentType === 'Monthly' || formData.EmploymentType === 'contract-based') && !formData.BasicSalary) {
+          errors.BasicSalary = 'Basic salary is required';
           isValid = false;
         }
         if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
@@ -2860,10 +5276,14 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
       errors.DateOfJoining = 'Date of joining is required';
       isValid = false;
     }
+    if (formData.EmploymentType === 'contract-based' && !formData.ContractCompany) {
+      errors.ContractCompany = 'Contract company is required';
+      isValid = false;
+    }
 
     // Pay & Work
-    if (formData.EmploymentType === 'Monthly' && !formData.BasicSalary) {
-      errors.BasicSalary = 'Basic salary is required for monthly employees';
+    if ((formData.EmploymentType === 'Monthly' || formData.EmploymentType === 'contract-based') && !formData.BasicSalary) {
+      errors.BasicSalary = 'Basic salary is required';
       isValid = false;
     }
     if (formData.EmploymentType === 'Hourly' && !formData.HourlyRate) {
@@ -2957,7 +5377,8 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
         EmploymentStatus: formData.EmploymentStatus,
         EmploymentType: formData.EmploymentType,
         PayStructureType: formData.PayStructureType,
-        BasicSalary: formData.EmploymentType === 'Monthly' ? Number(formData.BasicSalary || 0) : 0,
+        ContractCompany: formData.ContractCompany || undefined,
+        BasicSalary: (formData.EmploymentType === 'Monthly' || formData.EmploymentType === 'contract-based') ? Number(formData.BasicSalary || 0) : 0,
         HourlyRate: formData.EmploymentType === 'Hourly' ? Number(formData.HourlyRate || 0) : 0,
         OvertimeRateMultiplier: Number(formData.OvertimeRateMultiplier || 1.5),
         SkillLevel: formData.SkillLevel || undefined,
@@ -3041,6 +5462,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
       EmploymentStatus: 'active',
       EmploymentType: 'Monthly',
       PayStructureType: 'Fixed',
+      ContractCompany: '',
       BasicSalary: '',
       HourlyRate: '',
       OvertimeRateMultiplier: '1.5',
@@ -3483,20 +5905,20 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                   </Box>
                 </Grid>
 
-                {/* <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      EMPLOYMENT STATUS
+                      EMPLOYMENT TYPE <span style={{ color: '#EF4444' }}>*</span>
                     </Typography>
                     <FormControl fullWidth size="small">
                       <Select
-                        name="EmploymentStatus"
-                        value={formData.EmploymentStatus}
-                        onChange={handleChange}
+                        name="EmploymentType"
+                        value={formData.EmploymentType}
+                        onChange={handleEmploymentTypeChange}
                         disabled={loading || loadingData}
                         sx={selectStyles}
                       >
-                        {employmentStatusOptions.map(option => (
+                        {employmentTypeOptions.map(option => (
                           <MenuItem key={option.value} value={option.value}>
                             {option.label}
                           </MenuItem>
@@ -3504,7 +5926,40 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                       </Select>
                     </FormControl>
                   </Box>
-                </Grid> */}
+                </Grid>
+
+                {formData.EmploymentType === 'contract-based' && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
+                        CONTRACT COMPANY <span style={{ color: '#EF4444' }}>*</span>
+                      </Typography>
+                      <FormControl fullWidth size="small">
+                        <Select
+                          name="ContractCompany"
+                          value={formData.ContractCompany}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          disabled={loading || loadingData}
+                          error={!!fieldErrors.ContractCompany}
+                          sx={selectStyles}
+                        >
+                          <MenuItem value="">Select Contract Company</MenuItem>
+                          {contractCompanyOptions.map(option => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {fieldErrors.ContractCompany && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#EF4444' }}>
+                          {fieldErrors.ContractCompany}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+                )}
               </Grid>
             </Paper>
           </Stack>
@@ -3533,29 +5988,6 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
-                      EMPLOYMENT TYPE <span style={{ color: '#EF4444' }}>*</span>
-                    </Typography>
-                    <FormControl fullWidth size="small">
-                      <Select
-                        name="EmploymentType"
-                        value={formData.EmploymentType}
-                        onChange={handleEmploymentTypeChange}
-                        disabled={loading || loadingData}
-                        sx={selectStyles}
-                      >
-                        {employmentTypeOptions.map(option => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
                       PAY STRUCTURE TYPE
                     </Typography>
                     <FormControl fullWidth size="small">
@@ -3576,7 +6008,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                   </Box>
                 </Grid>
 
-                {formData.EmploymentType === 'Monthly' && (
+                {(formData.EmploymentType === 'Monthly' || formData.EmploymentType === 'contract-based') && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: COLORS.text.secondary, letterSpacing: '0.5px' }}>
@@ -3632,7 +6064,7 @@ const AddEmployees = ({ open, onClose, onAdd }) => {
                   </Grid>
                 )}
 
-                {['Monthly', 'Hourly'].includes(formData.EmploymentType) && (
+                {formData.EmploymentType !== 'PieceRate' && (
                   <>
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
